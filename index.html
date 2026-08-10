@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Jorge | Educación, Psicología e IA</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        header {
+            min-height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #172554, #2563eb);
+            color: white;
+        }
+
+        .hero {
+            max-width: 850px;
+        }
+
+        .hero p:first-child {
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            font-size: clamp(3rem, 10vw, 6rem);
+            margin-bottom: 20px;
+            font-weight: 800;
+        }
+
+        .hero h2 {
+            font-size: clamp(1.3rem, 4vw, 2rem);
+            font-weight: 400;
+            margin-bottom: 25px;
+        }
+
+        .hero-description {
+            max-width: 650px;
+            margin: 0 auto 35px;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 13px 25px;
+            background: white;
+            color: #1d4ed8;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 700;
+            transition: transform 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-3px);
+        }
+
+        section {
+            max-width: 1000px;
+            margin: auto;
+            padding: 80px 25px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 45px;
+            color: #172554;
+        }
+
+        .about {
+            text-align: center;
+            max-width: 750px;
+            margin: auto;
+            font-size: 1.1rem;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+        }
+
+        .card h3 {
+            margin-bottom: 10px;
+            color: #1d4ed8;
+        }
+
+        .future {
+            background: #172554;
+            color: white;
+            text-align: center;
+            max-width: none;
+        }
+
+        .future-content {
+            max-width: 750px;
+            margin: auto;
+        }
+
+        .future .section-title {
+            color: white;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            background: #0f172a;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                min-height: 80vh;
+            }
+
+            section {
+                padding: 60px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="hero">
+
+            <p>Creado por</p>
+
+            <h1>Jorge</h1>
+
+            <h2>Educación · Psicología · Inteligencia Artificial</h2>
+
+            <p class="hero-description">
+                Estudiante de Educación Infantil y Primaria,
+                apasionado por comprender a las personas y explorar
+                cómo la tecnología puede ayudarnos a aprender y crear.
+            </p>
+
+            <a href="#sobre-mi" class="button">
+                Conóceme
+            </a>
+
+        </div>
+    </header>
+
+
+    <section id="sobre-mi">
+
+        <h2 class="section-title">Sobre mí</h2>
+
+        <div class="about">
+
+            <p>
+                Actualmente estudio el doble grado de Educación Infantil
+                y Educación Primaria. Mi objetivo es convertirme en un
+                docente capaz de combinar competencia profesional,
+                comprensión de las personas y calidad humana.
+            </p>
+
+            <br>
+
+            <p>
+                Paralelamente, estoy aprendiendo Psicología e
+                Inteligencia Artificial para comprender mejor las
+                relaciones humanas y desarrollar nuevas formas de
+                aprender, trabajar y crear.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <section>
+
+        <h2 class="section-title">Mis intereses</h2>
+
+        <div class="cards">
+
+            <div class="card">
+                <div class="card-icon">👨‍🏫</div>
+                <h3>Educación</h3>
+                <p>
+                    Aprender a enseñar mejor y comprender cómo aprenden
+                    y se desarrollan las personas.
+                </p>
+            </div>
+
+
+            <div class="card">
+                <div class="card-icon">🧠</div>
+                <h3>Psicología</h3>
+                <p>
+                    Explorar las relaciones humanas, los sentimientos
+                    y el comportamiento.
+                </p>
+            </div>
+
+
+            <div class="card">
+                <div class="card-icon">🤖</div>
+                <h3>Inteligencia Artificial</h3>
+                <p>
+                    Aprender a utilizar la IA, la automatización y los
+                    agentes para crear proyectos útiles.
+                </p>
+            </div>
+
+
+            <div class="card">
+                <div class="card-icon">🎹</div>
+                <h3>Aprendizaje</h3>
+                <p>
+                    Seguir aprendiendo nuevas disciplinas y desarrollar
+                    habilidades a lo largo del tiempo.
+                </p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section class="future">
+
+        <div class="future-content">
+
+            <h2 class="section-title">
+                ¿Hacia dónde voy?
+            </h2>
+
+            <p>
+                Quiero construir un futuro profesional que combine
+                educación, comprensión de las personas y tecnología.
+                Mi objetivo a largo plazo es desarrollar proyectos
+                relacionados con Inteligencia Artificial y, al mismo
+                tiempo, crecer como docente.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <footer>
+
+        © 2026 Jorge · Mi primera web
+
+    </footer>
+
+</body>
+</html>
