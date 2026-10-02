@@ -26,6 +26,59 @@ En agosto de 2026, después de lo de Steal An Egg, Roblox restringió en **Roblo
 
 ➡️ **Steal an Alien no tiene ningún *feed* de vídeo** ni da premios por mirar contenido. La velocidad se mejora jugando (tienda de velocidad), no viendo vídeos. Así no se pierde el público más joven, que es una gran parte de Roblox.
 
+## 2b. Cómo decide Roblox qué juegos recomendar (documentación oficial)
+
+El algoritmo "Recommended for You" mide a los jugadores que llegan desde la portada. En orden de importancia:
+1. **Tasa de clic** (icono y miniaturas), **abandono en los primeros 61-180 s**, **días jugados por usuario** y **tiempo de juego** (máx. 60 min/día cuentan).
+2. Después: **días jugando con amigos**, sesiones de calidad, días con gasto y Robux gastados por usuario.
+3. Las señales son **por usuario y no totales**, así que un juego pequeño con jugadores muy enganchados no está en desventaja.
+4. Penaliza: metadatos engañosos, títulos que prometen Robux y **juegos casi idénticos a otros ya publicados**. Recomienda "darle tu propio toque a las tendencias".
+
+Cómo responde Steal an Alien a cada señal:
+
+| Señal | Qué tiene el juego |
+|---|---|
+| Clic | Icono y 3 miniaturas preparados (más capturas reales que debes añadir tú) |
+| Abandono en los primeros minutos | Tutorial con rayo guía (comprar → cobrar → cerrar), primer alien comprable al instante, avisos claros |
+| Días jugados | Recompensa diaria con racha, ganancias mientras no juegas (hasta 3 h), Índice para coleccionar, eventos cada 10-15 min |
+| Tiempo de juego | Ingresos pasivos, rebirth, mejoras de velocidad, lluvias de meteoritos |
+| Jugar con amigos | +10 % de ingresos por amigo en el servidor (hasta +50 %) y botón de invitar |
+| Gasto | Pases y productos con precios de referencia del mercado |
+| Originalidad | Tema propio (aliens), Slap, Shiny, lluvia de meteoritos, pedestales extra con cada rebirth |
+
+## 2c. Comparativa: qué tipo de juego hacer
+
+Puntuación de 1 (malo) a 5 (bueno) para un desarrollador que empieza solo. **Es una valoración mía** a partir de la investigación, no un dato medido:
+
+| Opción | Tendencia actual | Dificultad para una persona | Monetización probada | Competencia | Riesgo de normas | Total |
+|---|---|---|---|---|---|---|
+| **"Steal a…" con tema propio** (elegido) | 5 | 4 | 5 | 2 | 4 | **20** |
+| Simulador tipo Grow a Garden | 4 | 3 | 4 | 3 | 4 | 18 |
+| Supervivencia tipo 99 Nights | 4 | 1 (mucho contenido y combate) | 3 | 3 | 3 | 14 |
+| Obby clásico | 2 | 5 | 2 | 1 | 5 | 15 |
+| Juego con *feed* de vídeos (tipo Steal An Egg original) | 3 | 4 | 4 | 2 | 1 (restringido en agosto 2026) | 14 |
+
+Conclusión: el formato "Steal a…" sigue siendo el que más dinero mueve y es abarcable por una persona. Su punto débil es la competencia, por eso el juego lleva mecánicas propias y un tema propio.
+
+### Funciones frente a la competencia
+
+| Función | Steal a Brainrot | Steal An Egg | **Steal an Alien** |
+|---|---|---|---|
+| Cinta con personajes para comprar | ✅ | ✅ (huevos) | ✅ |
+| Ingresos pasivos + cobrar en la base | ✅ | ✅ | ✅ |
+| Robar a otros jugadores | ✅ | ✅ | ✅ (con anti-teletransporte) |
+| Candado de base | ✅ | ✅ | ✅ |
+| Arma para frenar ladrones | ✅ (bate) | — | ✅ Slap |
+| Rebirth | ✅ | ✅ | ✅ (+1 pedestal por rebirth) |
+| Índice / colección | ✅ | ✅ | ✅ (con probabilidades exactas) |
+| Variantes raras | ✅ (mutaciones) | — | ✅ Shiny |
+| Eventos | ✅ | — | ✅ Lucky Belt + Meteor Shower |
+| Suerte de servidor de pago | ✅ | — | ✅ (con la normativa de probabilidades) |
+| *Feed* de vídeos con premio | — | ✅ (motivo de su retirada) | ❌ a propósito |
+| Intercambio entre jugadores | ✅ | — | ❌ (evita normas de "paid item trading"; se puede añadir más adelante) |
+| Lucky blocks / huevos de pago aleatorios | ✅ | ✅ | ❌ (más normativa; posible ampliación) |
+| Modelos 3D profesionales | ✅ | ✅ | ⚠️ Generados con piezas: **su mayor desventaja** |
+
 ## 3. Por qué este juego
 
 - Usa el **formato con más tracción ahora mismo** ("Steal a ..."). Las mecánicas no tienen derechos de autor; los nombres, el arte y los personajes sí, así que todo es original (aliens propios).
@@ -41,6 +94,14 @@ En agosto de 2026, después de lo de Steal An Egg, Roblox restringió en **Roblo
 | Game Pass | 👑 VIP | Velocidad, candado largo y estatus |
 | Developer Product | 🍀 Server Luck | **Compra social**: todo el servidor ve tu nombre y todos se benefician. Muy eficaz en juegos virales |
 | Developer Product | 💵 Cash Pack / 💎 Mega Cash | Escala con tus ingresos, así sigue siendo útil en todas las fases |
+| Game Pass | 🛡️ Super Lock | Candado el doble de largo: barato y útil contra ladrones |
+| Developer Product | ⚡ 2x Boost 15 min | Compra pequeña e impulsiva; también sirve como premio de los anuncios |
+| Anuncios | 📺 Vídeo con recompensa | Cuando tengas 2.000+ visitantes al mes |
+
+**Normativa que ya cumple el código** (la incumplen muchos juegos pequeños):
+- "Server Luck" cambia probabilidades, así que se trata como objeto aleatorio de pago: el juego **muestra las probabilidades exactas en %** (panel INDEX/ODDS) antes de comprar y mientras la suerte está activa, con el aviso de redondeo.
+- En los países donde Roblox lo prohíbe (`ArePaidRandomItemsRestricted`), el botón sale como "unavailable in your region" y el servidor bloquea la compra.
+- Las compras se entregan una sola vez aunque Roblox reintente (se guarda el ID de cada compra).
 
 **Cuánto llega a tu bolsillo** (con cautela, las cifras cambian):
 - De cada compra Roblox se queda el 30 %; a ti te llega el **70 % en Robux**.
@@ -87,4 +148,7 @@ En agosto de 2026, después de lo de Steal An Egg, Roblox restringió en **Roblo
 - [Roblox Docs: información fiscal de DevEx](https://create.roblox.com/docs/production/monetization/tax-information)
 - [Deloitte: streaming, eSports y Hacienda](https://prisma.deloitte.es/pildoras-esports/3-streaming-y-hacienda)
 - [Jobrise: alta de autónomo para developers (2026)](https://jobrise.io/es/blog/darse-de-alta-autonomo-developer-2026/)
+- Documentación oficial de Roblox (repositorio [Roblox/creator-docs](https://github.com/Roblox/creator-docs)): *discovery*, *publish-games-and-places*, *kids-and-select*, *content-maturity*, *paid-random-items*, *rewarded-video-ads*, *thumbnails*, *experience-icons*, *ads-manager*
+- [Steal a Brainrot: pases y precios (Fandom)](https://stealabrainrot.fandom.com/wiki/Gamepasses_and_Dev_Products)
+- [Steal a Brainrot (Wikipedia)](https://en.wikipedia.org/wiki/Steal_a_Brainrot)
 - [Wikipedia: Grow a Garden](https://en.wikipedia.org/wiki/Grow_a_Garden)

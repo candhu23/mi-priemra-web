@@ -1,0 +1,4087 @@
+<roblox version="4">
+  <Item class="ReplicatedStorage" referent="0">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="1">
+      <Properties>
+        <string name="Name">Compartido</string>
+      </Properties>
+      <Item class="ModuleScript" referent="2">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	CONFIGURACIÓN DE STEAL AN ALIEN
+	===============================
+	Este es el único archivo que necesitas tocar para equilibrar el juego,
+	añadir aliens o poner los IDs de monetización. Lo usan el servidor y el cliente.
+
+	Los colores van como {R, G, B} (0-255) para que el módulo no dependa de Roblox
+	y se pueda probar fuera de Studio.
+]]
+
+export type RGB = { number }
+
+export type Rareza = {
+	id: string,
+	nombre: string,
+	color: RGB,
+	peso: number, -- probabilidad relativa de salir en la cinta
+	afectadaPorSuerte: boolean,
+}
+
+export type Estilo = {
+	cuerpo: string, -- "bola" | "capsula" | "cubo"
+	ojos: number,
+	extras: { string }, -- "antenas" | "tentaculos" | "alas" | "corona" | "cuernos" | "aleta" | "pinzas" | "halo" | "orejas"
+}
+
+export type Alien = {
+	id: string,
+	nombre: string,
+	rareza: number, -- índice en RAREZAS
+	precio: number,
+	ingreso: number, -- dinero por segundo
+	color: RGB,
+	tamano: number,
+	estilo: Estilo,
+}
+
+export type ArticuloTienda = {
+	clave: string,
+	tipo: string, -- "pase" | "producto"
+	id: number, -- 0 = todavía no creado (se muestra "Coming soon")
+	precioSugerido: number, -- solo orientativo, el precio real se pone en el Creator Hub
+	titulo: string,
+	descripcion: string,
+}
+
+local Config = {}
+
+Config.VERSION = "1.0.0"
+
+---------------------------------------------------------------------
+-- RITMO DEL JUEGO
+---------------------------------------------------------------------
+Config.JUEGO = {
+	DINERO_INICIAL = 100,
+	SEGUNDOS_ENTRE_ALIENS = 2,
+	SEGUNDOS_EN_CINTA = 30,
+	SLOTS_INICIALES = 10,
+	SLOTS_MAXIMOS = 15, -- cada rebirth desbloquea un pedestal más
+	SEGUNDOS_CANDADO = 60,
+	SEGUNDOS_CANDADO_VIP = 90,
+	VELOCIDAD_BASE = 16,
+	VELOCIDAD_POR_NIVEL = 2,
+	VELOCIDAD_VIP = 4,
+	NIVEL_VELOCIDAD_MAX = 8,
+	FACTOR_VELOCIDAD_CARGANDO = 0.75,
+	ALCANCE_GOLPE = 9,
+	ENFRIAMIENTO_GOLPE = 0.8,
+	FACTOR_VENTA = 0.5, -- vender devuelve la mitad del precio
+	BONUS_POR_REBIRTH = 0.5, -- +50 % de ingresos por rebirth
+	BONUS_POR_AMIGO = 0.1, -- +10 % por cada amigo en el servidor...
+	BONUS_AMIGOS_MAX = 0.5, -- ...hasta +50 %
+	BONUS_GRUPO = 0.1, -- +10 % si estás en el grupo de Roblox del juego
+	OFFLINE_FRACCION = 0.25, -- mientras no juegas generas el 25 %...
+	OFFLINE_HORAS_MAX = 3, -- ...durante un máximo de 3 horas
+	BOOST_X2_MINUTOS = 15,
+}
+
+-- Posición de la cinta (la usan el servidor y el cliente para mover los aliens igual).
+Config.CINTA = {
+	X_INICIO = -98,
+	X_FIN = 98,
+	ALTURA = 1.5,
+}
+
+Config.EVENTOS = {
+	SUERTE_CADA = 600, -- evento gratuito "Lucky Belt" cada 10 min
+	SUERTE_DURA = 60,
+	SUERTE_PAGADA_DURA = 180,
+	MULTIPLICADOR_SUERTE = 4,
+	METEORITOS_CADA = 900, -- "Meteor Shower" cada 15 min
+	METEORITOS_PRIMERO = 300, -- el primero a los 5 min de abrir el servidor
+	METEORITOS_DURA = 45,
+	METEORITOS_CANTIDAD = 25,
+	METEORITO_SEGUNDOS_INGRESO = 20, -- cada cristal da 20 s de tus ingresos (mínimo 150)
+	METEORITO_MINIMO = 150,
+}
+
+Config.SHINY = {
+	PROBABILIDAD = 0.04, -- 4 % de los aliens de la cinta salen brillantes (no lo cambia la suerte)
+	MULTIPLICADOR_INGRESO = 3,
+	MULTIPLICADOR_PRECIO = 2.5,
+}
+
+---------------------------------------------------------------------
+-- RAREZAS Y ALIENS
+---------------------------------------------------------------------
+Config.RAREZAS = {
+	{ id = "common", nombre = "Common", color = { 200, 200, 210 }, peso = 60, afectadaPorSuerte = false },
+	{ id = "rare", nombre = "Rare", color = { 70, 160, 255 }, peso = 25, afectadaPorSuerte = false },
+	{ id = "epic", nombre = "Epic", color = { 180, 80, 255 }, peso = 10, afectadaPorSuerte = true },
+	{ id = "legendary", nombre = "Legendary", color = { 255, 190, 30 }, peso = 4, afectadaPorSuerte = true },
+	{ id = "mythic", nombre = "Mythic", color = { 255, 60, 90 }, peso = 0.9, afectadaPorSuerte = true },
+	{ id = "secret", nombre = "Secret", color = { 40, 255, 220 }, peso = 0.1, afectadaPorSuerte = true },
+} :: { Rareza }
+
+-- Añadir un alien = añadir una línea. El "id" no debe cambiar nunca una vez publicado
+-- (es lo que se guarda en los datos de los jugadores).
+Config.ALIENS = {
+	{ id = "blorp", nombre = "Blorp", rareza = 1, precio = 25, ingreso = 1, color = { 120, 230, 120 }, tamano = 2.4, estilo = { cuerpo = "bola", ojos = 2, extras = { "antenas" } } },
+	{ id = "zib", nombre = "Zib Zib", rareza = 1, precio = 90, ingreso = 3, color = { 120, 220, 255 }, tamano = 2.6, estilo = { cuerpo = "capsula", ojos = 1, extras = { "antenas" } } },
+	{ id = "squishy", nombre = "Squishy", rareza = 1, precio = 220, ingreso = 6, color = { 255, 170, 220 }, tamano = 2.8, estilo = { cuerpo = "bola", ojos = 2, extras = { "orejas" } } },
+	{ id = "moonmoo", nombre = "Moonmoo", rareza = 2, precio = 500, ingreso = 11, color = { 240, 240, 200 }, tamano = 3, estilo = { cuerpo = "bola", ojos = 2, extras = { "cuernos" } } },
+	{ id = "glarbo", nombre = "Glarbo", rareza = 2, precio = 1200, ingreso = 24, color = { 255, 150, 60 }, tamano = 3.2, estilo = { cuerpo = "cubo", ojos = 3, extras = { "antenas" } } },
+	{ id = "wobbletron", nombre = "Wobbletron", rareza = 2, precio = 2600, ingreso = 46, color = { 150, 160, 180 }, tamano = 3.3, estilo = { cuerpo = "cubo", ojos = 1, extras = { "antenas", "pinzas" } } },
+	{ id = "nebulacat", nombre = "Nebula Cat", rareza = 3, precio = 8000, ingreso = 115, color = { 170, 100, 255 }, tamano = 3.5, estilo = { cuerpo = "bola", ojos = 2, extras = { "orejas", "halo" } } },
+	{ id = "tentacle", nombre = "Sir Tentacle", rareza = 3, precio = 20000, ingreso = 250, color = { 255, 100, 180 }, tamano = 3.8, estilo = { cuerpo = "capsula", ojos = 3, extras = { "tentaculos", "corona" } } },
+	{ id = "crystalcrab", nombre = "Crystal Crab", rareza = 3, precio = 45000, ingreso = 480, color = { 120, 255, 255 }, tamano = 3.8, estilo = { cuerpo = "cubo", ojos = 2, extras = { "pinzas", "cuernos" } } },
+	{ id = "cosmowhale", nombre = "Cosmo Whale", rareza = 4, precio = 150000, ingreso = 1300, color = { 60, 120, 255 }, tamano = 4.5, estilo = { cuerpo = "capsula", ojos = 2, extras = { "aleta", "halo" } } },
+	{ id = "ufoking", nombre = "UFO Overlord", rareza = 4, precio = 400000, ingreso = 3200, color = { 180, 255, 80 }, tamano = 4.6, estilo = { cuerpo = "bola", ojos = 1, extras = { "halo", "antenas", "corona" } } },
+	{ id = "astroaxolotl", nombre = "Astro Axolotl", rareza = 4, precio = 900000, ingreso = 6500, color = { 255, 140, 200 }, tamano = 4.6, estilo = { cuerpo = "capsula", ojos = 2, extras = { "tentaculos", "aleta" } } },
+	{ id = "galaxydragon", nombre = "Galaxy Dragon", rareza = 5, precio = 2500000, ingreso = 16000, color = { 255, 50, 80 }, tamano = 5.2, estilo = { cuerpo = "capsula", ojos = 2, extras = { "alas", "cuernos" } } },
+	{ id = "quasarqueen", nombre = "Quasar Queen", rareza = 5, precio = 6000000, ingreso = 35000, color = { 255, 230, 120 }, tamano = 5.2, estilo = { cuerpo = "bola", ojos = 3, extras = { "alas", "corona" } } },
+	{ id = "voidking", nombre = "Void King", rareza = 6, precio = 20000000, ingreso = 110000, color = { 40, 0, 70 }, tamano = 6, estilo = { cuerpo = "bola", ojos = 3, extras = { "corona", "cuernos", "halo" } } },
+	{ id = "glitch", nombre = "GLITCH", rareza = 6, precio = 75000000, ingreso = 350000, color = { 0, 255, 120 }, tamano = 6, estilo = { cuerpo = "cubo", ojos = 3, extras = { "antenas", "alas", "halo" } } },
+} :: { Alien }
+
+---------------------------------------------------------------------
+-- MONETIZACIÓN
+-- 1. Crea los pases y productos en el Creator Hub (ver GUIA_LANZAMIENTO.md).
+-- 2. Copia aquí cada ID. Con id = 0 el botón sale como "Coming soon".
+---------------------------------------------------------------------
+Config.TIENDA = {
+	{ clave = "PASE_DOBLE_DINERO", tipo = "pase", id = 0, precioSugerido = 199, titulo = "💰 2x Cash", descripcion = "Double income forever" },
+	{ clave = "PASE_VIP", tipo = "pase", id = 0, precioSugerido = 399, titulo = "👑 VIP", descripcion = "+50% income, +4 speed, 90s lock, VIP tag" },
+	{ clave = "PASE_CANDADO_PLUS", tipo = "pase", id = 0, precioSugerido = 149, titulo = "🛡️ Super Lock", descripcion = "Your base lock lasts twice as long" },
+	{ clave = "PRODUCTO_BOOST_X2", tipo = "producto", id = 0, precioSugerido = 39, titulo = "⚡ 2x Boost", descripcion = "Double income for 15 minutes" },
+	{ clave = "PRODUCTO_SUERTE_SERVIDOR", tipo = "producto", id = 0, precioSugerido = 99, titulo = "🍀 Server Luck", descripcion = "Rare aliens x4 for EVERYONE (3 min). Tap ODDS for details" },
+	{ clave = "PRODUCTO_DINERO_PEQUENO", tipo = "producto", id = 0, precioSugerido = 49, titulo = "💵 Cash Pack", descripcion = "10 minutes of your income" },
+	{ clave = "PRODUCTO_DINERO_GRANDE", tipo = "producto", id = 0, precioSugerido = 199, titulo = "💎 Mega Cash", descripcion = "1 hour of your income" },
+} :: { ArticuloTienda }
+
+Config.VIP_BONUS_INGRESO = 0.5
+
+-- Anuncio de vídeo con recompensa: ID del Developer Product que se entrega al verlo
+-- (normalmente el mismo que PRODUCTO_BOOST_X2). 0 = desactivado.
+Config.ANUNCIO_RECOMPENSA_PRODUCTO = 0
+
+-- ID del grupo de Roblox del juego (da +10 % de ingresos a sus miembros). 0 = desactivado.
+Config.GRUPO_ID = 0
+
+-- Sonidos (IDs de audio del Creator Store). 0 = sin sonido.
+Config.SONIDOS = {
+	MUSICA = 0,
+	COMPRAR = 0,
+	COBRAR = 0,
+	ROBAR = 0,
+	GOLPE = 0,
+	EVENTO = 0,
+	ALARMA = 0,
+}
+
+---------------------------------------------------------------------
+-- FÓRMULAS DE ECONOMÍA (las usan el servidor y la interfaz)
+---------------------------------------------------------------------
+function Config.costeVelocidad(nivel: number): number
+	return math.floor(300 * 3 ^ nivel)
+end
+
+function Config.costeRebirth(rebirths: number): number
+	return math.floor(1000000 * 4 ^ rebirths)
+end
+
+function Config.slotsDesbloqueados(rebirths: number): number
+	return math.min(Config.JUEGO.SLOTS_INICIALES + rebirths, Config.JUEGO.SLOTS_MAXIMOS)
+end
+
+function Config.ingresoAlien(alien: Alien, shiny: boolean?): number
+	return alien.ingreso * (if shiny then Config.SHINY.MULTIPLICADOR_INGRESO else 1)
+end
+
+function Config.precioAlien(alien: Alien, shiny: boolean?): number
+	return math.floor(alien.precio * (if shiny then Config.SHINY.MULTIPLICADOR_PRECIO else 1))
+end
+
+function Config.precioVenta(alien: Alien, shiny: boolean?): number
+	return math.floor(Config.precioAlien(alien, shiny) * Config.JUEGO.FACTOR_VENTA)
+end
+
+export type Bonos = {
+	rebirths: number,
+	dobleDinero: boolean,
+	vip: boolean,
+	amigos: number,
+	grupo: boolean,
+	boost: boolean,
+}
+
+-- Los bonos aditivos se suman y los pases 2x/boost multiplican.
+function Config.multiplicadorIngresos(b: Bonos): number
+	local aditivo = 1 + b.rebirths * Config.JUEGO.BONUS_POR_REBIRTH
+	aditivo += math.min(b.amigos * Config.JUEGO.BONUS_POR_AMIGO, Config.JUEGO.BONUS_AMIGOS_MAX)
+	if b.grupo then
+		aditivo += Config.JUEGO.BONUS_GRUPO
+	end
+	if b.vip then
+		aditivo += Config.VIP_BONUS_INGRESO
+	end
+	local m = aditivo
+	if b.dobleDinero then
+		m *= 2
+	end
+	if b.boost then
+		m *= 2
+	end
+	return m
+end
+
+-- Recompensa diaria: crece con la racha (día 1 a 7) y con tus ingresos.
+function Config.recompensaDiaria(racha: number, ingresoPorSegundo: number): number
+	local dia = math.clamp(racha, 1, 7)
+	return math.floor(math.max(500 * dia, ingresoPorSegundo * 120 * dia))
+end
+
+function Config.gananciaOffline(segundosFuera: number, ingresoPorSegundo: number): number
+	local segundos = math.clamp(segundosFuera, 0, Config.JUEGO.OFFLINE_HORAS_MAX * 3600)
+	return math.floor(segundos * ingresoPorSegundo * Config.JUEGO.OFFLINE_FRACCION)
+end
+
+function Config.alienPorId(id: string): Alien?
+	for _, alien in Config.ALIENS do
+		if alien.id == id then
+			return alien
+		end
+	end
+	return nil
+end
+
+function Config.articuloPorClave(clave: string): ArticuloTienda?
+	for _, articulo in Config.TIENDA do
+		if articulo.clave == clave then
+			return articulo
+		end
+	end
+	return nil
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Formato</string>
+          <string name="Source"><![CDATA[--!strict
+-- Formato de números y tiempos para mostrarlos en pantalla.
+
+local Formato = {}
+
+local SUFIJOS = { "", "K", "M", "B", "T", "Qa", "Qi" }
+
+-- 1234 -> "1.2K", 2500000 -> "2.5M"
+function Formato.abreviar(n: number): string
+	if n ~= n then
+		return "0"
+	end
+	local negativo = n < 0
+	n = math.abs(n)
+	local i = 1
+	while n >= 1000 and i < #SUFIJOS do
+		n /= 1000
+		i += 1
+	end
+	local texto
+	if i == 1 then
+		texto = tostring(math.floor(n))
+	elseif n >= 100 then
+		texto = string.format("%d%s", math.floor(n), SUFIJOS[i])
+	else
+		-- Truncamos (no redondeamos) para no mostrar nunca más dinero del que hay.
+		texto = string.format("%.1f%s", math.floor(n * 10) / 10, SUFIJOS[i])
+	end
+	return if negativo then "-" .. texto else texto
+end
+
+-- 75 -> "1:15"
+function Formato.tiempo(segundos: number): string
+	segundos = math.max(0, math.ceil(segundos))
+	local minutos = segundos // 60
+	if minutos >= 60 then
+		return string.format("%d:%02d:%02d", minutos // 60, minutos % 60, segundos % 60)
+	end
+	return string.format("%d:%02d", minutos, segundos % 60)
+end
+
+-- 0.012345 -> "1.23%" ; usa decimales suficientes para que no salga 0 %.
+function Formato.porcentaje(probabilidad: number): string
+	local p = probabilidad * 100
+	if p >= 10 then
+		return string.format("%.1f%%", p)
+	elseif p >= 1 then
+		return string.format("%.2f%%", p)
+	elseif p >= 0.1 then
+		return string.format("%.3f%%", p)
+	end
+	return string.format("%.4f%%", p)
+end
+
+return Formato
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Probabilidades</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Probabilidades de la cinta. La misma función la usan:
+	  - el servidor, para elegir qué alien aparece;
+	  - la interfaz, para enseñar las probabilidades exactas (obligatorio en Roblox
+	    cuando se vende algo que cambia probabilidades, como "Server Luck").
+]]
+
+local Probabilidades = {}
+
+-- Se aceptan las tablas de Config tal cual (con más campos), por eso el tipo es abierto.
+-- Campos usados: rareza.peso, rareza.afectadaPorSuerte, alien.id, alien.rareza.
+type Rareza = any
+type Alien = any
+
+export type Entrada = { id: string, rareza: number, probabilidad: number }
+
+-- Devuelve la probabilidad (0-1) de cada rareza.
+function Probabilidades.porRareza(rarezas: { Rareza }, suerte: boolean, multiplicadorSuerte: number): { number }
+	local pesos = {}
+	local total = 0
+	for i, rareza in rarezas do
+		local peso = rareza.peso
+		if suerte and rareza.afectadaPorSuerte then
+			peso *= multiplicadorSuerte
+		end
+		pesos[i] = peso
+		total += peso
+	end
+	for i in pesos do
+		pesos[i] /= total
+	end
+	return pesos
+end
+
+-- Probabilidad final de cada alien: la de su rareza repartida a partes iguales
+-- entre los aliens de esa rareza. Las probabilidades suman exactamente 1.
+function Probabilidades.porAlien(rarezas: { Rareza }, aliens: { Alien }, suerte: boolean, multiplicadorSuerte: number): { Entrada }
+	local porRareza = Probabilidades.porRareza(rarezas, suerte, multiplicadorSuerte)
+	local cuantos: { [number]: number } = {}
+	for _, alien in aliens do
+		cuantos[alien.rareza] = (cuantos[alien.rareza] or 0) + 1
+	end
+	-- Si una rareza no tiene aliens, su probabilidad se reparte entre las demás.
+	local totalValido = 0
+	for i, p in porRareza do
+		if cuantos[i] then
+			totalValido += p
+		end
+	end
+	local resultado: { Entrada } = {}
+	for _, alien in aliens do
+		local p = porRareza[alien.rareza] / totalValido / cuantos[alien.rareza]
+		table.insert(resultado, { id = alien.id, rareza = alien.rareza, probabilidad = p })
+	end
+	return resultado
+end
+
+-- Elige un alien con un número aleatorio "tirada" en [0, 1).
+function Probabilidades.elegir(rarezas: { Rareza }, aliens: { Alien }, suerte: boolean, multiplicadorSuerte: number, tirada: number): string
+	local tabla = Probabilidades.porAlien(rarezas, aliens, suerte, multiplicadorSuerte)
+	local acumulado = 0
+	for _, entrada in tabla do
+		acumulado += entrada.probabilidad
+		if tirada < acumulado then
+			return entrada.id
+		end
+	end
+	return tabla[#tabla].id -- por si el redondeo deja la suma en 0.99999
+end
+
+return Probabilidades
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="5">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="6">
+      <Properties>
+        <string name="Name">Servidor</string>
+      </Properties>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">Codigos</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	CÓDIGOS PROMOCIONALES
+	Publícalos en TikTok, YouTube, Discord o en la descripción del juego.
+	Cada jugador puede canjear cada código una sola vez.
+
+	Campos:
+	  dinero      = cantidad fija
+	  segundos    = X segundos de los ingresos del jugador (se escala solo)
+	  boostMinutos= minutos de x2 ingresos
+	  caduca      = os.time() en el que deja de funcionar (opcional). Ejemplo para
+	                el 1 de enero de 2027 a las 00:00 UTC: 1798761600
+	Los códigos no distinguen mayúsculas/minúsculas.
+]]
+
+export type Codigo = { dinero: number?, segundos: number?, boostMinutos: number?, caduca: number? }
+
+local Codigos: { [string]: Codigo } = {
+	RELEASE = { dinero = 1000, segundos = 120 },
+	ALIENS = { boostMinutos = 10 },
+}
+
+return Codigos
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">Datos</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Guardado con DataStore y "bloqueo de sesión".
+
+	El bloqueo evita el error clásico de Roblox: si un jugador cambia de servidor muy
+	rápido, el servidor nuevo podría cargar datos viejos antes de que el antiguo
+	termine de guardar, y se perdería progreso. Aquí cada servidor marca los datos
+	como suyos mientras el jugador está dentro y libera la marca al salir.
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+
+local Datos = {}
+
+local NOMBRE_ALMACEN = "StealAnAlien_Jugadores_v1"
+local BLOQUEO_CADUCA = 600 -- si un servidor se cae, su bloqueo caduca a los 10 min
+local INTENTOS_CARGA = 6
+local ESPERA_ENTRE_INTENTOS = 5
+
+local almacen: DataStore? = nil
+local disponible = false
+local jobId = if game.JobId ~= "" then game.JobId else "studio"
+
+local function iniciar()
+	local ok, resultado = pcall(function()
+		return DataStoreService:GetDataStore(NOMBRE_ALMACEN)
+	end)
+	if ok then
+		almacen = resultado
+		disponible = true
+	else
+		warn("[Datos] DataStore no disponible:", resultado)
+	end
+end
+iniciar()
+
+local function clave(userId: number): string
+	return "u_" .. userId
+end
+
+-- En Studio sin "Enable Studio Access to API Services" todas las llamadas fallan:
+-- en ese caso jugamos sin guardar en lugar de echar al jugador.
+local function esErrorDeStudio(err: any): boolean
+	return RunService:IsStudio() and type(err) == "string" and (string.find(err, "StudioAccessToApisNotAllowed") ~= nil or string.find(err, "API Services") ~= nil or string.find(err, "403") ~= nil or string.find(err, "publish") ~= nil)
+end
+
+export type ResultadoCarga = {
+	ok: boolean,
+	guardado: any, -- datos tal cual estaban en el DataStore (o nil si es nuevo)
+	sinGuardado: boolean, -- true si estamos en Studio sin acceso a la API
+}
+
+function Datos.cargar(userId: number): ResultadoCarga
+	if not disponible or not almacen then
+		return { ok = RunService:IsStudio(), guardado = nil, sinGuardado = true }
+	end
+	local tienda = almacen :: DataStore
+	for intento = 1, INTENTOS_CARGA do
+		local bloqueadoPorOtro = false
+		local ultimoIntento = intento == INTENTOS_CARGA
+		local ok, resultado = pcall(function()
+			return tienda:UpdateAsync(clave(userId), function(actual: any)
+				actual = if type(actual) == "table" then actual else {}
+				local bloqueo = actual.bloqueo
+				local ahora = os.time()
+				if
+					type(bloqueo) == "table"
+					and bloqueo.job ~= jobId
+					and type(bloqueo.t) == "number"
+					and ahora - bloqueo.t < BLOQUEO_CADUCA
+					and not ultimoIntento -- en el último intento asumimos que el otro servidor se colgó
+				then
+					bloqueadoPorOtro = true
+					return nil -- no escribimos nada
+				end
+				bloqueadoPorOtro = false
+				actual.bloqueo = { job = jobId, t = ahora }
+				return actual
+			end)
+		end)
+		if not ok then
+			if esErrorDeStudio(resultado) then
+				warn("[Datos] Sin acceso a la API en Studio: se juega sin guardar.")
+				disponible = false
+				return { ok = true, guardado = nil, sinGuardado = true }
+			end
+			warn("[Datos] Error cargando", userId, resultado)
+		elseif not bloqueadoPorOtro then
+			return { ok = true, guardado = if type(resultado) == "table" then resultado.datos else nil, sinGuardado = false }
+		end
+		task.wait(ESPERA_ENTRE_INTENTOS)
+	end
+	return { ok = false, guardado = nil, sinGuardado = false }
+end
+
+-- liberar = true al salir el jugador. Devuelve true si se guardó.
+function Datos.guardar(userId: number, datos: any, liberar: boolean): boolean
+	if not disponible or not almacen then
+		return false
+	end
+	local tienda = almacen :: DataStore
+	local perdimosBloqueo = false
+	local ok, err = pcall(function()
+		tienda:UpdateAsync(clave(userId), function(actual: any)
+			actual = if type(actual) == "table" then actual else {}
+			local bloqueo = actual.bloqueo
+			if type(bloqueo) == "table" and bloqueo.job ~= jobId then
+				-- Otro servidor tiene ya al jugador: no pisamos sus datos.
+				perdimosBloqueo = true
+				return nil
+			end
+			actual.datos = datos
+			actual.bloqueo = if liberar then nil else { job = jobId, t = os.time() }
+			return actual
+		end)
+	end)
+	if not ok then
+		warn("[Datos] Error guardando", userId, err)
+		return false
+	end
+	if perdimosBloqueo then
+		warn("[Datos] Otro servidor tiene los datos de", userId, "- no se guarda aquí.")
+		return false
+	end
+	return true
+end
+
+-- Quita el bloqueo sin tocar los datos (por si el jugador se va mientras se cargaba).
+function Datos.liberar(userId: number)
+	if not disponible or not almacen then
+		return
+	end
+	local tienda = almacen :: DataStore
+	pcall(function()
+		tienda:UpdateAsync(clave(userId), function(actual: any)
+			if type(actual) ~= "table" or type(actual.bloqueo) ~= "table" or actual.bloqueo.job ~= jobId then
+				return nil
+			end
+			actual.bloqueo = nil
+			return actual
+		end)
+	end)
+end
+
+function Datos.disponible(): boolean
+	return disponible
+end
+
+---------------------------------------------------------------------
+-- RANKINGS GLOBALES (OrderedDataStore)
+---------------------------------------------------------------------
+local rankings: { [string]: OrderedDataStore } = {}
+
+function Datos.ranking(nombre: string): OrderedDataStore?
+	if rankings[nombre] then
+		return rankings[nombre]
+	end
+	local ok, resultado = pcall(function()
+		return DataStoreService:GetOrderedDataStore("Ranking_" .. nombre .. "_v1")
+	end)
+	if ok then
+		rankings[nombre] = resultado
+		return resultado
+	end
+	return nil
+end
+
+return Datos
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="9">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[--!nonstrict
+--[[
+	STEAL AN ALIEN — servidor principal
+
+	Bucle de juego:
+	  1. Compra aliens en la cinta central.
+	  2. Tus aliens generan dinero por segundo: pisa la placa verde para cobrarlo.
+	  3. Roba aliens de otras bases y llévalos a la tuya. Usa SLAP para frenar a los ladrones.
+	  4. Cierra tu base con la placa roja.
+	  5. Mejora la velocidad y haz Rebirth (+50 % de ingresos y +1 pedestal).
+	  Eventos: Lucky Belt (suerte) y Meteor Shower (cristales con dinero).
+
+	Toda la configuración está en ReplicatedStorage/Compartido/Config.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+local CollectionService = game:GetService("CollectionService")
+local PolicyService = game:GetService("PolicyService")
+local AdService = game:GetService("AdService")
+local TextChatService = game:GetService("TextChatService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local Debris = game:GetService("Debris")
+
+local Compartido = ReplicatedStorage:WaitForChild("Compartido")
+local Config = require(Compartido:WaitForChild("Config"))
+local Formato = require(Compartido:WaitForChild("Formato"))
+local Probabilidades = require(Compartido:WaitForChild("Probabilidades"))
+local Perfil = require(script.Parent:WaitForChild("Perfil"))
+local Datos = require(script.Parent:WaitForChild("Datos"))
+local Modelos = require(script.Parent:WaitForChild("Modelos"))
+local Mapa = require(script.Parent:WaitForChild("Mapa"))
+local Codigos = require(script.Parent:WaitForChild("Codigos"))
+
+local J = Config.JUEGO
+local E = Config.EVENTOS
+local abreviar = Formato.abreviar
+
+local VERDE = Color3.fromRGB(120, 255, 150)
+local ROJO = Color3.fromRGB(255, 110, 110)
+local AMARILLO = Color3.fromRGB(255, 220, 80)
+
+---------------------------------------------------------------------
+-- COMUNICACIÓN CON LOS CLIENTES
+---------------------------------------------------------------------
+local remotos = Instance.new("Folder")
+remotos.Name = "Remotos"
+
+local function nuevoEvento(nombre: string): RemoteEvent
+	local evento = Instance.new("RemoteEvent")
+	evento.Name = nombre
+	evento.Parent = remotos
+	return evento
+end
+
+local eAviso = nuevoEvento("Aviso") -- servidor -> cliente: (texto, color)
+local eGolpeado = nuevoEvento("Golpeado") -- servidor -> cliente: (dirección del empujón)
+local eDiario = nuevoEvento("RecompensaDiaria") -- servidor -> cliente: (racha, cantidad)
+local eEfecto = nuevoEvento("Efecto") -- servidor -> cliente: (nombre del sonido/efecto)
+local ePedirCompra = nuevoEvento("PedirCompra") -- cliente -> servidor: (clave de la tienda)
+local eAnuncio = nuevoEvento("VerAnuncio") -- cliente -> servidor; servidor -> cliente: (ok, resultado)
+local fCodigo = Instance.new("RemoteFunction")
+fCodigo.Name = "CanjearCodigo"
+fCodigo.Parent = remotos
+
+remotos:SetAttribute("SuerteHasta", 0)
+remotos:SetAttribute("MeteoritosHasta", 0)
+remotos:SetAttribute("ProximaSuerte", 0)
+remotos:SetAttribute("ProximosMeteoritos", 0)
+remotos.Parent = ReplicatedStorage
+
+local function ahora(): number
+	return workspace:GetServerTimeNow()
+end
+
+local function avisar(jugador: Player, texto: string, color: Color3?)
+	eAviso:FireClient(jugador, texto, color)
+end
+
+local function avisarATodos(texto: string, color: Color3?)
+	eAviso:FireAllClients(texto, color)
+end
+
+local function efecto(jugador: Player, nombre: string)
+	eEfecto:FireClient(jugador, nombre)
+end
+
+local function personajeVivo(jugador: Player?): (Model?, Humanoid?, BasePart?)
+	local personaje = jugador and jugador.Character
+	if not personaje then
+		return nil, nil, nil
+	end
+	local humanoid = personaje:FindFirstChildOfClass("Humanoid")
+	local raiz = personaje:FindFirstChild("HumanoidRootPart")
+	if humanoid and raiz and raiz:IsA("BasePart") and humanoid.Health > 0 then
+		return personaje, humanoid, raiz
+	end
+	return nil, nil, nil
+end
+
+local function jugadorDesdeToque(golpe: BasePart): Player?
+	local modelo = golpe:FindFirstAncestorOfClass("Model")
+	return if modelo then Players:GetPlayerFromCharacter(modelo) else nil
+end
+
+---------------------------------------------------------------------
+-- MAPA
+---------------------------------------------------------------------
+local mapa = Mapa.construir()
+local carpetaCinta = Instance.new("Folder")
+carpetaCinta.Name = "Cinta"
+carpetaCinta.Parent = workspace
+
+---------------------------------------------------------------------
+-- SESIONES
+---------------------------------------------------------------------
+type Carga = { id: string, shiny: boolean, victima: Player?, base: any, slot: number, modelo: Model }
+
+type Sesion = {
+	datos: Perfil.Datos,
+	base: any,
+	llevando: Carga?,
+	pases: { doble: boolean, vip: boolean, candadoPlus: boolean },
+	amigos: number,
+	grupo: boolean,
+	cargado: boolean,
+	sinGuardado: boolean,
+	suerteRestringida: boolean,
+	ultimaAccion: { [string]: number },
+	ultimaPos: Vector3?,
+	ultimaPosT: number,
+	tutorial: number,
+	boostAvisado: boolean,
+}
+
+local sesiones: { [Player]: Sesion } = {}
+
+-- Limita cuántas veces por segundo puede hacer algo un jugador (protege de spam y trampas).
+local function permitido(sesion: Sesion, accion: string, segundos: number): boolean
+	local t = os.clock()
+	local ultima = sesion.ultimaAccion[accion]
+	if ultima and t - ultima < segundos then
+		return false
+	end
+	sesion.ultimaAccion[accion] = t
+	return true
+end
+
+local function bonos(sesion: Sesion): Config.Bonos
+	return {
+		rebirths = sesion.datos.rebirths,
+		dobleDinero = sesion.pases.doble,
+		vip = sesion.pases.vip,
+		amigos = sesion.amigos,
+		grupo = sesion.grupo,
+		boost = sesion.datos.boostHasta > os.time(),
+	}
+end
+
+local function ingresoBase(sesion: Sesion): number
+	local total = 0
+	for _, slot in sesion.base.slots do
+		if slot.id then
+			local alien = Config.alienPorId(slot.id)
+			if alien then
+				total += Config.ingresoAlien(alien, slot.shiny)
+			end
+		end
+	end
+	return total
+end
+
+local function ingresoPorSegundo(sesion: Sesion): number
+	return ingresoBase(sesion) * Config.multiplicadorIngresos(bonos(sesion))
+end
+
+local function actualizarStats(jugador: Player)
+	local sesion = sesiones[jugador]
+	local stats = jugador:FindFirstChild("leaderstats")
+	if not sesion or not stats then
+		return
+	end
+	local datos = sesion.datos
+	stats.Cash.Value = math.floor(datos.dinero)
+	stats.Rebirths.Value = datos.rebirths
+	stats.Steals.Value = datos.stats.robos
+	jugador:SetAttribute("Ingreso", ingresoPorSegundo(sesion))
+	jugador:SetAttribute("Multiplicador", Config.multiplicadorIngresos(bonos(sesion)))
+	jugador:SetAttribute("NivelVelocidad", datos.velocidad)
+	jugador:SetAttribute("Rebirths", datos.rebirths)
+	jugador:SetAttribute("Dinero", datos.dinero)
+	jugador:SetAttribute("Amigos", sesion.amigos)
+	jugador:SetAttribute("Grupo", sesion.grupo)
+	local restanteBoost = datos.boostHasta - os.time()
+	jugador:SetAttribute("BoostHasta", if restanteBoost > 0 then ahora() + restanteBoost else 0)
+end
+
+local function sumarDinero(jugador: Player, cantidad: number)
+	local sesion = sesiones[jugador]
+	if not sesion then
+		return
+	end
+	sesion.datos.dinero = math.max(0, sesion.datos.dinero + cantidad)
+	if cantidad > 0 then
+		sesion.datos.stats.ganadoTotal += cantidad
+	end
+	actualizarStats(jugador)
+end
+
+local function actualizarVelocidad(jugador: Player)
+	local sesion = sesiones[jugador]
+	local _, humanoid = personajeVivo(jugador)
+	if not sesion or not humanoid then
+		return
+	end
+	local v = J.VELOCIDAD_BASE + sesion.datos.velocidad * J.VELOCIDAD_POR_NIVEL
+	if sesion.pases.vip then
+		v += J.VELOCIDAD_VIP
+	end
+	if sesion.llevando then
+		v *= J.FACTOR_VELOCIDAD_CARGANDO
+	end
+	humanoid.WalkSpeed = v
+end
+
+local function actualizarIndiceAtributo(jugador: Player, sesion: Sesion)
+	jugador:SetAttribute("Indice", HttpService:JSONEncode(sesion.datos.indice))
+end
+
+-- Apunta un alien en el Índice (colección) del jugador.
+local function registrarIndice(jugador: Player, sesion: Sesion, id: string, shiny: boolean)
+	local antes = sesion.datos.indice[id]
+	local nuevo = if shiny then 2 else 1
+	if antes == nil or (antes or 0) < nuevo then
+		sesion.datos.indice[id] = nuevo
+		actualizarIndiceAtributo(jugador, sesion)
+		local alien = Config.alienPorId(id)
+		if alien then
+			avisar(jugador, "📖 NEW in your Index: " .. (if shiny then "✨ Shiny " else "") .. alien.nombre .. "!", Color3.fromRGB(180, 200, 255))
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- TUTORIAL (primeros minutos: lo que más pesa en el algoritmo de Roblox)
+---------------------------------------------------------------------
+local function ponerPasoTutorial(jugador: Player, sesion: Sesion, paso: number)
+	sesion.tutorial = paso
+	local base = sesion.base
+	jugador:SetAttribute("Tutorial", paso)
+	if paso == 1 then
+		jugador:SetAttribute("TutorialObjetivo", Vector3.new(base.x, 4, 0))
+	elseif paso == 2 then
+		jugador:SetAttribute("TutorialObjetivo", base.placaCobro.Position + Vector3.new(0, 2, 0))
+	elseif paso == 3 then
+		jugador:SetAttribute("TutorialObjetivo", base.placaCandado.Position + Vector3.new(0, 2, 0))
+	else
+		jugador:SetAttribute("TutorialObjetivo", nil)
+	end
+end
+
+local function avanzarTutorial(jugador: Player, sesion: Sesion, pasoCompletado: number)
+	if sesion.tutorial ~= pasoCompletado then
+		return
+	end
+	if pasoCompletado >= 3 then
+		sesion.datos.tutorialHecho = true
+		ponerPasoTutorial(jugador, sesion, 0)
+		avisar(jugador, "🦹 Now sneak into other bases and STEAL their aliens!", AMARILLO)
+		task.delay(3, function()
+			if jugador.Parent then
+				avisar(jugador, "👋 Use SLAP on thieves to make them drop your aliens!", AMARILLO)
+			end
+		end)
+	else
+		ponerPasoTutorial(jugador, sesion, pasoCompletado + 1)
+	end
+end
+
+---------------------------------------------------------------------
+-- PEDESTALES Y ALIENS DE LAS BASES
+---------------------------------------------------------------------
+local robarAlien: (Player, any, number) -> ()
+local venderAlien: (Player, any, number) -> ()
+
+local function pintarPedestales(base: any, desbloqueados: number)
+	for i, slot in base.slots do
+		local bloqueado = i > desbloqueados
+		slot.pedestal.Color = if bloqueado then Color3.fromRGB(45, 40, 60) else Color3.fromRGB(100, 90, 150)
+		slot.pedestal.Transparency = if bloqueado then 0.5 else 0
+		if bloqueado and base.dueno then
+			slot.etiqueta.Text = "🔒 Rebirth"
+		else
+			slot.etiqueta.Text = ""
+		end
+	end
+end
+
+local function slotLibre(sesion: Sesion): number?
+	local desbloqueados = Config.slotsDesbloqueados(sesion.datos.rebirths)
+	for i = 1, desbloqueados do
+		if not sesion.base.slots[i].id then
+			return i
+		end
+	end
+	return nil
+end
+
+local function colocarAlien(base: any, indice: number, id: string, shiny: boolean): boolean
+	local slot = base.slots[indice]
+	local alien = Config.alienPorId(id)
+	if not slot or slot.id or not alien then
+		return false
+	end
+	slot.id = id
+	slot.shiny = shiny
+	slot.etiqueta.Text = ""
+
+	local modelo = Modelos.crear(alien, shiny)
+	local giro = if base.lado == 1 then 0 else math.pi
+	local cf = CFrame.new(slot.pedestal.Position + Vector3.new(0, 0.6 + alien.tamano * 0.65, 0)) * CFrame.Angles(0, giro, 0)
+	modelo:PivotTo(cf)
+	modelo:SetAttribute("PosBase", cf)
+	CollectionService:AddTag(modelo, "AlienFlotante")
+	slot.modelo = modelo
+
+	local duenoId = if base.dueno then base.dueno.UserId else 0
+	local raiz = modelo.PrimaryPart
+
+	local promptRobar = Instance.new("ProximityPrompt")
+	promptRobar.Name = "Robar"
+	promptRobar.ActionText = "Steal"
+	promptRobar.ObjectText = alien.nombre
+	promptRobar.HoldDuration = 1.2
+	promptRobar.RequiresLineOfSight = false
+	promptRobar.MaxActivationDistance = 9
+	promptRobar:SetAttribute("Dueno", duenoId)
+	CollectionService:AddTag(promptRobar, "PromptRobar")
+	promptRobar.Parent = raiz
+	promptRobar.Triggered:Connect(function(jugador)
+		robarAlien(jugador, base, indice)
+	end)
+
+	local promptVender = Instance.new("ProximityPrompt")
+	promptVender.Name = "Vender"
+	promptVender.ActionText = "Sell $" .. abreviar(Config.precioVenta(alien, shiny))
+	promptVender.ObjectText = alien.nombre
+	promptVender.HoldDuration = 1
+	promptVender.RequiresLineOfSight = false
+	promptVender.MaxActivationDistance = 9
+	promptVender.KeyboardKeyCode = Enum.KeyCode.F
+	promptVender:SetAttribute("Dueno", duenoId)
+	CollectionService:AddTag(promptVender, "PromptVender")
+	promptVender.Parent = raiz
+	promptVender.Triggered:Connect(function(jugador)
+		venderAlien(jugador, base, indice)
+	end)
+
+	modelo.Parent = base.carpeta
+	if base.dueno then
+		actualizarStats(base.dueno)
+	end
+	return true
+end
+
+local function quitarAlien(base: any, indice: number): (string?, boolean)
+	local slot = base.slots[indice]
+	local id, shiny = slot.id, slot.shiny
+	if slot.modelo then
+		slot.modelo:Destroy()
+	end
+	slot.id = nil
+	slot.shiny = false
+	slot.modelo = nil
+	if base.dueno then
+		actualizarStats(base.dueno)
+	end
+	return id, shiny
+end
+
+function venderAlien(jugador: Player, base: any, indice: number)
+	local sesion = sesiones[jugador]
+	if not sesion or base.dueno ~= jugador or not base.slots[indice].id or not permitido(sesion, "vender", 0.3) then
+		return
+	end
+	local id, shiny = quitarAlien(base, indice)
+	local alien = Config.alienPorId(id :: string)
+	if not alien then
+		return
+	end
+	local precio = Config.precioVenta(alien, shiny)
+	sumarDinero(jugador, precio)
+	avisar(jugador, "Sold " .. alien.nombre .. " for $" .. abreviar(precio), VERDE)
+	efecto(jugador, "COBRAR")
+end
+
+-- Pasa los aliens de los pedestales a la lista que se guarda.
+local function serializar(sesion: Sesion)
+	local lista = {}
+	for i, slot in sesion.base.slots do
+		if slot.id then
+			table.insert(lista, { s = i, id = slot.id, sh = if slot.shiny then true else nil })
+		end
+	end
+	sesion.datos.aliens = lista
+end
+
+local function guardar(jugador: Player, liberar: boolean): boolean
+	local sesion = sesiones[jugador]
+	if not sesion or not sesion.cargado or sesion.sinGuardado then
+		return false
+	end
+	serializar(sesion)
+	sesion.datos.ultimaConexion = os.time()
+	return Datos.guardar(jugador.UserId, sesion.datos, liberar)
+end
+
+---------------------------------------------------------------------
+-- ROBAR
+---------------------------------------------------------------------
+local function soltarCarga(jugador: Player): Carga?
+	local sesion = sesiones[jugador]
+	local carga = sesion and sesion.llevando
+	if not carga then
+		return nil
+	end
+	sesion.llevando = nil
+	carga.modelo:Destroy()
+	jugador:SetAttribute("Llevando", nil)
+	actualizarVelocidad(jugador)
+	return carga
+end
+
+-- Devuelve el alien a su dueño (si sigue en el servidor y tiene sitio).
+local function devolverCarga(jugador: Player, motivo: string?)
+	local carga = soltarCarga(jugador)
+	if not carga then
+		return
+	end
+	local victima = carga.victima
+	local sesionVictima = victima and sesiones[victima]
+	if victima and sesionVictima and sesionVictima.base == carga.base then
+		local indice = if carga.base.slots[carga.slot].id == nil then carga.slot else slotLibre(sesionVictima)
+		if indice then
+			colocarAlien(carga.base, indice, carga.id, carga.shiny)
+			local alien = Config.alienPorId(carga.id)
+			avisar(victima, "✅ Your " .. (if alien then alien.nombre else "alien") .. " is back home!", VERDE)
+		end
+	end
+	if motivo and jugador.Parent then
+		avisar(jugador, motivo, ROJO)
+	end
+end
+
+local function entregarCarga(jugador: Player, sesion: Sesion)
+	local carga = sesion.llevando
+	if not carga then
+		return
+	end
+	local indice = slotLibre(sesion)
+	if not indice then
+		devolverCarga(jugador, "Your base is full! Sell an alien or Rebirth for more space.")
+		return
+	end
+	soltarCarga(jugador)
+	colocarAlien(sesion.base, indice, carga.id, carga.shiny)
+	sesion.datos.stats.robos += 1
+	registrarIndice(jugador, sesion, carga.id, carga.shiny)
+	actualizarStats(jugador)
+	local alien = Config.alienPorId(carga.id)
+	local nombre = if alien then alien.nombre else "alien"
+	avisar(jugador, "🦹 STOLEN! " .. nombre .. " is yours now!", VERDE)
+	efecto(jugador, "ROBAR")
+	if carga.victima and carga.victima.Parent then
+		avisar(carga.victima, "😱 " .. jugador.DisplayName .. " stole your " .. nombre .. "!", ROJO)
+	end
+	if alien and alien.rareza >= 4 then
+		avisarATodos("🦹 " .. jugador.DisplayName .. " stole a " .. Config.RAREZAS[alien.rareza].nombre .. " " .. nombre .. "!", Modelos.rgb(Config.RAREZAS[alien.rareza].color))
+	end
+end
+
+function robarAlien(ladron: Player, base: any, indice: number)
+	local sesion = sesiones[ladron]
+	local slot = base.slots[indice]
+	if not sesion or not sesion.cargado or not slot.id or not base.dueno or base.dueno == ladron then
+		return
+	end
+	if not permitido(sesion, "robar", 0.5) then
+		return
+	end
+	if sesion.llevando then
+		avisar(ladron, "You are already carrying an alien!")
+		return
+	end
+	if ahora() < base.bloqueadaHasta then
+		avisar(ladron, "🔒 This base is locked!", ROJO)
+		return
+	end
+	local personaje, _, raiz = personajeVivo(ladron)
+	local cabeza = personaje and personaje:FindFirstChild("Head")
+	if not cabeza or not cabeza:IsA("BasePart") or not raiz or (raiz.Position - slot.pedestal.Position).Magnitude > 14 then
+		return
+	end
+
+	local victima = base.dueno
+	local id, shiny = quitarAlien(base, indice)
+	local alien = Config.alienPorId(id :: string)
+	if not alien then
+		return
+	end
+	local modelo = Modelos.crear(alien, shiny)
+	Modelos.prepararParaLlevar(modelo)
+	modelo:PivotTo(cabeza.CFrame * CFrame.new(0, alien.tamano * 0.5 + 1.2, 0))
+	local soldadura = Instance.new("WeldConstraint")
+	soldadura.Part0 = cabeza
+	soldadura.Part1 = modelo.PrimaryPart
+	soldadura.Parent = modelo.PrimaryPart
+	modelo.Parent = personaje
+
+	sesion.llevando = { id = id :: string, shiny = shiny, victima = victima, base = base, slot = indice, modelo = modelo }
+	sesion.ultimaPos = raiz.Position
+	sesion.ultimaPosT = os.clock()
+	ladron:SetAttribute("Llevando", alien.nombre)
+	actualizarVelocidad(ladron)
+	avisar(ladron, "🏃 Run back to your base!", AMARILLO)
+	efecto(ladron, "ROBAR")
+	avisar(victima, "⚠️ " .. ladron.DisplayName .. " is stealing your " .. alien.nombre .. "! SLAP them!", ROJO)
+	efecto(victima, "ALARMA")
+end
+
+-- Vigila a los ladrones: entrega, caída, muerte y teletransportes (anti-trampas).
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		for jugador, sesion in sesiones do
+			local carga = sesion.llevando
+			if carga then
+				local _, humanoid, raiz = personajeVivo(jugador)
+				if not raiz or not humanoid then
+					devolverCarga(jugador, "You lost the alien!")
+				else
+					local t = os.clock()
+					local anterior = sesion.ultimaPos or raiz.Position
+					local dt = t - sesion.ultimaPosT
+					local horizontal = Vector3.new(raiz.Position.X - anterior.X, 0, raiz.Position.Z - anterior.Z).Magnitude
+					local maximo = humanoid.WalkSpeed * dt * 1.6 + 8
+					sesion.ultimaPos = raiz.Position
+					sesion.ultimaPosT = t
+					if horizontal > maximo then
+						devolverCarga(jugador, "The alien slipped away!")
+					elseif Mapa.dentroDeBase(sesion.base, raiz.Position) then
+						entregarCarga(jugador, sesion)
+					end
+				end
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- SLAP (golpe para frenar ladrones)
+---------------------------------------------------------------------
+local plantillaSlap = Instance.new("Tool")
+plantillaSlap.Name = "Slap"
+plantillaSlap.ToolTip = "Slap thieves to make them drop stolen aliens!"
+plantillaSlap.CanBeDropped = false
+plantillaSlap.RequiresHandle = true
+plantillaSlap.Grip = CFrame.new(0, -0.6, 0)
+do
+	local mango = Instance.new("Part")
+	mango.Name = "Handle"
+	mango.Shape = Enum.PartType.Ball
+	mango.Size = Vector3.new(1.8, 1.8, 1.8)
+	mango.Color = Color3.fromRGB(80, 255, 170)
+	mango.Material = Enum.Material.Neon
+	mango.CanCollide = false
+	mango.Massless = true
+	mango.Parent = plantillaSlap
+	local brillo = Instance.new("PointLight")
+	brillo.Color = mango.Color
+	brillo.Range = 6
+	brillo.Parent = mango
+end
+
+local function onda(posicion: Vector3, color: Color3)
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Ball
+	p.Size = Vector3.one * 2
+	p.Position = posicion
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Material = Enum.Material.Neon
+	p.Color = color
+	p.Transparency = 0.2
+	p.Parent = workspace
+	TweenService:Create(p, TweenInfo.new(0.35), { Size = Vector3.one * 8, Transparency = 1 }):Play()
+	Debris:AddItem(p, 0.4)
+end
+
+local function golpear(atacante: Player)
+	local sesion = sesiones[atacante]
+	if not sesion or not permitido(sesion, "golpe", J.ENFRIAMIENTO_GOLPE) then
+		return
+	end
+	local _, _, raiz = personajeVivo(atacante)
+	if not raiz then
+		return
+	end
+	local mira = raiz.CFrame.LookVector
+	local mejor: Player? = nil
+	local mejorDistancia = math.huge
+	for otro in sesiones do
+		if otro ~= atacante then
+			local _, _, raizOtro = personajeVivo(otro)
+			if raizOtro then
+				local diferencia = raizOtro.Position - raiz.Position
+				local distancia = diferencia.Magnitude
+				if distancia <= J.ALCANCE_GOLPE and distancia < mejorDistancia and (distancia < 4 or mira:Dot(diferencia.Unit) > 0.3) then
+					mejor = otro
+					mejorDistancia = distancia
+				end
+			end
+		end
+	end
+	efecto(atacante, "GOLPE")
+	if not mejor then
+		return
+	end
+	local _, _, raizObjetivo = personajeVivo(mejor)
+	if not raizObjetivo then
+		return
+	end
+	local direccion = (raizObjetivo.Position - raiz.Position) * Vector3.new(1, 0, 1)
+	direccion = if direccion.Magnitude > 0.01 then direccion.Unit else mira
+	eGolpeado:FireClient(mejor, direccion)
+	efecto(mejor, "GOLPE")
+	onda(raizObjetivo.Position, Color3.fromRGB(80, 255, 170))
+	local sesionObjetivo = sesiones[mejor]
+	if sesionObjetivo and sesionObjetivo.llevando then
+		devolverCarga(mejor, "💥 " .. atacante.DisplayName .. " slapped you! You dropped the alien.")
+		avisar(atacante, "💥 Slapped " .. mejor.DisplayName .. "! The alien went back home.", VERDE)
+	end
+end
+
+local function darSlap(jugador: Player)
+	local mochila = jugador:FindFirstChildOfClass("Backpack")
+	if not mochila or mochila:FindFirstChild("Slap") or (jugador.Character and jugador.Character:FindFirstChild("Slap")) then
+		return
+	end
+	local herramienta = plantillaSlap:Clone()
+	herramienta.Activated:Connect(function()
+		golpear(jugador)
+	end)
+	herramienta.Parent = mochila
+end
+
+---------------------------------------------------------------------
+-- PLACAS DE COBRO Y CANDADO
+---------------------------------------------------------------------
+local function cobrar(jugador: Player, sesion: Sesion)
+	local cantidad = sesion.datos.pendiente
+	if cantidad < 1 then
+		return
+	end
+	sesion.datos.pendiente = 0
+	sumarDinero(jugador, cantidad)
+	sesion.base.textoCobro.Text = "$0"
+	avisar(jugador, "+$" .. abreviar(cantidad), VERDE)
+	efecto(jugador, "COBRAR")
+	avanzarTutorial(jugador, sesion, 2)
+end
+
+local function bloquear(jugador: Player, sesion: Sesion)
+	local base = sesion.base
+	if ahora() < base.bloqueadaHasta then
+		return
+	end
+	local duracion = if sesion.pases.vip then J.SEGUNDOS_CANDADO_VIP else J.SEGUNDOS_CANDADO
+	if sesion.pases.candadoPlus then
+		duracion *= 2
+	end
+	base.bloqueadaHasta = ahora() + duracion
+	base.barrera.Transparency = 0.35
+	base.barrera.CanTouch = true
+	avisar(jugador, "🔒 Base locked for " .. duracion .. "s", Color3.fromRGB(255, 160, 170))
+	avanzarTutorial(jugador, sesion, 3)
+end
+
+for _, base in mapa.bases do
+	base.placaCobro.Touched:Connect(function(golpe)
+		local jugador = jugadorDesdeToque(golpe)
+		local sesion = jugador and sesiones[jugador]
+		if jugador and sesion and sesion.cargado and base.dueno == jugador then
+			cobrar(jugador, sesion)
+		end
+	end)
+	base.placaCandado.Touched:Connect(function(golpe)
+		local jugador = jugadorDesdeToque(golpe)
+		local sesion = jugador and sesiones[jugador]
+		if jugador and sesion and sesion.cargado and base.dueno == jugador then
+			bloquear(jugador, sesion)
+		end
+	end)
+	-- La barrera expulsa a quien no sea el dueño mientras la base está cerrada.
+	base.barrera.Touched:Connect(function(golpe)
+		local jugador = jugadorDesdeToque(golpe)
+		if jugador and jugador ~= base.dueno then
+			local personaje, _, raiz = personajeVivo(jugador)
+			if personaje and raiz then
+				local fuera = base.lado * (Mapa.FRENTE_BASE - 7)
+				personaje:PivotTo(CFrame.new(raiz.Position.X, raiz.Position.Y + 1, fuera) * raiz.CFrame.Rotation)
+			end
+		end
+	end)
+end
+
+-- Cada segundo: ingresos pasivos, candados y boosts.
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for jugador, sesion in sesiones do
+			if sesion.cargado then
+				sesion.datos.pendiente += ingresoPorSegundo(sesion)
+				sesion.base.textoCobro.Text = "$" .. abreviar(sesion.datos.pendiente)
+				if sesion.datos.boostHasta > 0 and sesion.datos.boostHasta <= os.time() and not sesion.boostAvisado then
+					sesion.boostAvisado = true
+					avisar(jugador, "⚡ Your 2x boost ended.", AMARILLO)
+				end
+				actualizarStats(jugador)
+			end
+		end
+		local t = ahora()
+		for _, base in mapa.bases do
+			local restante = math.ceil(base.bloqueadaHasta - t)
+			if restante > 0 then
+				base.textoCandado.Text = "🔒 " .. restante .. "s"
+			elseif base.barrera.CanTouch then
+				base.barrera.Transparency = 1
+				base.barrera.CanTouch = false
+				base.textoCandado.Text = "🔒 LOCK"
+				if base.dueno then
+					avisar(base.dueno, "🔓 Your base is unlocked!", AMARILLO)
+				end
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- CINTA TRANSPORTADORA
+-- El servidor crea los aliens y la interfaz de cada jugador los mueve (suave y sin
+-- gastar red). Como ambos usan la misma fórmula y la misma hora, coinciden.
+---------------------------------------------------------------------
+type ItemCinta = { modelo: Model, inicio: number, alien: Config.Alien, shiny: boolean, precio: number, alto: number, vendido: boolean }
+local enCinta: { ItemCinta } = {}
+local aleatorio = Random.new()
+
+local function posicionEnCinta(item: ItemCinta, t: number): Vector3
+	local progreso = math.clamp((t - item.inicio) / J.SEGUNDOS_EN_CINTA, 0, 1)
+	return mapa.cintaInicio:Lerp(mapa.cintaFin, progreso) + Vector3.new(0, item.alto, 0)
+end
+
+local function comprarDeCinta(jugador: Player, item: ItemCinta)
+	local sesion = sesiones[jugador]
+	if not sesion or not sesion.cargado or item.vendido or not permitido(sesion, "comprar", 0.2) then
+		return
+	end
+	local _, _, raiz = personajeVivo(jugador)
+	if not raiz or (raiz.Position - posicionEnCinta(item, ahora())).Magnitude > 18 then
+		return
+	end
+	if sesion.datos.dinero < item.precio then
+		avisar(jugador, "Not enough cash! You need $" .. abreviar(item.precio), ROJO)
+		return
+	end
+	local indice = slotLibre(sesion)
+	if not indice then
+		avisar(jugador, "Your base is full! Sell an alien or Rebirth for more space.", ROJO)
+		return
+	end
+	item.vendido = true
+	item.modelo:Destroy()
+	sumarDinero(jugador, -item.precio)
+	colocarAlien(sesion.base, indice, item.alien.id, item.shiny)
+	registrarIndice(jugador, sesion, item.alien.id, item.shiny)
+	avisar(jugador, "You bought " .. (if item.shiny then "✨ Shiny " else "") .. item.alien.nombre .. "!", VERDE)
+	efecto(jugador, "COMPRAR")
+	avanzarTutorial(jugador, sesion, 1)
+	if item.alien.rareza >= 4 then
+		local rareza = Config.RAREZAS[item.alien.rareza]
+		avisarATodos(jugador.DisplayName .. " bought a " .. rareza.nombre .. " " .. item.alien.nombre .. "!", Modelos.rgb(rareza.color))
+	end
+end
+
+local function lanzarAlienEnCinta()
+	local suerte = ahora() < (remotos:GetAttribute("SuerteHasta") or 0)
+	local id = Probabilidades.elegir(Config.RAREZAS, Config.ALIENS, suerte, E.MULTIPLICADOR_SUERTE, aleatorio:NextNumber())
+	local alien = Config.alienPorId(id)
+	if not alien then
+		return
+	end
+	local shiny = aleatorio:NextNumber() < Config.SHINY.PROBABILIDAD
+	local precio = Config.precioAlien(alien, shiny)
+	local modelo = Modelos.crear(alien, shiny, precio)
+	local item: ItemCinta = { modelo = modelo, inicio = ahora(), alien = alien, shiny = shiny, precio = precio, alto = alien.tamano * 0.65 + 0.6, vendido = false }
+	modelo:PivotTo(CFrame.new(posicionEnCinta(item, item.inicio)) * CFrame.Angles(0, -math.pi / 2, 0))
+	modelo:SetAttribute("CintaInicio", item.inicio)
+	modelo:SetAttribute("CintaAlto", item.alto)
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "Comprar"
+	prompt.ActionText = "Buy $" .. abreviar(precio)
+	prompt.ObjectText = (if shiny then "✨ " else "") .. alien.nombre .. " (" .. Config.RAREZAS[alien.rareza].nombre .. ")"
+	prompt.HoldDuration = 0.25
+	prompt.RequiresLineOfSight = false
+	prompt.MaxActivationDistance = 12
+	prompt.Parent = modelo.PrimaryPart
+	prompt.Triggered:Connect(function(jugador)
+		comprarDeCinta(jugador, item)
+	end)
+
+	CollectionService:AddTag(modelo, "AlienCinta")
+	modelo.Parent = carpetaCinta
+	table.insert(enCinta, item)
+
+	if alien.rareza >= 5 or (shiny and alien.rareza >= 3) then
+		local rareza = Config.RAREZAS[alien.rareza]
+		avisarATodos("✨ A " .. (if shiny then "Shiny " else "") .. rareza.nombre .. " " .. alien.nombre .. " is on the belt!", Modelos.rgb(rareza.color))
+	end
+end
+
+task.spawn(function()
+	while true do
+		lanzarAlienEnCinta()
+		task.wait(J.SEGUNDOS_ENTRE_ALIENS)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(0.5)
+		local t = ahora()
+		for i = #enCinta, 1, -1 do
+			local item = enCinta[i]
+			if item.vendido or t - item.inicio >= J.SEGUNDOS_EN_CINTA then
+				if item.modelo.Parent then
+					item.modelo:Destroy()
+				end
+				table.remove(enCinta, i)
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- EVENTOS: LUCKY BELT Y METEOR SHOWER
+---------------------------------------------------------------------
+local function activarSuerte(segundos: number, texto: string)
+	local desde = math.max(ahora(), remotos:GetAttribute("SuerteHasta") or 0)
+	remotos:SetAttribute("SuerteHasta", desde + segundos)
+	avisarATodos(texto, Color3.fromRGB(120, 255, 120))
+	for jugador in sesiones do
+		efecto(jugador, "EVENTO")
+	end
+end
+
+local function crearCristal(posicion: Vector3)
+	local cristal = Instance.new("Part")
+	cristal.Name = "CristalEspacial"
+	cristal.Size = Vector3.new(1.6, 2.6, 1.6)
+	cristal.CFrame = CFrame.new(posicion + Vector3.new(0, 1.8, 0)) * CFrame.Angles(0, aleatorio:NextNumber(0, 6), 0.3)
+	cristal.Anchored = true
+	cristal.CanCollide = false
+	cristal.Material = Enum.Material.Neon
+	cristal.Color = Color3.fromRGB(90, 230, 255)
+	local luz = Instance.new("PointLight")
+	luz.Color = cristal.Color
+	luz.Range = 10
+	luz.Parent = cristal
+	local cogido = false
+	cristal.Touched:Connect(function(golpe)
+		if cogido then
+			return
+		end
+		local jugador = jugadorDesdeToque(golpe)
+		local sesion = jugador and sesiones[jugador]
+		if not jugador or not sesion or not sesion.cargado then
+			return
+		end
+		cogido = true
+		local cantidad = math.floor(math.max(E.METEORITO_MINIMO, ingresoPorSegundo(sesion) * E.METEORITO_SEGUNDOS_INGRESO))
+		sumarDinero(jugador, cantidad)
+		avisar(jugador, "💎 +$" .. abreviar(cantidad), Color3.fromRGB(120, 230, 255))
+		efecto(jugador, "COBRAR")
+		onda(cristal.Position, cristal.Color)
+		cristal:Destroy()
+	end)
+	cristal.Parent = workspace
+	Debris:AddItem(cristal, 25)
+end
+
+local function lanzarMeteorito()
+	local zona = mapa.zonaMeteoritos
+	local lado = if aleatorio:NextNumber() < 0.5 then -1 else 1
+	local destino = Vector3.new(aleatorio:NextNumber(zona.xMin, zona.xMax), 0.5, lado * aleatorio:NextNumber(zona.zMin, zona.zMax))
+	local origen = destino + Vector3.new(60, 160, lado * 20)
+	local meteoro = Instance.new("Part")
+	meteoro.Shape = Enum.PartType.Ball
+	meteoro.Size = Vector3.one * 3.5
+	meteoro.Material = Enum.Material.Neon
+	meteoro.Color = Color3.fromRGB(255, 140, 50)
+	meteoro.Anchored = true
+	meteoro.CanCollide = false
+	meteoro.CanQuery = false
+	meteoro.CanTouch = false
+	meteoro.Position = origen
+	local fuego = Instance.new("Fire")
+	fuego.Size = 8
+	fuego.Heat = 15
+	fuego.Parent = meteoro
+	meteoro.Parent = workspace
+	local caida = TweenService:Create(meteoro, TweenInfo.new(1.6, Enum.EasingStyle.Linear), { Position = destino })
+	caida.Completed:Connect(function()
+		meteoro:Destroy()
+		onda(destino, Color3.fromRGB(255, 160, 60))
+		crearCristal(destino)
+	end)
+	caida:Play()
+end
+
+local function lluviaDeMeteoritos()
+	remotos:SetAttribute("MeteoritosHasta", ahora() + E.METEORITOS_DURA)
+	avisarATodos("☄️ METEOR SHOWER! Grab the space crystals in the plaza!", Color3.fromRGB(255, 170, 80))
+	for jugador in sesiones do
+		efecto(jugador, "EVENTO")
+	end
+	task.spawn(function()
+		for _ = 1, E.METEORITOS_CANTIDAD do
+			lanzarMeteorito()
+			task.wait(E.METEORITOS_DURA / E.METEORITOS_CANTIDAD)
+		end
+	end)
+end
+
+task.spawn(function()
+	while true do
+		remotos:SetAttribute("ProximaSuerte", ahora() + E.SUERTE_CADA)
+		task.wait(E.SUERTE_CADA)
+		activarSuerte(E.SUERTE_DURA, "🍀 LUCKY BELT! Rare aliens x" .. E.MULTIPLICADOR_SUERTE .. " for " .. E.SUERTE_DURA .. "s!")
+	end
+end)
+
+task.spawn(function()
+	remotos:SetAttribute("ProximosMeteoritos", ahora() + E.METEORITOS_PRIMERO)
+	task.wait(E.METEORITOS_PRIMERO)
+	while true do
+		lluviaDeMeteoritos()
+		remotos:SetAttribute("ProximosMeteoritos", ahora() + E.METEORITOS_CADA)
+		task.wait(E.METEORITOS_CADA)
+	end
+end)
+
+---------------------------------------------------------------------
+-- PUESTOS: VELOCIDAD Y REBIRTH
+---------------------------------------------------------------------
+local function promptPuesto(puesto: BasePart, accion: string, objeto: string, mantener: number, alPulsar: (Player) -> ())
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = accion
+	prompt.ObjectText = objeto
+	prompt.HoldDuration = mantener
+	prompt.RequiresLineOfSight = false
+	prompt.MaxActivationDistance = 12
+	prompt.Parent = puesto
+	prompt.Triggered:Connect(alPulsar)
+end
+
+promptPuesto(mapa.puestoVelocidad, "Upgrade", "Speed", 0.3, function(jugador)
+	local sesion = sesiones[jugador]
+	if not sesion or not sesion.cargado or not permitido(sesion, "velocidad", 0.3) then
+		return
+	end
+	local nivel = sesion.datos.velocidad
+	if nivel >= J.NIVEL_VELOCIDAD_MAX then
+		avisar(jugador, "⚡ Max speed reached!")
+		return
+	end
+	local coste = Config.costeVelocidad(nivel)
+	if sesion.datos.dinero < coste then
+		avisar(jugador, "⚡ Speed " .. (nivel + 1) .. " costs $" .. abreviar(coste), ROJO)
+		return
+	end
+	sesion.datos.velocidad = nivel + 1
+	sumarDinero(jugador, -coste)
+	actualizarVelocidad(jugador)
+	avisar(jugador, "⚡ Speed level " .. sesion.datos.velocidad .. "!", Color3.fromRGB(120, 200, 255))
+	efecto(jugador, "COMPRAR")
+end)
+
+promptPuesto(mapa.puestoRebirth, "Rebirth (hold)", "Rebirth", 2, function(jugador)
+	local sesion = sesiones[jugador]
+	if not sesion or not sesion.cargado or sesion.llevando or not permitido(sesion, "rebirth", 2) then
+		return
+	end
+	local coste = Config.costeRebirth(sesion.datos.rebirths)
+	if sesion.datos.dinero < coste then
+		avisar(jugador, "🌌 Rebirth needs $" .. abreviar(coste) .. ". Resets cash & aliens, gives +50% income and +1 pedestal forever.", Color3.fromRGB(255, 150, 220))
+		return
+	end
+	for i in sesion.base.slots do
+		quitarAlien(sesion.base, i)
+	end
+	sesion.datos.rebirths += 1
+	sesion.datos.dinero = J.DINERO_INICIAL
+	sesion.datos.pendiente = 0
+	pintarPedestales(sesion.base, Config.slotsDesbloqueados(sesion.datos.rebirths))
+	actualizarStats(jugador)
+	task.spawn(guardar, jugador, false)
+	avisarATodos("🌌 " .. jugador.DisplayName .. " reached Rebirth " .. sesion.datos.rebirths .. "!", Color3.fromRGB(255, 150, 220))
+	efecto(jugador, "EVENTO")
+end)
+
+---------------------------------------------------------------------
+-- MONETIZACIÓN
+---------------------------------------------------------------------
+local function idDe(clave: string): number
+	local articulo = Config.articuloPorClave(clave)
+	return if articulo then articulo.id else 0
+end
+
+local function poseePase(jugador: Player, id: number): boolean
+	if id == 0 then
+		return false
+	end
+	local ok, resultado = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(jugador.UserId, id)
+	end)
+	return ok and resultado == true
+end
+
+local function comprobarPases(jugador: Player, sesion: Sesion)
+	sesion.pases.doble = poseePase(jugador, idDe("PASE_DOBLE_DINERO"))
+	sesion.pases.vip = poseePase(jugador, idDe("PASE_VIP"))
+	sesion.pases.candadoPlus = poseePase(jugador, idDe("PASE_CANDADO_PLUS"))
+	jugador:SetAttribute("VIP", sesion.pases.vip)
+	jugador:SetAttribute("PaseDoble", sesion.pases.doble)
+	jugador:SetAttribute("PaseCandado", sesion.pases.candadoPlus)
+end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(jugador, idPase, comprado)
+	local sesion = sesiones[jugador]
+	if not comprado or not sesion or idPase == 0 then
+		return
+	end
+	if idPase == idDe("PASE_DOBLE_DINERO") then
+		sesion.pases.doble = true
+		jugador:SetAttribute("PaseDoble", true)
+	elseif idPase == idDe("PASE_VIP") then
+		sesion.pases.vip = true
+		jugador:SetAttribute("VIP", true)
+	elseif idPase == idDe("PASE_CANDADO_PLUS") then
+		sesion.pases.candadoPlus = true
+		jugador:SetAttribute("PaseCandado", true)
+	end
+	actualizarStats(jugador)
+	actualizarVelocidad(jugador)
+	avisar(jugador, "💜 Thank you for your support!", Color3.fromRGB(210, 160, 255))
+	efecto(jugador, "EVENTO")
+end)
+
+-- Las compras se piden al servidor para poder aplicar las normas de cada país.
+ePedirCompra.OnServerEvent:Connect(function(jugador, clave)
+	local sesion = sesiones[jugador]
+	if type(clave) ~= "string" or not sesion or not permitido(sesion, "pedirCompra", 1) then
+		return
+	end
+	local articulo = Config.articuloPorClave(clave)
+	if not articulo or articulo.id == 0 then
+		return
+	end
+	if clave == "PRODUCTO_SUERTE_SERVIDOR" and sesion.suerteRestringida then
+		avisar(jugador, "Sorry, this item is unavailable in your region.", ROJO)
+		return
+	end
+	if articulo.tipo == "pase" then
+		if poseePase(jugador, articulo.id) then
+			avisar(jugador, "You already own this pass!")
+			return
+		end
+		MarketplaceService:PromptGamePassPurchase(jugador, articulo.id)
+	else
+		MarketplaceService:PromptProductPurchase(jugador, articulo.id)
+	end
+end)
+
+local function activarBoost(jugador: Player, sesion: Sesion, minutos: number)
+	local desde = math.max(os.time(), sesion.datos.boostHasta)
+	sesion.datos.boostHasta = desde + minutos * 60
+	sesion.boostAvisado = false
+	actualizarStats(jugador)
+	avisar(jugador, "⚡ 2x income for " .. minutos .. " minutes!", AMARILLO)
+end
+
+local function paqueteDinero(jugador: Player, sesion: Sesion, segundos: number, minimo: number)
+	local cantidad = math.floor(math.max(minimo, ingresoPorSegundo(sesion) * segundos))
+	sumarDinero(jugador, cantidad)
+	avisar(jugador, "💵 +$" .. abreviar(cantidad) .. "! Thank you!", VERDE)
+end
+
+local ENTREGAS: { [string]: (Player, Sesion) -> () } = {
+	PRODUCTO_BOOST_X2 = function(jugador, sesion)
+		activarBoost(jugador, sesion, J.BOOST_X2_MINUTOS)
+	end,
+	PRODUCTO_SUERTE_SERVIDOR = function(jugador)
+		activarSuerte(E.SUERTE_PAGADA_DURA, "🍀 " .. jugador.DisplayName .. " activated LUCKY BELT for everyone! (" .. E.SUERTE_PAGADA_DURA .. "s)")
+	end,
+	PRODUCTO_DINERO_PEQUENO = function(jugador, sesion)
+		paqueteDinero(jugador, sesion, 600, 2500)
+	end,
+	PRODUCTO_DINERO_GRANDE = function(jugador, sesion)
+		paqueteDinero(jugador, sesion, 3600, 25000)
+	end,
+	ANUNCIO = function(jugador, sesion)
+		activarBoost(jugador, sesion, 10)
+	end,
+}
+
+local clavePorProducto: { [number]: string } = {}
+for _, articulo in Config.TIENDA do
+	if articulo.tipo == "producto" and articulo.id ~= 0 then
+		clavePorProducto[articulo.id] = articulo.clave
+	end
+end
+if Config.ANUNCIO_RECOMPENSA_PRODUCTO ~= 0 and not clavePorProducto[Config.ANUNCIO_RECOMPENSA_PRODUCTO] then
+	clavePorProducto[Config.ANUNCIO_RECOMPENSA_PRODUCTO] = "ANUNCIO"
+end
+
+-- Roblox llama aquí con cada compra de Developer Product (y recompensa de anuncio).
+-- Se guarda el PurchaseId para no entregar nunca una compra dos veces.
+MarketplaceService.ProcessReceipt = function(recibo)
+	local jugador = Players:GetPlayerByUserId(recibo.PlayerId)
+	local sesion = jugador and sesiones[jugador]
+	local clave = clavePorProducto[recibo.ProductId]
+	local entregar = clave and ENTREGAS[clave]
+	if not jugador or not sesion or not sesion.cargado or not entregar then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	if Perfil.yaComprado(sesion.datos, recibo.PurchaseId) then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	local ok, err = pcall(entregar, jugador, sesion)
+	if not ok then
+		warn("[Compras] Error entregando", clave, err)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	Perfil.registrarCompra(sesion.datos, recibo.PurchaseId)
+	if not sesion.sinGuardado and not guardar(jugador, false) then
+		-- Ya está entregado y apuntado: si Roblox reintenta, contestaremos "Granted" sin repetir.
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
+-- Anuncios de vídeo con recompensa (opcional, requiere activarlos en el Creator Hub).
+eAnuncio.OnServerEvent:Connect(function(jugador)
+	local sesion = sesiones[jugador]
+	if Config.ANUNCIO_RECOMPENSA_PRODUCTO == 0 or not sesion or not permitido(sesion, "anuncio", 5) then
+		return
+	end
+	local ok, resultado = pcall(function()
+		local recompensa = AdService:CreateAdRewardFromDevProductId(Config.ANUNCIO_RECOMPENSA_PRODUCTO)
+		return AdService:ShowRewardedVideoAdAsync(jugador, recompensa)
+	end)
+	eAnuncio:FireClient(jugador, ok, if ok then tostring(resultado) else nil)
+end)
+
+---------------------------------------------------------------------
+-- CÓDIGOS PROMOCIONALES
+---------------------------------------------------------------------
+fCodigo.OnServerInvoke = function(jugador, texto)
+	local sesion = sesiones[jugador]
+	if not sesion or not sesion.cargado or type(texto) ~= "string" or #texto > 40 then
+		return false, "Invalid code"
+	end
+	if not permitido(sesion, "codigo", 2) then
+		return false, "Wait a moment..."
+	end
+	local codigo = string.upper((string.gsub(texto, "%s", "")))
+	local premio = Codigos[codigo]
+	if not premio then
+		return false, "Invalid code"
+	end
+	if premio.caduca and os.time() > premio.caduca then
+		return false, "This code has expired"
+	end
+	if sesion.datos.codigos[codigo] then
+		return false, "Already redeemed"
+	end
+	sesion.datos.codigos[codigo] = true
+	local partes = {}
+	local dinero = (premio.dinero or 0) + ingresoPorSegundo(sesion) * (premio.segundos or 0)
+	if dinero > 0 then
+		sumarDinero(jugador, math.floor(dinero))
+		table.insert(partes, "+$" .. abreviar(dinero))
+	end
+	if premio.boostMinutos then
+		activarBoost(jugador, sesion, premio.boostMinutos)
+		table.insert(partes, premio.boostMinutos .. " min 2x boost")
+	end
+	efecto(jugador, "EVENTO")
+	return true, "Redeemed! " .. table.concat(partes, " + ")
+end
+
+---------------------------------------------------------------------
+-- AMIGOS Y GRUPO (bonos sociales: Roblox premia que se juegue con amigos)
+---------------------------------------------------------------------
+local amistades: { [number]: { [number]: boolean } } = {}
+
+local function recalcularAmigos()
+	for jugador, sesion in sesiones do
+		local cuenta = 0
+		local suyas = amistades[jugador.UserId]
+		if suyas then
+			for otro in sesiones do
+				if otro ~= jugador and suyas[otro.UserId] then
+					cuenta += 1
+				end
+			end
+		end
+		if sesion.amigos ~= cuenta then
+			if cuenta > sesion.amigos and sesion.cargado then
+				avisar(jugador, "👥 Friend bonus: +" .. math.floor(math.min(cuenta * J.BONUS_POR_AMIGO, J.BONUS_AMIGOS_MAX) * 100) .. "% income!", Color3.fromRGB(150, 220, 255))
+			end
+			sesion.amigos = cuenta
+			actualizarStats(jugador)
+		end
+	end
+end
+
+local function comprobarAmistades(jugador: Player)
+	amistades[jugador.UserId] = amistades[jugador.UserId] or {}
+	for _, otro in Players:GetPlayers() do
+		if otro ~= jugador then
+			local ok, sonAmigos = pcall(function()
+				return jugador:IsFriendsWithAsync(otro.UserId)
+			end)
+			if ok and sonAmigos then
+				amistades[jugador.UserId][otro.UserId] = true
+				amistades[otro.UserId] = amistades[otro.UserId] or {}
+				amistades[otro.UserId][jugador.UserId] = true
+			end
+		end
+	end
+	recalcularAmigos()
+end
+
+---------------------------------------------------------------------
+-- RANKINGS GLOBALES
+---------------------------------------------------------------------
+local nombresCache: { [number]: string } = {}
+
+local function nombreDe(userId: number): string
+	if nombresCache[userId] then
+		return nombresCache[userId]
+	end
+	local ok, nombre = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	local resultado = if ok and nombre then nombre else "???"
+	nombresCache[userId] = resultado
+	return resultado
+end
+
+local function actualizarRanking(nombre: string, obtenerValor: (Sesion) -> number)
+	local almacen = Datos.ranking(nombre)
+	local tablero = mapa.rankings[if nombre == "Rebirths" then "rebirths" else "robos"]
+	if not almacen or not tablero then
+		return
+	end
+	for jugador, sesion in sesiones do
+		if sesion.cargado and not sesion.sinGuardado then
+			local valor = obtenerValor(sesion)
+			if valor > 0 then
+				pcall(function()
+					almacen:SetAsync(tostring(jugador.UserId), valor)
+				end)
+			end
+		end
+	end
+	local ok, paginas = pcall(function()
+		return almacen:GetSortedAsync(false, 10)
+	end)
+	if not ok or not paginas then
+		return
+	end
+	local entradas = paginas:GetCurrentPage()
+	for i, fila in tablero.filas do
+		local entrada = entradas[i]
+		if entrada then
+			fila.Text = string.format("%d. %s — %s", i, nombreDe(tonumber(entrada.key) or 0), abreviar(entrada.value))
+		else
+			fila.Text = i .. ". ..."
+		end
+	end
+end
+
+task.spawn(function()
+	task.wait(15)
+	while true do
+		if Datos.disponible() then
+			actualizarRanking("Rebirths", function(sesion)
+				return sesion.datos.rebirths
+			end)
+			actualizarRanking("Robos", function(sesion)
+				return sesion.datos.stats.robos
+			end)
+		end
+		task.wait(180)
+	end
+end)
+
+---------------------------------------------------------------------
+-- ENTRADA Y SALIDA DE JUGADORES
+---------------------------------------------------------------------
+local function asignarBase(jugador: Player): any
+	for _, base in mapa.bases do
+		if not base.dueno then
+			base.dueno = jugador
+			return base
+		end
+	end
+	return nil
+end
+
+local function liberarBase(base: any)
+	for i in base.slots do
+		quitarAlien(base, i)
+	end
+	base.dueno = nil
+	base.bloqueadaHasta = 0
+	base.barrera.Transparency = 1
+	base.barrera.CanTouch = false
+	base.cartel.Text = "Empty base"
+	base.textoCobro.Text = "$0"
+	base.textoCandado.Text = "🔒 LOCK"
+	pintarPedestales(base, J.SLOTS_MAXIMOS)
+end
+
+local function colocarEnBase(jugador: Player, personaje: Model, base: any)
+	personaje:WaitForChild("HumanoidRootPart", 10)
+	task.wait()
+	if personaje.Parent then
+		local mirarA = Vector3.new(base.x, base.centro.Y + 4, 0)
+		personaje:PivotTo(CFrame.lookAt(base.centro + Vector3.new(0, 4, 0), mirarA))
+	end
+	darSlap(jugador)
+	actualizarVelocidad(jugador)
+end
+
+local function crearLeaderstats(jugador: Player)
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	for _, nombre in { "Cash", "Rebirths", "Steals" } do
+		local valor = Instance.new("NumberValue")
+		valor.Name = nombre
+		valor.Parent = stats
+	end
+	stats.Parent = jugador
+end
+
+local function alEntrar(jugador: Player)
+	local base = asignarBase(jugador)
+	if not base then
+		jugador:Kick("This server is full. Please join another server!")
+		return
+	end
+	crearLeaderstats(jugador)
+	local sesion: Sesion = {
+		datos = Perfil.nuevo(J.DINERO_INICIAL),
+		base = base,
+		llevando = nil,
+		pases = { doble = false, vip = false, candadoPlus = false },
+		amigos = 0,
+		grupo = false,
+		cargado = false,
+		sinGuardado = false,
+		suerteRestringida = true, -- hasta confirmar la política del país
+		ultimaAccion = {},
+		ultimaPos = nil,
+		ultimaPosT = 0,
+		tutorial = 0,
+		boostAvisado = false,
+	}
+	sesiones[jugador] = sesion
+	base.cartel.Text = string.format('<font color="#%s">%s</font>\'s base', base.color:ToHex(), jugador.DisplayName)
+	jugador:SetAttribute("BaseIndice", base.indice)
+
+	jugador.CharacterAdded:Connect(function(personaje)
+		colocarEnBase(jugador, personaje, base)
+	end)
+	if jugador.Character then
+		task.spawn(colocarEnBase, jugador, jugador.Character, base)
+	end
+
+	-- Cargar datos
+	local resultado = Datos.cargar(jugador.UserId)
+	if sesiones[jugador] ~= sesion then
+		-- Se fue mientras cargábamos: soltamos el bloqueo sin tocar sus datos.
+		if resultado.ok and not resultado.sinGuardado then
+			Datos.liberar(jugador.UserId)
+		end
+		return
+	end
+	if not resultado.ok then
+		jugador:Kick("We couldn't load your data (Roblox servers may be busy). Please rejoin in a minute!")
+		return
+	end
+	sesion.sinGuardado = resultado.sinGuardado
+	sesion.datos = Perfil.reconciliar(resultado.guardado, J.DINERO_INICIAL, J.SLOTS_MAXIMOS, function(id)
+		return Config.alienPorId(id) ~= nil
+	end)
+	local datos = sesion.datos
+
+	pintarPedestales(base, Config.slotsDesbloqueados(datos.rebirths))
+	for _, guardado in datos.aliens do
+		colocarAlien(base, guardado.s, guardado.id, guardado.sh == true)
+	end
+
+	-- Comprobaciones externas (pueden tardar un poco)
+	comprobarPases(jugador, sesion)
+	local okPolitica, politica = pcall(function()
+		return PolicyService:GetPolicyInfoForPlayerAsync(jugador)
+	end)
+	sesion.suerteRestringida = not okPolitica or politica == nil or politica.ArePaidRandomItemsRestricted == true
+	jugador:SetAttribute("SuerteRestringida", sesion.suerteRestringida)
+	if Config.GRUPO_ID ~= 0 then
+		local okGrupo, enGrupo = pcall(function()
+			return jugador:IsInGroupAsync(Config.GRUPO_ID)
+		end)
+		sesion.grupo = okGrupo and enGrupo == true
+	end
+	if not jugador.Parent then
+		return
+	end
+	sesion.cargado = true
+	task.spawn(comprobarAmistades, jugador)
+
+	-- Ganancias mientras no jugaba
+	if datos.ultimaConexion > 0 then
+		local offline = Config.gananciaOffline(os.time() - datos.ultimaConexion, ingresoPorSegundo(sesion))
+		if offline >= 1 then
+			datos.pendiente += offline
+			task.delay(4, function()
+				if jugador.Parent then
+					avisar(jugador, "🌙 Your aliens made $" .. abreviar(offline) .. " while you were away! Collect it at your base.", Color3.fromRGB(180, 200, 255))
+				end
+			end)
+		end
+	end
+
+	-- Recompensa diaria
+	local hoy = os.time() // 86400
+	local racha = Perfil.siguienteRacha(datos.diario, hoy)
+	if racha then
+		local premio = Config.recompensaDiaria(racha, ingresoPorSegundo(sesion))
+		datos.diario = { dia = hoy, racha = racha }
+		datos.dinero += premio
+		task.delay(2, function()
+			if jugador.Parent then
+				eDiario:FireClient(jugador, racha, premio)
+			end
+		end)
+	end
+
+	actualizarIndiceAtributo(jugador, sesion)
+	actualizarStats(jugador)
+	actualizarVelocidad(jugador)
+
+	if not datos.tutorialHecho then
+		ponerPasoTutorial(jugador, sesion, 1)
+		avisar(jugador, "👽 Welcome! Buy your first alien on the belt!", Color3.fromRGB(0, 255, 200))
+	else
+		avisar(jugador, "👽 Welcome back, " .. jugador.DisplayName .. "!", Color3.fromRGB(0, 255, 200))
+	end
+	if sesion.sinGuardado then
+		avisar(jugador, "[Studio] Data saving is OFF (enable API Services to test saving).", AMARILLO)
+	end
+end
+
+local function alSalir(jugador: Player)
+	local sesion = sesiones[jugador]
+	if not sesion then
+		return
+	end
+	devolverCarga(jugador, nil)
+	if sesion.cargado and not sesion.sinGuardado then
+		serializar(sesion)
+	end
+	local base = sesion.base
+	-- Guardamos antes de liberar la base (guardar usa los pedestales).
+	guardar(jugador, true)
+	sesiones[jugador] = nil
+	liberarBase(base)
+	amistades[jugador.UserId] = nil
+	recalcularAmigos()
+end
+
+Players.PlayerAdded:Connect(alEntrar)
+Players.PlayerRemoving:Connect(alSalir)
+for _, jugador in Players:GetPlayers() do
+	task.spawn(alEntrar, jugador)
+end
+
+-- Autoguardado
+task.spawn(function()
+	while true do
+		task.wait(90)
+		for jugador in sesiones do
+			task.spawn(guardar, jugador, false)
+			task.wait(0.5)
+		end
+	end
+end)
+
+game:BindToClose(function()
+	local pendientes = 0
+	for jugador in sesiones do
+		pendientes += 1
+		task.spawn(function()
+			guardar(jugador, true)
+			pendientes -= 1
+		end)
+	end
+	local limite = os.clock() + 25
+	while pendientes > 0 and os.clock() < limite do
+		task.wait(0.2)
+	end
+end)
+
+---------------------------------------------------------------------
+-- COMANDOS DE PRUEBA (solo funcionan en Roblox Studio)
+-- /cash 1000000   /luck   /meteors   /rebirths 3
+---------------------------------------------------------------------
+if RunService:IsStudio() then
+	local function comando(alias: string, accion: (Player, string) -> ())
+		local cmd = Instance.new("TextChatCommand")
+		cmd.Name = "Prueba_" .. alias
+		cmd.PrimaryAlias = "/" .. alias
+		cmd.Triggered:Connect(function(origen, texto)
+			local jugador = Players:GetPlayerByUserId(origen.UserId)
+			if jugador and sesiones[jugador] then
+				accion(jugador, texto)
+			end
+		end)
+		cmd.Parent = TextChatService
+	end
+	comando("cash", function(jugador, texto)
+		local cantidad = tonumber(string.match(texto, "%d+")) or 1000000
+		sumarDinero(jugador, cantidad)
+	end)
+	comando("luck", function()
+		activarSuerte(60, "🍀 [Studio] Lucky Belt test")
+	end)
+	comando("meteors", function()
+		lluviaDeMeteoritos()
+	end)
+	comando("rebirths", function(jugador, texto)
+		local sesion = sesiones[jugador]
+		sesion.datos.rebirths = tonumber(string.match(texto, "%d+")) or 1
+		pintarPedestales(sesion.base, Config.slotsDesbloqueados(sesion.datos.rebirths))
+		actualizarStats(jugador)
+	end)
+end
+
+print("[Steal an Alien] Server ready, version " .. Config.VERSION)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="10">
+        <Properties>
+          <string name="Name">Mapa</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Construye el mapa al arrancar el servidor: plaza, cinta, 8 bases, puestos,
+	rankings, decoración e iluminación. Devuelve referencias para la lógica del juego.
+
+	Puedes decorar más el mapa en Studio: todo lo que pongas en Workspace se mantiene.
+	Este módulo solo borra el Baseplate y el SpawnLocation de la plantilla.
+]]
+
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Compartido"):WaitForChild("Config"))
+
+local Mapa = {}
+
+export type Slot = {
+	pedestal: Part,
+	etiqueta: TextLabel,
+	id: string?,
+	shiny: boolean,
+	modelo: Model?,
+}
+
+export type Base = {
+	indice: number,
+	lado: number,
+	x: number,
+	color: Color3,
+	centro: Vector3,
+	piso: Part,
+	barrera: Part,
+	cartel: TextLabel,
+	slots: { Slot },
+	placaCobro: Part,
+	textoCobro: TextLabel,
+	placaCandado: Part,
+	textoCandado: TextLabel,
+	carpeta: Folder,
+	dueno: Player?,
+	bloqueadaHasta: number,
+}
+
+export type Ranking = { titulo: TextLabel, filas: { TextLabel } }
+
+export type MapaConstruido = {
+	carpeta: Folder,
+	bases: { Base },
+	cintaInicio: Vector3,
+	cintaFin: Vector3,
+	alturaCinta: number,
+	puestoVelocidad: Part,
+	puestoRebirth: Part,
+	rankings: { [string]: Ranking },
+	zonaMeteoritos: { xMin: number, xMax: number, zMin: number, zMax: number },
+}
+
+Mapa.ANCHO_BASE = 44
+Mapa.FONDO_BASE = 40
+Mapa.FRENTE_BASE = 30 -- distancia de la cinta al frente de cada base
+
+local COLORES_BASE = {
+	Color3.fromRGB(0, 255, 200),
+	Color3.fromRGB(255, 80, 200),
+	Color3.fromRGB(255, 200, 40),
+	Color3.fromRGB(90, 140, 255),
+	Color3.fromRGB(120, 255, 90),
+	Color3.fromRGB(255, 120, 60),
+	Color3.fromRGB(190, 90, 255),
+	Color3.fromRGB(255, 70, 90),
+}
+
+local function parte(padre: Instance, props: { [string]: any }): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.SmoothPlastic
+	for k, v in props do
+		(p :: any)[k] = v
+	end
+	p.Parent = padre
+	return p
+end
+
+local function cartel(adornee: BasePart, texto: string, color: Color3, ancho: number, alto: number, offsetY: number, distancia: number?): TextLabel
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Cartel"
+	gui.Size = UDim2.fromOffset(ancho, alto)
+	gui.StudsOffset = Vector3.new(0, offsetY, 0)
+	gui.MaxDistance = distancia or 150
+	gui.LightInfluence = 0
+	gui.Parent = adornee
+	local etiqueta = Instance.new("TextLabel")
+	etiqueta.Name = "Texto"
+	etiqueta.Size = UDim2.fromScale(1, 1)
+	etiqueta.BackgroundTransparency = 1
+	etiqueta.Text = texto
+	etiqueta.TextColor3 = color
+	etiqueta.TextStrokeTransparency = 0
+	etiqueta.TextScaled = true
+	etiqueta.RichText = true
+	etiqueta.Font = Enum.Font.FredokaOne
+	etiqueta.Parent = gui
+	return etiqueta
+end
+
+local function iluminacion()
+	Lighting.ClockTime = 0
+	Lighting.Brightness = 2
+	Lighting.Ambient = Color3.fromRGB(95, 85, 140)
+	Lighting.OutdoorAmbient = Color3.fromRGB(130, 110, 180)
+	Lighting.EnvironmentDiffuseScale = 0.5
+	Lighting.EnvironmentSpecularScale = 0.5
+	for _, hijo in Lighting:GetChildren() do
+		if hijo:IsA("Sky") or hijo:IsA("Atmosphere") or hijo:IsA("BloomEffect") or hijo:IsA("ColorCorrectionEffect") then
+			hijo:Destroy()
+		end
+	end
+	local cielo = Instance.new("Sky")
+	cielo.StarCount = 5000
+	cielo.CelestialBodiesShown = false
+	cielo.Parent = Lighting
+	local atmosfera = Instance.new("Atmosphere")
+	atmosfera.Density = 0.28
+	atmosfera.Color = Color3.fromRGB(120, 80, 190)
+	atmosfera.Decay = Color3.fromRGB(60, 30, 110)
+	atmosfera.Glare = 0.3
+	atmosfera.Haze = 1.5
+	atmosfera.Parent = Lighting
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 0.8
+	bloom.Size = 28
+	bloom.Threshold = 1.6
+	bloom.Parent = Lighting
+	local correccion = Instance.new("ColorCorrectionEffect")
+	correccion.Saturation = 0.15
+	correccion.Contrast = 0.05
+	correccion.Parent = Lighting
+end
+
+local function decoracion(carpeta: Folder)
+	-- Planetas en el horizonte
+	local planetas = {
+		{ pos = Vector3.new(420, 160, -380), tam = 160, color = Color3.fromRGB(255, 120, 80), anillo = true },
+		{ pos = Vector3.new(-450, 220, 300), tam = 110, color = Color3.fromRGB(90, 200, 255), anillo = false },
+		{ pos = Vector3.new(-300, 120, -500), tam = 70, color = Color3.fromRGB(200, 120, 255), anillo = false },
+	}
+	for _, datos in planetas do
+		local planeta = parte(carpeta, {
+			Name = "Planeta",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * datos.tam,
+			Position = datos.pos,
+			Color = datos.color,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		})
+		if datos.anillo then
+			parte(carpeta, {
+				Name = "Anillo",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(2, datos.tam * 1.9, datos.tam * 1.9),
+				CFrame = CFrame.new(planeta.Position) * CFrame.Angles(0, 0, math.rad(70)) * CFrame.Angles(math.rad(15), 0, 0),
+				Color = Color3.fromRGB(255, 220, 160),
+				Material = Enum.Material.Neon,
+				Transparency = 0.5,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+			})
+		end
+	end
+	-- Rocas flotantes alrededor
+	local rng = Random.new(7)
+	for _ = 1, 24 do
+		local angulo = rng:NextNumber(0, math.pi * 2)
+		local distancia = rng:NextNumber(190, 320)
+		parte(carpeta, {
+			Name = "Asteroide",
+			Size = Vector3.new(rng:NextNumber(4, 14), rng:NextNumber(4, 12), rng:NextNumber(4, 14)),
+			CFrame = CFrame.new(math.cos(angulo) * distancia, rng:NextNumber(-20, 60), math.sin(angulo) * distancia)
+				* CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), rng:NextNumber(0, 6)),
+			Color = Color3.fromRGB(80, 70, 100),
+			Material = Enum.Material.Slate,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+		})
+	end
+end
+
+local function crearRanking(carpeta: Folder, nombre: string, titulo: string, posicion: Vector3, color: Color3): Ranking
+	local tablero = parte(carpeta, {
+		Name = "Ranking_" .. nombre,
+		Size = Vector3.new(1, 16, 20),
+		Position = posicion,
+		Color = Color3.fromRGB(25, 20, 45),
+	})
+	parte(carpeta, {
+		Name = "Marco",
+		Size = Vector3.new(0.6, 16.8, 20.8),
+		Position = posicion + Vector3.new(0.3, 0, 0),
+		Color = color,
+		Material = Enum.Material.Neon,
+	})
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Left -- mira hacia la plaza (-X)
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 30
+	gui.LightInfluence = 0
+	gui.Parent = tablero
+	local lista = Instance.new("UIListLayout")
+	lista.Padding = UDim.new(0, 6)
+	lista.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	lista.Parent = gui
+	local function fila(texto: string, alto: number, colorTexto: Color3): TextLabel
+		local etiqueta = Instance.new("TextLabel")
+		etiqueta.Size = UDim2.new(0.92, 0, 0, alto)
+		etiqueta.BackgroundTransparency = 1
+		etiqueta.Text = texto
+		etiqueta.TextColor3 = colorTexto
+		etiqueta.TextScaled = true
+		etiqueta.Font = Enum.Font.FredokaOne
+		etiqueta.TextXAlignment = Enum.TextXAlignment.Left
+		etiqueta.Parent = gui
+		return etiqueta
+	end
+	local cabecera = fila(titulo, 60, color)
+	cabecera.TextXAlignment = Enum.TextXAlignment.Center
+	local filas = {}
+	for i = 1, 10 do
+		table.insert(filas, fila(i .. ". ...", 36, Color3.new(1, 1, 1)))
+	end
+	return { titulo = cabecera, filas = filas }
+end
+
+local function crearBase(carpetaMapa: Folder, indice: number, x: number, lado: number): Base
+	local color = COLORES_BASE[indice]
+	local frenteZ = lado * Mapa.FRENTE_BASE
+	local centroZ = lado * (Mapa.FRENTE_BASE + Mapa.FONDO_BASE / 2)
+	local fondoZ = lado * (Mapa.FRENTE_BASE + Mapa.FONDO_BASE)
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "Base" .. indice
+	carpeta.Parent = carpetaMapa
+
+	local piso = parte(carpeta, {
+		Name = "Piso",
+		Size = Vector3.new(Mapa.ANCHO_BASE, 1, Mapa.FONDO_BASE),
+		Position = Vector3.new(x, 1, centroZ),
+		Color = Color3.fromRGB(55, 50, 85),
+		Material = Enum.Material.DiamondPlate,
+	})
+	-- Borde de neón con el color de la base
+	parte(carpeta, {
+		Name = "Borde",
+		Size = Vector3.new(Mapa.ANCHO_BASE, 0.3, 1),
+		Position = Vector3.new(x, 1.55, frenteZ + lado * 0.5),
+		Color = color,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+	})
+
+	local colorPared = Color3.fromRGB(70, 60, 110)
+	parte(carpeta, { Name = "Pared", Size = Vector3.new(Mapa.ANCHO_BASE, 12, 1), Position = Vector3.new(x, 7, fondoZ), Color = colorPared })
+	parte(carpeta, { Name = "Franja", Size = Vector3.new(Mapa.ANCHO_BASE, 0.6, 1.2), Position = Vector3.new(x, 12.8, fondoZ), Color = color, Material = Enum.Material.Neon })
+	for _, dx in { -Mapa.ANCHO_BASE / 2, Mapa.ANCHO_BASE / 2 } do
+		parte(carpeta, { Name = "Pared", Size = Vector3.new(1, 12, Mapa.FONDO_BASE), Position = Vector3.new(x + dx, 7, centroZ), Color = colorPared })
+		parte(carpeta, { Name = "Franja", Size = Vector3.new(1.2, 0.6, Mapa.FONDO_BASE), Position = Vector3.new(x + dx, 12.8, centroZ), Color = color, Material = Enum.Material.Neon })
+	end
+
+	local barrera = parte(carpeta, {
+		Name = "Barrera",
+		Size = Vector3.new(Mapa.ANCHO_BASE, 12, 1),
+		Position = Vector3.new(x, 7, frenteZ),
+		Color = Color3.fromRGB(255, 40, 60),
+		Material = Enum.Material.ForceField,
+		Transparency = 1,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+	})
+
+	local poste = parte(carpeta, {
+		Name = "Poste",
+		Size = Vector3.one,
+		Position = Vector3.new(x, 17, fondoZ),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+	})
+	local etiquetaDueno = cartel(poste, "Empty base", Color3.new(1, 1, 1), 320, 70, 0, 250)
+
+	local slots: { Slot } = {}
+	for fila = 0, 2 do
+		for col = 0, 4 do
+			local pedestal = parte(carpeta, {
+				Name = "Pedestal",
+				Size = Vector3.new(5, 1, 5),
+				Position = Vector3.new(x - 16 + col * 8, 2, lado * (Mapa.FRENTE_BASE + 13 + fila * 10)),
+				Color = Color3.fromRGB(100, 90, 150),
+			})
+			parte(carpeta, {
+				Name = "Aro",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.2, 5.6, 5.6),
+				CFrame = CFrame.new(pedestal.Position + Vector3.new(0, 0.45, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+				Color = color,
+				Material = Enum.Material.Neon,
+				Transparency = 0.4,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+			})
+			local etiqueta = cartel(pedestal, "", Color3.fromRGB(200, 200, 220), 140, 40, 2, 60)
+			table.insert(slots, { pedestal = pedestal, etiqueta = etiqueta, id = nil, shiny = false, modelo = nil })
+		end
+	end
+
+	local placaCobro = parte(carpeta, {
+		Name = "Cobrar",
+		Size = Vector3.new(8, 0.4, 7),
+		Position = Vector3.new(x - 15, 1.7, lado * (Mapa.FRENTE_BASE + 5)),
+		Color = Color3.fromRGB(40, 230, 100),
+		Material = Enum.Material.Neon,
+	})
+	local textoCobro = cartel(placaCobro, "$0", Color3.fromRGB(140, 255, 170), 220, 60, 3.5, 120)
+
+	local placaCandado = parte(carpeta, {
+		Name = "Candado",
+		Size = Vector3.new(8, 0.4, 7),
+		Position = Vector3.new(x + 15, 1.7, lado * (Mapa.FRENTE_BASE + 5)),
+		Color = Color3.fromRGB(240, 50, 70),
+		Material = Enum.Material.Neon,
+	})
+	local textoCandado = cartel(placaCandado, "🔒 LOCK", Color3.fromRGB(255, 160, 170), 220, 60, 3.5, 120)
+
+	return {
+		indice = indice,
+		lado = lado,
+		x = x,
+		color = color,
+		centro = Vector3.new(x, 1.5, centroZ),
+		piso = piso,
+		barrera = barrera,
+		cartel = etiquetaDueno,
+		slots = slots,
+		placaCobro = placaCobro,
+		textoCobro = textoCobro,
+		placaCandado = placaCandado,
+		textoCandado = textoCandado,
+		carpeta = carpeta,
+		dueno = nil,
+		bloqueadaHasta = 0,
+	}
+end
+
+function Mapa.construir(): MapaConstruido
+	for _, nombre in { "Baseplate", "SpawnLocation" } do
+		local viejo = workspace:FindFirstChild(nombre)
+		if viejo then
+			viejo:Destroy()
+		end
+	end
+	iluminacion()
+
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "Mapa"
+	carpeta.Parent = workspace
+
+	parte(carpeta, {
+		Name = "Suelo",
+		Size = Vector3.new(320, 1, 220),
+		Position = Vector3.new(0, 0, 0),
+		Color = Color3.fromRGB(38, 32, 62),
+		Material = Enum.Material.Slate,
+	})
+	-- Rejilla de neón decorativa en la plaza
+	for i = -6, 6 do
+		parte(carpeta, {
+			Name = "Rejilla",
+			Size = Vector3.new(0.3, 0.1, 50),
+			Position = Vector3.new(i * 22, 0.55, 0),
+			Color = Color3.fromRGB(110, 70, 200),
+			Material = Enum.Material.Neon,
+			Transparency = 0.6,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+		})
+	end
+	-- Muros invisibles para no caerse del mapa
+	for _, datos in {
+		{ Vector3.new(161, 25, 0), Vector3.new(2, 60, 222) },
+		{ Vector3.new(-161, 25, 0), Vector3.new(2, 60, 222) },
+		{ Vector3.new(0, 25, 111), Vector3.new(322, 60, 2) },
+		{ Vector3.new(0, 25, -111), Vector3.new(322, 60, 2) },
+	} do
+		parte(carpeta, { Name = "Limite", Position = datos[1], Size = datos[2], Transparency = 1, CanQuery = false })
+	end
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(10, 1, 10)
+	spawn.Position = Vector3.new(-140, 0.6, 0)
+	spawn.Transparency = 1
+	spawn.CanCollide = false
+	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Parent = carpeta
+
+	-- Cinta transportadora
+	local alturaCinta = Config.CINTA.ALTURA
+	parte(carpeta, {
+		Name = "Cinta",
+		Size = Vector3.new(196, 1, 10),
+		Position = Vector3.new(0, 1, 0),
+		Color = Color3.fromRGB(22, 22, 32),
+		Material = Enum.Material.DiamondPlate,
+	})
+	for _, z in { -5.5, 5.5 } do
+		parte(carpeta, {
+			Name = "BordeCinta",
+			Size = Vector3.new(196, 0.8, 1),
+			Position = Vector3.new(0, 1.4, z),
+			Color = Color3.fromRGB(0, 255, 200),
+			Material = Enum.Material.Neon,
+		})
+	end
+	for i = -9, 9 do
+		parte(carpeta, {
+			Name = "Flecha",
+			Size = Vector3.new(1.5, 0.1, 4),
+			CFrame = CFrame.new(i * 10, 1.52, 0) * CFrame.Angles(0, math.rad(90), 0),
+			Color = Color3.fromRGB(0, 180, 150),
+			Material = Enum.Material.Neon,
+			Transparency = 0.5,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+		})
+	end
+	-- Portales de entrada y salida de la cinta
+	for _, x in { -100, 100 } do
+		parte(carpeta, {
+			Name = "Portal",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1, 14, 14),
+			Position = Vector3.new(x, 7, 0),
+			Color = Color3.fromRGB(170, 80, 255),
+			Material = Enum.Material.Neon,
+			Transparency = 0.25,
+			CanCollide = false,
+		})
+	end
+
+	local bases: { Base } = {}
+	local indice = 0
+	for _, lado in { -1, 1 } do
+		for _, x in { -78, -26, 26, 78 } do
+			indice += 1
+			table.insert(bases, crearBase(carpeta, indice, x, lado))
+		end
+	end
+
+	local puestos = Instance.new("Folder")
+	puestos.Name = "Puestos"
+	puestos.Parent = carpeta
+	local function puesto(nombre: string, posicion: Vector3, color: Color3, texto: string): Part
+		local p = parte(puestos, {
+			Name = nombre,
+			Size = Vector3.new(9, 6, 9),
+			Position = posicion,
+			Color = color,
+			Material = Enum.Material.Neon,
+		})
+		cartel(p, texto, Color3.new(1, 1, 1), 260, 90, 6, 150)
+		return p
+	end
+	local puestoVelocidad = puesto("Velocidad", Vector3.new(-130, 3.5, 16), Color3.fromRGB(0, 170, 255), "⚡ SPEED")
+	local puestoRebirth = puesto("Rebirth", Vector3.new(-130, 3.5, -16), Color3.fromRGB(255, 80, 200), "🌌 REBIRTH")
+
+	local rankings = {
+		rebirths = crearRanking(carpeta, "Rebirths", "🌌 TOP REBIRTHS", Vector3.new(135, 10, -15), Color3.fromRGB(255, 80, 200)),
+		robos = crearRanking(carpeta, "Robos", "🦹 TOP THIEVES", Vector3.new(135, 10, 15), Color3.fromRGB(255, 200, 40)),
+	}
+
+	decoracion(carpeta)
+
+	return {
+		carpeta = carpeta,
+		bases = bases,
+		cintaInicio = Vector3.new(Config.CINTA.X_INICIO, alturaCinta, 0),
+		cintaFin = Vector3.new(Config.CINTA.X_FIN, alturaCinta, 0),
+		alturaCinta = alturaCinta,
+		puestoVelocidad = puestoVelocidad,
+		puestoRebirth = puestoRebirth,
+		rankings = rankings,
+		zonaMeteoritos = { xMin = -120, xMax = 120, zMin = 9, zMax = 26 },
+	}
+end
+
+function Mapa.dentroDeBase(base: Base, posicion: Vector3): boolean
+	local p = base.piso.Position
+	return math.abs(posicion.X - p.X) < Mapa.ANCHO_BASE / 2 and math.abs(posicion.Z - p.Z) < Mapa.FONDO_BASE / 2 and posicion.Y < 25
+end
+
+return Mapa
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">Modelos</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Construye los modelos 3D de los aliens con piezas básicas, sin importar mallas.
+	Todas las piezas van soldadas a "Cuerpo" (la única anclada), así que basta con
+	mover el Cuerpo para mover todo el alien.
+
+	Para usar modelos hechos por un artista: crea una carpeta ReplicatedStorage/ModelosAlien
+	con un Model por alien llamado igual que su id (por ejemplo "blorp"). Si existe,
+	se usa ese modelo en lugar del generado.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Compartido = ReplicatedStorage:WaitForChild("Compartido")
+local Config = require(Compartido:WaitForChild("Config"))
+local Formato = require(Compartido:WaitForChild("Formato"))
+
+local Modelos = {}
+
+local function rgb(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+Modelos.rgb = rgb
+
+local function nuevaPieza(modelo: Model, nombre: string, forma: Enum.PartType, tamano: Vector3, color: Color3, material: Enum.Material?): Part
+	local p = Instance.new("Part")
+	p.Name = nombre
+	p.Shape = forma
+	p.Size = tamano
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CastShadow = false
+	p.Parent = modelo
+	return p
+end
+
+-- Coloca una pieza relativa al cuerpo y la suelda.
+local function fijar(cuerpo: BasePart, pieza: BasePart, offset: CFrame)
+	pieza.CFrame = cuerpo.CFrame * offset
+	local soldadura = Instance.new("WeldConstraint")
+	soldadura.Part0 = cuerpo
+	soldadura.Part1 = pieza
+	soldadura.Parent = pieza
+end
+
+local function crearCartel(cuerpo: BasePart, alto: number): TextLabel
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "Cartel"
+	cartel.Size = UDim2.fromOffset(200, 64)
+	cartel.StudsOffset = Vector3.new(0, alto, 0)
+	cartel.MaxDistance = 55
+	cartel.LightInfluence = 0
+	cartel.Parent = cuerpo
+
+	local etiqueta = Instance.new("TextLabel")
+	etiqueta.Name = "Texto"
+	etiqueta.Size = UDim2.fromScale(1, 1)
+	etiqueta.BackgroundTransparency = 1
+	etiqueta.TextScaled = true
+	etiqueta.RichText = true
+	etiqueta.Font = Enum.Font.FredokaOne
+	etiqueta.TextColor3 = Color3.new(1, 1, 1)
+	etiqueta.TextStrokeTransparency = 0
+	etiqueta.Parent = cartel
+	return etiqueta
+end
+
+local function colorHex(c: Color3): string
+	return string.format("#%02X%02X%02X", math.floor(c.R * 255), math.floor(c.G * 255), math.floor(c.B * 255))
+end
+
+-- Texto del cartel: nombre (color de rareza), rareza e ingresos. precio opcional (cinta).
+function Modelos.textoCartel(alien: Config.Alien, shiny: boolean, precio: number?): string
+	local rareza = Config.RAREZAS[alien.rareza]
+	local hex = colorHex(rgb(rareza.color))
+	local nombre = (if shiny then "✨ Shiny " else "") .. alien.nombre
+	local lineas = {
+		string.format('<font color="%s">%s</font>', hex, nombre),
+		string.format('<font color="%s">%s</font> · $%s/s', hex, rareza.nombre, Formato.abreviar(Config.ingresoAlien(alien, shiny))),
+	}
+	if precio then
+		table.insert(lineas, string.format('<font color="#7CFF96">$%s</font>', Formato.abreviar(precio)))
+	end
+	return table.concat(lineas, "\n")
+end
+
+local function construir(alien: Config.Alien, shiny: boolean): Model
+	local rareza = Config.RAREZAS[alien.rareza]
+	local colorRareza = rgb(rareza.color)
+	local color = rgb(alien.color)
+	if shiny then
+		color = color:Lerp(Color3.new(1, 1, 1), 0.35)
+	end
+	local s = alien.tamano
+	local estilo = alien.estilo
+	local modelo = Instance.new("Model")
+
+	-- Cuerpo
+	local cuerpo: Part
+	local altoCuerpo = s
+	if estilo.cuerpo == "capsula" then
+		altoCuerpo = s * 1.3
+		cuerpo = nuevaPieza(modelo, "Cuerpo", Enum.PartType.Block, Vector3.new(s, altoCuerpo, s), color)
+		local malla = Instance.new("SpecialMesh")
+		malla.MeshType = Enum.MeshType.Sphere
+		malla.Parent = cuerpo
+	elseif estilo.cuerpo == "cubo" then
+		cuerpo = nuevaPieza(modelo, "Cuerpo", Enum.PartType.Block, Vector3.new(s, s * 0.9, s), color)
+		altoCuerpo = s * 0.9
+	else
+		cuerpo = nuevaPieza(modelo, "Cuerpo", Enum.PartType.Ball, Vector3.new(s, s, s), color)
+	end
+	cuerpo.Anchored = true
+	cuerpo.Massless = false
+	if alien.rareza >= 5 or shiny then
+		cuerpo.Material = Enum.Material.Neon
+	elseif alien.rareza >= 3 then
+		cuerpo.Material = Enum.Material.Glass
+		cuerpo.Reflectance = 0.15
+	end
+	modelo.PrimaryPart = cuerpo
+
+	local frente = -s * 0.5 -- los modelos miran hacia -Z
+	local arriba = altoCuerpo * 0.5
+
+	-- Ojos
+	local tamOjo = s * (if estilo.ojos == 1 then 0.42 else 0.3)
+	for i = 1, estilo.ojos do
+		local x = (i - (estilo.ojos + 1) / 2) * s * 0.3
+		local y = altoCuerpo * 0.12
+		local ojo = nuevaPieza(modelo, "Ojo", Enum.PartType.Ball, Vector3.one * tamOjo, Color3.new(1, 1, 1))
+		fijar(cuerpo, ojo, CFrame.new(x, y, frente * 0.82))
+		local pupila = nuevaPieza(modelo, "Pupila", Enum.PartType.Ball, Vector3.one * tamOjo * 0.5, Color3.fromRGB(15, 10, 25))
+		fijar(cuerpo, pupila, CFrame.new(x, y, frente * 0.82 - tamOjo * 0.35))
+		local brillo = nuevaPieza(modelo, "Brillo", Enum.PartType.Ball, Vector3.one * tamOjo * 0.18, Color3.new(1, 1, 1), Enum.Material.Neon)
+		fijar(cuerpo, brillo, CFrame.new(x + tamOjo * 0.12, y + tamOjo * 0.12, frente * 0.82 - tamOjo * 0.55))
+	end
+
+	-- Boca sonriente (tres piezas en arco)
+	for i = -1, 1 do
+		local boca = nuevaPieza(modelo, "Boca", Enum.PartType.Block, Vector3.new(s * 0.12, s * 0.05, s * 0.05), Color3.fromRGB(40, 15, 40))
+		fijar(cuerpo, boca, CFrame.new(i * s * 0.1, -altoCuerpo * 0.18 + math.abs(i) * s * 0.04, frente * 0.92) * CFrame.Angles(0, 0, -i * 0.5))
+	end
+
+	-- Accesorios
+	for _, extra in estilo.extras do
+		if extra == "antenas" then
+			for _, lado in { -1, 1 } do
+				local palo = nuevaPieza(modelo, "Antena", Enum.PartType.Cylinder, Vector3.new(s * 0.6, s * 0.07, s * 0.07), color)
+				fijar(cuerpo, palo, CFrame.new(lado * s * 0.2, arriba + s * 0.22, 0) * CFrame.Angles(0, 0, math.pi / 2 + lado * 0.35))
+				local bola = nuevaPieza(modelo, "Bolita", Enum.PartType.Ball, Vector3.one * s * 0.2, colorRareza, Enum.Material.Neon)
+				fijar(cuerpo, bola, CFrame.new(lado * s * 0.32, arriba + s * 0.52, 0))
+			end
+		elseif extra == "orejas" then
+			for _, lado in { -1, 1 } do
+				local oreja = nuevaPieza(modelo, "Oreja", Enum.PartType.Block, Vector3.new(s * 0.3, s * 0.4, s * 0.12), color)
+				local malla = Instance.new("SpecialMesh")
+				malla.MeshType = Enum.MeshType.Sphere
+				malla.Parent = oreja
+				fijar(cuerpo, oreja, CFrame.new(lado * s * 0.3, arriba + s * 0.05, 0) * CFrame.Angles(0, 0, -lado * 0.4))
+			end
+		elseif extra == "cuernos" then
+			for _, lado in { -1, 1 } do
+				local cuerno = nuevaPieza(modelo, "Cuerno", Enum.PartType.Cylinder, Vector3.new(s * 0.45, s * 0.1, s * 0.1), Color3.fromRGB(255, 245, 220))
+				fijar(cuerpo, cuerno, CFrame.new(lado * s * 0.32, arriba + s * 0.05, -s * 0.05) * CFrame.Angles(0, 0, math.pi / 2 - lado * 0.6))
+			end
+		elseif extra == "tentaculos" then
+			for i = 0, 3 do
+				local angulo = i * math.pi / 2 + math.pi / 4
+				local tentaculo = nuevaPieza(modelo, "Tentaculo", Enum.PartType.Cylinder, Vector3.new(s * 0.55, s * 0.13, s * 0.13), color:Lerp(Color3.new(0, 0, 0), 0.15))
+				fijar(cuerpo, tentaculo, CFrame.new(math.cos(angulo) * s * 0.28, -arriba - s * 0.05, math.sin(angulo) * s * 0.28) * CFrame.Angles(0, -angulo, math.pi / 2 + 0.4))
+			end
+		elseif extra == "alas" then
+			for _, lado in { -1, 1 } do
+				local ala = nuevaPieza(modelo, "Ala", Enum.PartType.Block, Vector3.new(s * 0.9, s * 0.6, s * 0.06), colorRareza, Enum.Material.ForceField)
+				fijar(cuerpo, ala, CFrame.new(lado * s * 0.7, s * 0.15, s * 0.2) * CFrame.Angles(0, lado * 0.5, lado * 0.3))
+			end
+		elseif extra == "corona" then
+			local aro = nuevaPieza(modelo, "Corona", Enum.PartType.Cylinder, Vector3.new(s * 0.12, s * 0.5, s * 0.5), Color3.fromRGB(255, 210, 60), Enum.Material.Neon)
+			fijar(cuerpo, aro, CFrame.new(0, arriba + s * 0.02, 0) * CFrame.Angles(0, 0, math.pi / 2))
+			for i = 0, 4 do
+				local angulo = i * math.pi * 2 / 5
+				local punta = nuevaPieza(modelo, "Punta", Enum.PartType.Block, Vector3.new(s * 0.08, s * 0.2, s * 0.08), Color3.fromRGB(255, 210, 60), Enum.Material.Neon)
+				fijar(cuerpo, punta, CFrame.new(math.cos(angulo) * s * 0.22, arriba + s * 0.15, math.sin(angulo) * s * 0.22))
+			end
+		elseif extra == "aleta" then
+			local aleta = nuevaPieza(modelo, "Aleta", Enum.PartType.Block, Vector3.new(s * 0.08, s * 0.5, s * 0.6), color:Lerp(colorRareza, 0.5))
+			fijar(cuerpo, aleta, CFrame.new(0, arriba * 0.6, s * 0.35) * CFrame.Angles(-0.5, 0, 0))
+		elseif extra == "pinzas" then
+			for _, lado in { -1, 1 } do
+				local pinza = nuevaPieza(modelo, "Pinza", Enum.PartType.Ball, Vector3.one * s * 0.32, color:Lerp(Color3.new(1, 0.3, 0.3), 0.3))
+				fijar(cuerpo, pinza, CFrame.new(lado * s * 0.62, -s * 0.05, frente * 0.5))
+			end
+		elseif extra == "halo" then
+			for i = 0, 9 do
+				local angulo = i * math.pi * 2 / 10
+				local luz = nuevaPieza(modelo, "Halo", Enum.PartType.Ball, Vector3.one * s * 0.1, colorRareza, Enum.Material.Neon)
+				fijar(cuerpo, luz, CFrame.new(math.cos(angulo) * s * 0.4, arriba + s * 0.45, math.sin(angulo) * s * 0.4))
+			end
+		end
+	end
+
+	-- Efectos según rareza
+	if alien.rareza >= 4 or shiny then
+		local luz = Instance.new("PointLight")
+		luz.Color = colorRareza
+		luz.Range = 10 + alien.rareza
+		luz.Brightness = 1.5
+		luz.Parent = cuerpo
+	end
+	if alien.rareza >= 5 then
+		local particulas = Instance.new("ParticleEmitter")
+		particulas.Color = ColorSequence.new(colorRareza)
+		particulas.LightEmission = 1
+		particulas.Size = NumberSequence.new(0.3, 0)
+		particulas.Lifetime = NumberRange.new(0.8, 1.4)
+		particulas.Rate = 12
+		particulas.Speed = NumberRange.new(1.5, 3)
+		particulas.SpreadAngle = Vector2.new(180, 180)
+		particulas.Parent = cuerpo
+	end
+	if shiny then
+		local destellos = Instance.new("Sparkles")
+		destellos.SparkleColor = Color3.new(1, 1, 0.8)
+		destellos.Parent = cuerpo
+	end
+
+	return modelo
+end
+
+-- Crea el alien. Si existe un modelo personalizado en ReplicatedStorage/ModelosAlien, lo usa.
+function Modelos.crear(alien: Config.Alien, shiny: boolean, precio: number?): Model
+	local modelo: Model
+	local personalizados = ReplicatedStorage:FindFirstChild("ModelosAlien")
+	local plantilla = personalizados and personalizados:FindFirstChild(alien.id)
+	if plantilla and plantilla:IsA("Model") and plantilla.PrimaryPart then
+		modelo = plantilla:Clone()
+		local raiz = modelo.PrimaryPart :: BasePart
+		raiz.Name = "Cuerpo"
+		for _, p in modelo:GetDescendants() do
+			if p:IsA("BasePart") then
+				p.CanCollide = false
+				p.CanTouch = false
+				p.CanQuery = false
+				p.Anchored = p == raiz
+				if p ~= raiz then
+					p.Massless = true
+					local soldadura = Instance.new("WeldConstraint")
+					soldadura.Part0 = raiz
+					soldadura.Part1 = p
+					soldadura.Parent = p
+				end
+			end
+		end
+	else
+		modelo = construir(alien, shiny)
+	end
+	modelo.Name = alien.nombre
+	modelo:SetAttribute("AlienId", alien.id)
+	modelo:SetAttribute("Shiny", shiny)
+	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local raiz = modelo.PrimaryPart :: BasePart
+	local _, tamano = modelo:GetBoundingBox()
+	local etiqueta = crearCartel(raiz, tamano.Y * 0.5 + 2.2)
+	etiqueta.Text = Modelos.textoCartel(alien, shiny, precio)
+	return modelo
+end
+
+-- Para llevarlo encima de la cabeza: nada anclado.
+function Modelos.prepararParaLlevar(modelo: Model)
+	local raiz = modelo.PrimaryPart :: BasePart
+	raiz.Anchored = false
+	raiz.Massless = true
+	local cartel = raiz:FindFirstChild("Cartel")
+	if cartel then
+		cartel:Destroy()
+	end
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("ProximityPrompt") then
+			p:Destroy()
+		end
+	end
+end
+
+return Modelos
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">Perfil</string>
+          <string name="Source"><![CDATA[--!strict
+--[[
+	Estructura de los datos guardados de cada jugador y su limpieza.
+	Es un módulo "puro" (no usa servicios de Roblox) para poder probarlo fuera de Studio.
+
+	Si en el futuro añades un campo nuevo, añádelo en Perfil.nuevo: los jugadores
+	antiguos lo recibirán automáticamente con su valor por defecto.
+]]
+
+export type AlienGuardado = { s: number, id: string, sh: boolean? }
+
+export type Datos = {
+	version: number,
+	dinero: number,
+	pendiente: number,
+	rebirths: number,
+	velocidad: number,
+	aliens: { AlienGuardado },
+	indice: { [string]: number }, -- 1 = descubierto, 2 = descubierto también en versión shiny
+	compras: { string }, -- últimos PurchaseId procesados (evita entregar dos veces)
+	codigos: { [string]: boolean },
+	diario: { dia: number, racha: number },
+	ultimaConexion: number,
+	boostHasta: number,
+	tutorialHecho: boolean,
+	stats: { robos: number, ganadoTotal: number },
+}
+
+local Perfil = {}
+
+Perfil.VERSION = 1
+Perfil.MAX_COMPRAS = 50
+
+function Perfil.nuevo(dineroInicial: number): Datos
+	return {
+		version = Perfil.VERSION,
+		dinero = dineroInicial,
+		pendiente = 0,
+		rebirths = 0,
+		velocidad = 0,
+		aliens = {},
+		indice = {},
+		compras = {},
+		codigos = {},
+		diario = { dia = 0, racha = 0 },
+		ultimaConexion = 0,
+		boostHasta = 0,
+		tutorialHecho = false,
+		stats = { robos = 0, ganadoTotal = 0 },
+	}
+end
+
+local function numero(valor: any, defecto: number, minimo: number?, maximo: number?): number
+	if type(valor) ~= "number" or valor ~= valor or valor == math.huge or valor == -math.huge then
+		return defecto
+	end
+	if minimo and valor < minimo then
+		return minimo
+	end
+	if maximo and valor > maximo then
+		return maximo
+	end
+	return valor
+end
+
+local function entero(valor: any, defecto: number, minimo: number?, maximo: number?): number
+	return math.floor(numero(valor, defecto, minimo, maximo))
+end
+
+-- Convierte cualquier cosa guardada (datos viejos, corruptos o nil) en datos válidos.
+-- esAlienValido: función que dice si un id de alien existe en Config.
+function Perfil.reconciliar(guardado: any, dineroInicial: number, maxSlots: number, esAlienValido: (string) -> boolean): Datos
+	local datos = Perfil.nuevo(dineroInicial)
+	if type(guardado) ~= "table" then
+		return datos
+	end
+
+	datos.dinero = numero(guardado.dinero, dineroInicial, 0)
+	datos.pendiente = numero(guardado.pendiente, 0, 0)
+	datos.rebirths = entero(guardado.rebirths, 0, 0)
+	datos.velocidad = entero(guardado.velocidad, 0, 0, 100)
+	datos.ultimaConexion = entero(guardado.ultimaConexion, 0, 0)
+	datos.boostHasta = entero(guardado.boostHasta, 0, 0)
+	datos.tutorialHecho = guardado.tutorialHecho == true
+
+	if type(guardado.aliens) == "table" then
+		local ocupados: { [number]: boolean } = {}
+		for _, a in guardado.aliens do
+			if type(a) == "table" and type(a.id) == "string" and esAlienValido(a.id) then
+				local s = entero(a.s, 0)
+				if s >= 1 and s <= maxSlots and not ocupados[s] then
+					ocupados[s] = true
+					table.insert(datos.aliens, { s = s, id = a.id, sh = if a.sh == true then true else nil })
+				end
+			end
+		end
+	end
+
+	if type(guardado.indice) == "table" then
+		for id, valor in guardado.indice do
+			if type(id) == "string" and esAlienValido(id) then
+				datos.indice[id] = if valor == 2 then 2 else 1
+			end
+		end
+	end
+
+	if type(guardado.compras) == "table" then
+		for _, idCompra in guardado.compras do
+			if type(idCompra) == "string" then
+				table.insert(datos.compras, idCompra)
+			end
+		end
+		while #datos.compras > Perfil.MAX_COMPRAS do
+			table.remove(datos.compras, 1)
+		end
+	end
+
+	if type(guardado.codigos) == "table" then
+		for codigo, usado in guardado.codigos do
+			if type(codigo) == "string" and usado == true then
+				datos.codigos[codigo] = true
+			end
+		end
+	end
+
+	if type(guardado.diario) == "table" then
+		datos.diario.dia = entero(guardado.diario.dia, 0, 0)
+		datos.diario.racha = entero(guardado.diario.racha, 0, 0)
+	end
+
+	if type(guardado.stats) == "table" then
+		datos.stats.robos = entero(guardado.stats.robos, 0, 0)
+		datos.stats.ganadoTotal = numero(guardado.stats.ganadoTotal, 0, 0)
+	end
+
+	return datos
+end
+
+-- Racha de días seguidos. hoy = número de día (os.time() // 86400).
+-- Devuelve la nueva racha, o nil si hoy ya se cobró.
+function Perfil.siguienteRacha(diario: { dia: number, racha: number }, hoy: number): number?
+	if diario.dia == hoy then
+		return nil
+	end
+	if diario.dia == hoy - 1 then
+		return diario.racha + 1
+	end
+	return 1
+end
+
+-- Marca un PurchaseId como procesado. Devuelve false si ya lo estaba.
+function Perfil.registrarCompra(datos: Datos, idCompra: string): boolean
+	for _, id in datos.compras do
+		if id == idCompra then
+			return false
+		end
+	end
+	table.insert(datos.compras, idCompra)
+	while #datos.compras > Perfil.MAX_COMPRAS do
+		table.remove(datos.compras, 1)
+	end
+	return true
+end
+
+function Perfil.yaComprado(datos: Datos, idCompra: string): boolean
+	return table.find(datos.compras, idCompra) ~= nil
+end
+
+return Perfil
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="13">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="14">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="15">
+        <Properties>
+          <string name="Name">Cliente</string>
+        </Properties>
+        <Item class="LocalScript" referent="16">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[--!nonstrict
+--[[
+	STEAL AN ALIEN — interfaz del jugador
+	Marcador, tienda, Índice y probabilidades, códigos, invitaciones, tutorial,
+	recompensa diaria, eventos, sonidos y animación de los aliens.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local SocialService = game:GetService("SocialService")
+local AdService = game:GetService("AdService")
+local TextChatService = game:GetService("TextChatService")
+local HttpService = game:GetService("HttpService")
+local SoundService = game:GetService("SoundService")
+
+local Compartido = ReplicatedStorage:WaitForChild("Compartido")
+local Config = require(Compartido:WaitForChild("Config"))
+local Formato = require(Compartido:WaitForChild("Formato"))
+local Probabilidades = require(Compartido:WaitForChild("Probabilidades"))
+
+local remotos = ReplicatedStorage:WaitForChild("Remotos")
+local eAviso = remotos:WaitForChild("Aviso")
+local eGolpeado = remotos:WaitForChild("Golpeado")
+local eDiario = remotos:WaitForChild("RecompensaDiaria")
+local eEfecto = remotos:WaitForChild("Efecto")
+local ePedirCompra = remotos:WaitForChild("PedirCompra")
+local eAnuncio = remotos:WaitForChild("VerAnuncio")
+local fCodigo = remotos:WaitForChild("CanjearCodigo")
+
+local jugador = Players.LocalPlayer
+local abreviar = Formato.abreviar
+
+local function rgb(c): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+
+local function ahora(): number
+	return workspace:GetServerTimeNow()
+end
+
+---------------------------------------------------------------------
+-- PROMPTS: "Steal" solo en bases ajenas, "Sell" solo en la tuya
+---------------------------------------------------------------------
+local function ajustarPrompt(prompt: ProximityPrompt, esRobar: boolean)
+	local function actualizar()
+		local esMio = prompt:GetAttribute("Dueno") == jugador.UserId
+		prompt.Enabled = if esRobar then not esMio else esMio
+	end
+	actualizar()
+	prompt:GetAttributeChangedSignal("Dueno"):Connect(actualizar)
+end
+
+for etiqueta, esRobar in { PromptRobar = true, PromptVender = false } do
+	for _, prompt in CollectionService:GetTagged(etiqueta) do
+		ajustarPrompt(prompt, esRobar)
+	end
+	CollectionService:GetInstanceAddedSignal(etiqueta):Connect(function(prompt)
+		ajustarPrompt(prompt, esRobar)
+	end)
+end
+
+---------------------------------------------------------------------
+-- ANIMACIÓN: aliens de la cinta (movidos aquí, en el cliente) y aliens flotando
+---------------------------------------------------------------------
+local CINTA_INICIO = Vector3.new(Config.CINTA.X_INICIO, Config.CINTA.ALTURA, 0)
+local CINTA_FIN = Vector3.new(Config.CINTA.X_FIN, Config.CINTA.ALTURA, 0)
+local GIRO_CINTA = CFrame.Angles(0, -math.pi / 2, 0)
+
+RunService.RenderStepped:Connect(function()
+	local t = ahora()
+	local reloj = os.clock()
+	for _, modelo in CollectionService:GetTagged("AlienCinta") do
+		local raiz = modelo.PrimaryPart
+		local inicio = modelo:GetAttribute("CintaInicio")
+		if raiz and inicio then
+			local progreso = math.clamp((t - inicio) / Config.JUEGO.SEGUNDOS_EN_CINTA, 0, 1)
+			local alto = modelo:GetAttribute("CintaAlto") or 2
+			local saltito = math.abs(math.sin(reloj * 6 + inicio)) * 0.4
+			raiz.CFrame = CFrame.new(CINTA_INICIO:Lerp(CINTA_FIN, progreso) + Vector3.new(0, alto + saltito, 0)) * GIRO_CINTA
+		end
+	end
+	for _, modelo in CollectionService:GetTagged("AlienFlotante") do
+		local raiz = modelo.PrimaryPart
+		local base = modelo:GetAttribute("PosBase")
+		if raiz and base then
+			local fase = base.Position.X + base.Position.Z
+			raiz.CFrame = base * CFrame.new(0, math.sin(reloj * 2 + fase) * 0.35, 0) * CFrame.Angles(0, math.sin(reloj * 0.8 + fase) * 0.4, 0)
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- SONIDOS
+---------------------------------------------------------------------
+local sonidos: { [string]: Sound } = {}
+for nombre, id in Config.SONIDOS do
+	if id ~= 0 then
+		local sonido = Instance.new("Sound")
+		sonido.Name = nombre
+		sonido.SoundId = "rbxassetid://" .. id
+		sonido.Volume = if nombre == "MUSICA" then 0.25 else 0.6
+		sonido.Looped = nombre == "MUSICA"
+		sonido.Parent = SoundService
+		sonidos[nombre] = sonido
+	end
+end
+if sonidos.MUSICA then
+	sonidos.MUSICA:Play()
+end
+
+local function sonar(nombre: string)
+	local sonido = sonidos[nombre]
+	if sonido then
+		SoundService:PlayLocalSound(sonido)
+	end
+end
+
+---------------------------------------------------------------------
+-- GOLPE RECIBIDO (empujón)
+---------------------------------------------------------------------
+eGolpeado.OnClientEvent:Connect(function(direccion: Vector3)
+	local personaje = jugador.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	local humanoid = personaje and personaje:FindFirstChildOfClass("Humanoid")
+	if not raiz or not humanoid then
+		return
+	end
+	humanoid.PlatformStand = true
+	raiz.AssemblyLinearVelocity = direccion * 55 + Vector3.new(0, 35, 0)
+	task.delay(0.7, function()
+		if humanoid.Parent then
+			humanoid.PlatformStand = false
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end)
+end)
+
+---------------------------------------------------------------------
+-- ESTILO DE LA INTERFAZ
+---------------------------------------------------------------------
+local COLOR_PANEL = Color3.fromRGB(28, 22, 52)
+local COLOR_CIAN = Color3.fromRGB(0, 255, 200)
+local COLOR_ORO = Color3.fromRGB(255, 200, 40)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "HUD"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = jugador:WaitForChild("PlayerGui")
+
+-- Escala para pantallas pequeñas (móviles)
+local escala = Instance.new("UIScale")
+escala.Parent = gui
+local function ajustarEscala()
+	local camara = workspace.CurrentCamera
+	if camara then
+		local lado = math.min(camara.ViewportSize.X, camara.ViewportSize.Y)
+		escala.Scale = math.clamp(lado / 720, 0.6, 1.2)
+	end
+end
+ajustarEscala()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(ajustarEscala)
+end
+
+local function redondear(objeto: GuiObject, radio: number?)
+	local esquina = Instance.new("UICorner")
+	esquina.CornerRadius = UDim.new(0, radio or 12)
+	esquina.Parent = objeto
+end
+
+local function borde(objeto: GuiObject, color: Color3?, grosor: number?)
+	local trazo = Instance.new("UIStroke")
+	trazo.Thickness = grosor or 3
+	trazo.Color = color or Color3.new(0, 0, 0)
+	trazo.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	trazo.Parent = objeto
+end
+
+local function texto(padre: Instance, props: { [string]: any }): TextLabel
+	local etiqueta = Instance.new("TextLabel")
+	etiqueta.BackgroundTransparency = 1
+	etiqueta.Font = Enum.Font.FredokaOne
+	etiqueta.TextScaled = true
+	etiqueta.TextColor3 = Color3.new(1, 1, 1)
+	etiqueta.TextStrokeTransparency = 0.2
+	etiqueta.RichText = true
+	for k, v in props do
+		etiqueta[k] = v
+	end
+	etiqueta.Parent = padre
+	return etiqueta
+end
+
+local function boton(padre: Instance, props: { [string]: any }, color: Color3): TextButton
+	local b = Instance.new("TextButton")
+	b.Font = Enum.Font.FredokaOne
+	b.TextScaled = true
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.TextStrokeTransparency = 0.2
+	b.BackgroundColor3 = color
+	b.AutoButtonColor = true
+	for k, v in props do
+		b[k] = v
+	end
+	b.Parent = padre
+	redondear(b, 10)
+	borde(b, Color3.new(0, 0, 0), 2)
+	return b
+end
+
+---------------------------------------------------------------------
+-- MARCADOR DE DINERO
+---------------------------------------------------------------------
+local panelDinero = Instance.new("Frame")
+panelDinero.AnchorPoint = Vector2.new(0.5, 1)
+panelDinero.Position = UDim2.new(0.5, 0, 1, -10)
+panelDinero.Size = UDim2.fromOffset(280, 78)
+panelDinero.BackgroundColor3 = COLOR_PANEL
+panelDinero.BackgroundTransparency = 0.15
+panelDinero.Parent = gui
+redondear(panelDinero, 14)
+borde(panelDinero, COLOR_CIAN)
+
+local etiquetaDinero = texto(panelDinero, {
+	Size = UDim2.new(1, -16, 0.58, 0),
+	Position = UDim2.fromOffset(8, 4),
+	Text = "$0",
+	TextColor3 = Color3.fromRGB(130, 255, 160),
+})
+local etiquetaIngreso = texto(panelDinero, {
+	Size = UDim2.new(1, -16, 0.32, 0),
+	Position = UDim2.new(0, 8, 0.62, 0),
+	Text = "+$0/s",
+	TextColor3 = Color3.fromRGB(210, 255, 225),
+})
+
+local function actualizarMarcador()
+	etiquetaDinero.Text = "$" .. abreviar(jugador:GetAttribute("Dinero") or 0)
+	local multiplicador = jugador:GetAttribute("Multiplicador") or 1
+	local extra = if multiplicador > 1.001 then string.format('  <font color="#FFD54A">x%.1f</font>', multiplicador) else ""
+	etiquetaIngreso.Text = "+$" .. abreviar(jugador:GetAttribute("Ingreso") or 0) .. "/s" .. extra
+end
+for _, atributo in { "Dinero", "Ingreso", "Multiplicador" } do
+	jugador:GetAttributeChangedSignal(atributo):Connect(actualizarMarcador)
+end
+actualizarMarcador()
+
+---------------------------------------------------------------------
+-- AVISOS
+---------------------------------------------------------------------
+local listaAvisos = Instance.new("Frame")
+listaAvisos.AnchorPoint = Vector2.new(0.5, 0)
+listaAvisos.Position = UDim2.new(0.5, 0, 0, 96)
+listaAvisos.Size = UDim2.new(0.7, 0, 0, 230)
+listaAvisos.BackgroundTransparency = 1
+listaAvisos.Parent = gui
+local ordenAvisos = Instance.new("UIListLayout")
+ordenAvisos.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ordenAvisos.Padding = UDim.new(0, 2)
+ordenAvisos.Parent = listaAvisos
+
+local function mostrarAviso(mensaje: string, color: Color3?)
+	local etiqueta = texto(listaAvisos, {
+		Size = UDim2.new(1, 0, 0, 30),
+		Text = mensaje,
+		TextColor3 = color or Color3.new(1, 1, 1),
+		TextStrokeTransparency = 0,
+	})
+	local hijos = {}
+	for _, hijo in listaAvisos:GetChildren() do
+		if hijo:IsA("TextLabel") then
+			table.insert(hijos, hijo)
+		end
+	end
+	if #hijos > 6 then
+		hijos[1]:Destroy()
+	end
+	task.delay(4, function()
+		if etiqueta.Parent then
+			local desvanecer = TweenService:Create(etiqueta, TweenInfo.new(0.5), { TextTransparency = 1, TextStrokeTransparency = 1 })
+			desvanecer:Play()
+			desvanecer.Completed:Wait()
+			etiqueta:Destroy()
+		end
+	end)
+end
+eAviso.OnClientEvent:Connect(mostrarAviso)
+
+eEfecto.OnClientEvent:Connect(sonar)
+
+---------------------------------------------------------------------
+-- BANNERS: eventos, boost y "llevando"
+---------------------------------------------------------------------
+local bannerEventos = texto(gui, {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 8),
+	Size = UDim2.fromOffset(520, 34),
+	Text = "",
+	TextStrokeTransparency = 0,
+})
+local bannerProximo = texto(gui, {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 44),
+	Size = UDim2.fromOffset(420, 22),
+	Text = "",
+	TextColor3 = Color3.fromRGB(200, 200, 230),
+})
+local bannerLlevando = texto(gui, {
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -98),
+	Size = UDim2.fromOffset(480, 38),
+	Text = "",
+	TextColor3 = Color3.fromRGB(255, 220, 80),
+	TextStrokeTransparency = 0,
+	Visible = false,
+})
+
+task.spawn(function()
+	while true do
+		local t = ahora()
+		local lineas = {}
+		local suerte = (remotos:GetAttribute("SuerteHasta") or 0) - t
+		if suerte > 0 then
+			table.insert(lineas, '<font color="#78FF78">🍀 LUCKY BELT ' .. Formato.tiempo(suerte) .. "</font>")
+		end
+		local meteoros = (remotos:GetAttribute("MeteoritosHasta") or 0) - t
+		if meteoros > 0 then
+			table.insert(lineas, '<font color="#FFAA50">☄️ METEOR SHOWER ' .. Formato.tiempo(meteoros) .. "</font>")
+		end
+		local boost = (jugador:GetAttribute("BoostHasta") or 0) - t
+		if boost > 0 then
+			table.insert(lineas, '<font color="#FFD54A">⚡ 2x ' .. Formato.tiempo(boost) .. "</font>")
+		end
+		bannerEventos.Text = table.concat(lineas, "   ")
+
+		local proximos = {}
+		local proximaSuerte = (remotos:GetAttribute("ProximaSuerte") or 0) - t
+		if suerte <= 0 and proximaSuerte > 0 then
+			table.insert(proximos, "🍀 in " .. Formato.tiempo(proximaSuerte))
+		end
+		local proximosMeteoros = (remotos:GetAttribute("ProximosMeteoritos") or 0) - t
+		if meteoros <= 0 and proximosMeteoros > 0 then
+			table.insert(proximos, "☄️ in " .. Formato.tiempo(proximosMeteoros))
+		end
+		bannerProximo.Text = table.concat(proximos, "   ")
+
+		local llevando = jugador:GetAttribute("Llevando")
+		bannerLlevando.Visible = llevando ~= nil
+		if llevando then
+			bannerLlevando.Text = "🏃 Carrying " .. llevando .. " — run to your base!"
+		end
+		task.wait(0.25)
+	end
+end)
+
+---------------------------------------------------------------------
+-- PANELES (solo uno abierto a la vez)
+---------------------------------------------------------------------
+local paneles: { Frame } = {}
+
+local function crearPanel(titulo: string, colorBorde: Color3): (Frame, ScrollingFrame)
+	local panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.fromOffset(460, 440)
+	panel.BackgroundColor3 = COLOR_PANEL
+	panel.Visible = false
+	panel.ZIndex = 5
+	panel.Parent = gui
+	redondear(panel, 16)
+	borde(panel, colorBorde)
+	texto(panel, { Size = UDim2.new(1, -70, 0, 40), Position = UDim2.fromOffset(16, 8), Text = titulo, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6 })
+	local cerrar = boton(panel, { Size = UDim2.fromOffset(38, 38), Position = UDim2.new(1, -48, 0, 8), Text = "X", ZIndex = 6 }, Color3.fromRGB(230, 60, 70))
+	cerrar.Activated:Connect(function()
+		panel.Visible = false
+	end)
+	local lista = Instance.new("ScrollingFrame")
+	lista.Position = UDim2.fromOffset(12, 56)
+	lista.Size = UDim2.new(1, -24, 1, -68)
+	lista.BackgroundTransparency = 1
+	lista.ScrollBarThickness = 6
+	lista.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	lista.CanvasSize = UDim2.new()
+	lista.BorderSizePixel = 0
+	lista.ZIndex = 6
+	lista.Parent = panel
+	local orden = Instance.new("UIListLayout")
+	orden.Padding = UDim.new(0, 8)
+	orden.SortOrder = Enum.SortOrder.LayoutOrder
+	orden.Parent = lista
+	table.insert(paneles, panel)
+	return panel, lista
+end
+
+local function abrir(panel: Frame)
+	local abierto = panel.Visible
+	for _, p in paneles do
+		p.Visible = false
+	end
+	panel.Visible = not abierto
+end
+
+---------------------------------------------------------------------
+-- ÍNDICE Y PROBABILIDADES
+-- Roblox exige mostrar las probabilidades exactas (en %) de todo lo que cambie
+-- un objeto de pago como "Server Luck", antes de comprarlo y mientras está activo.
+---------------------------------------------------------------------
+local panelIndice, listaIndice = crearPanel("📖 INDEX & ODDS", Color3.fromRGB(150, 120, 255))
+local cabeceraIndice = texto(listaIndice, { Size = UDim2.new(1, -8, 0, 48), Text = "", TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 0, ZIndex = 7 })
+local filasIndice: { [string]: TextLabel } = {}
+
+for orden, alien in Config.ALIENS do
+	local rareza = Config.RAREZAS[alien.rareza]
+	local fila = Instance.new("Frame")
+	fila.Size = UDim2.new(1, -8, 0, 46)
+	fila.BackgroundColor3 = Color3.fromRGB(45, 38, 80)
+	fila.LayoutOrder = orden
+	fila.ZIndex = 7
+	fila.Parent = listaIndice
+	redondear(fila, 10)
+	local muestra = Instance.new("Frame")
+	muestra.Size = UDim2.fromOffset(30, 30)
+	muestra.Position = UDim2.new(0, 8, 0.5, -15)
+	muestra.BackgroundColor3 = rgb(alien.color)
+	muestra.ZIndex = 8
+	muestra.Parent = fila
+	redondear(muestra, 15)
+	borde(muestra, rgb(rareza.color), 2)
+	filasIndice[alien.id] = texto(fila, {
+		Size = UDim2.new(1, -54, 1, -8),
+		Position = UDim2.fromOffset(46, 4),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Text = "",
+		ZIndex = 8,
+	})
+end
+
+texto(listaIndice, {
+	Size = UDim2.new(1, -8, 0, 40),
+	LayoutOrder = 100,
+	TextColor3 = Color3.fromRGB(190, 190, 220),
+	ZIndex = 7,
+	Text = string.format(
+		"Each alien has a %s chance to spawn Shiny (x%d income), not affected by luck. Probabilities are rounded; the total of displayed probabilities may not equal 100%%.",
+		Formato.porcentaje(Config.SHINY.PROBABILIDAD),
+		Config.SHINY.MULTIPLICADOR_INGRESO
+	),
+})
+
+local botonSuerteIndice = boton(listaIndice, { Size = UDim2.new(1, -8, 0, 44), LayoutOrder = 101, Text = "🍀 Buy Server Luck", ZIndex = 7 }, Color3.fromRGB(40, 160, 80))
+botonSuerteIndice.Activated:Connect(function()
+	ePedirCompra:FireServer("PRODUCTO_SUERTE_SERVIDOR")
+end)
+
+local function actualizarIndice()
+	local indice = {}
+	local json = jugador:GetAttribute("Indice")
+	if json then
+		local ok, resultado = pcall(function()
+			return HttpService:JSONDecode(json)
+		end)
+		if ok and type(resultado) == "table" then
+			indice = resultado
+		end
+	end
+	local suerteActiva = ahora() < (remotos:GetAttribute("SuerteHasta") or 0)
+	local normal = Probabilidades.porAlien(Config.RAREZAS, Config.ALIENS, false, Config.EVENTOS.MULTIPLICADOR_SUERTE)
+	local conSuerte = Probabilidades.porAlien(Config.RAREZAS, Config.ALIENS, true, Config.EVENTOS.MULTIPLICADOR_SUERTE)
+	local descubiertos = 0
+	for i, alien in Config.ALIENS do
+		local rareza = Config.RAREZAS[alien.rareza]
+		local estado = indice[alien.id]
+		if estado then
+			descubiertos += 1
+		end
+		local marca = if estado == 2 then "✨" elseif estado then "✅" else "❔"
+		local probabilidad = if suerteActiva
+			then string.format('<font color="#78FF78">%s</font> <font color="#9A96B8">(normal %s)</font>', Formato.porcentaje(conSuerte[i].probabilidad), Formato.porcentaje(normal[i].probabilidad))
+			else string.format('%s <font color="#9A96B8">(luck: %s)</font>', Formato.porcentaje(normal[i].probabilidad), Formato.porcentaje(conSuerte[i].probabilidad))
+		filasIndice[alien.id].Text = string.format(
+			'%s <font color="#%s">%s</font> · %s · $%s/s\n<font size="14">Chance: %s</font>',
+			marca,
+			rgb(rareza.color):ToHex(),
+			alien.nombre,
+			rareza.nombre,
+			abreviar(alien.ingreso),
+			probabilidad
+		)
+	end
+	cabeceraIndice.Text = string.format(
+		"Discovered %d/%d\n%s",
+		descubiertos,
+		#Config.ALIENS,
+		if suerteActiva then '<font color="#78FF78">🍀 LUCK ACTIVE: Epic and rarer x' .. Config.EVENTOS.MULTIPLICADOR_SUERTE .. "</font>" else "Spawn chance per alien on the belt"
+	)
+	local articulo = Config.articuloPorClave("PRODUCTO_SUERTE_SERVIDOR")
+	local restringido = jugador:GetAttribute("SuerteRestringida") ~= false
+	botonSuerteIndice.Visible = articulo ~= nil and articulo.id ~= 0
+	if restringido then
+		botonSuerteIndice.Text = "🍀 Server Luck: unavailable in your region"
+		botonSuerteIndice.AutoButtonColor = false
+		botonSuerteIndice.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+	else
+		botonSuerteIndice.Text = "🍀 Buy Server Luck: Epic and rarer x" .. Config.EVENTOS.MULTIPLICADOR_SUERTE .. " for everyone (3 min)"
+		botonSuerteIndice.AutoButtonColor = true
+		botonSuerteIndice.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+	end
+end
+jugador:GetAttributeChangedSignal("Indice"):Connect(actualizarIndice)
+jugador:GetAttributeChangedSignal("SuerteRestringida"):Connect(actualizarIndice)
+remotos:GetAttributeChangedSignal("SuerteHasta"):Connect(actualizarIndice)
+task.spawn(function()
+	-- refresca al acabar la suerte
+	while true do
+		task.wait(5)
+		if panelIndice.Visible then
+			actualizarIndice()
+		end
+	end
+end)
+actualizarIndice()
+
+---------------------------------------------------------------------
+-- TIENDA
+---------------------------------------------------------------------
+local panelTienda, listaTienda = crearPanel("🛒 SHOP", COLOR_ORO)
+
+local botonAnuncio = boton(listaTienda, {
+	Size = UDim2.new(1, -8, 0, 52),
+	LayoutOrder = 0,
+	Text = "📺 Watch an ad → 2x income for 10 min",
+	Visible = false,
+	ZIndex = 7,
+}, Color3.fromRGB(60, 120, 220))
+botonAnuncio.Activated:Connect(function()
+	botonAnuncio.Visible = false
+	eAnuncio:FireServer()
+end)
+
+local function comprobarAnuncio()
+	if Config.ANUNCIO_RECOMPENSA_PRODUCTO == 0 then
+		return
+	end
+	task.spawn(function()
+		local ok, resultado = pcall(function()
+			return AdService:GetAdAvailabilityNowAsync(Enum.AdFormat.RewardedVideo)
+		end)
+		botonAnuncio.Visible = ok and resultado ~= nil and resultado.AdAvailabilityResult == Enum.AdAvailabilityResult.IsAvailable
+	end)
+end
+eAnuncio.OnClientEvent:Connect(function()
+	task.wait(1)
+	if panelTienda.Visible then
+		comprobarAnuncio()
+	end
+end)
+
+for orden, articulo in Config.TIENDA do
+	local disponible = articulo.id ~= 0
+	local fila = boton(listaTienda, {
+		Size = UDim2.new(1, -8, 0, 68),
+		LayoutOrder = orden,
+		Text = "",
+		AutoButtonColor = disponible,
+		ZIndex = 7,
+	}, if disponible then Color3.fromRGB(60, 50, 105) else Color3.fromRGB(55, 55, 62))
+	texto(fila, {
+		Size = UDim2.new(0.68, -10, 0.55, 0),
+		Position = UDim2.fromOffset(10, 4),
+		Text = articulo.titulo,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 8,
+	})
+	texto(fila, {
+		Size = UDim2.new(0.68, -10, 0.36, 0),
+		Position = UDim2.new(0, 10, 0.58, 0),
+		Text = if disponible then articulo.descripcion else "Coming soon",
+		TextColor3 = Color3.fromRGB(205, 205, 235),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 8,
+	})
+	local precio = texto(fila, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.5, 0),
+		Size = UDim2.new(0.3, 0, 0.5, 0),
+		Text = if disponible then "..." else "",
+		TextColor3 = Color3.fromRGB(130, 255, 160),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 8,
+	})
+	if disponible then
+		task.spawn(function()
+			local tipo = if articulo.tipo == "pase" then Enum.InfoType.GamePass else Enum.InfoType.Product
+			local ok, info = pcall(function()
+				return MarketplaceService:GetProductInfoAsync(articulo.id, tipo)
+			end)
+			if ok and info and info.PriceInRobux then
+				precio.Text = "R$ " .. tostring(info.PriceInRobux)
+			else
+				precio.Text = "R$"
+			end
+		end)
+		local atributoPase = if articulo.clave == "PASE_DOBLE_DINERO"
+			then "PaseDoble"
+			elseif articulo.clave == "PASE_VIP" then "VIP"
+			elseif articulo.clave == "PASE_CANDADO_PLUS" then "PaseCandado"
+			else nil
+		if atributoPase then
+			local function marcarComprado()
+				if jugador:GetAttribute(atributoPase) then
+					precio.Text = "OWNED ✅"
+				end
+			end
+			jugador:GetAttributeChangedSignal(atributoPase):Connect(marcarComprado)
+			marcarComprado()
+		end
+	end
+	fila.Activated:Connect(function()
+		if not disponible then
+			return
+		end
+		if articulo.clave == "PRODUCTO_SUERTE_SERVIDOR" then
+			-- Primero se enseñan las probabilidades (norma de Roblox).
+			actualizarIndice()
+			abrir(panelIndice)
+			return
+		end
+		ePedirCompra:FireServer(articulo.clave)
+	end)
+end
+
+---------------------------------------------------------------------
+-- CÓDIGOS
+---------------------------------------------------------------------
+local panelCodigos, listaCodigos = crearPanel("🎁 CODES", Color3.fromRGB(255, 120, 200))
+panelCodigos.Size = UDim2.fromOffset(420, 250)
+texto(listaCodigos, { Size = UDim2.new(1, -8, 0, 26), Text = "Follow us for new codes!", TextColor3 = Color3.fromRGB(200, 200, 230), LayoutOrder = 1, ZIndex = 7 })
+local cajaCodigo = Instance.new("TextBox")
+cajaCodigo.Size = UDim2.new(1, -8, 0, 48)
+cajaCodigo.BackgroundColor3 = Color3.fromRGB(20, 16, 36)
+cajaCodigo.TextColor3 = Color3.new(1, 1, 1)
+cajaCodigo.PlaceholderText = "Enter code..."
+cajaCodigo.Font = Enum.Font.FredokaOne
+cajaCodigo.TextScaled = true
+cajaCodigo.ClearTextOnFocus = false
+cajaCodigo.Text = ""
+cajaCodigo.LayoutOrder = 2
+cajaCodigo.ZIndex = 7
+cajaCodigo.Parent = listaCodigos
+redondear(cajaCodigo, 10)
+local resultadoCodigo = texto(listaCodigos, { Size = UDim2.new(1, -8, 0, 26), Text = "", LayoutOrder = 4, ZIndex = 7 })
+local canjear = boton(listaCodigos, { Size = UDim2.new(1, -8, 0, 46), Text = "REDEEM", LayoutOrder = 3, ZIndex = 7 }, Color3.fromRGB(255, 100, 190))
+local canjeando = false
+canjear.Activated:Connect(function()
+	if canjeando or cajaCodigo.Text == "" then
+		return
+	end
+	canjeando = true
+	local ok, exito, mensaje = pcall(function()
+		return fCodigo:InvokeServer(cajaCodigo.Text)
+	end)
+	if ok then
+		resultadoCodigo.Text = mensaje or ""
+		resultadoCodigo.TextColor3 = if exito then Color3.fromRGB(120, 255, 150) else Color3.fromRGB(255, 120, 120)
+	end
+	canjeando = false
+end)
+
+---------------------------------------------------------------------
+-- BOTONES DEL MENÚ
+---------------------------------------------------------------------
+local menu = Instance.new("Frame")
+menu.AnchorPoint = Vector2.new(0, 0.5)
+menu.Position = UDim2.new(0, 10, 0.5, 0)
+menu.Size = UDim2.fromOffset(110, 260)
+menu.BackgroundTransparency = 1
+menu.Parent = gui
+local ordenMenu = Instance.new("UIListLayout")
+ordenMenu.Padding = UDim.new(0, 8)
+ordenMenu.Parent = menu
+
+local function botonMenu(textoBoton: string, color: Color3, alPulsar: () -> ())
+	local b = boton(menu, { Size = UDim2.fromOffset(110, 52), Text = textoBoton }, color)
+	b.Activated:Connect(alPulsar)
+	return b
+end
+
+botonMenu("🛒 SHOP", COLOR_ORO, function()
+	abrir(panelTienda)
+	if panelTienda.Visible then
+		comprobarAnuncio()
+	end
+end)
+botonMenu("📖 INDEX\nODDS", Color3.fromRGB(150, 120, 255), function()
+	actualizarIndice()
+	abrir(panelIndice)
+end)
+botonMenu("🎁 CODES", Color3.fromRGB(255, 100, 190), function()
+	abrir(panelCodigos)
+end)
+botonMenu("👥 INVITE", Color3.fromRGB(60, 160, 255), function()
+	task.spawn(function()
+		local ok, puede = pcall(function()
+			return SocialService:CanSendGameInviteAsync(jugador)
+		end)
+		if ok and puede then
+			pcall(function()
+				SocialService:PromptGameInvite(jugador)
+			end)
+		else
+			mostrarAviso("Invites are not available right now.", Color3.fromRGB(255, 150, 150))
+		end
+	end)
+end)
+
+---------------------------------------------------------------------
+-- RECOMPENSA DIARIA
+---------------------------------------------------------------------
+eDiario.OnClientEvent:Connect(function(racha: number, cantidad: number)
+	local ventana = Instance.new("Frame")
+	ventana.AnchorPoint = Vector2.new(0.5, 0.5)
+	ventana.Position = UDim2.fromScale(0.5, 0.45)
+	ventana.Size = UDim2.fromOffset(360, 210)
+	ventana.BackgroundColor3 = COLOR_PANEL
+	ventana.ZIndex = 20
+	ventana.Parent = gui
+	redondear(ventana, 18)
+	borde(ventana, COLOR_ORO, 4)
+	texto(ventana, { Size = UDim2.new(1, -20, 0, 44), Position = UDim2.fromOffset(10, 10), Text = "🎁 DAILY REWARD", TextColor3 = COLOR_ORO, ZIndex = 21 })
+	texto(ventana, { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.fromOffset(10, 58), Text = "Day " .. racha .. " streak 🔥", ZIndex = 21 })
+	texto(ventana, { Size = UDim2.new(1, -20, 0, 44), Position = UDim2.fromOffset(10, 92), Text = "+$" .. abreviar(cantidad), TextColor3 = Color3.fromRGB(130, 255, 160), ZIndex = 21 })
+	local ok = boton(ventana, { Size = UDim2.new(0.6, 0, 0, 44), Position = UDim2.new(0.2, 0, 1, -56), Text = "AWESOME!", ZIndex = 21 }, Color3.fromRGB(40, 180, 90))
+	ok.Activated:Connect(function()
+		ventana:Destroy()
+	end)
+	sonar("EVENTO")
+	task.delay(12, function()
+		if ventana.Parent then
+			ventana:Destroy()
+		end
+	end)
+end)
+
+---------------------------------------------------------------------
+-- TUTORIAL: rayo que señala el siguiente objetivo
+---------------------------------------------------------------------
+local TEXTOS_TUTORIAL = {
+	"👇 BUY AN ALIEN",
+	"💰 COLLECT YOUR CASH",
+	"🔒 LOCK YOUR BASE",
+}
+local objetivoTutorial = Instance.new("Part")
+objetivoTutorial.Name = "ObjetivoTutorial"
+objetivoTutorial.Anchored = true
+objetivoTutorial.CanCollide = false
+objetivoTutorial.CanQuery = false
+objetivoTutorial.CanTouch = false
+objetivoTutorial.Transparency = 1
+objetivoTutorial.Size = Vector3.one
+local adjuntoObjetivo = Instance.new("Attachment")
+adjuntoObjetivo.Parent = objetivoTutorial
+local cartelTutorial = Instance.new("BillboardGui")
+cartelTutorial.Size = UDim2.fromOffset(260, 60)
+cartelTutorial.StudsOffset = Vector3.new(0, 4, 0)
+cartelTutorial.AlwaysOnTop = true
+cartelTutorial.Parent = objetivoTutorial
+local textoTutorial = texto(cartelTutorial, { Size = UDim2.fromScale(1, 1), Text = "", TextColor3 = COLOR_CIAN, TextStrokeTransparency = 0 })
+local rayo = Instance.new("Beam")
+rayo.Color = ColorSequence.new(COLOR_CIAN)
+rayo.Width0 = 0.6
+rayo.Width1 = 0.6
+rayo.FaceCamera = true
+rayo.LightEmission = 1
+rayo.Transparency = NumberSequence.new(0.2)
+rayo.Attachment1 = adjuntoObjetivo
+rayo.Parent = objetivoTutorial
+
+local function actualizarTutorial()
+	local paso = jugador:GetAttribute("Tutorial") or 0
+	local destino = jugador:GetAttribute("TutorialObjetivo")
+	local personaje = jugador.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if paso > 0 and destino and raiz then
+		objetivoTutorial.Position = destino
+		textoTutorial.Text = TEXTOS_TUTORIAL[paso] or ""
+		local adjunto = raiz:FindFirstChild("AdjuntoTutorial")
+		if not adjunto then
+			adjunto = Instance.new("Attachment")
+			adjunto.Name = "AdjuntoTutorial"
+			adjunto.Parent = raiz
+		end
+		rayo.Attachment0 = adjunto
+		objetivoTutorial.Parent = workspace
+	else
+		objetivoTutorial.Parent = nil
+	end
+end
+jugador:GetAttributeChangedSignal("Tutorial"):Connect(actualizarTutorial)
+jugador:GetAttributeChangedSignal("TutorialObjetivo"):Connect(actualizarTutorial)
+jugador.CharacterAdded:Connect(function(personaje)
+	personaje:WaitForChild("HumanoidRootPart", 10)
+	actualizarTutorial()
+end)
+actualizarTutorial()
+
+---------------------------------------------------------------------
+-- CARTELES PERSONALES EN LOS PUESTOS (precio según tu progreso)
+---------------------------------------------------------------------
+task.spawn(function()
+	local puestos = workspace:WaitForChild("Mapa"):WaitForChild("Puestos")
+	local cartelVelocidad = puestos:WaitForChild("Velocidad"):WaitForChild("Cartel"):WaitForChild("Texto")
+	local cartelRebirth = puestos:WaitForChild("Rebirth"):WaitForChild("Cartel"):WaitForChild("Texto")
+	local function actualizar()
+		local nivel = jugador:GetAttribute("NivelVelocidad") or 0
+		if nivel >= Config.JUEGO.NIVEL_VELOCIDAD_MAX then
+			cartelVelocidad.Text = "⚡ SPEED\nMAX"
+		else
+			cartelVelocidad.Text = string.format("⚡ SPEED\nLv %d → %d: $%s", nivel, nivel + 1, abreviar(Config.costeVelocidad(nivel)))
+		end
+		local rebirths = jugador:GetAttribute("Rebirths") or 0
+		cartelRebirth.Text = string.format("🌌 REBIRTH %d\n$%s → +50%% income", rebirths + 1, abreviar(Config.costeRebirth(rebirths)))
+	end
+	jugador:GetAttributeChangedSignal("NivelVelocidad"):Connect(actualizar)
+	jugador:GetAttributeChangedSignal("Rebirths"):Connect(actualizar)
+	actualizar()
+end)
+
+---------------------------------------------------------------------
+-- ETIQUETA VIP EN EL CHAT
+---------------------------------------------------------------------
+TextChatService.OnIncomingMessage = function(mensaje: TextChatMessage)
+	local propiedades = Instance.new("TextChatMessageProperties")
+	local fuente = mensaje.TextSource
+	if fuente then
+		local autor = Players:GetPlayerByUserId(fuente.UserId)
+		if autor and autor:GetAttribute("VIP") then
+			propiedades.PrefixText = '<font color="#FFC828">[VIP]</font> ' .. mensaje.PrefixText
+		end
+	end
+	return propiedades
+end
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="TextChatService" referent="17">
+    <Properties>
+      <string name="Name">TextChatService</string>
+      <token name="ChatVersion">1</token>
+    </Properties>
+  </Item>
+  <Item class="Workspace" referent="18">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="NeedsPivotMigration">false</bool>
+      <bool name="StreamingEnabled">false</bool>
+    </Properties>
+  </Item>
+</roblox>

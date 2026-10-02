@@ -2,12 +2,31 @@
   "name": "StealAnAlien",
   "tree": {
     "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Compartido": {
+        "$path": "src/shared"
+      }
+    },
     "ServerScriptService": {
-      "$path": "src/ServerScriptService"
+      "Servidor": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "$path": "src/StarterPlayerScripts"
+        "Cliente": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
+    "TextChatService": {
+      "$properties": {
+        "ChatVersion": "TextChatService"
       }
     }
   }
