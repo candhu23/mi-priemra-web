@@ -48,6 +48,16 @@ En agosto de 2026, después de lo de Steal An Egg, Roblox restringió en **Roblo
 - Ejemplo: 100 personas compran el pase 2x Cash a 199 R$ → 19.900 R$ → ~13.930 R$ para ti → **unos 50 $**.
 - También existen **Creator Rewards** (Roblox paga por el tiempo de juego) y **anuncios con recompensa**.
 
+## 4b. Si vives en España (mayor de edad)
+
+*Orientativo, no es asesoramiento fiscal: confírmalo con una gestoría antes de cobrar.*
+
+1. **Formulario W-8BEN** (persona física no estadounidense). Hasta el 31/10/2026 se rellena en Tipalti; desde el 1/11/2026 pasa a la página *Taxes* del Creator Hub. Indica que eres residente fiscal en España y reclama el **convenio de doble imposición España–EE. UU.** Si no lo presentas, Roblox retiene el **30 %**. Con el convenio, la retención para cánones suele bajar mucho (creo que al 0 % desde el protocolo de 2019, pero hay que verificarlo).
+2. **Cobro** en tu cuenta bancaria española a través de Tipalti (en dólares o en euros, con comisión de cambio).
+3. **Hacienda (IRPF)**: lo que cobres es renta y **hay que declararlo** en la Renta del año siguiente, aunque sea poco.
+4. **¿Darte de alta como autónomo?** Depende de que sea una actividad **habitual** y no solo de la cantidad. Para pruebas o ingresos pequeños y puntuales normalmente no hace falta. Si empieza a dar dinero de forma regular, probablemente sí (Hacienda con el modelo 036/037 y Seguridad Social en el RETA; existe la tarifa plana para nuevos autónomos). **Pregúntalo a una gestoría** en cuanto lleguen los primeros pagos.
+5. Guarda los justificantes de cada pago de DevEx.
+
 ## 5. Plan de lanzamiento recomendado
 
 1. **Antes de publicar**: mejora el aspecto. Los aliens actuales son figuras simples; un artista 3D, o modelos del Creator Store con licencia de uso, cambian mucho la conversión. El **icono y las miniaturas** son lo que más influye en que la gente entre.
@@ -74,4 +84,7 @@ En agosto de 2026, después de lo de Steal An Egg, Roblox restringió en **Roblo
 - [RoWatcher: por qué dominan los simuladores](https://rowatcher.com/news/the-simulation-takeover-why-casual-sims-rule-roblox-in-2026)
 - [Roblox Docs: Developer Exchange](https://create.roblox.com/docs/production/monetization/developer-exchange)
 - [RoWatcher: cuentas de DevEx 2026](https://rowatcher.com/news/roblox-devex-math-what-you-actually-take-home-in-2026)
+- [Roblox Docs: información fiscal de DevEx](https://create.roblox.com/docs/production/monetization/tax-information)
+- [Deloitte: streaming, eSports y Hacienda](https://prisma.deloitte.es/pildoras-esports/3-streaming-y-hacienda)
+- [Jobrise: alta de autónomo para developers (2026)](https://jobrise.io/es/blog/darse-de-alta-autonomo-developer-2026/)
 - [Wikipedia: Grow a Garden](https://en.wikipedia.org/wiki/Grow_a_Garden)
