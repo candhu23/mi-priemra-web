@@ -4,7 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Jorge | Educación, Psicología e IA</title>
+    <title>Cómo hacer SEO: guía paso a paso gratis (2026)</title>
+    <meta name="description" content="Aprende a hacer SEO desde cero: palabras clave, SEO on-page, SEO técnico, enlaces y herramientas gratis. Guía en español con checklist para posicionar tu web en Google.">
+    <link rel="canonical" href="https://como-hacer-seo.netlify.app/">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="Jorge">
+
+    <meta property="og:type" content="article">
+    <meta property="og:locale" content="es_ES">
+    <meta property="og:title" content="Cómo hacer SEO: guía paso a paso gratis (2026)">
+    <meta property="og:description" content="Guía práctica en español para posicionar tu web en Google, con checklist y herramientas gratuitas.">
+    <meta property="og:url" content="https://como-hacer-seo.netlify.app/">
+    <meta name="twitter:card" content="summary">
+
+    <meta name="google-adsense-account" content="ca-pub-5296527843182076">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5296527843182076" crossorigin="anonymous"></script>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Article",
+                "headline": "Cómo hacer SEO: guía paso a paso gratis (2026)",
+                "description": "Guía práctica en español para posicionar tu web en Google: palabras clave, SEO on-page, SEO técnico, enlaces y herramientas gratis.",
+                "inLanguage": "es",
+                "datePublished": "2026-10-05",
+                "dateModified": "2026-10-05",
+                "author": { "@type": "Person", "name": "Jorge" },
+                "mainEntityOfPage": "https://como-hacer-seo.netlify.app/"
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {
+                        "@type": "Question",
+                        "name": "¿Cuánto tarda el SEO en dar resultados?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Depende de la competencia y de la antigüedad de la web. En una web nueva es habitual que pasen varios meses antes de ver tráfico estable desde Google." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "¿Se puede hacer SEO gratis?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Sí. Con Google Search Console, PageSpeed Insights, Google Trends y buen contenido puedes cubrir lo básico sin pagar. Las herramientas de pago ahorran tiempo, pero no son obligatorias." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "¿Qué es más importante en SEO, el contenido o los enlaces?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Las dos cosas cuentan, pero sin un contenido que responda bien a lo que busca el usuario, los enlaces sirven de poco. Empieza por el contenido." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "¿Sirve de algo usar IA para escribir contenido SEO?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Google evalúa la utilidad del contenido, no cómo se ha escrito. La IA puede ayudarte con borradores e ideas, pero revisa los datos y añade tu experiencia propia: el contenido genérico y masivo suele posicionar mal." }
+                    }
+                ]
+            }
+        ]
+    }
+    </script>
 
     <style>
         * {
@@ -13,60 +70,62 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --navy: #172554;
+            --blue: #1d4ed8;
+            --bg: #f5f7fb;
+            --text: #1f2937;
+            --muted: #64748b;
+            --card: #ffffff;
+            --line: #e2e8f0;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
-            line-height: 1.6;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        a {
+            color: var(--blue);
         }
 
         header {
-            min-height: 90vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 70px 20px 60px;
             text-align: center;
-            padding: 40px 20px;
-            background: linear-gradient(135deg, #172554, #2563eb);
+            background: linear-gradient(135deg, var(--navy), #2563eb);
             color: white;
         }
 
-        .hero {
-            max-width: 850px;
-        }
-
-        .hero p:first-child {
-            font-size: 1rem;
+        .eyebrow {
+            font-size: 0.9rem;
             letter-spacing: 2px;
             text-transform: uppercase;
             opacity: 0.8;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         h1 {
-            font-size: clamp(3rem, 10vw, 6rem);
-            margin-bottom: 20px;
+            font-size: clamp(2.2rem, 7vw, 3.6rem);
+            line-height: 1.15;
             font-weight: 800;
+            max-width: 850px;
+            margin: 0 auto 20px;
         }
 
-        .hero h2 {
-            font-size: clamp(1.3rem, 4vw, 2rem);
-            font-weight: 400;
-            margin-bottom: 25px;
-        }
-
-        .hero-description {
-            max-width: 650px;
-            margin: 0 auto 35px;
-            font-size: 1.1rem;
-            opacity: 0.9;
+        .lead {
+            max-width: 680px;
+            margin: 0 auto 30px;
+            font-size: 1.15rem;
+            opacity: 0.92;
         }
 
         .button {
             display: inline-block;
             padding: 13px 25px;
             background: white;
-            color: #1d4ed8;
+            color: var(--blue);
             text-decoration: none;
             border-radius: 30px;
             font-weight: 700;
@@ -77,86 +136,162 @@
             transform: translateY(-3px);
         }
 
+        main {
+            max-width: 820px;
+            margin: auto;
+            padding: 0 20px;
+        }
+
+        .toc {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 25px 30px;
+            margin: 40px 0 10px;
+        }
+
+        .toc h2 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--navy);
+        }
+
+        .toc ol {
+            padding-left: 20px;
+        }
+
         section {
-            max-width: 1000px;
-            margin: auto;
-            padding: 80px 25px;
+            padding: 45px 0 10px;
         }
 
-        .section-title {
-            text-align: center;
-            font-size: 2.2rem;
-            margin-bottom: 45px;
-            color: #172554;
+        h2 {
+            font-size: clamp(1.6rem, 4.5vw, 2rem);
+            color: var(--navy);
+            margin-bottom: 18px;
+            line-height: 1.25;
         }
 
-        .about {
-            text-align: center;
-            max-width: 750px;
-            margin: auto;
-            font-size: 1.1rem;
+        h3 {
+            font-size: 1.2rem;
+            color: var(--blue);
+            margin: 25px 0 8px;
+        }
+
+        p,
+        ul,
+        ol {
+            margin-bottom: 15px;
+        }
+
+        main ul,
+        main ol {
+            padding-left: 22px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .tip {
+            background: #eff6ff;
+            border-left: 4px solid var(--blue);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
         }
 
         .cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 18px;
+            margin-top: 15px;
         }
 
         .card {
-            background: white;
-            padding: 30px;
-            border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-            transition: transform 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card-icon {
-            font-size: 2.2rem;
-            margin-bottom: 15px;
+            background: var(--card);
+            padding: 22px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         }
 
         .card h3 {
-            margin-bottom: 10px;
-            color: #1d4ed8;
+            margin-top: 0;
         }
 
-        .future {
-            background: #172554;
-            color: white;
-            text-align: center;
-            max-width: none;
+        .card p {
+            margin-bottom: 0;
+            font-size: 0.97rem;
         }
 
-        .future-content {
-            max-width: 750px;
-            margin: auto;
+        .checklist {
+            list-style: none;
+            padding-left: 0 !important;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 15px 20px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         }
 
-        .future .section-title {
-            color: white;
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+            margin: 0;
+        }
+
+        .checklist li:last-child {
+            border-bottom: none;
+        }
+
+        .checklist label {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            cursor: pointer;
+        }
+
+        .checklist input {
+            margin-top: 6px;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            accent-color: var(--blue);
+        }
+
+        .progress {
+            font-weight: 700;
+            color: var(--blue);
+            margin-top: 10px;
+        }
+
+        details {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--navy);
+        }
+
+        details p {
+            margin: 10px 0 0;
         }
 
         footer {
+            margin-top: 60px;
             text-align: center;
-            padding: 30px;
+            padding: 30px 20px;
             background: #0f172a;
             color: #94a3b8;
             font-size: 0.9rem;
         }
 
-        @media (max-width: 600px) {
-            header {
-                min-height: 80vh;
-            }
-
-            section {
-                padding: 60px 20px;
-            }
+        footer a {
+            color: #cbd5e1;
         }
     </style>
 </head>
@@ -164,137 +299,334 @@
 <body>
 
     <header>
-        <div class="hero">
-
-            <p>Creado por</p>
-
-            <h1>Jorge</h1>
-
-            <h2>Educación · Psicología · Inteligencia Artificial</h2>
-
-            <p class="hero-description">
-                Estudiante de Educación Infantil y Primaria,
-                apasionado por comprender a las personas y explorar
-                cómo la tecnología puede ayudarnos a aprender y crear.
-            </p>
-
-            <a href="#sobre-mi" class="button">
-                Conóceme
-            </a>
-<button class="button" onclick="saludar()">
-    Haz clic aquí
-</button>
-        </div>
+        <p class="eyebrow">Guía gratuita · Actualizada en 2026</p>
+        <h1>Cómo hacer SEO: guía paso a paso para posicionar tu web en Google</h1>
+        <p class="lead">
+            Todo lo que necesitas para empezar con el posicionamiento web:
+            palabras clave, SEO on-page, SEO técnico, enlaces y herramientas
+            gratis. Sin tecnicismos innecesarios.
+        </p>
+        <a href="#checklist" class="button">Ir a la checklist SEO</a>
     </header>
 
+    <main>
 
-    <section id="sobre-mi">
+        <nav class="toc" aria-label="Índice">
+            <h2>Índice</h2>
+            <ol>
+                <li><a href="#que-es-seo">Qué es el SEO</a></li>
+                <li><a href="#palabras-clave">Investigación de palabras clave</a></li>
+                <li><a href="#seo-on-page">SEO on-page</a></li>
+                <li><a href="#seo-tecnico">SEO técnico</a></li>
+                <li><a href="#contenido">Contenido de calidad</a></li>
+                <li><a href="#enlaces">Enlaces (link building)</a></li>
+                <li><a href="#seo-local">SEO local</a></li>
+                <li><a href="#medir">Cómo medir los resultados</a></li>
+                <li><a href="#herramientas">Herramientas SEO gratis</a></li>
+                <li><a href="#checklist">Checklist SEO</a></li>
+                <li><a href="#errores">Errores comunes</a></li>
+                <li><a href="#preguntas">Preguntas frecuentes</a></li>
+            </ol>
+        </nav>
 
-        <h2 class="section-title">Sobre mí</h2>
-
-        <div class="about">
-
+        <section id="que-es-seo">
+            <h2>1. Qué es el SEO y por qué importa</h2>
             <p>
-                Actualmente estudio el doble grado de Educación Infantil
-                y Educación Primaria. Mi objetivo es convertirme en un
-                docente capaz de combinar competencia profesional,
-                comprensión de las personas y calidad humana.
+                SEO (<em>Search Engine Optimization</em>) es el conjunto de
+                acciones para que una página aparezca más arriba en los
+                resultados orgánicos (no pagados) de buscadores como Google.
+                Cuanto más arriba sale una página, más clics suele recibir.
             </p>
-
-            <br>
-
             <p>
-                Paralelamente, estoy aprendiendo Psicología e
-                Inteligencia Artificial para comprender mejor las
-                relaciones humanas y desarrollar nuevas formas de
-                aprender, trabajar y crear.
+                Google decide el orden de los resultados con muchos factores,
+                pero se pueden agrupar en tres preguntas:
             </p>
+            <ul>
+                <li><strong>¿Puede Google leer tu página?</strong> (SEO técnico)</li>
+                <li><strong>¿Responde bien a lo que busca la persona?</strong> (contenido y SEO on-page)</li>
+                <li><strong>¿Otras webs confían en ella?</strong> (enlaces y autoridad)</li>
+            </ul>
+        </section>
 
-        </div>
-
-    </section>
-
-
-    <section>
-
-        <h2 class="section-title">Mis intereses</h2>
-
-        <div class="cards">
-
-            <div class="card">
-                <div class="card-icon">👨‍🏫</div>
-                <h3>Educación</h3>
-                <p>
-                    Aprender a enseñar mejor y comprender cómo aprenden
-                    y se desarrollan las personas.
-                </p>
-            </div>
-
-
-            <div class="card">
-                <div class="card-icon">🧠</div>
-                <h3>Psicología</h3>
-                <p>
-                    Explorar las relaciones humanas, los sentimientos
-                    y el comportamiento.
-                </p>
-            </div>
-
-
-            <div class="card">
-                <div class="card-icon">🤖</div>
-                <h3>Inteligencia Artificial</h3>
-                <p>
-                    Aprender a utilizar la IA, la automatización y los
-                    agentes para crear proyectos útiles.
-                </p>
-            </div>
-
-
-            <div class="card">
-                <div class="card-icon">🎹</div>
-                <h3>Aprendizaje</h3>
-                <p>
-                    Seguir aprendiendo nuevas disciplinas y desarrollar
-                    habilidades a lo largo del tiempo.
-                </p>
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <section class="future">
-
-        <div class="future-content">
-
-            <h2 class="section-title">
-                ¿Hacia dónde voy?
-            </h2>
-
+        <section id="palabras-clave">
+            <h2>2. Investigación de palabras clave</h2>
             <p>
-                Quiero construir un futuro profesional que combine
-                educación, comprensión de las personas y tecnología.
-                Mi objetivo a largo plazo es desarrollar proyectos
-                relacionados con Inteligencia Artificial y, al mismo
-                tiempo, crecer como docente.
+                Una palabra clave es lo que la gente escribe en el buscador.
+                Antes de escribir, averigua qué términos usa tu público y qué
+                quiere encontrar cuando los busca.
             </p>
+            <h3>Cómo encontrarlas</h3>
+            <ul>
+                <li>Escribe tu tema en Google y fíjate en el <strong>autocompletado</strong> y en «<strong>Otras preguntas de los usuarios</strong>».</li>
+                <li>Mira las <strong>búsquedas relacionadas</strong> al final de la página de resultados.</li>
+                <li>Usa <strong>Google Trends</strong> para comparar términos y ver si un tema crece o baja.</li>
+                <li>Consulta volúmenes aproximados en el <strong>Planificador de palabras clave de Google Ads</strong>.</li>
+            </ul>
+            <h3>Intención de búsqueda</h3>
+            <p>
+                No basta con la palabra: importa <em>para qué</em> se busca.
+                «Qué es el SEO» es informativa (quiere aprender), «mejor
+                herramienta SEO» es comparativa y «contratar consultor SEO»
+                es transaccional. Busca tu palabra clave en Google y mira qué
+                tipo de páginas salen: es la mejor pista de lo que Google
+                considera una buena respuesta.
+            </p>
+            <div class="tip">
+                <strong>Consejo:</strong> si tu web es nueva, empieza por
+                palabras clave de «cola larga» (frases más largas y concretas,
+                como «cómo hacer SEO para una tienda pequeña»). Tienen menos
+                búsquedas, pero también mucha menos competencia.
+            </div>
+        </section>
 
-        </div>
+        <section id="seo-on-page">
+            <h2>3. SEO on-page: optimiza cada página</h2>
+            <h3>Etiqueta title</h3>
+            <p>
+                Es el título azul que aparece en Google. Incluye la palabra
+                clave principal, preferiblemente al principio, y procura que
+                no sea demasiado largo para que no se corte (en torno a 60
+                caracteres es una referencia habitual).
+            </p>
+            <h3>Meta description</h3>
+            <p>
+                El texto bajo el título en los resultados. No influye
+                directamente en la posición, pero sí en que la gente haga
+                clic. Resume la página y da un motivo para entrar.
+            </p>
+            <h3>Encabezados (H1, H2, H3)</h3>
+            <p>
+                Usa un único H1 con el tema principal y H2/H3 para organizar
+                las secciones. Ayudan a los lectores y a Google a entender la
+                estructura.
+            </p>
+            <h3>URL</h3>
+            <p>
+                Corta, descriptiva y en minúsculas, con guiones:
+                <code>/como-hacer-seo</code> mejor que <code>/p?id=1234</code>.
+            </p>
+            <h3>Imágenes</h3>
+            <p>
+                Comprime las imágenes, usa formatos modernos (WebP o AVIF) y
+                escribe un texto alternativo (<code>alt</code>) que describa lo
+                que se ve.
+            </p>
+            <h3>Enlaces internos</h3>
+            <p>
+                Enlaza tus páginas entre sí con textos descriptivos. Así
+                Google descubre todo tu contenido y entiende qué páginas son
+                más importantes.
+            </p>
+        </section>
 
-    </section>
+        <section id="seo-tecnico">
+            <h2>4. SEO técnico: que Google pueda rastrear tu web</h2>
+            <div class="cards">
+                <div class="card">
+                    <h3>Adaptada a móvil</h3>
+                    <p>Google usa principalmente la versión móvil de tu web para indexarla. Comprueba que se lee bien en un teléfono.</p>
+                </div>
+                <div class="card">
+                    <h3>Velocidad</h3>
+                    <p>Revisa las Core Web Vitals (LCP, INP y CLS) con PageSpeed Insights y corrige lo que marque en rojo.</p>
+                </div>
+                <div class="card">
+                    <h3>HTTPS</h3>
+                    <p>Tu web debe cargarse con candado (https). Plataformas como Netlify lo activan gratis.</p>
+                </div>
+                <div class="card">
+                    <h3>Sitemap y robots.txt</h3>
+                    <p>El sitemap.xml lista tus páginas; el robots.txt indica qué se puede rastrear. Envía el sitemap en Search Console.</p>
+                </div>
+                <div class="card">
+                    <h3>Indexación</h3>
+                    <p>Busca <code>site:tudominio.com</code> en Google para ver qué páginas tiene indexadas.</p>
+                </div>
+                <div class="card">
+                    <h3>Sin contenido duplicado</h3>
+                    <p>Si dos URLs muestran lo mismo, usa la etiqueta canonical para indicar cuál es la principal.</p>
+                </div>
+            </div>
+        </section>
 
+        <section id="contenido">
+            <h2>5. Contenido de calidad</h2>
+            <p>
+                Google insiste en premiar el contenido «útil, fiable y
+                pensado para personas». En la práctica:
+            </p>
+            <ul>
+                <li><strong>Responde rápido</strong> a la pregunta principal y luego amplía.</li>
+                <li><strong>Aporta experiencia propia</strong>: ejemplos, capturas, datos o casos reales que no estén en otras webs.</li>
+                <li><strong>Demuestra quién lo escribe</strong> y por qué sabe del tema (lo que Google llama E-E-A-T: experiencia, conocimiento, autoridad y confianza).</li>
+                <li><strong>Actualiza</strong> el contenido cuando cambie la información.</li>
+                <li><strong>Evita el relleno</strong>: más palabras no significa mejor posición.</li>
+            </ul>
+        </section>
+
+        <section id="enlaces">
+            <h2>6. Enlaces externos (link building)</h2>
+            <p>
+                Cuando otra web enlaza a la tuya, funciona como una
+                recomendación. Importa más la calidad y la relación temática
+                que la cantidad.
+            </p>
+            <ul>
+                <li>Crea recursos que la gente quiera citar: guías, plantillas, estudios o herramientas.</li>
+                <li>Colabora con webs de tu sector (artículos de invitado, entrevistas).</li>
+                <li>Date de alta en directorios relevantes y en perfiles profesionales.</li>
+                <li><strong>No compres enlaces</strong> ni participes en intercambios masivos: va contra las directrices de Google y puede penalizarte.</li>
+            </ul>
+        </section>
+
+        <section id="seo-local">
+            <h2>7. SEO local</h2>
+            <p>
+                Si tienes un negocio físico o das servicio en una zona,
+                crea y completa tu ficha de <strong>Perfil de Empresa de
+                Google</strong> (antes Google My Business): categoría,
+                horario, fotos y reseñas. Mantén el mismo nombre, dirección
+                y teléfono en todas partes.
+            </p>
+        </section>
+
+        <section id="medir">
+            <h2>8. Cómo medir los resultados</h2>
+            <p>
+                Da de alta tu web en <strong>Google Search Console</strong>.
+                Te muestra con qué búsquedas apareces, cuántos clics recibes,
+                tu posición media y los errores de indexación. Para analizar
+                qué hacen los visitantes dentro de la web puedes usar
+                <strong>Google Analytics</strong> u otra herramienta de
+                analítica.
+            </p>
+            <div class="tip">
+                <strong>Ten paciencia:</strong> el SEO es lento. En una web
+                nueva es normal que pasen meses antes de ver tráfico estable.
+                Revisa los datos cada pocas semanas, no cada día.
+            </div>
+        </section>
+
+        <section id="herramientas">
+            <h2>9. Herramientas SEO gratis</h2>
+            <div class="cards">
+                <div class="card">
+                    <h3>Google Search Console</h3>
+                    <p>Rendimiento en Google, indexación y errores. Imprescindible.</p>
+                </div>
+                <div class="card">
+                    <h3>PageSpeed Insights</h3>
+                    <p>Velocidad y Core Web Vitals, con sugerencias de mejora.</p>
+                </div>
+                <div class="card">
+                    <h3>Google Trends</h3>
+                    <p>Interés por un tema a lo largo del tiempo y por región.</p>
+                </div>
+                <div class="card">
+                    <h3>Planificador de palabras clave</h3>
+                    <p>Dentro de Google Ads. Ideas y volúmenes de búsqueda aproximados.</p>
+                </div>
+                <div class="card">
+                    <h3>Bing Webmaster Tools</h3>
+                    <p>Como Search Console, pero para Bing. Permite importar tus datos de Google.</p>
+                </div>
+                <div class="card">
+                    <h3>Herramientas freemium</h3>
+                    <p>Ubersuggest, AnswerThePublic o similares ofrecen algunas consultas gratis al día.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="checklist">
+            <h2>10. Checklist SEO</h2>
+            <p>Marca cada punto cuando lo tengas hecho. Se guarda en tu navegador.</p>
+            <ul class="checklist">
+                <li><label><input type="checkbox"> He elegido una palabra clave principal para cada página.</label></li>
+                <li><label><input type="checkbox"> He comprobado en Google la intención de búsqueda de esa palabra.</label></li>
+                <li><label><input type="checkbox"> El title incluye la palabra clave y no es demasiado largo.</label></li>
+                <li><label><input type="checkbox"> Cada página tiene una meta description única.</label></li>
+                <li><label><input type="checkbox"> Hay un único H1 y los H2/H3 ordenan el contenido.</label></li>
+                <li><label><input type="checkbox"> Las URLs son cortas y descriptivas.</label></li>
+                <li><label><input type="checkbox"> Las imágenes están comprimidas y tienen texto alt.</label></li>
+                <li><label><input type="checkbox"> La web se ve bien en móvil.</label></li>
+                <li><label><input type="checkbox"> PageSpeed Insights no marca problemas graves.</label></li>
+                <li><label><input type="checkbox"> La web funciona con HTTPS.</label></li>
+                <li><label><input type="checkbox"> He enviado el sitemap.xml a Google Search Console.</label></li>
+                <li><label><input type="checkbox"> Mis páginas se enlazan entre sí.</label></li>
+                <li><label><input type="checkbox"> El contenido aporta algo propio que no está en otras webs.</label></li>
+                <li><label><input type="checkbox"> Reviso Search Console cada pocas semanas.</label></li>
+            </ul>
+            <p class="progress" id="progreso" aria-live="polite"></p>
+        </section>
+
+        <section id="errores">
+            <h2>11. Errores comunes al hacer SEO</h2>
+            <ul>
+                <li>Repetir la palabra clave de forma forzada (<em>keyword stuffing</em>).</li>
+                <li>Copiar contenido de otras webs.</li>
+                <li>Publicar muchas páginas muy parecidas sobre lo mismo.</li>
+                <li>Olvidar la versión móvil.</li>
+                <li>Comprar enlaces o paquetes de «miles de backlinks».</li>
+                <li>Abandonar porque no hay resultados en las primeras semanas.</li>
+            </ul>
+        </section>
+
+        <section id="preguntas">
+            <h2>12. Preguntas frecuentes sobre SEO</h2>
+            <details>
+                <summary>¿Cuánto tarda el SEO en dar resultados?</summary>
+                <p>Depende de la competencia y de la antigüedad de la web. En una web nueva es habitual que pasen varios meses antes de ver tráfico estable desde Google.</p>
+            </details>
+            <details>
+                <summary>¿Se puede hacer SEO gratis?</summary>
+                <p>Sí. Con Google Search Console, PageSpeed Insights, Google Trends y buen contenido puedes cubrir lo básico sin pagar. Las herramientas de pago ahorran tiempo, pero no son obligatorias.</p>
+            </details>
+            <details>
+                <summary>¿Qué es más importante en SEO, el contenido o los enlaces?</summary>
+                <p>Las dos cosas cuentan, pero sin un contenido que responda bien a lo que busca el usuario, los enlaces sirven de poco. Empieza por el contenido.</p>
+            </details>
+            <details>
+                <summary>¿Sirve de algo usar IA para escribir contenido SEO?</summary>
+                <p>Google evalúa la utilidad del contenido, no cómo se ha escrito. La IA puede ayudarte con borradores e ideas, pero revisa los datos y añade tu experiencia propia: el contenido genérico y masivo suele posicionar mal.</p>
+            </details>
+        </section>
+
+    </main>
 
     <footer>
-
-        © 2026 Jorge · Mi primera web
-
+        <p>© 2026 Jorge · Guía para aprender a hacer SEO</p>
+        <p><a href="/privacidad.html">Política de privacidad y cookies</a></p>
     </footer>
+
 <script>
-    function saludar() {
-        alert("¡Hola, Jorge! Acabas de ejecutar tu primer código JavaScript 🚀");
-    }
+    (function () {
+        var KEY = "checklist-seo";
+        var boxes = document.querySelectorAll(".checklist input");
+        var progreso = document.getElementById("progreso");
+        var guardado = [];
+
+        try {
+            guardado = JSON.parse(localStorage.getItem(KEY)) || [];
+        } catch (e) {}
+
+        function actualizar() {
+            var hechos = [];
+            boxes.forEach(function (box, i) {
+                if (box.checked) hechos.push(i);
+            });
+            progreso.textContent = "Completado: " + hechos.length + " de " + boxes.length;
+            try {
+                localStorage.setItem(KEY, JSON.stringify(hechos));
+            } catch (e) {}
+        }
+
+        boxes.forEach(function (box, i) {
+            box.checked = guardado.indexOf(i) !== -1;
+            box.addEventListener("change", actualizar);
+        });
+
+        actualizar();
+    })();
 </script>
 </body>
 </html>
