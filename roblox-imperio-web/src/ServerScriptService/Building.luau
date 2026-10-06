@@ -37,6 +37,9 @@ Building.Styles = {
 	{ glass = Color3.fromRGB(210, 190, 110), accent = Color3.fromRGB(202, 138, 4), frame = Color3.fromRGB(56, 50, 36) },
 }
 
+-- Rascacielos dorado: premio del ranking semanal
+Building.GOLD_STYLE = { glass = Color3.fromRGB(236, 190, 70), accent = Color3.fromRGB(250, 204, 21), frame = Color3.fromRGB(150, 110, 25) }
+
 local SLAB_COLOR = Color3.fromRGB(232, 232, 236)
 local INTERIOR_DAY = Color3.fromRGB(58, 66, 80)
 local INTERIOR_NIGHT = Color3.fromRGB(255, 214, 150)
@@ -298,9 +301,9 @@ local function buildRoof(model: Model, base: CFrame, sections: { Section }, floo
 end
 
 -- Construye el edificio entero. Las plantas por encima de animateFrom
--- aparecen con animación (para cuando el edificio crece).
-function Building.build(parent: Instance, base: CFrame, floors: number, styleIndex: number, ownerName: string, isNight: boolean, animateFrom: number): Model
-	local style = Building.Styles[(styleIndex - 1) % #Building.Styles + 1]
+-- aparecen con animación (para cuando el edificio crece). gold = dorado.
+function Building.build(parent: Instance, base: CFrame, floors: number, styleIndex: number, ownerName: string, isNight: boolean, animateFrom: number, gold: boolean?): Model
+	local style = if gold then Building.GOLD_STYLE else Building.Styles[(styleIndex - 1) % #Building.Styles + 1]
 	local sections = sectionsFor(floors)
 
 	local model = Instance.new("Model")
@@ -319,7 +322,7 @@ function Building.build(parent: Instance, base: CFrame, floors: number, styleInd
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = "🏢 " .. ownerName .. " Corp. · " .. floors .. (if floors == 1 then " planta" else " plantas")
+	label.Text = (if gold then "👑 " else "🏢 ") .. ownerName .. " Corp. · " .. floors .. (if floors == 1 then " planta" else " plantas")
 	label.TextScaled = true
 	label.Font = Enum.Font.FredokaOne
 	label.TextColor3 = Color3.new(1, 1, 1)

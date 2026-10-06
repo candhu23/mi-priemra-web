@@ -1,6 +1,19 @@
-# 🌐 Imperio Web Tycoon · v1.2 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v1.3 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v1.3
+- **Inglés y español**: el juego usa el idioma de la cuenta de Roblox de cada jugador (español si la tiene en español; si no, inglés). Botón **🌐 ES / EN** arriba en la ventana del ordenador para cambiarlo (se guarda). También se traducen los carteles de la ciudad, solo en la pantalla de cada uno.
+- **Tu imperio se ve en la parcela**:
+  - **Oficina de la agencia** al aire libre: tus 8 mejores programadores trabajando en su mesa, con el color de su rareza y su nombre encima. Los **Legendarios y Míticos brillan** y llevan aureola.
+  - **Paseo de la fama**: un pedestal por cada tipo de web que se ilumina cuando la has programado (con cuántas llevas). La mejor brilla.
+  - **Pantalla en la fachada** con tu web estrella y sus visitas.
+  - **Visitas y "me gusta"**: en el cartel de cada parcela hay **Ver imperio**. Se abre la ficha del jugador y puedes darle **👍 Me gusta** una vez al día: los dos ganáis dinero.
+- **Pestaña 🏆 Ranking**:
+  - **Ranking semanal** (dinero ganado en la semana; se reinicia el lunes a las 00:00 UTC) con premios: #1 y #2–3 → Contrato Legendario + **rascacielos dorado 7 días** + horas de ingresos; #4–10 → dorado + ingresos; #11–100 → ingresos.
+  - Panel del top semanal **en mitad de la avenida**.
+  - Lista de jugadores del servidor para visitarlos.
+- **Eventos de fin de semana** (viernes 20:00 → lunes 04:00 UTC), uno distinto cada semana: **💰 x2 Dinero**, **🔥 Viral** (+50 % visitas) y **💼 Feria de Empleo** (ofertas el doble de rápido, sueldo y XP x1.5). Aviso al entrar y cuenta atrás en pantalla.
 
 ## Novedades de la v1.2
 - **Tutorial interactivo** al empezar (para todos los jugadores, una vez): resalta cada botón y da $100 al terminarlo. Se puede repetir desde 🎯 Misiones.
@@ -35,15 +48,18 @@ Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las v
 5. **🏢 Empresas**: 8 empresas (Programadores, Hosting, Marketing, Diseño, Comercial, Laboratorio de IA con **modo automático**, Red de Anuncios y Centro de Datos).
 6. **📈 Bolsa**: a partir de $1M puedes **salir a bolsa**. Se reinicia la partida, pero ganas **acciones** (+5 % de dinero cada una, para siempre).
 7. **🛒 Tienda**: regalo gratis, recompensa diaria, tus bonus, invitar amigos y la tienda de Robux.
+8. **🏆 Ranking**: evento de fin de semana, ranking semanal con premios, jugadores del servidor para visitar y los más ricos de siempre.
 
 ## Probarlo en Roblox Studio
-1. Descarga `ImperioWeb.rbxl` ([enlace directo](https://github.com/candhu23/mi-priemra-web/raw/claude/roblox-game-h5olkl/roblox-imperio-web/ImperioWeb.rbxl)).
+1. Descarga `ImperioWeb.rbxl` ([enlace directo a la v1.3](https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl)).
 2. Ábrelo con **Roblox Studio** y pulsa **▶ Play**.
 3. Abre **View → Output** para ver posibles errores.
 
 Para ver la ciudad con varios jugadores: pestaña **Test → Clients and Servers → 2 jugadores → Start**.
 
-> Si ya tenías la versión anterior abierta, cierra ese archivo y abre el nuevo: los scripts han cambiado y hay dos módulos nuevos (`World` y `Building`).
+> Si ya tenías la versión anterior abierta, cierra ese archivo y abre el nuevo: los scripts han cambiado y hay módulos nuevos (`Locale`, `LocaleEN` y `Showcase`).
+
+Para probar el juego en inglés en Studio: pulsa el botón **🌐 ES** de la ventana del ordenador.
 
 ### Con Rojo (opcional)
 ```bash
@@ -90,6 +106,8 @@ Las compras de productos se guardan antes de confirmarse a Roblox y no se pueden
 - **Economía**: todos los números están en `TycoonConfig.luau` (precios, visitas, reputación, empresas, objetivos, recompensas...).
 - **Sonidos**: `Config.Sounds`. Puedes poner IDs de la Creator Store (`rbxassetid://...`).
 - **Velocidad del día**: `Config.DAY_LENGTH_MINUTES`.
+- **Textos en inglés**: `LocaleEN.luau` (clave = texto en español exacto, valor = inglés). Si cambias un texto en español, cambia también su clave allí.
+- **Premios del ranking semanal y eventos de fin de semana**: `Config.WeeklyPrizes` y `Config.WeekendEvents` en `TycoonConfig.luau`.
 
 ## Estructura
 ```
@@ -99,6 +117,9 @@ roblox-imperio-web/
 └── src/
     ├── ReplicatedStorage/TycoonConfig.luau            # datos y fórmulas
     ├── ReplicatedStorage/CareerConfig.luau            # nichos, 500 empresas, puestos, rarezas
+    ├── ReplicatedStorage/Locale.luau                  # idiomas (detecta y traduce)
+    ├── ReplicatedStorage/LocaleEN.luau                # textos en inglés
+    ├── ServerScriptService/Showcase.luau              # oficina, paseo de la fama y pantalla de cada parcela
     ├── ServerScriptService/CareerService.luau         # trabajos, agencia y fichajes (servidor)
     ├── ServerScriptService/World.luau                 # ciudad, luces, día/noche, clasificación
     ├── ServerScriptService/Building.luau              # generador de rascacielos

@@ -4,7 +4,8 @@
 	Construye "Ciudad Web": iluminación y efectos, suelo, avenida con
 	aceras y farolas, árboles, plaza con fuente y zona de aparición,
 	arco de bienvenida, panel de clasificación global, horizonte de
-	edificios al fondo y el ciclo de día y noche.
+	edificios al fondo, el panel del ranking semanal en mitad de la avenida
+	y el ciclo de día y noche.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -30,6 +31,9 @@ local random = Random.new(2024)
 local isNight = false
 local leaderboardRows: { TextLabel } = {}
 local leaderboardStatus: TextLabel? = nil
+-- El panel semanal tiene dos caras (una para cada lado de la avenida)
+local weeklyRows: { { TextLabel } } = {}
+local weeklyStatus: { TextLabel } = {}
 
 local function newPart(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?): Part
 	local part = Instance.new("Part")
@@ -310,6 +314,77 @@ function World.setLeaderboard(rows: { { name: string, value: number } }?, messag
 	end
 end
 
+-- Panel del ranking semanal en mitad de la avenida, con dos caras
+local function buildWeeklyBoard(city: Folder)
+	local center = Vector3.new(0, 16, 0)
+	local frameColor = Color3.fromRGB(30, 41, 59)
+	for _, x in { -12.5, 12.5 } do
+		newPart(city, Vector3.new(1.4, 23.5, 1.4), CFrame.new(x, 11.75, 0), frameColor, Enum.Material.Metal)
+	end
+	local board = newPart(city, Vector3.new(24, 15, 1), CFrame.new(center), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
+	board.Name = "RankingSemanal"
+	local glow = newPart(city, Vector3.new(24.4, 0.5, 1.2), CFrame.new(center + Vector3.new(0, 7.75, 0)), Color3.fromRGB(250, 204, 21), Enum.Material.Neon)
+	glow.CastShadow = false
+
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 30
+		gui.LightInfluence = 0
+		gui.Parent = board
+		local list = Instance.new("Frame")
+		list.Size = UDim2.fromScale(1, 1)
+		list.BackgroundTransparency = 1
+		list.Parent = gui
+		local layout = Instance.new("UIListLayout")
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, 3)
+		layout.Parent = list
+		local padding = Instance.new("UIPadding")
+		padding.PaddingTop = UDim.new(0, 12)
+		padding.PaddingLeft = UDim.new(0, 24)
+		padding.PaddingRight = UDim.new(0, 24)
+		padding.Parent = list
+		local function row(order: number, height: number, text: string, color: Color3): TextLabel
+			local label = Instance.new("TextLabel")
+			label.LayoutOrder = order
+			label.Size = UDim2.new(1, 0, 0, height)
+			label.BackgroundTransparency = 1
+			label.Text = text
+			label.TextScaled = true
+			label.Font = Enum.Font.FredokaOne
+			label.TextColor3 = color
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.Parent = list
+			return label
+		end
+		row(0, 52, "🏆 TOP SEMANAL", Color3.fromRGB(250, 204, 21)).TextXAlignment = Enum.TextXAlignment.Center
+		table.insert(weeklyStatus, row(1, 24, "Cargando...", Color3.fromRGB(148, 163, 184)))
+		local rows = {}
+		for i = 1, 10 do
+			local color = if i == 1 then Color3.fromRGB(250, 204, 21)
+				elseif i == 2 then Color3.fromRGB(203, 213, 225)
+				elseif i == 3 then Color3.fromRGB(251, 146, 60)
+				else Color3.fromRGB(226, 232, 240)
+			table.insert(rows, row(10 + i, 33, "", color))
+		end
+		table.insert(weeklyRows, rows)
+	end
+end
+
+function World.setWeeklyBoard(rows: { { name: string, value: number } }?, message: string?)
+	for _, status in weeklyStatus do
+		status.Text = message or "Dinero ganado esta semana · premios para el top 100"
+	end
+	for _, list in weeklyRows do
+		for i, label in list do
+			local entry = rows and rows[i]
+			label.Text = if entry then string.format("%d. %s — %s", i, entry.name, Config.formatMoney(entry.value)) else ""
+		end
+	end
+end
+
 local function buildSkyline(city: Folder)
 	local colors = { Color3.fromRGB(70, 82, 104), Color3.fromRGB(84, 96, 120), Color3.fromRGB(60, 70, 90) }
 	for i = 1, 44 do
@@ -400,9 +475,11 @@ function World.build(): { CFrame }
 	buildPlaza(city)
 	buildWelcomeArch(city)
 	buildLeaderboard(city)
+	buildWeeklyBoard(city)
 	buildSkyline(city)
 	scatterTrees(city)
 	World.setLeaderboard(nil, "Cargando...")
+	World.setWeeklyBoard(nil, "Cargando...")
 
 	local origins = {}
 	local half = World.PLOT_COUNT // 2

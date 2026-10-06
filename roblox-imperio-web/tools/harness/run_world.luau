@@ -142,7 +142,9 @@ local function addModule(parent, name, path)
 	return m
 end
 addModule(services.ReplicatedStorage, "TycoonConfig", SRC .. "/ReplicatedStorage/TycoonConfig.luau")
+addModule(services.ReplicatedStorage, "CareerConfig", SRC .. "/ReplicatedStorage/CareerConfig.luau")
 addModule(services.ServerScriptService, "Building", SRC .. "/ServerScriptService/Building.luau")
+addModule(services.ServerScriptService, "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
 addModule(services.ServerScriptService, "World", SRC .. "/ServerScriptService/World.luau")
 local plotModule = addModule(services.ServerScriptService, "PlotManager", SRC .. "/ServerScriptService/PlotManager.luau")
 
@@ -211,20 +213,43 @@ end
 local PlotManager = requireModule(wrap(plotModule))
 PlotManager.init(function() end)
 
+local rarities = { "comun", "pococomun", "raro", "epico", "legendario", "mitico" }
 local players = {
-	{ name = "Ana", earned = 2e3 },
-	{ name = "Jorge", earned = 1e6 },
-	{ name = "Leo", earned = 3e9 },
-	{ name = "Marta", earned = 1e13 },
-	{ name = "Nico", earned = 1e17 },
+	{ name = "Ana", earned = 2e3, team = 0, types = 1 },
+	{ name = "Jorge", earned = 1e6, team = 3, types = 3 },
+	{ name = "Leo", earned = 3e9, team = 6, types = 5, gold = true },
+	{ name = "Marta", earned = 1e13, team = 8, types = 7 },
+	{ name = "Nico", earned = 1e17, team = 12, types = 8, gold = true },
 }
+local Config = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("TycoonConfig")))
 for i, p in players do
 	local fakePlayer = { DisplayName = p.name, UserId = i }
 	assert(PlotManager.claim(fakePlayer), "no hay parcela")
-	PlotManager.update(fakePlayer, p.earned, 123)
-	-- Segunda llamada para probar el crecimiento animado
-	PlotManager.update(fakePlayer, p.earned * 50, 456)
+	-- Lo que se ve de su imperio: programadores, webs creadas y web estrella
+	local programmers = {}
+	for k = 1, p.team do
+		table.insert(programmers, { id = k, name = "Prog " .. k, rarity = rarities[(k - 1) % #rarities + 1], niche = "tech", level = k % 10 + 1 })
+	end
+	local built = {}
+	for k = 1, p.types do
+		built[Config.WebTypes[k].id] = k * 3
+	end
+	local extra = {
+		gold = false,
+		likes = i * 2,
+		agency = p.team > 0,
+		programmers = programmers,
+		builtTypes = built,
+		bestSite = { name = "NovaHub.io", type = Config.WebTypes[p.types].id, visits = 1234 },
+	}
+	PlotManager.update(fakePlayer, p.earned, 123, extra)
+	-- Segunda llamada para probar el crecimiento animado (y el dorado)
+	extra.gold = p.gold == true
+	PlotManager.update(fakePlayer, p.earned * 50, 456, extra)
 end
+-- Paneles de clasificación
+PlotManager.setLeaderboard({ { name = "Ana", value = 5e6 } }, nil)
+PlotManager.setWeeklyBoard({ { name = "Leo", value = 2e5 }, { name = "Ana", value = 1e4 } }, nil)
 -- Liberar y volver a ocupar una parcela
 local leaving = { DisplayName = "Temp", UserId = 99 }
 PlotManager.claim(leaving)

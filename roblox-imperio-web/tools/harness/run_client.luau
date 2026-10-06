@@ -11,7 +11,10 @@ local SRC = process.args[1]
 local configSource = fs.readFile(SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 local careerSource = fs.readFile(SRC .. "/ReplicatedStorage/CareerConfig.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/TycoonClient.client.luau")
+local localeSource = fs.readFile(SRC .. "/ReplicatedStorage/Locale.luau")
+local localeEnSource = fs.readFile(SRC .. "/ReplicatedStorage/LocaleEN.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
+local visitJson = serde.decode("json", fs.readFile("visit.json"))
 
 local realOf = setmetatable({}, { __mode = "k" })
 local proxyById = {}
@@ -20,7 +23,7 @@ local signals = {}
 local invoked = {}
 local SIGNAL_NAMES = {
 	Activated = true, MouseEnter = true, MouseLeave = true, OnClientEvent = true, Triggered = true,
-	Changed = true, Completed = true, CharacterAdded = true,
+	Changed = true, Completed = true, CharacterAdded = true, DescendantAdded = true, Destroying = true,
 }
 
 local function newSignal()
@@ -68,6 +71,13 @@ function wrap(v)
 			proxyById[id] = p
 		end
 		return p
+	elseif type(v) == "table" and not realOf[v] and getmetatable(v) == nil then
+		-- Listas de instancias (GetChildren, GetDescendants...)
+		local out = {}
+		for k, x in v do
+			out[k] = wrap(x)
+		end
+		return out
 	end
 	return v
 end
@@ -172,6 +182,22 @@ remote("RemoteFunction", "Action")
 local stateRemote = remote("RemoteEvent", "State")
 local notifyRemote = remote("RemoteEvent", "Notify")
 local openRemote = remote("RemoteEvent", "OpenComputer")
+local visitRemote = remote("RemoteEvent", "Visit")
+
+-- Carteles del mundo (como los que crea el servidor) para probar su traducción
+local worldBoard = roblox.Instance.new("Part")
+worldBoard.Parent = services.Workspace
+local worldGui = roblox.Instance.new("SurfaceGui")
+worldGui.Parent = worldBoard
+local worldLabel = roblox.Instance.new("TextLabel")
+worldLabel.Text = "🏗️ PARCELA LIBRE"
+worldLabel.Parent = worldGui
+local worldInfo = roblox.Instance.new("TextLabel")
+worldInfo.Text = "12 plantas · $1.50K/s · 👍 3"
+worldInfo.Parent = worldGui
+local worldPrompt = roblox.Instance.new("ProximityPrompt")
+worldPrompt.ActionText = "Ver imperio"
+worldPrompt.Parent = worldBoard
 
 local playerGui = roblox.Instance.new("Folder")
 playerGui.Name = "PlayerGui"
@@ -179,7 +205,7 @@ local playerFolder = roblox.Instance.new("Folder")
 playerFolder.Name = "Jorge"
 playerGui.Parent = playerFolder
 local player = wrap(playerFolder)
-overrides[player] = { UserId = 42, Character = false }
+overrides[player] = { UserId = 42, Character = false, LocaleId = "es-es" }
 
 overrides[wrap(services.Workspace)] = {
 	CurrentCamera = {
@@ -241,12 +267,25 @@ local CareerCfg = luau.load(careerSource, { debugName = "CareerConfig", environm
 local careerModule = roblox.Instance.new("ModuleScript")
 careerModule.Name = "CareerConfig"
 careerModule.Parent = services.ReplicatedStorage
+local localeEnModule = roblox.Instance.new("ModuleScript")
+localeEnModule.Name = "LocaleEN"
+localeEnModule.Parent = services.ReplicatedStorage
+local localeModule = roblox.Instance.new("ModuleScript")
+localeModule.Name = "Locale"
+localeModule.Parent = services.ReplicatedStorage
+local EN = luau.load(localeEnSource, { debugName = "LocaleEN", environment = env(nil) })()
+local localeEnv = env(wrap(localeModule))
+localeEnv.require = function() return EN end
+local Locale = luau.load(localeSource, { debugName = "Locale", environment = localeEnv })()
+-- Textos que el cliente pide traducir y no están en el diccionario
+local missing = {}
+Locale.onMissing = function(text)
+	missing[text] = true
+end
+local modulesByName = { CareerConfig = CareerCfg, Locale = Locale, LocaleEN = EN, TycoonConfig = Config }
 local clientEnv = env(nil)
 clientEnv.require = function(m)
-	if realOf[m] and realOf[m].Name == "CareerConfig" then
-		return CareerCfg
-	end
-	return Config
+	return assert(modulesByName[realOf[m] and realOf[m].Name], "módulo desconocido")
 end
 luau.load(clientSource, { debugName = "TycoonClient", environment = clientEnv })()
 
@@ -288,7 +327,25 @@ s2.career.jobOffers = {
 	{ id = 2, companyId = 60, rank = 2, salaryMult = 0.8, xpMult = 1.3, salary = 9, xpRate = 5, timeLeft = 40 },
 }
 s2.career.cvLeft = 0
+-- Ranking: vecinos, top semanal y de siempre, evento de fin de semana y dorado
+s2.neighbors = {
+	{ userId = 43, name = "Ana", floors = 7, likes = 2, liked = false },
+	{ userId = 44, name = "Leo", floors = 3, likes = 0, liked = true },
+}
+s2.weekly = { earned = 5000, resetIn = 90000, top = {} }
+for i = 1, 10 do
+	table.insert(s2.weekly.top, { name = "Jugador" .. i, value = 1e6 / i, userId = if i == 4 then 42 else 100 + i })
+end
+s2.globalTop = { { name = "Ana", value = 5e9, userId = 43 } }
+s2.weekend = { id = "jobs", endsIn = 7200, nextId = "money", startsIn = 500000 }
+s2.goldLeft = 3600
+s2.likes = 5
 fireState(s2)
+-- Sin evento de fin de semana (muestra el próximo)
+local s3 = serde.decode("json", serde.encode("json", s2))
+s3.weekend = { endsIn = 0, nextId = "viral", startsIn = 100000 }
+s3.goldLeft = 0
+fireState(s3)
 
 -- Avisos y ventanas emergentes
 signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("Hola", "money")
@@ -300,7 +357,8 @@ signalFor(idOf(openRemote), "OnClientEvent"):Fire()
 local pressed = 0
 for pass = 1, 3 do
 	for _, d in playerGui:GetDescendants() do
-		if d:IsA("TextButton") then
+		-- (el botón de idioma se prueba aparte, más abajo)
+		if d:IsA("TextButton") and string.sub(d.Text, 1, #"🌐") ~= "🌐" then
 			signalFor(idOf(d), "Activated"):Fire()
 			signalFor(idOf(d), "MouseEnter"):Fire()
 			signalFor(idOf(d), "MouseLeave"):Fire()
@@ -328,6 +386,109 @@ for step = 1, 10 do
 	end
 end
 print("Tutorial recorrido · sigue activo:", tutorialGui.Enabled)
+fireState(stateJson)
+
+-- Ficha de otro imperio
+signalFor(idOf(visitRemote), "OnClientEvent"):Fire(visitJson)
+assert(worldLabel.Text == "🏗️ PARCELA LIBRE", "en español el cartel no cambia: " .. worldLabel.Text)
+
+---------------------------------------------------------------------
+-- Ahora en inglés: botón 🌐 y otra vez todas las pestañas y botones
+---------------------------------------------------------------------
+local languageButton = nil
+for _, d in playerGui:GetDescendants() do
+	if d:IsA("TextButton") and d.Text == "🌐 ES" then
+		languageButton = d
+	end
+end
+assert(languageButton, "no está el botón de idioma")
+signalFor(idOf(languageButton), "Activated"):Fire()
+assert(languageButton.Text == "🌐 EN", "el botón de idioma no cambió")
+assert(worldLabel.Text == "🏗️ FREE PLOT", "el cartel del mundo no se tradujo: " .. worldLabel.Text)
+assert(worldInfo.Text == "12 floors · $1.50K/s · 👍 3", "el cartel con datos no se tradujo: " .. worldInfo.Text)
+assert(worldPrompt.ActionText == "View empire", "el ProximityPrompt no se tradujo")
+local sEn = serde.decode("json", serde.encode("json", s2))
+sEn.settings.lang = "en"
+for _ = 1, 2 do
+	for _, d in playerGui:GetDescendants() do
+		-- Pulsar un botón puede borrar otros (filas, ventanas): esos se saltan
+		local alive, id = pcall(idOf, d)
+		if alive and d:IsA("TextButton") and d ~= languageButton then
+			signalFor(id, "Activated"):Fire()
+		end
+	end
+	fireState(sEn)
+end
+-- Avisos y ventanas que manda el servidor (en español) → deben salir en inglés
+signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("💾 Partida guardada", "success")
+signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("😴 ¡Bienvenido de vuelta!", "popup", "Mientras no estabas (1h 00m) tus webs y empresas ganaron\n$19.0K")
+signalFor(idOf(visitRemote), "OnClientEvent"):Fire(visitJson)
+fireState(sEn)
+-- Abrir las ventanas que estaban en cola y pulsar su botón (la ficha da "me gusta")
+for _ = 1, 40 do
+	local pending = delayed
+	delayed = {}
+	for _, item in pending do
+		item[1](table.unpack(item[2], 1, item[2].n))
+	end
+	local modal = playerGui:FindFirstChild("ImperioWebModal")
+	if modal and modal.Enabled then
+		for _, d in modal:GetDescendants() do
+			if d:IsA("TextButton") then
+				signalFor(idOf(d), "Activated"):Fire()
+			end
+		end
+	end
+end
+
+-- Buscar textos que se hayan quedado en español
+local properNames = { "Jorge", "Ana", "Dev Studio" }
+for _, c in CareerCfg.Companies do table.insert(properNames, c.name) end
+for _, n in CareerCfg.FirstNames do table.insert(properNames, n) end
+table.sort(properNames, function(a, b) return #a > #b end)
+local SPANISH = { " de ", " la ", " el ", " tu ", " tus ", " para ", " con ", " por ", " en ", " una ", " del ", " los ", " las ", " y ", "¿", "¡", "á", "é", "í", "ó", "ú", "ñ" }
+local function stripName(text, name)
+	local i = string.find(text, name, 1, true)
+	while i do
+		text = string.sub(text, 1, i - 1) .. string.sub(text, i + #name)
+		i = string.find(text, name, 1, true)
+	end
+	return text
+end
+local leftovers = {}
+for _, d in playerGui:GetDescendants() do
+	-- Los números flotantes del clic duran 0,8 s (aquí no se borran porque
+	-- Lune no ejecuta animaciones): los de antes del cambio de idioma no cuentan
+	local isText = d:IsA("TextLabel") or d:IsA("TextButton")
+	local transient = isText and string.find(d.Text, "¡CRÍTICO!", 1, true) ~= nil
+	if isText and d.Text ~= "" and not transient then
+		local clean = " " .. d.Text .. " "
+		for _, name in properNames do
+			clean = stripName(clean, name)
+		end
+		for _, word in SPANISH do
+			if string.find(clean, word, 1, true) then
+				leftovers[d.Text] = word
+				break
+			end
+		end
+	end
+end
+local nLeft = 0
+for text, word in leftovers do
+	nLeft += 1
+	print("  EN ESPAÑOL [" .. word .. "]: " .. string.gsub(text, "\n", " / "))
+end
+local nMissing = 0
+for text in missing do
+	nMissing += 1
+	print("  FALTA EN EL DICCIONARIO: " .. string.gsub(text, "\n", " / "))
+end
+print("Inglés: textos en español que quedan", nLeft, "· claves que faltan", nMissing)
+assert(nLeft == 0 and nMissing == 0, "faltan traducciones")
+-- Y volver al español
+signalFor(idOf(languageButton), "Activated"):Fire()
+assert(worldLabel.Text == "🏗️ PARCELA LIBRE", "el cartel no volvió al español")
 fireState(stateJson)
 
 local counts = {}

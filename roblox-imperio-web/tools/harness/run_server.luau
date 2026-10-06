@@ -4,6 +4,7 @@ local roblox = require("@lune/roblox")
 local luau = require("@lune/luau")
 local fs = require("@lune/fs")
 local process = require("@lune/process")
+local serde = require("@lune/serde")
 
 local SRC = process.args[1]
 local sources = {}
@@ -13,7 +14,7 @@ local function readSource(path)
 	end
 	return sources[path]
 end
-for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
+for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
 	readSource(SRC .. rel)
 end
 
@@ -22,7 +23,7 @@ local proxyByKey = {}
 local overrides = setmetatable({}, { __mode = "k" })
 local callbacks = {}
 local fired = {} -- llamadas a FireClient
-local EVENTS = { Triggered = true, Changed = true, Touched = true, Activated = true, Completed = true, CharacterAdded = true }
+local EVENTS = { Triggered = true, Changed = true, Touched = true, Activated = true, Completed = true, CharacterAdded = true, Destroying = true }
 local NOOP_METHODS = { Emit = true, Play = true, Stop = true }
 
 local function signal()
@@ -92,7 +93,9 @@ proxyMeta.__index = function(p, key)
 	end
 	if key == "FireClient" or key == "FireAllClients" then
 		return function(_, plr, ...)
-			table.insert(fired, { inst.Name, ... })
+			local entry = { inst.Name, ... }
+			entry.to = plr -- a quién va (hay dos jugadores)
+			table.insert(fired, entry)
 		end
 	end
 	if key == "WaitForChild" then
@@ -161,6 +164,7 @@ local TweenService = {
 	end,
 }
 local saved = {}
+local orderedStores = {}
 local DataStoreService = {
 	GetDataStore = function()
 		return {
@@ -168,17 +172,21 @@ local DataStoreService = {
 			UpdateAsync = function(_, key, fn) saved[key] = fn(saved[key]) end,
 		}
 	end,
-	GetOrderedDataStore = function()
-		local scores = {}
+	-- Una clasificación por nombre (la global y una por semana), ordenada de mayor a menor
+	GetOrderedDataStore = function(_, name)
+		orderedStores[name] = orderedStores[name] or {}
+		local scores = orderedStores[name]
 		return {
 			SetAsync = function(_, key, value)
 				assert(value == math.floor(value), "puntuación no entera")
 				scores[key] = value
 			end,
-			GetSortedAsync = function()
+			GetSortedAsync = function(_, _ascending, pageSize)
 				return { GetCurrentPage = function()
 					local list = {}
 					for k, v in scores do table.insert(list, { key = k, value = v }) end
+					table.sort(list, function(a, b) return a.value > b.value end)
+					while #list > (pageSize or 100) do table.remove(list) end
 					return list
 				end }
 			end,
@@ -232,6 +240,9 @@ local function addModule(parent, className, name, path)
 end
 addModule(services.ReplicatedStorage, "ModuleScript", "TycoonConfig", SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "CareerConfig", SRC .. "/ReplicatedStorage/CareerConfig.luau")
+addModule(services.ReplicatedStorage, "ModuleScript", "Locale", SRC .. "/ReplicatedStorage/Locale.luau")
+addModule(services.ReplicatedStorage, "ModuleScript", "LocaleEN", SRC .. "/ReplicatedStorage/LocaleEN.luau")
+addModule(services.ServerScriptService, "ModuleScript", "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
 addModule(services.ServerScriptService, "ModuleScript", "CareerService", SRC .. "/ServerScriptService/CareerService.luau")
 addModule(services.ServerScriptService, "ModuleScript", "Building", SRC .. "/ServerScriptService/Building.luau")
 addModule(services.ServerScriptService, "ModuleScript", "World", SRC .. "/ServerScriptService/World.luau")
@@ -339,18 +350,23 @@ overrides[player] = {
 	IsFriendsWithAsync = function() return false end,
 	IsInGroupAsync = function() return false end,
 }
-Players.GetPlayerByUserId = function() return player end
+local playersById = { [42] = player }
+Players.GetPlayerByUserId = function(_, id) return playersById[id] end
 Players.PlayerAdded:Fire(player)
 
-local function lastState()
+local function lastState(who)
 	for i = #fired, 1, -1 do
-		if fired[i][1] == "State" then return fired[i][2] end
+		if fired[i][1] == "State" and (fired[i].to == (who or player) or fired[i].to == nil) then return fired[i][2] end
 	end
 end
 
-local function act(name, a, b)
-	local ok, message, extra = invoke(player, name, a, b)
+local actionMessages = {}
+local function act(name, a, b, who)
+	local ok, message, extra = invoke(who or player, name, a, b)
 	print(string.format("  %-14s -> %s %s", name, tostring(ok), tostring(message or "")))
+	if type(message) == "string" then
+		table.insert(actionMessages, message)
+	end
 	return ok, message, extra
 end
 
@@ -500,12 +516,93 @@ act("setMuted", true)
 s = lastState()
 print("  muted:", s.settings.muted, "· objetivos reclamados:", (function() local n = 0 for _ in s.goals do n += 1 end return n end)())
 
+-- Idioma (las acciones nuevas se espacian: hay un límite de 10 por segundo)
+fakeTime += 1.1
+act("setLanguage", "en")
+assert(lastState().settings.lang == "en", "no se guardó el idioma")
+act("setLanguage", "klingon") -- no válido
+act("setLanguage", "auto")
+
+-- Segundo jugador: visitas y "me gusta"
+local realAna = roblox.Instance.new("Folder")
+realAna.Name = "Ana"
+realAna.Parent = playersFolder
+local ana = wrap(realAna)
+overrides[ana] = {
+	UserId = 43, DisplayName = "Ana", Name = "Ana",
+	MembershipType = roblox.Enum.MembershipType.None,
+	CharacterAdded = signal(),
+	Character = false,
+	IsFriendsWithAsync = function() return true end,
+	IsInGroupAsync = function() return false end,
+}
+playersById[43] = ana
+Players.PlayerAdded:Fire(ana)
+tick(1)
+s = lastState()
+print("  vecinos:", #s.neighbors, s.neighbors[1] and s.neighbors[1].name)
+local visitsBefore = 0
+for _, f in fired do if f[1] == "Visit" then visitsBefore += 1 end end
+fakeTime += 1.1
+act("visitPlot", 43)
+act("visitPlot", 999) -- no está
+local visitInfo
+for _, f in fired do if f[1] == "Visit" then visitInfo = f[2] end end
+assert(visitInfo and visitInfo.name == "Ana" and not visitInfo.own, "no llegó la ficha de Ana")
+print(string.format("  ficha de %s: %d plantas, %d webs, liked=%s, premio %s", visitInfo.name, visitInfo.floors, visitInfo.sites, tostring(visitInfo.liked), Config.formatMoney(visitInfo.likeReward)))
+assert(act("likePlot", 43), "el me gusta debería funcionar")
+assert(not act("likePlot", 43), "dos me gusta el mismo día")
+assert(not act("likePlot", 42), "me gusta a uno mismo")
+act("likePlot", "nope")
+act("likePlot", 42, nil, ana) -- Ana devuelve el me gusta
+assert(lastState().likes == 1, "Jorge debería tener 1 me gusta")
+act("visitPlot", 42) -- su propia ficha
+fs.writeFile("visit.json", serde.encode("json", visitInfo))
+
+-- Ranking semanal: termina la semana y se reparten premios
+s = lastState()
+print("  ganado esta semana:", Config.formatMoney(s.weekly.earned), "· se reinicia en", Config.formatTime(s.weekly.resetIn))
+assert(s.weekly.earned > 0, "debería contar lo ganado esta semana")
+fakeTime += 31
+act("saveNow")
+local ticketsBefore = s.career.tickets.legendary or 0
+fakeTime += 604800 -- una semana después
+tick(1)
+tick(1)
+s = lastState()
+print(string.format("  premio semanal: dorado %s · contratos legendarios %d → %d · ganado esta semana %s",
+	Config.formatTime(s.goldLeft), ticketsBefore, s.career.tickets.legendary or 0, Config.formatMoney(s.weekly.earned)))
+assert(s.goldLeft > 0, "el ganador debería tener el rascacielos dorado")
+assert((s.career.tickets.legendary or 0) == ticketsBefore + 1, "el ganador debería recibir un Contrato Legendario")
+local prizePopup = false
+for _, f in fired do
+	if f[1] == "Notify" and f[3] == "popup" and string.find(f[2], "semanal") then prizePopup = true end
+end
+assert(prizePopup, "falta la ventana del premio semanal")
+tick(1)
+assert((lastState().career.tickets.legendary or 0) == ticketsBefore + 1, "el premio no se debe dar dos veces")
+
+-- Evento de fin de semana (sábado a mediodía UTC)
+local week = Config.weekIndex(1_700_000_000 + math.floor(fakeTime))
+fakeTime = Config.weekStart(week) + 5 * 86400 + 12 * 3600 - 1_700_000_000
+tick(1)
+s = lastState()
+print("  fin de semana:", s.weekend.id, "· termina en", Config.formatTime(s.weekend.endsIn), "· bonus:", s.bonuses.weekend)
+assert(s.weekend.id ~= nil and s.bonuses.weekend == s.weekend.id, "debería haber evento de fin de semana")
+for w = 0, 2 do
+	local event = Config.weekendStatus(Config.weekStart(week + w) + 5 * 86400)
+	print("    semana +" .. w .. ":", event and event.id)
+end
+assert(Config.weekendStatus(Config.weekStart(week) + 86400) == nil, "el martes no hay evento")
+assert(Config.weekendStatus(Config.weekStart(week) + 3600) ~= nil, "el lunes a la 1:00 sigue el evento")
+
 -- 30 ticks de economía
 for _ = 1, 30 do tick(1) end
 s = lastState()
 print(string.format("Tras 30 s: dinero %s · ingresos %s/s · rep %d · objetivos %d", Config.formatMoney(s.money), Config.formatMoney(s.income), s.reputation, (function() local n = 0 for _ in s.goals do n += 1 end return n end)()))
 
 -- Salir y guardar
+Players.PlayerRemoving:Fire(ana)
 Players.PlayerRemoving:Fire(player)
 assert(saved["player_42"], "no se guardó")
 print("Guardado OK · claves:", (function() local n = 0 for _ in saved["player_42"] do n += 1 end return n end)())
@@ -547,7 +644,59 @@ for _ = 1, 12 do invoke(player, "recruit") fakeTime += 1 end
 local ok, msg = act("recruit")
 s = lastState()
 print("  equipo:", #s.career.programmers, "/", s.career.agency.capacity)
-local serde = require("@lune/serde")
 fs.writeFile("state.json", serde.encode("json", lastState()))
+
+-- Traducciones: todo lo que ha dicho el servidor debe salir en inglés
+local Locale = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("Locale")))
+local properNames = {}
+for _, c in Career.Companies do table.insert(properNames, c.name) end
+for _, n in Career.FirstNames do table.insert(properNames, n) end
+table.sort(properNames, function(a, b) return #a > #b end)
+local SPANISH = { " de ", " la ", " el ", " tu ", " tus ", " para ", " con ", " por ", " en ", " una ", " del ", " los ", " las ", " y ", "¿", "¡", "á", "é", "í", "ó", "ú", "ñ" }
+local function stripName(text, name)
+	local i = string.find(text, name, 1, true)
+	while i do
+		text = string.sub(text, 1, i - 1) .. string.sub(text, i + #name)
+		i = string.find(text, name, 1, true)
+	end
+	return text
+end
+local function looksSpanish(text)
+	local clean = " " .. text .. " "
+	for _, name in properNames do
+		clean = stripName(clean, name)
+	end
+	for _, word in SPANISH do
+		if string.find(clean, word, 1, true) then
+			return word
+		end
+	end
+	return nil
+end
+local texts = {}
+for _, f in fired do
+	if f[1] == "Notify" then
+		table.insert(texts, f[2])
+		if f[4] then table.insert(texts, f[4]) end
+	end
+end
+for _, m in actionMessages do table.insert(texts, m) end
+local seenText, bad = {}, 0
+for _, text in texts do
+	if not seenText[text] then
+		seenText[text] = true
+		local english = Locale.translate("en", text)
+		print("  [en] " .. string.gsub(english, "\n", " / "))
+		local word = looksSpanish(english)
+		if word then
+			bad += 1
+			print("  SIN TRADUCIR [" .. word .. "]: " .. text .. "  →  " .. english)
+		end
+	end
+end
+local count = 0
+for _ in seenText do count += 1 end
+print("Textos del servidor traducidos:", count - bad, "de", count)
+assert(bad == 0, "hay textos del servidor sin traducir")
 print("TODO OK")
 process.exit(0)

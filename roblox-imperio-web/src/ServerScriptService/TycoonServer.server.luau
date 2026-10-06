@@ -47,6 +47,11 @@ local openComputerEvent = Instance.new("RemoteEvent")
 openComputerEvent.Name = "OpenComputer"
 openComputerEvent.Parent = remotes
 
+-- Ficha del imperio de otro jugador (al pulsar "Ver imperio" en su cartel)
+local visitEvent = Instance.new("RemoteEvent")
+visitEvent.Name = "Visit"
+visitEvent.Parent = remotes
+
 remotes.Parent = ReplicatedStorage
 
 ---------------------------------------------------------------------
@@ -54,6 +59,7 @@ remotes.Parent = ReplicatedStorage
 ---------------------------------------------------------------------
 local store: DataStore? = nil
 local leaderboardStore: OrderedDataStore? = nil
+local weeklyStores: { [number]: OrderedDataStore } = {}
 do
 	local ok, result = pcall(function()
 		return DataStoreService:GetDataStore(Config.DATASTORE_NAME)
@@ -69,6 +75,24 @@ do
 	if okBoard then
 		leaderboardStore = board
 	end
+end
+
+-- Clasificación de una semana concreta (una por semana)
+local function weeklyStore(week: number): OrderedDataStore?
+	if weeklyStores[week] then
+		return weeklyStores[week]
+	end
+	if not leaderboardStore then
+		return nil
+	end
+	local ok, result = pcall(function()
+		return DataStoreService:GetOrderedDataStore(Config.WEEKLY_STORE_PREFIX .. week)
+	end)
+	if ok then
+		weeklyStores[week] = result
+		return result
+	end
+	return nil
 end
 
 local function newData()
@@ -95,8 +119,13 @@ local function newData()
 		career = CareerService.newData(),
 		tutorialDone = false,
 		dailyMissions = { day = -1, list = {}, bonusGiven = false },
-		settings = { muted = false },
+		settings = { muted = false, lang = "auto" },
 		lastOnline = os.time(),
+		-- Ranking semanal: lo ganado esta semana y la anterior (para el premio)
+		weekly = { week = -1, earned = 0, prevWeek = -1, prevEarned = 0, rewardedWeek = -1 },
+		goldUntil = 0, -- rascacielos dorado (premio del ranking semanal)
+		likes = 0, -- "me gusta" que ha recibido tu imperio
+		likesGiven = { day = -1, ids = {} }, -- a quién has dado "me gusta" hoy
 	}
 end
 
@@ -134,6 +163,7 @@ type Bonuses = {
 	randomRestricted: boolean, -- Roblox no permite artículos aleatorios de pago a este jugador
 	agencyWork: number,
 	agencyBonus: number,
+	weekend: string?, -- evento de fin de semana activo
 }
 type Session = {
 	data: any,
@@ -159,9 +189,17 @@ type Session = {
 	leaderMoney: IntValue,
 	leaderShares: IntValue,
 	leaderLevel: IntValue,
+	weeklyCheckAt: number, -- cuándo mirar si hay premio del ranking semanal
+	weeklyChecking: boolean,
 }
 
 local sessions: { [Player]: Session } = {}
+
+-- Clasificaciones (las rellena refreshLeaderboard y van en el estado)
+type BoardRow = { name: string, value: number, userId: number? }
+local globalTop: { BoardRow } = {}
+local weeklyTop: { BoardRow } = {}
+local weeklyTopWeek = -1
 
 local function notify(player: Player, text: string, kind: string?)
 	notifyEvent:FireClient(player, text, kind or "info")
@@ -179,6 +217,7 @@ local function gain(data, amount: number)
 	data.money += amount
 	data.totalEarned += amount
 	data.lifetimeEarned += amount
+	data.weekly.earned += amount
 end
 
 local function findSite(data, siteId: any)
@@ -209,13 +248,22 @@ local function eventVisitMult(session: Session, site): number
 	return 1
 end
 
+-- Eventos aleatorios × evento de fin de semana
+local function visitMult(session: Session, site): number
+	local mult = eventVisitMult(session, site)
+	if session.bonuses.weekend == "viral" then
+		mult *= Config.WEEKEND_VISITS_MULT
+	end
+	return mult
+end
+
 -- Ingresos por segundo (webs + empresas + mantenimiento)
 local function computeIncome(session: Session, withEvents: boolean): number
 	local data = session.data
 	local moneyMult = Config.moneyMult(data, session.bonuses)
 	local total = 0
 	for _, site in data.sites do
-		local mult = if withEvents then eventVisitMult(session, site) else 1
+		local mult = if withEvents then visitMult(session, site) else 1
 		total += Config.siteIncome(data, site, Config.siteVisits(data, site, mult), moneyMult)
 	end
 	total += Config.companiesIncome(data, moneyMult)
@@ -475,7 +523,7 @@ local function buildState(session: Session)
 
 	local sites = {}
 	for _, site in data.sites do
-		local visits = Config.siteVisits(data, site, eventVisitMult(session, site))
+		local visits = Config.siteVisits(data, site, visitMult(session, site))
 		table.insert(sites, {
 			id = site.id,
 			type = site.type,
@@ -511,6 +559,28 @@ local function buildState(session: Session)
 
 	local dailyAvailable, dailyDay = dailyStatus(data)
 	local dailyDef = Config.DailyRewards[dailyDay] or Config.DailyRewards[1]
+
+	local nowUnix = os.time()
+	local activeWeekend, weekendEnds, nextWeekend, nextWeekendStarts = Config.weekendStatus(nowUnix)
+	local today = Config.dayIndex(nowUnix)
+	local likedToday = if data.likesGiven.day == today then data.likesGiven.ids else {}
+
+	-- Otros jugadores del servidor (para visitar su imperio)
+	local neighbors = {}
+	for other, otherSession in sessions do
+		if otherSession ~= session then
+			table.insert(neighbors, {
+				userId = other.UserId,
+				name = other.DisplayName,
+				floors = Config.buildingFloors(otherSession.data.lifetimeEarned),
+				likes = otherSession.data.likes,
+				liked = likedToday["u" .. other.UserId] == true,
+			})
+		end
+	end
+	table.sort(neighbors, function(a, b)
+		return a.floors > b.floors
+	end)
 
 	return {
 		money = data.money,
@@ -550,6 +620,21 @@ local function buildState(session: Session)
 		career = CareerService.buildState(session),
 		tutorialDone = data.tutorialDone,
 		settings = data.settings,
+		likes = data.likes,
+		goldLeft = math.max(0, data.goldUntil - nowUnix),
+		neighbors = neighbors,
+		globalTop = globalTop,
+		weekly = {
+			earned = data.weekly.earned,
+			resetIn = Config.weekStart(Config.weekIndex(nowUnix) + 1) - nowUnix,
+			top = if weeklyTopWeek == Config.weekIndex(nowUnix) then weeklyTop else {},
+		},
+		weekend = {
+			id = if activeWeekend then activeWeekend.id else nil,
+			endsIn = if activeWeekend then weekendEnds - nowUnix else 0,
+			nextId = nextWeekend.id,
+			startsIn = nextWeekendStarts - nowUnix,
+		},
 		dailyMissions = {
 			list = data.dailyMissions.list,
 			bonusGiven = data.dailyMissions.bonusGiven,
@@ -973,6 +1058,123 @@ function Actions.claimGift(player: Player, session: Session)
 	return true, nil, { money = true }
 end
 
+function Actions.setLanguage(_player: Player, session: Session, lang: any)
+	if lang ~= "auto" and lang ~= "es" and lang ~= "en" then
+		return false, nil
+	end
+	session.data.settings.lang = lang
+	return true, nil
+end
+
+---------------------------------------------------------------------
+-- Visitar imperios y dar "me gusta"
+---------------------------------------------------------------------
+local function playerByUserId(userId: any): Player?
+	if type(userId) ~= "number" then
+		return nil
+	end
+	for other in sessions do
+		if other.UserId == userId then
+			return other
+		end
+	end
+	return nil
+end
+
+local function likedToday(data, ownerId: number): boolean
+	local given = data.likesGiven
+	return given.day == Config.dayIndex(os.time()) and given.ids["u" .. ownerId] == true
+end
+
+-- Manda al visitante la ficha del imperio de "owner"
+local function sendVisit(visitor: Player, owner: Player)
+	local ownerSession = sessions[owner]
+	local visitorSession = sessions[visitor]
+	if not ownerSession or not visitorSession then
+		return
+	end
+	local data = ownerSession.data
+	local best, bestVisits = nil, -1
+	for _, site in data.sites do
+		local visits = Config.siteVisits(data, site, visitMult(ownerSession, site))
+		if visits > bestVisits then
+			best, bestVisits = site, visits
+		end
+	end
+	local career = data.career
+	local bestRarity = nil
+	for _, programmer in career.programmers do
+		local rarity = Career.RarityById[programmer.rarity]
+		if rarity and (not bestRarity or rarity.order > bestRarity.order) then
+			bestRarity = rarity
+		end
+	end
+	visitEvent:FireClient(visitor, {
+		userId = owner.UserId,
+		name = owner.DisplayName,
+		own = visitor == owner,
+		floors = Config.buildingFloors(data.lifetimeEarned),
+		lifetimeEarned = data.lifetimeEarned,
+		income = ownerSession.income,
+		sites = #data.sites,
+		bestSite = if best then { name = best.name, type = best.type, visits = bestVisits } else nil,
+		agency = if career.agency then career.agency.name else nil,
+		programmers = #career.programmers,
+		bestRarity = if bestRarity then bestRarity.id else nil,
+		devLevel = Career.devLevel(career),
+		shares = data.shares,
+		likes = data.likes,
+		gold = data.goldUntil > os.time(),
+		liked = likedToday(visitorSession.data, owner.UserId),
+		likeReward = incomeReward(visitorSession, Config.LIKE_VISITOR_MINUTES, Config.LIKE_VISITOR_MIN),
+	})
+end
+
+function Actions.visitPlot(player: Player, _session: Session, userId: any)
+	local owner = playerByUserId(userId)
+	if not owner then
+		return false, "Ese jugador ya no está en el servidor."
+	end
+	sendVisit(player, owner)
+	return true, nil
+end
+
+function Actions.likePlot(player: Player, session: Session, userId: any)
+	local owner = playerByUserId(userId)
+	local ownerSession = owner and sessions[owner]
+	if not owner or not ownerSession then
+		return false, "Ese jugador ya no está en el servidor."
+	end
+	if owner == player then
+		return false, "No puedes darte me gusta a ti mismo 😄"
+	end
+	local data = session.data
+	local today = Config.dayIndex(os.time())
+	if data.likesGiven.day ~= today then
+		data.likesGiven = { day = today, ids = {} }
+	end
+	local key = "u" .. owner.UserId
+	if data.likesGiven.ids[key] then
+		return false, "Ya le has dado me gusta hoy a este imperio."
+	end
+	local given = 0
+	for _ in data.likesGiven.ids do
+		given += 1
+	end
+	if given >= Config.MAX_LIKES_PER_DAY then
+		return false, "Ya has dado todos los me gusta de hoy. ¡Vuelve mañana!"
+	end
+	data.likesGiven.ids[key] = true
+	ownerSession.data.likes += 1
+	local ownerReward = incomeReward(ownerSession, Config.LIKE_OWNER_MINUTES, Config.LIKE_OWNER_MIN)
+	gain(ownerSession.data, ownerReward)
+	notify(owner, string.format("👍 ¡A %s le gusta tu imperio! +%s", player.DisplayName, Config.formatMoney(ownerReward)), "money")
+	local reward = incomeReward(session, Config.LIKE_VISITOR_MINUTES, Config.LIKE_VISITOR_MIN)
+	gain(data, reward)
+	sendState(owner)
+	return true, string.format("👍 Te gusta el imperio de %s: +%s", owner.DisplayName, Config.formatMoney(reward)), { money = true }
+end
+
 actionFunction.OnServerInvoke = function(player: Player, action: any, a: any, b: any)
 	local session = sessions[player]
 	if not session or type(action) ~= "string" then
@@ -1189,6 +1391,13 @@ function saveData(player: Player, session: Session): boolean
 			leaderboardStore:SetAsync("u_" .. player.UserId, leaderboardScore(session.data.lifetimeEarned))
 		end)
 	end
+	local weekly = session.data.weekly
+	local weekStore = if weekly.earned > 0 then weeklyStore(weekly.week) else nil
+	if weekStore then
+		pcall(function()
+			weekStore:SetAsync("u_" .. player.UserId, leaderboardScore(weekly.earned))
+		end)
+	end
 	pendingSaves -= 1
 	session.lastSaveOk = ok
 	if ok then
@@ -1197,6 +1406,102 @@ function saveData(player: Player, session: Session): boolean
 		warn("[ImperioWeb] Error guardando datos de " .. player.Name .. ":", err)
 	end
 	return ok
+end
+
+---------------------------------------------------------------------
+-- Ranking semanal: cambio de semana y premios
+---------------------------------------------------------------------
+-- Si ha empezado una semana nueva, lo ganado pasa a "la semana pasada"
+local function rolloverWeek(player: Player, session: Session)
+	local weekly = session.data.weekly
+	local week = Config.weekIndex(os.time())
+	if weekly.week == week then
+		return
+	end
+	if weekly.week >= 0 then
+		local oldWeek, oldEarned = weekly.week, weekly.earned
+		-- Puntuación final de la semana que acaba
+		local weekStore = if oldEarned > 0 then weeklyStore(oldWeek) else nil
+		if weekStore and session.canSave then
+			task.spawn(function()
+				pcall(function()
+					weekStore:SetAsync("u_" .. player.UserId, leaderboardScore(oldEarned))
+				end)
+			end)
+		end
+		weekly.prevWeek, weekly.prevEarned = oldWeek, oldEarned
+	end
+	weekly.week = week
+	weekly.earned = 0
+	-- Los premios se reparten un rato después, cuando todos han guardado
+	session.weeklyCheckAt = math.max(os.clock(), os.clock() + (Config.weekStart(week) + Config.WEEKLY_GRACE - os.time()))
+end
+
+-- Puestos de una semana ya terminada: { [userId] = puesto } (top 100)
+local weeklyRanks: { [number]: { [number]: number } } = {}
+
+local function ranksOfWeek(week: number): { [number]: number }?
+	if weeklyRanks[week] then
+		return weeklyRanks[week]
+	end
+	local weekStore = weeklyStore(week)
+	if not weekStore then
+		return nil
+	end
+	local ok, pages = pcall(function()
+		return weekStore:GetSortedAsync(false, 100)
+	end)
+	if not ok then
+		return nil
+	end
+	local ranks = {}
+	for i, entry in pages:GetCurrentPage() do
+		local userId = tonumber(string.sub(entry.key, 3))
+		if userId then
+			ranks[userId] = i
+		end
+	end
+	weeklyRanks[week] = ranks
+	return ranks
+end
+
+local function grantWeeklyPrize(player: Player, session: Session)
+	local data = session.data
+	local weekly = data.weekly
+	if weekly.prevWeek < 0 or weekly.rewardedWeek >= weekly.prevWeek then
+		return
+	end
+	if weekly.prevEarned <= 0 or not session.canSave then
+		weekly.rewardedWeek = weekly.prevWeek
+		return
+	end
+	local ranks = ranksOfWeek(weekly.prevWeek)
+	if not ranks then
+		session.weeklyCheckAt = os.clock() + 120 -- se reintenta más tarde
+		return
+	end
+	weekly.rewardedWeek = weekly.prevWeek
+	local rank = ranks[player.UserId]
+	local prize = rank and Config.weeklyPrize(rank)
+	if not rank or not prize then
+		notify(player, "📊 La semana pasada ganaste " .. Config.formatMoney(weekly.prevEarned) .. ". ¡Esta semana puedes entrar en el top 100!", "info")
+		return
+	end
+	local lines = {}
+	local amount = incomeReward(session, prize.minutes, 1000)
+	gain(data, amount)
+	table.insert(lines, "💰 +" .. Config.formatMoney(amount))
+	if prize.legendary > 0 then
+		data.career.tickets.legendary = (data.career.tickets.legendary or 0) + prize.legendary
+		table.insert(lines, "👑 +" .. prize.legendary .. " Contrato Legendario")
+	end
+	if prize.goldDays > 0 then
+		data.goldUntil = math.max(data.goldUntil, os.time()) + prize.goldDays * 86400
+		table.insert(lines, "🏆 Rascacielos dorado durante " .. prize.goldDays .. " días")
+	end
+	popup(player, prize.emoji .. " ¡" .. prize.name .. "!", "Quedaste en el puesto #" .. rank .. " del ranking semanal.\n\n" .. table.concat(lines, "\n"))
+	-- Se guarda ya para que el premio no se pueda repetir si el servidor se cae
+	task.spawn(saveData, player, session)
 end
 
 Actions.saveNow = function(player: Player, session: Session)
@@ -1212,6 +1517,28 @@ Actions.saveNow = function(player: Player, session: Session)
 		return true, "💾 Partida guardada"
 	end
 	return false, "❌ No se pudo guardar. Se volverá a intentar solo."
+end
+
+-- Lo que se ve de tu imperio en la parcela (programadores, webs, pantalla...)
+local function plotExtras(session: Session)
+	local data = session.data
+	local best, bestVisits = nil, -1
+	for _, site in data.sites do
+		local visits = Config.siteVisits(data, site, visitMult(session, site))
+		if visits > bestVisits then
+			best, bestVisits = site, visits
+		end
+	end
+	local career = data.career
+	return {
+		gold = data.goldUntil > os.time(),
+		likes = data.likes,
+		agency = career.agency ~= nil,
+		capacity = if career.agency then Career.officeCapacity(career.agency.officeLevel, session.bonuses.agencyPro) else 0,
+		programmers = career.programmers,
+		builtTypes = data.stats.byType,
+		bestSite = if best then { name = best.name, type = best.type, visits = bestVisits } else nil,
+	}
 end
 
 local function spawnAtPlot(player: Player, character: Model)
@@ -1313,8 +1640,16 @@ local function onPlayerAdded(player: Player)
 		leaderMoney = leaderMoney,
 		leaderShares = leaderShares,
 		leaderLevel = leaderLevel,
+		weeklyCheckAt = os.clock() + 10,
+		weeklyChecking = false,
 	}
 	sessions[player] = session
+	rolloverWeek(player, session)
+	if session.weeklyCheckAt < os.clock() + 10 then
+		session.weeklyCheckAt = os.clock() + 10
+	end
+	local weekend = Config.weekendStatus(os.time())
+	bonuses.weekend = if weekend then weekend.id else nil
 	refreshBoost(session)
 	CareerService.initSession(session)
 	CareerService.refreshBonuses(session)
@@ -1332,7 +1667,6 @@ local function onPlayerAdded(player: Player)
 			popup(player, "😴 ¡Bienvenido de vuelta!", "Mientras no estabas (" .. Config.formatTime(away) .. ") tus webs y empresas ganaron\n" .. Config.formatMoney(earned))
 		end)
 	end
-	local _ = isNew -- la bienvenida ahora la da el tutorial del cliente
 
 	ensureDailyMissions(session)
 	-- Objetivos ya cumplidos sin reclamar: un solo aviso
@@ -1355,8 +1689,21 @@ local function onPlayerAdded(player: Player)
 		end)
 	end
 
+	-- Evento de fin de semana en marcha
+	-- (a los nuevos solo un aviso pequeño, para no taparles el tutorial)
+	local weekendEvent, weekendEnds = Config.weekendStatus(os.time())
+	if weekendEvent then
+		task.delay(8, function()
+			if isNew then
+				notify(player, "🎉 ¡Empieza el evento: " .. weekendEvent.emoji .. " " .. weekendEvent.name .. "!", "event")
+			else
+				popup(player, "🎉 ¡Evento de fin de semana!", weekendEvent.emoji .. " " .. weekendEvent.name .. "\n\n" .. weekendEvent.desc .. "\n\nTermina en " .. Config.formatTime(weekendEnds - os.time()) .. ".")
+			end
+		end)
+	end
+
 	PlotManager.claim(player)
-	PlotManager.update(player, data.lifetimeEarned, session.income)
+	PlotManager.update(player, data.lifetimeEarned, session.income, plotExtras(session))
 
 	player.CharacterAdded:Connect(function(character)
 		spawnAtPlot(player, character)
@@ -1388,34 +1735,62 @@ end
 ---------------------------------------------------------------------
 local nameCache: { [number]: string } = {}
 
-local function refreshLeaderboard()
-	if not leaderboardStore then
-		PlotManager.setLeaderboard(nil, "Publica el juego para ver la clasificación")
-		return
+local function nameOf(userId: number): string
+	if not nameCache[userId] then
+		local okName, result = pcall(function()
+			return Players:GetNameFromUserIdAsync(userId)
+		end)
+		if not okName then
+			return "Jugador"
+		end
+		nameCache[userId] = result
 	end
+	return nameCache[userId]
+end
+
+-- Las 10 mejores puntuaciones de una clasificación (nil si falla)
+local function topRows(board: OrderedDataStore): { BoardRow }?
 	local ok, pages = pcall(function()
-		return leaderboardStore:GetSortedAsync(false, 10)
+		return board:GetSortedAsync(false, Config.WEEKLY_TOP_SIZE)
 	end)
 	if not ok then
-		PlotManager.setLeaderboard(nil, "Clasificación disponible al publicar el juego")
-		return
+		return nil
 	end
 	local rows = {}
 	for _, entry in pages:GetCurrentPage() do
 		local userId = tonumber(string.sub(entry.key, 3))
-		local name = "???"
-		if userId then
-			if not nameCache[userId] then
-				local okName, result = pcall(function()
-					return Players:GetNameFromUserIdAsync(userId)
-				end)
-				nameCache[userId] = if okName then result else "Jugador"
-			end
-			name = nameCache[userId]
-		end
-		table.insert(rows, { name = name, value = leaderboardValue(entry.value) })
+		table.insert(rows, {
+			name = if userId then nameOf(userId) else "???",
+			value = leaderboardValue(entry.value),
+			userId = userId,
+		})
 	end
-	PlotManager.setLeaderboard(rows, nil)
+	return rows
+end
+
+local function refreshLeaderboard()
+	if not leaderboardStore then
+		PlotManager.setLeaderboard(nil, "Publica el juego para ver la clasificación")
+		PlotManager.setWeeklyBoard(nil, "Publica el juego para ver la clasificación")
+		return
+	end
+	local rows = topRows(leaderboardStore)
+	if rows then
+		globalTop = rows
+		PlotManager.setLeaderboard(rows, nil)
+	else
+		PlotManager.setLeaderboard(nil, "Clasificación disponible al publicar el juego")
+	end
+	local week = Config.weekIndex(os.time())
+	local weekStore = weeklyStore(week)
+	local weekRows = weekStore and topRows(weekStore)
+	if weekRows then
+		weeklyTop = weekRows
+		weeklyTopWeek = week
+		PlotManager.setWeeklyBoard(weekRows, nil)
+	else
+		PlotManager.setWeeklyBoard(nil, "Clasificación disponible al publicar el juego")
+	end
 end
 
 ---------------------------------------------------------------------
@@ -1436,6 +1811,8 @@ end
 
 PlotManager.init(function(player)
 	openComputerEvent:FireClient(player)
+end, function(visitor, owner)
+	sendVisit(visitor, owner)
 end)
 
 Players.PlayerAdded:Connect(onPlayerAdded)
@@ -1483,8 +1860,32 @@ while true do
 	local dt = math.min(now - lastTick, 5)
 	lastTick = now
 
+	local weekendEvent = Config.weekendStatus(os.time())
+	local weekendId = if weekendEvent then weekendEvent.id else nil
 	for player, session in sessions do
 		local data = session.data
+
+		-- Evento de fin de semana: avisar cuando empieza y cuando acaba
+		if session.bonuses.weekend ~= weekendId then
+			if weekendEvent then
+				notify(player, "🎉 ¡Empieza el evento: " .. weekendEvent.emoji .. " " .. weekendEvent.name .. "!", "event")
+			else
+				notify(player, "El evento de fin de semana ha terminado. ¡Hasta el próximo!", "info")
+			end
+			session.bonuses.weekend = weekendId
+		end
+		-- Ranking semanal
+		rolloverWeek(player, session)
+		if now >= session.weeklyCheckAt and not session.weeklyChecking and data.weekly.rewardedWeek < data.weekly.prevWeek then
+			session.weeklyChecking = true
+			task.spawn(function()
+				grantWeeklyPrize(player, session)
+				session.weeklyChecking = false
+				if sessions[player] then
+					sendState(player)
+				end
+			end)
+		end
 
 		if session.event and session.event.endsAt <= now then
 			session.event = nil
@@ -1506,7 +1907,7 @@ while true do
 		-- Visitas y dinero acumulados por cada web (para su ficha)
 		local moneyMult = Config.moneyMult(data, session.bonuses)
 		for _, site in data.sites do
-			local visits = Config.siteVisits(data, site, eventVisitMult(session, site))
+			local visits = Config.siteVisits(data, site, visitMult(session, site))
 			site.totalVisits = (site.totalVisits or 0) + visits * dt
 			site.earned = (site.earned or 0) + Config.siteIncome(data, site, visits, moneyMult) * dt
 		end
@@ -1519,7 +1920,7 @@ while true do
 
 		refreshOffers(session)
 		checkGoals(player, session)
-		PlotManager.update(player, data.lifetimeEarned, session.income)
+		PlotManager.update(player, data.lifetimeEarned, session.income, plotExtras(session))
 		sendState(player)
 	end
 end

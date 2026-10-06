@@ -3,8 +3,10 @@
 
 	Las parcelas de Ciudad Web. Cada jugador recibe una con:
 	  · un terminal con ordenador (ProximityPrompt para abrir el menú)
-	  · un cartel con su nombre y su progreso
-	  · su rascacielos, que crece con todo lo que ha ganado
+	  · un cartel con su nombre, su progreso y "Ver imperio" (para visitas)
+	  · su rascacielos, que crece con todo lo que ha ganado (dorado si ganó
+	    el ranking semanal)
+	  · el escaparate (Showcase): programadores, paseo de la fama y pantalla
 ]]
 
 local Workspace = game:GetService("Workspace")
@@ -12,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("TycoonConfig"))
 local World = require(script.Parent:WaitForChild("World"))
 local Building = require(script.Parent:WaitForChild("Building"))
+local Showcase = require(script.Parent:WaitForChild("Showcase"))
 
 local PlotManager = {}
 
@@ -27,7 +30,10 @@ type Plot = {
 	signInfo: TextLabel,
 	building: Model?,
 	floors: number,
+	gold: boolean,
 	owner: Player?,
+	showcase: Showcase.Handle,
+	visitPrompt: ProximityPrompt,
 }
 
 local plots: { Plot } = {}
@@ -59,7 +65,7 @@ local function surfaceLabel(parent: Instance, text: string, size: UDim2, positio
 	return label
 end
 
-local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: (Player) -> ()): Plot
+local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: (Player) -> (), onVisit: (Player, Player) -> ()): Plot
 	local model = Instance.new("Model")
 	model.Name = "Parcela" .. index
 	local style = Building.Styles[(index - 1) % #Building.Styles + 1]
@@ -118,7 +124,18 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 	local signInfo = surfaceLabel(signGui, "Espera a un nuevo emprendedor", UDim2.fromScale(0.92, 0.32), UDim2.fromScale(0.04, 0.6), Color3.fromRGB(226, 232, 240), false)
 	signGui.Parent = board
 
+	-- Cualquiera puede ver la ficha del imperio y darle "me gusta"
+	local visitPrompt = Instance.new("ProximityPrompt")
+	visitPrompt.ActionText = "Ver imperio"
+	visitPrompt.ObjectText = "Imperio Web"
+	visitPrompt.HoldDuration = 0
+	visitPrompt.MaxActivationDistance = 12 -- (el del ordenador llega a 14: así no se pisan)
+	visitPrompt.RequiresLineOfSight = false
+	visitPrompt.Enabled = false
+	visitPrompt.Parent = board
+
 	model:SetAttribute("PlotIndex", index)
+	local showcase = Showcase.create(model, origin, origin * BUILDING_OFFSET, style.accent)
 	model.Parent = city
 
 	local plot: Plot = {
@@ -129,7 +146,10 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 		signInfo = signInfo,
 		building = nil,
 		floors = 0,
+		gold = false,
 		owner = nil,
+		showcase = showcase,
+		visitPrompt = visitPrompt,
 	}
 
 	prompt.Triggered:Connect(function(player)
@@ -137,17 +157,23 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 			onOpen(player)
 		end
 	end)
+	visitPrompt.Triggered:Connect(function(visitor)
+		if plot.owner then
+			onVisit(visitor, plot.owner)
+		end
+	end)
 
 	return plot
 end
 
 -- Crea la ciudad y las parcelas. Llamar una sola vez al arrancar.
-function PlotManager.init(onOpen: (Player) -> ())
+-- onOpen(dueño) abre su ordenador; onVisit(visitante, dueño) su ficha.
+function PlotManager.init(onOpen: (Player) -> (), onVisit: ((Player, Player) -> ())?)
 	local origins = World.build()
 	local folder = Instance.new("Folder")
 	folder.Name = "Parcelas"
 	for i, origin in origins do
-		table.insert(plots, buildPlot(folder, i, origin, onOpen))
+		table.insert(plots, buildPlot(folder, i, origin, onOpen, onVisit or function() end))
 	end
 	folder.Parent = Workspace
 end
@@ -162,6 +188,8 @@ function PlotManager.claim(player: Player): boolean
 			plotByPlayer[player] = plot
 			plot.model:SetAttribute("OwnerUserId", player.UserId)
 			plot.signTitle.Text = "🏢 " .. string.upper(player.DisplayName) .. " CORP."
+			plot.visitPrompt.ObjectText = player.DisplayName
+			plot.visitPrompt.Enabled = true
 			return true
 		end
 	end
@@ -178,11 +206,15 @@ function PlotManager.release(player: Player)
 	plot.model:SetAttribute("OwnerUserId", nil)
 	plot.signTitle.Text = "🏗️ PARCELA LIBRE"
 	plot.signInfo.Text = "Espera a un nuevo emprendedor"
+	plot.visitPrompt.Enabled = false
+	plot.visitPrompt.ObjectText = "Imperio Web"
 	if plot.building then
 		plot.building:Destroy()
 		plot.building = nil
 	end
 	plot.floors = 0
+	plot.gold = false
+	Showcase.update(plot.showcase, nil)
 end
 
 function PlotManager.getSpawnCFrame(player: Player): CFrame
@@ -196,19 +228,30 @@ function PlotManager.getSpawnCFrame(player: Player): CFrame
 	return CFrame.new(-212, 5, 0)
 end
 
--- Actualiza el cartel y, si cambia el número de plantas, el rascacielos.
-function PlotManager.update(player: Player, lifetimeEarned: number, income: number)
+-- Actualiza el cartel, el escaparate y, si cambia el número de plantas
+-- (o si pasa a ser dorado), el rascacielos.
+-- extra = { gold, likes, agency, programmers, builtTypes, bestSite }
+function PlotManager.update(player: Player, lifetimeEarned: number, income: number, extra: any?)
 	local plot = plotByPlayer[player]
 	if not plot then
 		return
 	end
 	local floors = Config.buildingFloors(lifetimeEarned)
-	plot.signInfo.Text = string.format("%d plantas · %s/s", floors, Config.formatMoney(income))
-	if floors == plot.floors then
+	local gold = extra ~= nil and extra.gold == true
+	local info = string.format("%d plantas · %s/s · 👍 %d", floors, Config.formatMoney(income), if extra then extra.likes or 0 else 0)
+	if plot.signInfo.Text ~= info then
+		plot.signInfo.Text = info
+	end
+	local title = (if gold then "👑 " else "🏢 ") .. string.upper(player.DisplayName) .. " CORP."
+	if plot.signTitle.Text ~= title then
+		plot.signTitle.Text = title
+	end
+	Showcase.update(plot.showcase, extra or {})
+	if floors == plot.floors and gold == plot.gold then
 		return
 	end
 
-	local animateFrom = if plot.floors == 0 then floors else plot.floors
+	local animateFrom = if plot.floors == 0 or floors == plot.floors then floors else plot.floors
 	if plot.building then
 		plot.building:Destroy()
 	end
@@ -219,13 +262,19 @@ function PlotManager.update(player: Player, lifetimeEarned: number, income: numb
 		plot.index,
 		player.DisplayName,
 		World.isNight(),
-		animateFrom
+		animateFrom,
+		gold
 	)
 	plot.floors = floors
+	plot.gold = gold
 end
 
 function PlotManager.setLeaderboard(rows, message: string?)
 	World.setLeaderboard(rows, message)
+end
+
+function PlotManager.setWeeklyBoard(rows, message: string?)
+	World.setWeeklyBoard(rows, message)
 end
 
 return PlotManager

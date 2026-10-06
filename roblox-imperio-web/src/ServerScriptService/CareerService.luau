@@ -75,6 +75,11 @@ function CareerService.refreshBonuses(session)
 	session.bonuses.agencyBonus = bonus
 end
 
+-- Feria de Empleo (evento de fin de semana): sueldo y XP x1.5
+local function jobFairMult(session): number
+	return if session.bonuses.weekend == "jobs" then Config.WEEKEND_JOB_MULT else 1
+end
+
 function CareerService.salaryPerSec(session): number
 	local career = session.data.career
 	local job = career.job
@@ -85,7 +90,7 @@ function CareerService.salaryPerSec(session): number
 	if not company then
 		return 0
 	end
-	return Career.salary(company, job.rank, Career.nicheLevel(career, company.niche), Config.moneyMult(session.data, session.bonuses), job.salaryMult)
+	return Career.salary(company, job.rank, Career.nicheLevel(career, company.niche), Config.moneyMult(session.data, session.bonuses), job.salaryMult) * jobFairMult(session)
 end
 
 local function jobXpRate(session): number
@@ -94,7 +99,7 @@ local function jobXpRate(session): number
 	if not company then
 		return 0
 	end
-	return Career.jobXpRate(company, job.rank, job.xpMult or 1)
+	return Career.jobXpRate(company, job.rank, job.xpMult or 1) * jobFairMult(session)
 end
 
 ---------------------------------------------------------------------
@@ -102,6 +107,15 @@ end
 ---------------------------------------------------------------------
 local function randomRange(range: { number }): number
 	return range[1] + ctx.random:NextNumber() * (range[2] - range[1])
+end
+
+-- Segundos hasta la próxima oferta de empleo (la mitad en la Feria de Empleo)
+local function nextOfferDelay(session): number
+	local delay = randomRange(Career.JOB_OFFER_INTERVAL)
+	if session.bonuses.weekend == "jobs" then
+		delay /= Config.WEEKEND_JOB_OFFER_SPEED
+	end
+	return delay
 end
 
 local function bestNiche(career): string
@@ -192,7 +206,7 @@ end
 function CareerService.initSession(session)
 	session.jobOffers = {}
 	session.nextJobOfferId = 0
-	session.nextJobOfferAt = os.clock() + randomRange(Career.JOB_OFFER_INTERVAL)
+	session.nextJobOfferAt = os.clock() + nextOfferDelay(session)
 	session.cvReadyAt = 0
 	-- Dos ofertas para empezar
 	addJobOffer(nil, session)
@@ -233,7 +247,7 @@ function CareerService.tick(player: Player, session, dt: number)
 		end
 	end
 	if now >= session.nextJobOfferAt then
-		session.nextJobOfferAt = now + randomRange(Career.JOB_OFFER_INTERVAL)
+		session.nextJobOfferAt = now + nextOfferDelay(session)
 		addJobOffer(player, session)
 	end
 
@@ -561,8 +575,8 @@ function CareerService.buildState(session)
 			rank = offer.rank,
 			salaryMult = offer.salaryMult,
 			xpMult = offer.xpMult,
-			salary = Career.salary(company, offer.rank, nicheLevels[company.niche], moneyMult, offer.salaryMult),
-			xpRate = Career.jobXpRate(company, offer.rank, offer.xpMult) * (if session.bonuses.xpPass then 2 else 1),
+			salary = Career.salary(company, offer.rank, nicheLevels[company.niche], moneyMult, offer.salaryMult) * jobFairMult(session),
+			xpRate = Career.jobXpRate(company, offer.rank, offer.xpMult) * (if session.bonuses.xpPass then 2 else 1) * jobFairMult(session),
 			timeLeft = math.max(0, offer.expiresAt - os.clock()),
 		})
 	end

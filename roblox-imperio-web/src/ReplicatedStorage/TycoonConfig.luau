@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "1.2"
+Config.VERSION = "1.3"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -47,6 +47,11 @@ Config.GIFT_MINUTES = 3 -- el regalo vale 3 minutos de ingresos...
 Config.GIFT_MIN = 200 -- ...o como mínimo esto
 Config.DAY_LENGTH_MINUTES = 16 -- duración de un día completo en el juego
 Config.WALK_SPEED = 22
+Config.LIKE_OWNER_MINUTES = 2 -- un "me gusta" da al dueño 2 minutos de ingresos...
+Config.LIKE_OWNER_MIN = 100
+Config.LIKE_VISITOR_MINUTES = 1 -- ...y al que lo da, 1 minuto
+Config.LIKE_VISITOR_MIN = 50
+Config.MAX_LIKES_PER_DAY = 20 -- "me gusta" que puedes dar al día
 
 ---------------------------------------------------------------------
 -- Monetización (Robux). Con id = 0 el artículo no aparece en la tienda.
@@ -308,6 +313,82 @@ Config.Events = {
 }
 
 ---------------------------------------------------------------------
+-- Ranking semanal (se reinicia cada lunes a las 00:00 UTC). Puntúa el
+-- dinero ganado en la semana. Al acabar, los mejores reciben premio.
+--   upTo      = puestos que cubre el premio
+--   legendary = Contratos Legendarios
+--   minutes   = minutos de ingresos
+--   goldDays  = días con el rascacielos dorado
+---------------------------------------------------------------------
+Config.WEEKLY_STORE_PREFIX = "ImperioWebSemana_v1_" -- + número de semana
+Config.WEEKLY_GRACE = 600 -- segundos tras el cambio de semana antes de repartir premios
+Config.WEEKLY_TOP_SIZE = 10
+Config.WeeklyPrizes = {
+	{ upTo = 1, emoji = "🥇", name = "Campeón semanal", legendary = 1, minutes = 240, goldDays = 7 },
+	{ upTo = 3, emoji = "🥈", name = "Podio semanal", legendary = 1, minutes = 120, goldDays = 7 },
+	{ upTo = 10, emoji = "🏅", name = "Top 10 semanal", legendary = 0, minutes = 120, goldDays = 7 },
+	{ upTo = 100, emoji = "🎖️", name = "Top 100 semanal", legendary = 0, minutes = 45, goldDays = 0 },
+}
+
+function Config.weeklyPrize(rank: number)
+	for _, prize in Config.WeeklyPrizes do
+		if rank <= prize.upTo then
+			return prize
+		end
+	end
+	return nil
+end
+
+---------------------------------------------------------------------
+-- Eventos de fin de semana: del viernes 20:00 al lunes 04:00 (UTC).
+-- Cada semana toca uno distinto, en este orden.
+---------------------------------------------------------------------
+Config.WeekendEvents = {
+	{ id = "money", emoji = "💰", name = "Fin de semana x2 Dinero", short = "x2 Dinero",
+		desc = "Todo el dinero que ganas vale el doble." },
+	{ id = "viral", emoji = "🔥", name = "Fin de semana Viral", short = "+50% visitas",
+		desc = "Todas tus webs reciben un 50 % más de visitas." },
+	{ id = "jobs", emoji = "💼", name = "Feria de Empleo", short = "Feria de Empleo",
+		desc = "Ofertas de trabajo el doble de a menudo, sueldos x1.5 y XP x1.5." },
+}
+Config.WEEKEND_START = 4 * 86400 + 20 * 3600 -- desde el lunes 00:00 UTC: viernes 20:00
+Config.WEEKEND_DURATION = 56 * 3600 -- hasta el lunes a las 04:00
+Config.WEEKEND_MONEY_MULT = 2
+Config.WEEKEND_VISITS_MULT = 1.5
+Config.WEEKEND_JOB_MULT = 1.5 -- sueldo y XP en la Feria de Empleo
+Config.WEEKEND_JOB_OFFER_SPEED = 2 -- las ofertas de empleo llegan el doble de rápido
+
+-- Semana actual (empieza el lunes a las 00:00 UTC; el 1-1-1970 fue jueves)
+function Config.weekIndex(unixTime: number): number
+	return (unixTime + 3 * 86400) // 604800
+end
+
+function Config.weekStart(week: number): number
+	return week * 604800 - 3 * 86400
+end
+
+local function weekendEventFor(week: number)
+	return Config.WeekendEvents[week % #Config.WeekendEvents + 1]
+end
+
+-- Evento de fin de semana activo (o nil), cuándo acaba, y el siguiente
+-- con su hora de inicio.
+function Config.weekendStatus(unixTime: number): (any?, number, any, number)
+	local week = Config.weekIndex(unixTime)
+	local start = Config.weekStart(week) + Config.WEEKEND_START
+	-- El de la semana pasada dura hasta el lunes por la mañana
+	local previousStart = start - 604800
+	if unixTime < previousStart + Config.WEEKEND_DURATION then
+		return weekendEventFor(week - 1), previousStart + Config.WEEKEND_DURATION, weekendEventFor(week), start
+	elseif unixTime < start then
+		return nil, 0, weekendEventFor(week), start
+	elseif unixTime < start + Config.WEEKEND_DURATION then
+		return weekendEventFor(week), start + Config.WEEKEND_DURATION, weekendEventFor(week + 1), start + 604800
+	end
+	return nil, 0, weekendEventFor(week + 1), start + 604800
+end
+
+---------------------------------------------------------------------
 -- Búsquedas rápidas por id
 ---------------------------------------------------------------------
 local function index(list, field: string)
@@ -323,6 +404,7 @@ Config.WebTypeById = index(Config.WebTypes, "id")
 Config.AdNetworkById = index(Config.AdNetworks, "id")
 Config.CompanyById = index(Config.Companies, "id")
 -- Pases y productos se buscan por "key" (su id vale 0 hasta que lo configures)
+Config.WeekendEventById = index(Config.WeekendEvents, "id")
 Config.PassByKey = index(Config.Monetization.GamePasses, "key")
 Config.ProductByKey = index(Config.Monetization.Products, "key")
 
@@ -331,7 +413,7 @@ Config.ProductByKey = index(Config.Monetization.Products, "key")
 --
 -- "bonuses" es una tabla que calcula el servidor para cada jugador:
 --   { pass, turbo, slotsPass, boost: boolean, friends: number,
---     premium, group: boolean }
+--     premium, group: boolean, weekend: id del evento de fin de semana }
 ---------------------------------------------------------------------
 function Config.level(data, companyId: string): number
 	return data.companies[companyId] or 0
@@ -385,6 +467,9 @@ function Config.moneyMult(data, bonuses): number
 		end
 		if bonuses.boost then
 			mult *= 2
+		end
+		if bonuses.weekend == "money" then
+			mult *= Config.WEEKEND_MONEY_MULT
 		end
 		mult *= 1 + Config.socialBonus(bonuses)
 		-- bonuses.agencyBonus = % extra de los programadores de tu agencia
