@@ -53,11 +53,11 @@ Config.WALK_SPEED = 22
 ---------------------------------------------------------------------
 Config.Monetization = {
 	GamePasses = {
-		{ key = "pass", id = 0, emoji = "💎", name = "x2 Dinero", desc = "Ganas el doble de dinero para siempre." },
-		{ key = "turbo", id = 0, emoji = "⚡", name = "Programador Turbo", desc = "Programas el doble de rápido para siempre." },
-		{ key = "slotsPass", id = 0, emoji = "🗄️", name = "+3 Huecos", desc = "Puedes tener 3 webs más a la vez." },
-		{ key = "agencyPro", id = 0, emoji = "🏙️", name = "Agencia Pro", desc = "+5 puestos en tu oficina y programadores +25 % mejores." },
-		{ key = "xpPass", id = 0, emoji = "🎓", name = "Mentor x2 XP", desc = "Subes de nivel en los nichos el doble de rápido." },
+		{ key = "pass", id = 2008580363, emoji = "💎", name = "x2 Dinero", desc = "Ganas el doble de dinero para siempre." },
+		{ key = "turbo", id = 2009090346, emoji = "⚡", name = "Programador Turbo", desc = "Programas el doble de rápido para siempre." },
+		{ key = "slotsPass", id = 2006769799, emoji = "🗄️", name = "+3 Huecos", desc = "Puedes tener 3 webs más a la vez." },
+		{ key = "agencyPro", id = 2008664354, emoji = "🏙️", name = "Agencia Pro", desc = "+5 puestos en tu oficina y programadores +25 % mejores." },
+		{ key = "xpPass", id = 2006871734, emoji = "🎓", name = "Mentor x2 XP", desc = "Subes de nivel en los nichos el doble de rápido." },
 	},
 	Products = {
 		{ key = "cash_small", id = 0, emoji = "💼", name = "Maletín de dinero", kind = "cash", minutes = 15, min = 1000,
