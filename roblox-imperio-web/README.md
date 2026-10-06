@@ -1,6 +1,14 @@
-# 🌐 Imperio Web Tycoon · v1.1 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v1.2 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v1.2
+- **Tutorial interactivo** al empezar (para todos los jugadores, una vez): resalta cada botón y da $100 al terminarlo. Se puede repetir desde 🎯 Misiones.
+- **Pestaña 🎯 Misiones**: 3 misiones diarias (fácil, media y difícil; completar las 3 da un boost x2) y todos los objetivos con barra de progreso y botón **Reclamar**. Premios de los objetivos a la mitad.
+- **Un solo botón 💻 Ordenador** en el lateral, con contador de avisos; las pestañas de dentro muestran sus propios avisos.
+- **Ofertas de empleo aleatorias**: cada empresa paga distinto y las ofertas te llegan solas con sueldo y XP aleatorios (también puedes enviar currículums).
+- Botón para silenciar los sonidos (se guarda).
+- `CLAUDE.md` en la raíz con todo el contexto del proyecto y `tools/check.sh` para verificarlo todo.
 
 ## Novedades de la v1.1
 - **Arreglado**: los textos de los botones (precios, mejoras...) no se veían. Era un degradado que también teñía el texto.

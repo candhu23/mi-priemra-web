@@ -119,14 +119,19 @@ for nicheIndex, niche in Career.Niches do
 					break
 				end
 			end
+			local id = (nicheIndex - 1) * 50 + rank
+			-- Cada empresa paga distinto: factor fijo entre 0.75 y 1.35
+			-- (sale siempre igual para la misma empresa)
+			local payScale = 0.75 + ((id * 7919 + 104729) % 61) / 100
 			local company = {
-				id = (nicheIndex - 1) * 50 + rank,
+				id = id,
 				name = root .. " " .. suffix,
 				niche = niche.id,
 				rank = rank,
 				tier = tier,
 				reqLevel = math.floor(1 + (rank - 1) * 0.9),
-				salary = 2 * 1.09 ^ (rank - 1), -- $/s base de un Junior
+				payScale = payScale,
+				salary = 2 * 1.09 ^ (rank - 1) * payScale, -- $/s base de un Junior
 				xpRate = 1 + rank * 0.08, -- XP/s en el nicho
 			}
 			table.insert(Career.Companies, company)
@@ -151,11 +156,21 @@ Career.Ranks = {
 	{ name = "CTO", mult = 5.0, minutes = 0, extraLevel = 12 },
 }
 Career.TASK_INTERVAL = 40 -- segundos entre tareas del trabajo
+
+-- Ofertas de empleo: te llegan solas cada cierto tiempo, cada una con su
+-- sueldo y condiciones aleatorias. También puedes enviar currículums.
+Career.JOB_OFFER_MAX = 4
+Career.JOB_OFFER_INTERVAL = { 50, 100 } -- segundos entre ofertas nuevas
+Career.JOB_OFFER_LIFETIME = { 180, 300 } -- segundos que dura una oferta
+Career.CV_COOLDOWN = 45 -- segundos entre currículums
+Career.OFFER_SALARY_RANGE = { 0.7, 1.6 } -- multiplicador de sueldo de la oferta
+Career.OFFER_XP_RANGE = { 0.8, 1.5 } -- multiplicador de XP de la oferta
 Career.TASK_SALARY_SECONDS = 60 -- una tarea paga 60 s de sueldo...
 Career.TASK_XP_SECONDS = 30 -- ...y 30 s de XP
 
-function Career.salary(company, rank: number, nicheLevel: number, moneyMult: number): number
-	return company.salary * Career.Ranks[rank].mult * (1 + 0.1 * (nicheLevel - 1)) * moneyMult
+-- offerMult = multiplicador de sueldo negociado en la oferta (1 si no hay)
+function Career.salary(company, rank: number, nicheLevel: number, moneyMult: number, offerMult: number?): number
+	return company.salary * Career.Ranks[rank].mult * (1 + 0.1 * (nicheLevel - 1)) * moneyMult * (offerMult or 1)
 end
 
 function Career.jobXpRate(company, rank: number, xpMult: number): number

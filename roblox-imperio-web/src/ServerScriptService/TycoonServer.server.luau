@@ -93,6 +93,9 @@ local function newData()
 		receipts = {},
 		selectedNiche = Career.DEFAULT_NICHE,
 		career = CareerService.newData(),
+		tutorialDone = false,
+		dailyMissions = { day = -1, list = {}, bonusGiven = false },
+		settings = { muted = false },
 		lastOnline = os.time(),
 	}
 end
@@ -152,6 +155,7 @@ type Session = {
 	actionWindowStart: number,
 	actionCount: number,
 	friendIds: { [number]: boolean },
+	goalNotified: { [string]: boolean },
 	leaderMoney: IntValue,
 	leaderShares: IntValue,
 	leaderLevel: IntValue,
@@ -285,6 +289,9 @@ local function refreshOffers(session: Session)
 	end
 end
 
+-- Se define más abajo (misiones diarias), pero se usa al terminar webs
+local progressDaily: (session: Session, stat: string, amount: number) -> ()
+
 ---------------------------------------------------------------------
 -- Proyectos (webs en construcción)
 ---------------------------------------------------------------------
@@ -360,6 +367,7 @@ local function finishProject(player: Player, session: Session)
 	data.stats.byType[def.id] = (data.stats.byType[def.id] or 0) + 1
 	data.reputation += def.repReward
 	CareerService.addXp(player, session, niche, def.work / 5)
+	progressDaily(session, "built", 1)
 
 	if not data.autoType then
 		notify(player, string.format("%s ¡%s terminada! Calidad %d%%", def.emoji, site.name, math.floor(site.quality * 100)), "success")
@@ -381,18 +389,67 @@ end
 ---------------------------------------------------------------------
 -- Objetivos y recompensa diaria
 ---------------------------------------------------------------------
+-- Los objetivos ya no se pagan solos: avisan y se reclaman en Misiones.
+-- data.goals[id] = true significa "premio reclamado".
 local function checkGoals(player: Player, session: Session)
 	local data = session.data
 	for _, goal in Config.Goals do
-		if not data.goals[goal.id] and goal.value(data) >= goal.target then
-			data.goals[goal.id] = true
-			if goal.reward > 0 then
-				data.money += goal.reward
-			end
-			notify(player, "🎯 Objetivo cumplido: " .. goal.text .. (if goal.reward > 0 then " (+" .. Config.formatMoney(goal.reward) .. ")" else ""), "goal")
+		if not data.goals[goal.id] and not session.goalNotified[goal.id] and goal.value(data) >= goal.target then
+			session.goalNotified[goal.id] = true
+			notify(player, "🎯 ¡Objetivo cumplido: " .. goal.text .. "! Reclama tu premio en 🎯 Misiones", "goal")
 		end
 	end
 end
+
+---------------------------------------------------------------------
+-- Misiones diarias
+---------------------------------------------------------------------
+local function ensureDailyMissions(session: Session)
+	local data = session.data
+	local today = Config.dayIndex(os.time())
+	local daily = data.dailyMissions
+	if daily.day == today and #daily.list > 0 then
+		return
+	end
+	local pool = {}
+	for _, def in Config.DailyMissionPool do
+		local available = (def.needs == nil)
+			or (def.needs == "job" and data.career.job ~= nil)
+			or (def.needs == "agency" and data.career.agency ~= nil)
+		if available then
+			table.insert(pool, def)
+		end
+	end
+	local list = {}
+	for tier = 1, math.min(Config.DAILY_MISSION_COUNT, #pool) do
+		local def = table.remove(pool, random:NextInteger(1, #pool))
+		table.insert(list, { id = def.id, tier = tier, target = def.amounts[tier], progress = 0, claimed = false })
+	end
+	daily.day = today
+	daily.list = list
+	daily.bonusGiven = false
+end
+
+function progressDaily(session: Session, stat: string, amount: number)
+	for _, mission in session.data.dailyMissions.list do
+		if mission.id == stat and not mission.claimed then
+			mission.progress = math.min(mission.target, mission.progress + amount)
+		end
+	end
+end
+
+-- Acción del cliente que cuenta para una misión diaria
+local ACTION_STATS = {
+	upgradeSeo = "seo",
+	buyCompany = "companies",
+	claimGift = "gifts",
+	solveTask = "tasks",
+	recruit = "recruits",
+	redeemTicket = "recruits",
+	sellToOffer = "sold",
+	quickSell = "sold",
+	click = "clicks",
+}
 
 -- Devuelve (disponible, día de la racha que tocaría 1..7)
 local function dailyStatus(data): (boolean, number)
@@ -491,6 +548,20 @@ local function buildState(session: Session)
 		lastSaveAgo = if session.lastSaveAt > 0 then os.time() - session.lastSaveAt else -1,
 		selectedNiche = data.selectedNiche,
 		career = CareerService.buildState(session),
+		tutorialDone = data.tutorialDone,
+		settings = data.settings,
+		dailyMissions = {
+			list = data.dailyMissions.list,
+			bonusGiven = data.dailyMissions.bonusGiven,
+			resetIn = 86400 - os.time() % 86400,
+			rewards = (function()
+				local amounts = {}
+				for i, reward in Config.DailyMissionRewards do
+					amounts[i] = incomeReward(session, reward.minutes, reward.min)
+				end
+				return amounts
+			end)(),
+		},
 	}
 end
 
@@ -802,6 +873,74 @@ function Actions.setNiche(_player: Player, session: Session, nicheId: any)
 	return true, nil
 end
 
+function Actions.claimGoal(_player: Player, session: Session, goalId: any)
+	local data = session.data
+	for _, goal in Config.Goals do
+		if goal.id == goalId then
+			if data.goals[goal.id] then
+				return false, "Ya lo has reclamado."
+			end
+			if goal.value(data) < goal.target then
+				return false, "Aún no has cumplido este objetivo."
+			end
+			data.goals[goal.id] = true
+			if goal.reward > 0 then
+				data.money += goal.reward
+			end
+			return true, "🎯 " .. goal.text .. (if goal.reward > 0 then ": +" .. Config.formatMoney(goal.reward) else ""), { money = goal.reward > 0 }
+		end
+	end
+	return false, nil
+end
+
+function Actions.claimDailyMission(player: Player, session: Session, index: any)
+	ensureDailyMissions(session)
+	local daily = session.data.dailyMissions
+	local mission = type(index) == "number" and daily.list[index]
+	if not mission then
+		return false, nil
+	end
+	if mission.claimed then
+		return false, "Ya la has reclamado."
+	end
+	if mission.progress < mission.target then
+		return false, "Aún no has terminado esta misión."
+	end
+	local reward = Config.DailyMissionRewards[mission.tier]
+	local amount = incomeReward(session, reward.minutes, reward.min)
+	gain(session.data, amount)
+	mission.claimed = true
+	local allDone = true
+	for _, m in daily.list do
+		if not m.claimed then
+			allDone = false
+		end
+	end
+	if allDone and not daily.bonusGiven then
+		daily.bonusGiven = true
+		local data = session.data
+		data.boostUntil = math.max(data.boostUntil, os.time()) + Config.DAILY_ALL_BONUS_BOOST_MINUTES * 60
+		refreshBoost(session)
+		notify(player, "🏆 ¡Todas las misiones de hoy completadas! 🚀 Boost x2 " .. Config.DAILY_ALL_BONUS_BOOST_MINUTES .. " min", "goal")
+	end
+	return true, "📅 Misión completada: +" .. Config.formatMoney(amount), { money = true }
+end
+
+function Actions.finishTutorial(_player: Player, session: Session)
+	local data = session.data
+	if data.tutorialDone then
+		return true, nil
+	end
+	data.tutorialDone = true
+	data.money += Config.TUTORIAL_REWARD
+	return true, "🎓 ¡Tutorial completado! +" .. Config.formatMoney(Config.TUTORIAL_REWARD), { money = true }
+end
+
+function Actions.setMuted(_player: Player, session: Session, muted: any)
+	session.data.settings.muted = muted == true
+	return true, nil
+end
+
 function Actions.claimDaily(player: Player, session: Session)
 	local data = session.data
 	local available, day = dailyStatus(data)
@@ -860,6 +999,10 @@ actionFunction.OnServerInvoke = function(player: Player, action: any, a: any, b:
 	local ok, message, extra = handler(player, session, a, b)
 	if ok then
 		CareerService.refreshBonuses(session)
+		local stat = ACTION_STATS[action]
+		if stat then
+			progressDaily(session, stat, 1)
+		end
 	end
 	if ok then
 		checkGoals(player, session)
@@ -1166,12 +1309,14 @@ local function onPlayerAdded(player: Player)
 		actionWindowStart = 0,
 		actionCount = 0,
 		friendIds = {},
+		goalNotified = {},
 		leaderMoney = leaderMoney,
 		leaderShares = leaderShares,
 		leaderLevel = leaderLevel,
 	}
 	sessions[player] = session
 	refreshBoost(session)
+	CareerService.initSession(session)
 	CareerService.refreshBonuses(session)
 
 	refreshOffers(session)
@@ -1186,10 +1331,21 @@ local function onPlayerAdded(player: Player)
 		task.delay(2, function()
 			popup(player, "😴 ¡Bienvenido de vuelta!", "Mientras no estabas (" .. Config.formatTime(away) .. ") tus webs y empresas ganaron\n" .. Config.formatMoney(earned))
 		end)
-	elseif isNew then
-		task.delay(2, function()
-			popup(player, "🌐 ¡Bienvenido a Imperio Web!",
-				"Eres un emprendedor que crea páginas web.\n\n1. Pulsa ⌨️ PROGRAMAR para crear tu primera web.\n2. Gana dinero con sus visitas y anuncios.\n3. Véndelas a empresas y funda tus propias empresas.\n\n¡Convierte tu rascacielos en el más alto de la ciudad!")
+	end
+	local _ = isNew -- la bienvenida ahora la da el tutorial del cliente
+
+	ensureDailyMissions(session)
+	-- Objetivos ya cumplidos sin reclamar: un solo aviso
+	local pending = 0
+	for _, goal in Config.Goals do
+		if not data.goals[goal.id] and goal.value(data) >= goal.target then
+			session.goalNotified[goal.id] = true
+			pending += 1
+		end
+	end
+	if pending > 0 then
+		task.delay(6, function()
+			notify(player, "🎯 Tienes " .. pending .. " objetivo(s) por reclamar en 🎯 Misiones", "goal")
 		end)
 	end
 
@@ -1344,6 +1500,7 @@ while true do
 		end
 
 		CareerService.tick(player, session, dt)
+		ensureDailyMissions(session)
 		session.income = computeIncome(session, true)
 		gain(data, session.income * dt)
 		-- Visitas y dinero acumulados por cada web (para su ficha)

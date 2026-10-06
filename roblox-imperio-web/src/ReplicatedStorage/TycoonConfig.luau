@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "1.1"
+Config.VERSION = "1.2"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -40,6 +40,8 @@ Config.EVENT_MAX_DELAY = 180
 Config.CLICK_RATE_LIMIT = 15 -- clics por segundo como máximo
 Config.CRIT_CHANCE = 0.06 -- probabilidad de clic crítico
 Config.CRIT_MULT = 5
+Config.GOAL_REWARD_SCALE = 0.5 -- premios de los objetivos (1 = como antes)
+Config.TUTORIAL_REWARD = 100 -- premio por terminar el tutorial
 Config.GIFT_INTERVAL = 600 -- un regalo cada 10 minutos jugando
 Config.GIFT_MINUTES = 3 -- el regalo vale 3 minutos de ingresos...
 Config.GIFT_MIN = 200 -- ...o como mínimo esto
@@ -164,6 +166,35 @@ Config.Companies = {
 -- Recompensa diaria (racha de 7 días). Vale "minutes" minutos de tus
 -- ingresos o, como mínimo, "min".
 ---------------------------------------------------------------------
+---------------------------------------------------------------------
+-- Misiones diarias: cada día tocan 3 (una fácil, una media y una
+-- difícil). Completar las 3 da un boost extra.
+--   stat    = qué cuenta para la misión
+--   amounts = objetivo según la dificultad (fácil, media, difícil)
+--   needs   = solo sale si tienes trabajo ("job") o agencia ("agency")
+---------------------------------------------------------------------
+Config.DAILY_MISSION_COUNT = 3
+Config.DAILY_ALL_BONUS_BOOST_MINUTES = 10
+Config.DailyMissionPool = {
+	{ id = "built", text = "Programa %d webs", amounts = { 3, 6, 10 } },
+	{ id = "sold", text = "Vende %d webs a empresas", amounts = { 2, 4, 7 } },
+	{ id = "clicks", text = "Haz %d clics programando", amounts = { 100, 300, 600 } },
+	{ id = "seo", text = "Mejora el SEO %d veces", amounts = { 2, 4, 8 } },
+	{ id = "companies", text = "Mejora tus empresas %d veces", amounts = { 3, 6, 12 } },
+	{ id = "gifts", text = "Recoge %d regalos gratis", amounts = { 1, 2, 3 } },
+	{ id = "tasks", text = "Resuelve %d tareas del trabajo", amounts = { 2, 4, 7 }, needs = "job" },
+	{ id = "recruits", text = "Entrevista a %d programadores", amounts = { 1, 3, 5 }, needs = "agency" },
+}
+Config.DailyMissionRewards = {
+	{ name = "Fácil", minutes = 4, min = 300 },
+	{ name = "Media", minutes = 8, min = 800 },
+	{ name = "Difícil", minutes = 15, min = 2000 },
+}
+Config.DailyMissionById = {}
+for _, mission in Config.DailyMissionPool do
+	Config.DailyMissionById[mission.id] = mission
+end
+
 Config.DailyRewards = {
 	{ minutes = 2, min = 100 },
 	{ minutes = 4, min = 300 },
@@ -215,7 +246,7 @@ local function careerStat(field: string)
 end
 
 local function goal(id: string, text: string, reward: number, target: number, value: (any) -> number)
-	return { id = id, text = text, reward = reward, target = target, value = value }
+	return { id = id, text = text, reward = math.floor(reward * Config.GOAL_REWARD_SCALE), target = target, value = value }
 end
 
 Config.Goals = {

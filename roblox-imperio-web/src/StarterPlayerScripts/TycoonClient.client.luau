@@ -71,9 +71,11 @@ for name, def in Config.Sounds do
 	sounds[name] = sound
 end
 
+local muted = false -- se sincroniza con la partida guardada
+
 local function playSound(name: string)
 	local sound = sounds[name]
-	if sound then
+	if sound and not muted then
 		sound.TimePosition = 0
 		sound:Play()
 	end
@@ -490,15 +492,24 @@ end)
 closeButton.AnchorPoint = Vector2.new(1, 0.5)
 closeButton.Position = UDim2.new(1, -8, 0.5, 0)
 
+local muteButton: TextButton
+muteButton = makeButton(header, "🔊", THEME.card, UDim2.fromOffset(44, 36), function()
+	muted = not muted
+	muteButton.Text = if muted then "🔇" else "🔊"
+	sendAction("setMuted", muted)
+end)
+muteButton.AnchorPoint = Vector2.new(1, 0.5)
+muteButton.Position = UDim2.new(1, -56, 0.5, 0)
+
 local tabBar = create("Frame", {
 	Parent = window,
 	BackgroundTransparency = 1,
 	Position = UDim2.fromOffset(10, 58),
-	Size = UDim2.new(1, -20, 0, 40),
+	Size = UDim2.new(1, -20, 0, 74),
 }, {
-	create("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		Padding = UDim.new(0, 6),
+	create("UIGridLayout", {
+		CellSize = UDim2.new(0.2, -6, 0, 34),
+		CellPadding = UDim2.fromOffset(6, 6),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	}),
 })
@@ -506,8 +517,8 @@ local tabBar = create("Frame", {
 local content = create("Frame", {
 	Parent = window,
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 106),
-	Size = UDim2.new(1, -20, 1, -116),
+	Position = UDim2.fromOffset(10, 140),
+	Size = UDim2.new(1, -20, 1, -150),
 })
 
 local TABS = {
@@ -518,6 +529,7 @@ local TABS = {
 	{ id = "companies", emoji = "🏢", name = "Empresas", color = THEME.orange },
 	{ id = "career", emoji = "💼", name = "Carrera", color = Color3.fromRGB(14, 165, 233) },
 	{ id = "agency", emoji = "👥", name = "Agencia", color = Color3.fromRGB(217, 70, 239) },
+	{ id = "missions", emoji = "🎯", name = "Misiones", color = Color3.fromRGB(245, 158, 11) },
 	{ id = "market", emoji = "📈", name = "Bolsa", color = THEME.pink },
 	{ id = "shop", emoji = "🛒", name = "Tienda", color = Color3.fromRGB(20, 184, 166) },
 }
@@ -580,82 +592,91 @@ for i, tab in TABS do
 end
 
 ---------------------------------------------------------------------
--- Menú lateral con avisos
+-- Botón del ordenador (único botón lateral) y avisos de las pestañas
 ---------------------------------------------------------------------
-local sideMenu = create("Frame", {
+local computerHolder = create("Frame", {
 	Parent = mainGui,
 	AnchorPoint = Vector2.new(0, 0.5),
-	Position = UDim2.new(0, 10, 0.55, 0),
-	Size = UDim2.fromOffset(136, 5 * 64 + 4 * 6),
+	Position = UDim2.new(0, 12, 0.55, 0),
+	Size = UDim2.fromOffset(112, 112),
 	BackgroundTransparency = 1,
-}, {
-	create("UIGridLayout", {
-		CellSize = UDim2.fromOffset(64, 64),
-		CellPadding = UDim2.fromOffset(8, 6),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-	}),
 })
-autoScale(sideMenu)
+autoScale(computerHolder)
+local computerButton = makeButton(computerHolder, "", THEME.accent, UDim2.fromScale(1, 1), function()
+	if window.Visible then
+		window.Visible = false
+	else
+		openTab(currentTab)
+	end
+end)
+create("TextLabel", {
+	Parent = computerButton,
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 0.66, 0),
+	Text = "💻",
+	TextScaled = true,
+	Font = Enum.Font.GothamBold,
+	TextColor3 = THEME.text,
+})
+create("TextLabel", {
+	Parent = computerButton,
+	BackgroundTransparency = 1,
+	Position = UDim2.fromScale(0, 0.66),
+	Size = UDim2.new(1, 0, 0.34, 0),
+	Text = "Ordenador (M)",
+	TextScaled = true,
+	Font = Enum.Font.GothamBold,
+	TextColor3 = THEME.text,
+	TextStrokeTransparency = 0.5,
+})
+local computerBadge = create("TextLabel", {
+	Parent = computerHolder,
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(1, -8, 0, 8),
+	Size = UDim2.fromOffset(34, 34),
+	BackgroundColor3 = THEME.red,
+	Text = "",
+	TextColor3 = THEME.text,
+	Font = Enum.Font.FredokaOne,
+	TextSize = 20,
+	Visible = false,
+	ZIndex = 5,
+}, { corner(17), stroke(THEME.text, 2) })
 
-local menuBadges: { [string]: TextLabel } = {}
-for i, tab in TABS do
-	local button = makeButton(sideMenu, "", tab.color, UDim2.fromOffset(64, 64), function()
-		if window.Visible and currentTab == tab.id then
-			window.Visible = false
-		else
-			openTab(tab.id)
-		end
-	end)
-	button.LayoutOrder = i
-	create("TextLabel", {
-		Parent = button,
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0.62, 0),
-		Text = tab.emoji,
-		TextScaled = true,
-		Font = Enum.Font.GothamBold,
-		TextColor3 = THEME.text,
-	})
-	create("TextLabel", {
-		Parent = button,
-		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 0.62),
-		Size = UDim2.new(1, 0, 0.38, 0),
-		Text = tab.name,
-		TextScaled = true,
-		Font = Enum.Font.GothamBold,
-		TextColor3 = THEME.text,
-		TextStrokeTransparency = 0.5,
-	})
-	menuBadges[tab.id] = create("TextLabel", {
-		Parent = button,
+local tabBadges: { [string]: TextLabel } = {}
+local badgeValues: { [string]: number } = {}
+for _, tab in TABS do
+	tabBadges[tab.id] = create("TextLabel", {
+		Parent = tabButtons[tab.id],
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(1, -6, 0, 6),
-		Size = UDim2.fromOffset(24, 24),
+		Position = UDim2.new(1, -2, 0, 2),
+		Size = UDim2.fromOffset(20, 20),
 		BackgroundColor3 = THEME.red,
 		Text = "!",
 		TextColor3 = THEME.text,
 		Font = Enum.Font.FredokaOne,
-		TextSize = 16,
+		TextSize = 14,
 		Visible = false,
 		ZIndex = 3,
-	}, { corner(12), stroke(THEME.text, 2) })
+	}, { corner(10), stroke(THEME.text, 1.5) })
 end
 
 local function setBadge(id: string, value: (number | boolean)?)
-	local badge = menuBadges[id]
+	local badge = tabBadges[id]
 	if not badge then
 		return
 	end
-	if type(value) == "number" and value > 0 then
-		badge.Text = if value > 9 then "9+" else tostring(value)
-		badge.Visible = true
-	elseif value == true then
-		badge.Text = "!"
-		badge.Visible = true
-	else
-		badge.Visible = false
+	local count = if type(value) == "number" then value elseif value == true then 1 else 0
+	badgeValues[id] = count
+	badge.Visible = count > 0
+	badge.Text = if type(value) == "number" then (if value > 9 then "9+" else tostring(value)) else "!"
+	-- El botón del ordenador suma todos los avisos
+	local total = 0
+	for _, n in badgeValues do
+		total += n
 	end
+	computerBadge.Visible = total > 0
+	computerBadge.Text = if total > 9 then "9+" else tostring(total)
 end
 
 ---------------------------------------------------------------------
@@ -672,7 +693,7 @@ local HINTS = {
 	sites_5 = "Compra ☁️ Hosting para tener más huecos",
 	seo_5 = "En 🌐 Webs mejora el SEO de tu mejor web",
 	ipo_1 = "Abre 📈 Bolsa cuando ganes $1M",
-	job_1 = "Abre 💼 Carrera y pide empleo en una Startup",
+	job_1 = "Abre 💼 Carrera y acepta una oferta de empleo",
 	dev_8 = "Programa webs y trabaja para subir de nivel",
 	agency = "Abre 👥 Agencia y fúndala",
 	senior = "Sigue trabajando y sube el nivel de ese nicho",
@@ -697,6 +718,15 @@ local missionReward = makeLabel(missionCard, "", 66, 16, 13, THEME.green, true)
 local missionHint = makeLabel(missionCard, "", 82, 16, 12, THEME.muted)
 missionHint.TextWrapped = true
 missionHint.TextTruncate = Enum.TextTruncate.None
+create("TextButton", {
+	Parent = missionCard,
+	BackgroundTransparency = 1,
+	Size = UDim2.fromScale(1, 1),
+	Text = "",
+	ZIndex = 5,
+}).Activated:Connect(function()
+	openTab("missions")
+end)
 
 local function currentGoal(s)
 	for _, goal in Config.Goals do
@@ -710,7 +740,7 @@ end
 local function renderMission(s)
 	local goal = currentGoal(s)
 	if not goal then
-		missionText.Text = "¡Has completado todas las misiones! 👑"
+		missionText.Text = "¡Has completado todos los objetivos! 👑"
 		missionFill.Size = UDim2.fromScale(1, 1)
 		missionProgress.Text = ""
 		missionReward.Text = ""
@@ -721,8 +751,13 @@ local function renderMission(s)
 	missionText.Text = goal.text
 	missionFill.Size = UDim2.fromScale(math.clamp(value / goal.target, 0, 1), 1)
 	missionProgress.Text = if goal.target >= 1000 then fmt(value) .. " / " .. fmt(goal.target) else num(value) .. " / " .. num(goal.target)
-	missionReward.Text = if goal.reward > 0 then "🎁 Premio: " .. fmt(goal.reward) else "🎁 Premio: ¡acciones!"
-	missionHint.Text = HINTS[goal.id] or ""
+	if value >= goal.target then
+		missionReward.Text = "✅ ¡Completado! Toca aquí para reclamarlo"
+		missionHint.Text = "Se reclama en 🎯 Misiones"
+	else
+		missionReward.Text = if goal.reward > 0 then "🎁 Premio: " .. fmt(goal.reward) else "🎁 Premio: ¡acciones!"
+		missionHint.Text = HINTS[goal.id] or "Toca aquí para ver todas las misiones"
+	end
 end
 
 ---------------------------------------------------------------------
@@ -1044,6 +1079,9 @@ local detailSiteId: number? = nil
 local detail: ScrollingFrame
 local bestSiteFor: (any, any) -> (any, number)
 local oddsText: (field: string) -> string
+local tutorialTargets: { [string]: GuiObject } = {} -- botones que resalta el tutorial
+local startTutorial: () -> ()
+local tutorialOnState: (any) -> () = function() end
 
 ---------------------------------------------------------------------
 -- Pestaña CREAR
@@ -1065,6 +1103,7 @@ local programButton = makeButton(projectCard, "⌨️ PROGRAMAR", THEME.green, U
 	doClick()
 end)
 programButton.Position = UDim2.fromOffset(0, 60)
+tutorialTargets.program = programButton
 local projectInfo = makeLabel(projectCard, "", 126, 20, 14, THEME.muted)
 
 local nicheCard = makeCard(createPage, 82, 2, Color3.fromRGB(23, 37, 84))
@@ -1752,24 +1791,24 @@ quitButton = makeButton(jobRow, "Dimitir", THEME.red, UDim2.new(0.3, -3, 1, 0), 
 	end
 end)
 
--- Bolsa de empleo con filtro por nicho
-local boardHeader = makeCard(careerPage, 84, 4)
-makeLabel(boardHeader, "📋 Bolsa de empleo · 500 empresas", 0, 20, 16, THEME.text, true)
-local boardNiche = Career.DEFAULT_NICHE
-local boardChosen = false
-local boardFilter = makeButtonRow(boardHeader, 28, 34)
-local boardFilterButtons = {}
-for _, niche in Career.Niches do
-	boardFilterButtons[niche.id] = makeButton(boardFilter, niche.emoji, THEME.card, UDim2.new(0.1, -6, 1, 0), function()
-		boardNiche = niche.id
-		boardChosen = true
-		if state then
-			renderers.career(state)
-		end
-	end)
-end
+-- Ofertas de empleo que te llegan (cada una con su sueldo aleatorio)
+local offersHeader = makeCard(careerPage, 96, 4, Color3.fromRGB(23, 37, 84))
+makeLabel(offersHeader, "📨 Ofertas de empleo", 0, 20, 17, THEME.text, true)
+local offersInfo = makeLabel(offersHeader, "Te llegan solas cada poco. Cada empresa paga distinto y cada oferta tiene sus condiciones.", 22, 18, 13, THEME.muted)
+local cvButton = makeButton(offersHeader, "", THEME.accent, UDim2.new(1, 0, 0, 30), function()
+	sendAction("sendCV")
+end)
+cvButton.Position = UDim2.fromOffset(0, 46)
 
-local jobRows = {}
+local emptyOffers = makeCard(careerPage, 50, 5)
+makeLabel(emptyOffers, "No tienes ofertas ahora mismo. Envía un currículum o espera a que te escriban.", 0, 30, 14, THEME.muted)
+
+local offerJobRows = {}
+
+local function multText(mult: number): string
+	local percent = math.floor((mult - 1) * 100 + 0.5)
+	return if percent >= 0 then "+" .. percent .. "%" else tostring(percent) .. "%"
+end
 
 renderers.career = function(s)
 	local c = s.career
@@ -1792,7 +1831,7 @@ renderers.career = function(s)
 		local company = Career.company(job.companyId)
 		local rank = Career.Ranks[job.rank]
 		jobTitle.Text = string.format("💼 %s · %s %s", company.name, company.tier.emoji, company.tier.name)
-		jobInfo.Text = string.format("%s · Puesto: %s · Sueldo %s/s · +%s XP/s", nicheLabel(company.niche), rank.name, fmt(job.salary), num(job.xpRate))
+		jobInfo.Text = string.format("%s · Puesto: %s · Sueldo %s/s (%s) · +%s XP/s", nicheLabel(company.niche), rank.name, fmt(job.salary), multText(job.salaryMult or 1), num(job.xpRate))
 		jobPromotion.Text = if job.promotion then "⬆️ Próximo ascenso: " .. job.promotion else "⬆️ ¡Ascenso inminente!"
 		if job.taskLeft <= 0 then
 			setButton(taskButton, string.format("✅ Resolver tarea (+%s)", fmt(job.salary * Career.TASK_SALARY_SECONDS)), true, THEME.green)
@@ -1803,67 +1842,46 @@ renderers.career = function(s)
 		if os.clock() >= quitConfirm then
 			setButton(quitButton, "Dimitir", true, THEME.red)
 		end
-		if not boardChosen then
-			boardNiche = company.niche
-		end
 	else
 		jobTitle.Text = "💼 Sin trabajo"
-		jobInfo.Text = "Pide empleo en una empresa de abajo: cobrarás un sueldo y subirás de nivel."
+		jobInfo.Text = "Acepta una de las ofertas de abajo: cobrarás un sueldo y subirás de nivel."
 		jobPromotion.Text = ""
-		setButton(taskButton, "Elige una empresa en la bolsa de empleo 👇", false)
+		setButton(taskButton, "Acepta una oferta de empleo 👇", false)
 		quitButton.Visible = false
-		if not boardChosen then
-			boardNiche = s.selectedNiche or Career.DEFAULT_NICHE
-		end
 	end
 
-	for id, button in boardFilterButtons do
-		setButton(button, Career.NicheById[id].emoji, true, if id == boardNiche then THEME.accent else THEME.card)
+	-- Currículum
+	if c.cvLeft > 0 then
+		setButton(cvButton, "📨 Enviar currículum (en " .. Config.formatTime(c.cvLeft) .. ")", false)
+	else
+		setButton(cvButton, "📨 Enviar currículum a una empresa", true, THEME.accent)
 	end
+	offersInfo.Text = string.format("Te llegan solas cada poco (máx. %d). Cada empresa paga distinto y cada oferta tiene sus condiciones.", Career.JOB_OFFER_MAX)
+	emptyOffers.Visible = #c.jobOffers == 0
 
-	-- Empresas del nicho: las 8 mejores que puedes pedir y las 4 siguientes
-	local level = c.nicheLevels[boardNiche]
-	local available, locked = {}, {}
-	for _, company in Career.CompaniesByNiche[boardNiche] do
-		if company.reqLevel <= level then
-			table.insert(available, company)
-		else
-			table.insert(locked, company)
-		end
-	end
-	local list = {}
-	for i = #available, math.max(1, #available - 7), -1 do
-		table.insert(list, available[i])
-	end
-	for i = 1, math.min(4, #locked) do
-		table.insert(list, locked[i])
-	end
-
-	syncRows(careerPage, jobRows, list, function(company)
-		return company.id
-	end, function(company)
-		local card = makeCard(careerPage, 82, 0)
-		local row: any = { frame = card, id = company.id }
+	syncRows(careerPage, offerJobRows, c.jobOffers, function(offer)
+		return offer.id
+	end, function(offer)
+		local card = makeCard(careerPage, 104, 0)
+		local row: any = { frame = card, id = offer.id }
 		row.title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
 		row.info = makeLabel(card, "", 22, 18, 13, THEME.muted)
-		row.button = makeButton(card, "", THEME.accent, UDim2.new(1, 0, 0, 28), function()
-			sendAction("applyJob", row.id)
+		row.info2 = makeLabel(card, "", 42, 18, 13, THEME.text)
+		row.button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
+			sendAction("acceptJobOffer", row.id)
 		end)
-		row.button.Position = UDim2.fromOffset(0, 42)
+		row.button.Position = UDim2.fromOffset(0, 64)
 		return row
-	end, function(row, company)
-		local salary = Career.salary(company, 1, level, s.moneyMult)
-		row.title.Text = string.format("%s %s · %s", company.tier.emoji, company.name, company.tier.name)
-		row.info.Text = string.format("%s · Nivel requerido %d · Sueldo de Junior %s/s · %s XP/s",
-			nicheLabel(company.niche), company.reqLevel, fmt(salary), num(Career.jobXpRate(company, 1, if s.bonuses.xpPass then 2 else 1)))
-		if job and job.companyId == company.id then
-			setButton(row.button, "✓ Trabajas aquí", false, THEME.green)
-			row.button:SetAttribute("PaintColor", THEME.green)
-		elseif company.reqLevel > level then
-			setButton(row.button, "🔒 Necesitas nivel " .. company.reqLevel .. " en " .. Career.NicheById[company.niche].name, false)
-		else
-			setButton(row.button, if job then "Cambiar a esta empresa" else "📨 Pedir empleo", true)
-		end
+	end, function(row, offer)
+		local company = Career.company(offer.companyId)
+		local rank = Career.Ranks[offer.rank]
+		local better = job == nil or offer.salary > job.salary
+		row.title.Text = string.format("%s %s · %s · %s", company.tier.emoji, company.name, company.tier.name, nicheLabel(company.niche))
+		row.title.TextColor3 = if offer.salaryMult >= 1.3 then THEME.yellow else THEME.text
+		row.info.Text = string.format("Puesto: %s · caduca en %s", rank.name, Config.formatTime(offer.timeLeft))
+		row.info2.Text = string.format("💵 %s/s (%s) · 🎓 %s XP/s (%s)%s", fmt(offer.salary), multText(offer.salaryMult), num(offer.xpRate), multText(offer.xpMult),
+			if job then (if better then "  ·  ⬆️ mejor que tu sueldo" else "  ·  ⬇️ menos que tu sueldo") else "")
+		setButton(row.button, if job then "Cambiar a este trabajo" else "✅ Aceptar oferta", true, if better then THEME.green else THEME.orange)
 	end)
 end
 end
@@ -2092,6 +2110,113 @@ end
 end
 
 ---------------------------------------------------------------------
+-- Pestaña MISIONES (diarias + objetivos que se reclaman)
+---------------------------------------------------------------------
+do
+local missionsPage = pages.missions
+
+local dailyHeader = makeCard(missionsPage, 66, 1, Color3.fromRGB(66, 52, 12))
+local dailyTitle = makeLabel(dailyHeader, "📅 Misiones diarias", 0, 22, 18, THEME.text, true)
+local dailyBonus = makeLabel(dailyHeader, "", 24, 18, 14, THEME.yellow, true)
+
+local TIER_COLORS = { THEME.green, THEME.accent, THEME.purple }
+local dailyCards = {}
+for i = 1, Config.DAILY_MISSION_COUNT do
+	local card = makeCard(missionsPage, 96, 1 + i)
+	local title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
+	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 18), TIER_COLORS[i] or THEME.accent)
+	local button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
+		sendAction("claimDailyMission", i, nil, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	button.Position = UDim2.fromOffset(0, 46)
+	dailyCards[i] = { card = card, title = title, fill = fill, text = text, button = button }
+end
+
+local goalsHeader = makeCard(missionsPage, 82, 10, Color3.fromRGB(30, 58, 138))
+local goalsTitle = makeLabel(goalsHeader, "🏆 Objetivos", 0, 22, 18, THEME.text, true)
+local tutorialButton = makeButton(goalsHeader, "📖 Ver el tutorial otra vez", THEME.card, UDim2.new(1, 0, 0, 30), function()
+	window.Visible = false
+	startTutorial()
+end)
+tutorialButton.Position = UDim2.fromOffset(0, 32)
+
+local goalCards = {}
+for _, goal in Config.Goals do
+	local card = makeCard(missionsPage, 92, 100)
+	local title = makeLabel(card, goal.text, 0, 20, 16, THEME.text, true)
+	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 16), THEME.yellow)
+	local button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
+		sendAction("claimGoal", goal.id, nil, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	button.Position = UDim2.fromOffset(0, 44)
+	goalCards[goal.id] = { card = card, title = title, fill = fill, text = text, button = button }
+end
+
+renderers.missions = function(s)
+	local daily = s.dailyMissions
+	dailyTitle.Text = "📅 Misiones diarias · nuevas en " .. Config.formatTime(daily.resetIn)
+	dailyBonus.Text = if daily.bonusGiven then "🏆 ¡Bonus de hoy conseguido!"
+		else "🎁 Completa las " .. Config.DAILY_MISSION_COUNT .. ": 🚀 Boost x2 " .. Config.DAILY_ALL_BONUS_BOOST_MINUTES .. " min"
+	for i, slot in dailyCards do
+		local mission = daily.list[i]
+		slot.card.Visible = mission ~= nil
+		if mission then
+			local def = Config.DailyMissionById[mission.id]
+			local tier = Config.DailyMissionRewards[mission.tier]
+			slot.title.Text = string.format("%s · %s", tier.name, string.format(def.text, mission.target))
+			slot.fill.Size = UDim2.fromScale(math.clamp(mission.progress / mission.target, 0, 1), 1)
+			slot.text.Text = num(mission.progress) .. " / " .. num(mission.target)
+			local amount = daily.rewards[mission.tier] or 0
+			if mission.claimed then
+				setButton(slot.button, "✓ Reclamada", false, THEME.green)
+				slot.button:SetAttribute("PaintColor", THEME.green)
+			elseif mission.progress >= mission.target then
+				setButton(slot.button, "🎁 Reclamar " .. fmt(amount), true, THEME.green)
+			else
+				setButton(slot.button, "Premio: " .. fmt(amount), false)
+			end
+		end
+	end
+
+	local claimable, done = 0, 0
+	for i, goal in Config.Goals do
+		local slot = goalCards[goal.id]
+		local claimed = s.goals[goal.id] == true
+		local value = math.min(goal.value(s), goal.target)
+		local complete = value >= goal.target
+		local rewardText = if goal.reward > 0 then fmt(goal.reward) else "¡acciones!"
+		slot.fill.Size = UDim2.fromScale(math.clamp(value / goal.target, 0, 1), 1)
+		slot.text.Text = if goal.target >= 1000 then fmt(value) .. " / " .. fmt(goal.target) else num(value) .. " / " .. num(goal.target)
+		if claimed then
+			done += 1
+			slot.card.LayoutOrder = 400 + i
+			slot.title.TextColor3 = THEME.muted
+			setButton(slot.button, "✓ Reclamado", false, THEME.green)
+			slot.button:SetAttribute("PaintColor", THEME.green)
+		elseif complete then
+			claimable += 1
+			slot.card.LayoutOrder = 100 + i
+			slot.title.TextColor3 = THEME.yellow
+			setButton(slot.button, "🎁 Reclamar " .. rewardText, true, THEME.green)
+		else
+			slot.card.LayoutOrder = 200 + i
+			slot.title.TextColor3 = THEME.text
+			setButton(slot.button, "Premio: " .. rewardText, false)
+		end
+	end
+	goalsTitle.Text = string.format("🏆 Objetivos · %d/%d completados%s", done, #Config.Goals, if claimable > 0 then " · " .. claimable .. " por reclamar" else "")
+end
+end
+
+---------------------------------------------------------------------
 -- Pestaña BOLSA (prestigio, objetivos y estadísticas)
 ---------------------------------------------------------------------
 do
@@ -2124,14 +2249,6 @@ local saveButton = makeButton(statsCard, "💾 Guardar ahora", THEME.accent, UDi
 end)
 saveButton.Position = UDim2.fromOffset(0, 70)
 
-local goalsTitle = makeCard(marketPage, 40, 3)
-makeLabel(goalsTitle, "🎯 Objetivos", 0, 20, 17, THEME.text, true)
-
-local goalRows = {}
-for i, goal in Config.Goals do
-	local card = makeCard(marketPage, 40, 10 + i)
-	goalRows[goal.id] = makeLabel(card, "", 0, 20, 14, THEME.muted)
-end
 
 renderers.market = function(s)
 	ipoInfo1.Text = string.format("Ganado en esta partida: %s · Acciones: %d (x%.2f dinero)", fmt(s.totalEarned), s.shares, 1 + s.shares * Config.SHARE_BONUS)
@@ -2157,14 +2274,6 @@ renderers.market = function(s)
 	end
 	saveLabel.Text = "Ganado en total " .. fmt(s.lifetimeEarned) .. " · " .. saveText
 	saveLabel.TextColor3 = if s.canSave then THEME.muted else THEME.red
-
-	for _, goal in Config.Goals do
-		local done = s.goals[goal.id] == true
-		local label = goalRows[goal.id]
-		local progress = if done then "" else string.format("  (%s/%s)", num(math.min(goal.value(s), goal.target)), num(goal.target))
-		label.Text = (if done then "✅ " else "⬜ ") .. goal.text .. progress .. (if goal.reward > 0 then "  ·  " .. fmt(goal.reward) else "")
-		label.TextColor3 = if done then THEME.green else THEME.text
-	end
 end
 end
 
@@ -2382,6 +2491,185 @@ local function findMyPlot()
 end
 
 ---------------------------------------------------------------------
+-- Tutorial interactivo (sale a todos la primera vez)
+---------------------------------------------------------------------
+do
+local tutorialGui = create("ScreenGui", { Name = "ImperioWebTutorial", ResetOnSpawn = false, DisplayOrder = 8, Enabled = false, Parent = playerGui })
+
+-- Marco amarillo que resalta el botón del paso actual
+local highlight = create("Frame", {
+	Parent = tutorialGui,
+	BackgroundTransparency = 1,
+	Visible = false,
+}, { corner(16) })
+local highlightStroke = create("UIStroke", { Parent = highlight, Color = THEME.yellow, Thickness = 5 })
+local pointer = create("TextLabel", {
+	Parent = tutorialGui,
+	BackgroundTransparency = 1,
+	Size = UDim2.fromOffset(60, 60),
+	AnchorPoint = Vector2.new(0.5, 1),
+	Text = "👇",
+	TextScaled = true,
+	Visible = false,
+})
+
+local tutorialCard = create("Frame", {
+	Parent = tutorialGui,
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 112),
+	Size = UDim2.fromOffset(540, 168),
+	BackgroundColor3 = THEME.panel,
+}, { corner(16), padding(14), stroke(THEME.yellow, 3) })
+autoScale(tutorialCard)
+local stepLabel = makeLabel(tutorialCard, "", 0, 16, 13, THEME.muted, true)
+local titleLabel = makeLabel(tutorialCard, "", 18, 28, 22, THEME.yellow, true)
+local bodyLabel = makeLabel(tutorialCard, "", 50, 52, 15, THEME.text)
+bodyLabel.TextWrapped = true
+bodyLabel.TextTruncate = Enum.TextTruncate.None
+bodyLabel.TextYAlignment = Enum.TextYAlignment.Top
+local tutorialRow = makeButtonRow(tutorialCard, 106, 34)
+local skipButton = makeButton(tutorialRow, "Saltar tutorial", THEME.card, UDim2.new(0.35, -3, 1, 0), function() end)
+local nextButton = makeButton(tutorialRow, "Siguiente ▶", THEME.green, UDim2.new(0.65, -3, 1, 0), function() end)
+
+type Step = {
+	title: string,
+	body: string,
+	target: (() -> GuiObject?)?,
+	waitFor: ((any) -> boolean)?,
+}
+
+local STEPS: { Step } = {
+	{
+		title = "👋 ¡Bienvenido a Web Empire!",
+		body = "Eres un emprendedor que crea páginas web. Tu objetivo: convertirlas en un imperio y ganar todo el dinero posible.",
+	},
+	{
+		title = "➕ Tu primera web",
+		body = "Pulsa «➕ Nueva web» y elige la Landing Page en la lista (botón «➕ Crear»).",
+		target = function()
+			return if window.Visible then nil else quickButton
+		end,
+		waitFor = function(s)
+			return s.project ~= nil or s.stats.built > 0
+		end,
+	},
+	{
+		title = "⌨️ ¡A programar!",
+		body = "Pulsa PROGRAMAR (o la tecla F) hasta terminar la web. ¡A veces sale un golpe crítico x5!",
+		target = function()
+			return if window.Visible then tutorialTargets.program else quickButton
+		end,
+		waitFor = function(s)
+			return s.stats.built > 0
+		end,
+	},
+	{
+		title = "💰 ¡Ya ganas dinero!",
+		body = "Tu web recibe visitas y gana dinero con anuncios cada segundo. Tu dinero aparece aquí arriba.",
+		target = function()
+			return moneyPill
+		end,
+	},
+	{
+		title = "💻 Tu ordenador",
+		body = "Desde aquí lo controlas todo: tus webs, los clientes que las compran, anuncios, empresas, tu carrera, tu agencia y la tienda.",
+		target = function()
+			return computerButton
+		end,
+	},
+	{
+		title = "🎯 Misiones",
+		body = "Esta tarjeta te dice qué hacer a continuación. Completa misiones diarias y objetivos para ganar premios.",
+		target = function()
+			return missionCard
+		end,
+	},
+	{
+		title = "🚀 ¡Todo listo!",
+		body = "Haz crecer tu rascacielos hasta que sea el más alto de la ciudad. ¡Suerte, magnate!",
+	},
+}
+
+local stepIndex = 0
+local running = false
+
+local function finish()
+	running = false
+	tutorialGui.Enabled = false
+	sendAction("finishTutorial")
+end
+
+local function showStep(index: number)
+	stepIndex = index
+	local step = STEPS[index]
+	if not step then
+		finish()
+		return
+	end
+	-- Si ya se cumple lo que pide el paso, se salta solo
+	if step.waitFor and state and step.waitFor(state) then
+		showStep(index + 1)
+		return
+	end
+	stepLabel.Text = string.format("TUTORIAL · PASO %d DE %d", index, #STEPS)
+	titleLabel.Text = step.title
+	bodyLabel.Text = step.body
+	local last = index == #STEPS
+	nextButton.Visible = step.waitFor == nil
+	setButton(nextButton, if last then "🎉 ¡Empezar!" else "Siguiente ▶", true, THEME.green)
+	skipButton.Visible = not last
+	playSound("success")
+end
+
+nextButton.Activated:Connect(function()
+	if running then
+		showStep(stepIndex + 1)
+	end
+end)
+skipButton.Activated:Connect(function()
+	if running then
+		finish()
+	end
+end)
+
+function startTutorial()
+	running = true
+	tutorialGui.Enabled = true
+	showStep(1)
+end
+
+function tutorialOnState(s)
+	if running then
+		local step = STEPS[stepIndex]
+		if step and step.waitFor and step.waitFor(s) then
+			showStep(stepIndex + 1)
+		end
+	end
+end
+
+-- El marco amarillo sigue al botón del paso y late
+RunService.RenderStepped:Connect(function()
+	if not running then
+		return
+	end
+	local step = STEPS[stepIndex]
+	local target = step and step.target and step.target()
+	if target and target.Parent and target.Visible then
+		local pos, size = target.AbsolutePosition, target.AbsoluteSize
+		highlight.Visible = true
+		highlight.Position = UDim2.fromOffset(pos.X - 8, pos.Y - 8)
+		highlight.Size = UDim2.fromOffset(size.X + 16, size.Y + 16)
+		highlightStroke.Transparency = 0.25 + 0.25 * math.sin(os.clock() * 6)
+		pointer.Visible = true
+		pointer.Position = UDim2.fromOffset(pos.X + size.X / 2, pos.Y - 10 + 6 * math.sin(os.clock() * 5))
+	else
+		highlight.Visible = false
+		pointer.Visible = false
+	end
+end)
+end
+
+---------------------------------------------------------------------
 -- Recibir estado del servidor
 ---------------------------------------------------------------------
 local function renderAlways(s)
@@ -2422,7 +2710,7 @@ local function renderAlways(s)
 	setBadge("ads", canUnlock)
 	setBadge("market", s.ipoShares >= 1)
 	local c = s.career
-	setBadge("career", c.job ~= nil and c.job.taskLeft <= 0)
+	setBadge("career", (c.job ~= nil and c.job.taskLeft <= 0) or (c.job == nil and #c.jobOffers > 0))
 	local agencyReady = false
 	if c.agency then
 		local space = #c.programmers < c.agency.capacity
@@ -2433,6 +2721,18 @@ local function renderAlways(s)
 	setBadge("agency", agencyReady)
 	saveBanner.Visible = not s.canSave
 	setBadge("shop", s.giftLeft <= 0 or s.dailyAvailable)
+	local claimable = 0
+	for _, goal in Config.Goals do
+		if not s.goals[goal.id] and goal.value(s) >= goal.target then
+			claimable += 1
+		end
+	end
+	for _, mission in s.dailyMissions.list do
+		if not mission.claimed and mission.progress >= mission.target then
+			claimable += 1
+		end
+	end
+	setBadge("missions", claimable)
 
 	-- Bonus activos
 	chips.pass.Visible = s.bonuses.pass
@@ -2495,8 +2795,14 @@ stateEvent.OnClientEvent:Connect(function(newState)
 	if window.Visible and renderers[currentTab] then
 		renderers[currentTab](newState)
 	end
+	tutorialOnState(newState)
 
 	if first then
+		muted = newState.settings and newState.settings.muted == true
+		muteButton.Text = if muted then "🔇" else "🔊"
+		if not newState.tutorialDone then
+			task.delay(1.5, startTutorial)
+		end
 		task.delay(4, function()
 			if not dailyShown and state and state.dailyAvailable and state.stats.built > 0 then
 				dailyShown = true
