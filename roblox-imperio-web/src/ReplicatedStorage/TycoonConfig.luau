@@ -2,19 +2,23 @@
 	TycoonConfig (ModuleScript en ReplicatedStorage)
 
 	Todos los datos del juego (tipos de web, apps de anuncios, empresas,
-	objetivos...) y las fórmulas de economía. Lo usan el servidor (que es
-	quien manda) y el cliente (para mostrar precios).
+	objetivos, tienda...) y las fórmulas de economía. Lo usan el servidor
+	(que es quien manda) y el cliente (para mostrar precios y progreso).
 
 	Para equilibrar el juego basta con tocar los números de este archivo.
 ]]
 
 local Config = {}
 
+Config.VERSION = "1.0"
+
 ---------------------------------------------------------------------
 -- Ajustes generales
 ---------------------------------------------------------------------
 Config.DATASTORE_NAME = "ImperioWeb_v1"
+Config.LEADERBOARD_NAME = "ImperioWebTop_v1"
 Config.AUTOSAVE_INTERVAL = 120 -- segundos
+Config.LEADERBOARD_REFRESH = 120 -- segundos
 Config.STARTING_MONEY = 25
 Config.BASE_SLOTS = 3 -- webs que puedes tener a la vez sin Hosting
 Config.OFFLINE_MAX_HOURS = 8
@@ -31,11 +35,50 @@ Config.SHARE_BONUS = 0.05 -- +5 % de dinero por cada acción
 Config.EVENT_MIN_DELAY = 90
 Config.EVENT_MAX_DELAY = 180
 Config.CLICK_RATE_LIMIT = 15 -- clics por segundo como máximo
+Config.CRIT_CHANCE = 0.06 -- probabilidad de clic crítico
+Config.CRIT_MULT = 5
+Config.GIFT_INTERVAL = 600 -- un regalo cada 10 minutos jugando
+Config.GIFT_MINUTES = 3 -- el regalo vale 3 minutos de ingresos...
+Config.GIFT_MIN = 200 -- ...o como mínimo esto
+Config.DAY_LENGTH_MINUTES = 16 -- duración de un día completo en el juego
+Config.WALK_SPEED = 22
 
--- Monetización opcional. Crea un Game Pass en el Creator Hub y pon su ID
--- aquí. Con 0 la tienda no aparece.
+---------------------------------------------------------------------
+-- Monetización (Robux). Con id = 0 el artículo no aparece en la tienda.
+-- Crea los Game Passes y Developer Products en el Creator Hub y pega
+-- aquí sus IDs. El precio en Robux se pone allí, no aquí.
+---------------------------------------------------------------------
 Config.Monetization = {
-	DOUBLE_MONEY_GAMEPASS_ID = 0,
+	GamePasses = {
+		{ key = "pass", id = 0, emoji = "💎", name = "x2 Dinero", desc = "Ganas el doble de dinero para siempre." },
+		{ key = "turbo", id = 0, emoji = "⚡", name = "Programador Turbo", desc = "Programas el doble de rápido para siempre." },
+		{ key = "slotsPass", id = 0, emoji = "🗄️", name = "+3 Huecos", desc = "Puedes tener 3 webs más a la vez." },
+	},
+	Products = {
+		{ key = "cash_small", id = 0, emoji = "💼", name = "Maletín de dinero", kind = "cash", minutes = 15, min = 1000,
+			desc = "15 minutos de tus ingresos al instante." },
+		{ key = "cash_big", id = 0, emoji = "🚚", name = "Camión de dinero", kind = "cash", minutes = 120, min = 15000,
+			desc = "2 horas de tus ingresos al instante." },
+		{ key = "boost", id = 0, emoji = "🚀", name = "Boost x2 (30 min)", kind = "boost", minutes = 30,
+			desc = "Todo tu dinero x2 durante 30 minutos." },
+		{ key = "finish", id = 0, emoji = "⏩", name = "Terminar web ya", kind = "finish",
+			desc = "Termina al instante la web que estás programando." },
+	},
+	GROUP_ID = 0, -- ID de tu grupo de Roblox (0 = desactivado)
+	GROUP_BONUS = 0.10,
+	PREMIUM_BONUS = 0.10,
+	FRIEND_BONUS = 0.10, -- por cada amigo en el mismo servidor
+	MAX_FRIENDS = 4,
+}
+
+-- Sonidos. Puedes cambiarlos por IDs de la Creator Store
+-- ("rbxassetid://123456").
+Config.Sounds = {
+	click = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.25, speed = 1.6 },
+	crit = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.6, speed = 0.8 },
+	success = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, speed = 1.0 },
+	money = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, speed = 1.25 },
+	error = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.3, speed = 0.5 },
 }
 
 ---------------------------------------------------------------------
@@ -105,47 +148,81 @@ Config.Companies = {
 }
 
 ---------------------------------------------------------------------
--- Objetivos (dan dinero la primera vez que los cumples)
+-- Recompensa diaria (racha de 7 días). Vale "minutes" minutos de tus
+-- ingresos o, como mínimo, "min".
 ---------------------------------------------------------------------
-local function totalCompanyLevels(data): number
+Config.DailyRewards = {
+	{ minutes = 2, min = 100 },
+	{ minutes = 4, min = 300 },
+	{ minutes = 6, min = 600 },
+	{ minutes = 10, min = 1200 },
+	{ minutes = 15, min = 2500 },
+	{ minutes = 20, min = 5000 },
+	{ minutes = 30, min = 10000, boostMinutes = 30 },
+}
+
+---------------------------------------------------------------------
+-- Objetivos: dan dinero la primera vez que los cumples.
+-- value(d) devuelve el progreso actual y target la meta.
+---------------------------------------------------------------------
+local function companyLevels(d): number
 	local total = 0
-	for _, level in data.companies do
+	for _, level in d.companies do
 		total += level
 	end
 	return total
 end
 
-local function countKeys(t): number
+local function networksUnlocked(d): number
 	local n = 0
-	for _ in t do
+	for _ in d.unlockedAds do
 		n += 1
 	end
 	return n
 end
 
-local function hasType(data, typeId: string): boolean
-	for _, site in data.sites do
-		if site.type == typeId then
-			return true
-		end
+local function maxSeo(d): number
+	local best = 0
+	for _, site in d.sites do
+		best = math.max(best, site.seo)
 	end
-	return false
+	return best
+end
+
+local function built(typeId: string)
+	return function(d): number
+		return (d.stats.byType and d.stats.byType[typeId]) or 0
+	end
+end
+
+local function goal(id: string, text: string, reward: number, target: number, value: (any) -> number)
+	return { id = id, text = text, reward = reward, target = target, value = value }
 end
 
 Config.Goals = {
-	{ id = "first_site", text = "Programa tu primera web", reward = 50, check = function(d) return d.stats.built >= 1 end },
-	{ id = "earn_1k", text = "Gana $1K en total", reward = 200, check = function(d) return d.totalEarned >= 1000 end },
-	{ id = "sell_1", text = "Vende una web a una empresa", reward = 300, check = function(d) return d.stats.sold >= 1 end },
-	{ id = "company_1", text = "Funda tu primera empresa", reward = 500, check = function(d) return totalCompanyLevels(d) >= 1 end },
-	{ id = "network_2", text = "Desbloquea una segunda app de anuncios", reward = 1500, check = function(d) return countKeys(d.unlockedAds) >= 2 end },
-	{ id = "sites_5", text = "Ten 5 webs a la vez", reward = 3000, check = function(d) return #d.sites >= 5 end },
-	{ id = "sell_10", text = "Vende 10 webs", reward = 10000, check = function(d) return d.stats.sold >= 10 end },
-	{ id = "earn_100k", text = "Gana $100K en total", reward = 20000, check = function(d) return d.totalEarned >= 100000 end },
-	{ id = "red_social", text = "Crea una Red Social", reward = 50000, check = function(d) return hasType(d, "red_social") end },
-	{ id = "companies_25", text = "Suma 25 niveles de empresas", reward = 100000, check = function(d) return totalCompanyLevels(d) >= 25 end },
-	{ id = "earn_1m", text = "Gana $1M en total", reward = 250000, check = function(d) return d.totalEarned >= 1000000 end },
-	{ id = "ipo_1", text = "Sal a bolsa por primera vez", reward = 0, check = function(d) return d.ipoCount >= 1 end },
-	{ id = "metaverso", text = "Crea un Metaverso", reward = 5000000, check = function(d) return hasType(d, "metaverso") end },
+	goal("first_site", "Programa tu primera web", 50, 1, function(d) return d.stats.built end),
+	goal("earn_1k", "Gana $1K", 200, 1e3, function(d) return d.totalEarned end),
+	goal("blog", "Programa un Blog", 300, 1, built("blog")),
+	goal("sell_1", "Vende una web a una empresa", 400, 1, function(d) return d.stats.sold end),
+	goal("company_1", "Funda tu primera empresa", 500, 1, companyLevels),
+	goal("network_2", "Desbloquea una segunda app de anuncios", 1500, 2, networksUnlocked),
+	goal("tienda", "Programa una Tienda Online", 2000, 1, built("tienda")),
+	goal("sites_5", "Ten 5 webs a la vez", 3000, 5, function(d) return #d.sites end),
+	goal("seo_5", "Sube una web a SEO 5", 5000, 5, maxSeo),
+	goal("sell_10", "Vende 10 webs", 10000, 10, function(d) return d.stats.sold end),
+	goal("earn_100k", "Gana $100K", 20000, 1e5, function(d) return d.totalEarned end),
+	goal("noticias", "Programa un Periódico Digital", 30000, 1, built("noticias")),
+	goal("companies_25", "Suma 25 niveles de empresas", 100000, 25, companyLevels),
+	goal("earn_1m", "Gana $1M", 250000, 1e6, function(d) return d.totalEarned end),
+	goal("ipo_1", "Sal a bolsa por primera vez", 0, 1, function(d) return d.ipoCount end),
+	goal("red_social", "Programa una Red Social", 500000, 1, built("red_social")),
+	goal("sell_100", "Vende 100 webs", 1000000, 100, function(d) return d.stats.sold end),
+	goal("earn_1b", "Gana $1B", 50000000, 1e9, function(d) return d.totalEarned end),
+	goal("streaming", "Programa una Plataforma de Streaming", 100000000, 1, built("streaming")),
+	goal("ipo_5", "Sal a bolsa 5 veces", 0, 5, function(d) return d.ipoCount end),
+	goal("app_ia", "Programa una App de IA", 2000000000, 1, built("app_ia")),
+	goal("metaverso", "Programa un Metaverso", 50000000000, 1, built("metaverso")),
+	goal("earn_1t", "Gana $1T", 500000000000, 1e12, function(d) return d.totalEarned end),
 }
 
 ---------------------------------------------------------------------
@@ -176,21 +253,28 @@ Config.Events = {
 ---------------------------------------------------------------------
 -- Búsquedas rápidas por id
 ---------------------------------------------------------------------
-local function index(list)
+local function index(list, field: string)
 	local map = {}
 	for i, item in list do
 		item.order = i
-		map[item.id] = item
+		map[item[field]] = item
 	end
 	return map
 end
 
-Config.WebTypeById = index(Config.WebTypes)
-Config.AdNetworkById = index(Config.AdNetworks)
-Config.CompanyById = index(Config.Companies)
+Config.WebTypeById = index(Config.WebTypes, "id")
+Config.AdNetworkById = index(Config.AdNetworks, "id")
+Config.CompanyById = index(Config.Companies, "id")
+-- Pases y productos se buscan por "key" (su id vale 0 hasta que lo configures)
+Config.PassByKey = index(Config.Monetization.GamePasses, "key")
+Config.ProductByKey = index(Config.Monetization.Products, "key")
 
 ---------------------------------------------------------------------
 -- Fórmulas (iguales en servidor y cliente)
+--
+-- "bonuses" es una tabla que calcula el servidor para cada jugador:
+--   { pass, turbo, slotsPass, boost: boolean, friends: number,
+--     premium, group: boolean }
 ---------------------------------------------------------------------
 function Config.level(data, companyId: string): number
 	return data.companies[companyId] or 0
@@ -201,24 +285,49 @@ function Config.companyCost(companyId: string, level: number): number
 	return math.floor(def.baseCost * def.growth ^ level)
 end
 
-function Config.slots(data): number
-	return Config.BASE_SLOTS + Config.level(data, "hosting")
+function Config.slots(data, bonuses): number
+	local extra = if bonuses and bonuses.slotsPass then 3 else 0
+	return Config.BASE_SLOTS + Config.level(data, "hosting") + extra
 end
 
-function Config.workPerSec(data): number
-	return Config.level(data, "devs") * 1.5 * (1 + 0.25 * Config.level(data, "ia_lab"))
+function Config.workPerSec(data, bonuses): number
+	local turbo = if bonuses and bonuses.turbo then 2 else 1
+	return Config.level(data, "devs") * 1.5 * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo
 end
 
-function Config.clickPower(data): number
-	return (1 + Config.workPerSec(data) * 0.15) * (1 + 0.25 * Config.level(data, "ia_lab"))
+function Config.clickPower(data, bonuses): number
+	local turbo = if bonuses and bonuses.turbo then 2 else 1
+	return (1 + Config.workPerSec(data, nil) * 0.15) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo
 end
 
--- Multiplicador global de dinero (acciones, game pass, centro de datos)
-function Config.moneyMult(data, hasPass: boolean?): number
+-- % extra por amigos, Premium y grupo
+function Config.socialBonus(bonuses): number
+	if not bonuses then
+		return 0
+	end
+	local m = Config.Monetization
+	local pct = math.min(bonuses.friends or 0, m.MAX_FRIENDS) * m.FRIEND_BONUS
+	if bonuses.premium then
+		pct += m.PREMIUM_BONUS
+	end
+	if bonuses.group then
+		pct += m.GROUP_BONUS
+	end
+	return pct
+end
+
+-- Multiplicador global de dinero
+function Config.moneyMult(data, bonuses): number
 	local mult = 1 + data.shares * Config.SHARE_BONUS
 	mult *= 1 + 0.05 * Config.level(data, "datacenter")
-	if hasPass then
-		mult *= 2
+	if bonuses then
+		if bonuses.pass then
+			mult *= 2
+		end
+		if bonuses.boost then
+			mult *= 2
+		end
+		mult *= 1 + Config.socialBonus(bonuses)
 	end
 	return mult
 end
@@ -281,6 +390,23 @@ function Config.sharesForIpo(totalEarned: number): number
 	return math.floor(10 * math.sqrt(totalEarned / Config.IPO_MIN_EARNED))
 end
 
+-- Plantas del rascacielos: crecen con todo lo que has ganado en tu vida
+-- (nunca bajan, ni al vender webs ni al salir a bolsa).
+Config.MAX_FLOORS = 40
+function Config.buildingFloors(lifetimeEarned: number): number
+	local floors = 1 + math.floor(2.6 * math.log10(1 + math.max(lifetimeEarned, 0) / 100))
+	return math.clamp(floors, 1, Config.MAX_FLOORS)
+end
+
+-- Dinero ganado necesario para la planta "floors"
+function Config.earnedForFloor(floors: number): number
+	return 100 * (10 ^ ((floors - 1) / 2.6) - 1)
+end
+
+function Config.dayIndex(unixTime: number): number
+	return unixTime // 86400
+end
+
 ---------------------------------------------------------------------
 -- Formato de números: 1.25K, 3.4M, 7B...
 ---------------------------------------------------------------------
@@ -290,7 +416,7 @@ function Config.formatNumber(n: number): string
 	if n ~= n or n == math.huge or n == -math.huge then
 		return "∞"
 	end
-	local sign = n < 0 and "-" or ""
+	local sign = if n < 0 then "-" else ""
 	n = math.abs(n)
 	if n < 1000 then
 		if n < 10 and n % 1 ~= 0 then

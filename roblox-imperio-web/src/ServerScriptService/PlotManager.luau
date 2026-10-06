@@ -1,35 +1,37 @@
 --[[
 	PlotManager (ModuleScript en ServerScriptService)
 
-	Construye la ciudad: una calle con parcelas. Cada jugador recibe una
-	parcela con un ordenador (para abrir el menú) y un rascacielos que
-	gana plantas a medida que crece su imperio.
+	Las parcelas de Ciudad Web. Cada jugador recibe una con:
+	  · un terminal con ordenador (ProximityPrompt para abrir el menú)
+	  · un cartel con su nombre y su progreso
+	  · su rascacielos, que crece con todo lo que ha ganado
 ]]
 
 local Workspace = game:GetService("Workspace")
 
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("TycoonConfig"))
+local World = require(script.Parent:WaitForChild("World"))
+local Building = require(script.Parent:WaitForChild("Building"))
+
 local PlotManager = {}
 
-local PLOT_COUNT = 8
-local PLOT_SIZE = 60
-local PLOT_SPACING = 72
-local FLOOR_HEIGHT = 5
-local MAX_FLOORS = 40
-local BUILDING_SIZE = 24
+local SIZE = World.PLOT_SIZE
+local HALF = SIZE / 2
+local BUILDING_OFFSET = CFrame.new(0, 0.6, 10) -- centro del edificio dentro de la parcela
 
 type Plot = {
 	index: number,
-	origin: CFrame, -- centro de la parcela, mirando hacia la calle
+	origin: CFrame,
 	model: Model,
-	sign: TextLabel,
-	building: Model,
+	signTitle: TextLabel,
+	signInfo: TextLabel,
+	building: Model?,
 	floors: number,
 	owner: Player?,
 }
 
 local plots: { Plot } = {}
 local plotByPlayer: { [Player]: Plot } = {}
-local onComputerOpened: ((Player) -> ())? = nil
 
 local function newPart(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?): Part
 	local part = Instance.new("Part")
@@ -44,113 +46,110 @@ local function newPart(parent: Instance, size: Vector3, cframe: CFrame, color: C
 	return part
 end
 
-local function addBillboard(adornee: BasePart, text: string, offset: Vector3, size: UDim2): TextLabel
-	local gui = Instance.new("BillboardGui")
-	gui.Size = size
-	gui.StudsOffset = offset
-	gui.AlwaysOnTop = false
-	gui.MaxDistance = 200
-	gui.Adornee = adornee
-
+local function surfaceLabel(parent: Instance, text: string, size: UDim2, position: UDim2, color: Color3, bold: boolean): TextLabel
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
+	label.Size = size
+	label.Position = position
 	label.Text = text
 	label.TextScaled = true
-	label.Font = Enum.Font.FredokaOne
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.3
-	label.Parent = gui
-
-	gui.Parent = adornee
+	label.Font = if bold then Enum.Font.FredokaOne else Enum.Font.GothamBold
+	label.TextColor3 = color
+	label.Parent = parent
 	return label
 end
 
-local function buildPlot(city: Folder, index: number, origin: CFrame): Plot
+local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: (Player) -> ()): Plot
 	local model = Instance.new("Model")
 	model.Name = "Parcela" .. index
+	local style = Building.Styles[(index - 1) % #Building.Styles + 1]
 
-	-- Suelo de la parcela
-	newPart(model, Vector3.new(PLOT_SIZE, 1, PLOT_SIZE), origin * CFrame.new(0, 0.5, 0), Color3.fromRGB(86, 168, 92), Enum.Material.Grass)
-	-- Camino hasta la calle
-	newPart(model, Vector3.new(8, 1.05, PLOT_SIZE / 2), origin * CFrame.new(0, 0.52, -PLOT_SIZE / 4), Color3.fromRGB(200, 200, 205), Enum.Material.Concrete)
+	-- Base de piedra y césped
+	newPart(model, Vector3.new(SIZE + 2, 0.8, SIZE + 2), origin * CFrame.new(0, 0.2, 0), Color3.fromRGB(176, 172, 164), Enum.Material.Concrete)
+	newPart(model, Vector3.new(SIZE - 2, 0.4, SIZE - 2), origin * CFrame.new(0, 0.6, 0), Color3.fromRGB(104, 172, 92), Enum.Material.Grass)
+	-- Camino hasta el edificio
+	newPart(model, Vector3.new(8, 0.45, 26), origin * CFrame.new(0, 0.64, -HALF + 12), Color3.fromRGB(214, 210, 200), Enum.Material.Pavement)
 
-	-- Cartel con el nombre del dueño
-	local post = newPart(model, Vector3.new(1, 8, 1), origin * CFrame.new(10, 5, -PLOT_SIZE / 2 + 4), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
-	local sign = addBillboard(post, "🏗️ Parcela libre", Vector3.new(0, 6, 0), UDim2.fromOffset(260, 70))
+	-- Setos en los laterales y al fondo
+	local hedge = Color3.fromRGB(58, 120, 62)
+	newPart(model, Vector3.new(1.6, 3, SIZE - 6), origin * CFrame.new(-HALF + 2, 2.2, 2), hedge, Enum.Material.Grass)
+	newPart(model, Vector3.new(1.6, 3, SIZE - 6), origin * CFrame.new(HALF - 2, 2.2, 2), hedge, Enum.Material.Grass)
+	newPart(model, Vector3.new(SIZE - 4, 3, 1.6), origin * CFrame.new(0, 2.2, HALF - 2), hedge, Enum.Material.Grass)
 
-	-- Ordenador con ProximityPrompt para abrir el menú
-	local desk = newPart(model, Vector3.new(6, 3, 3), origin * CFrame.new(-10, 2.5, -PLOT_SIZE / 2 + 6), Color3.fromRGB(120, 85, 60), Enum.Material.Wood)
-	local screen = newPart(model, Vector3.new(4, 2.6, 0.3), desk.CFrame * CFrame.new(0, 2.8, 0.5), Color3.fromRGB(40, 120, 255), Enum.Material.Neon)
-	screen.Name = "Pantalla"
-	addBillboard(screen, "💻 Ordenador", Vector3.new(0, 3, 0), UDim2.fromOffset(160, 40))
+	-- Árboles delanteros
+	World.tree(model, (origin * CFrame.new(-HALF + 7, 0.8, -HALF + 7)).Position, 1)
+	World.tree(model, (origin * CFrame.new(HALF - 7, 0.8, -HALF + 7)).Position, 1)
+
+	-- Terminal con ordenador
+	local terminalBase = origin * CFrame.new(-11, 0.8, -HALF + 14)
+	local desk = newPart(model, Vector3.new(6, 3, 3), terminalBase * CFrame.new(0, 1.5, 0), Color3.fromRGB(30, 41, 59), Enum.Material.SmoothPlastic)
+	newPart(model, Vector3.new(6.2, 0.3, 3.2), terminalBase * CFrame.new(0, 3.15, 0), style.accent, Enum.Material.SmoothPlastic)
+	local screen = newPart(model, Vector3.new(5, 3.2, 0.3), terminalBase * CFrame.new(0, 5, 0.6) * CFrame.Angles(math.rad(-12), 0, 0), Color3.fromRGB(56, 140, 255), Enum.Material.Neon)
+	screen.CastShadow = false
+	local screenGui = Instance.new("SurfaceGui")
+	screenGui.Face = Enum.NormalId.Front
+	screenGui.LightInfluence = 0
+	screenGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	screenGui.PixelsPerStud = 40
+	surfaceLabel(screenGui, "💻 ORDENADOR", UDim2.fromScale(0.9, 0.5), UDim2.fromScale(0.05, 0.25), Color3.new(1, 1, 1), true)
+	screenGui.Parent = screen
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Abrir ordenador"
 	prompt.ObjectText = "Imperio Web"
 	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 12
+	prompt.MaxActivationDistance = 14
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = desk
 
-	local building = Instance.new("Model")
-	building.Name = "Edificio"
-	building.Parent = model
+	-- Cartel junto a la acera
+	local signBase = origin * CFrame.new(12, 0.8, -HALF + 4)
+	for _, x in { -5.5, 5.5 } do
+		newPart(model, Vector3.new(0.6, 9, 0.6), signBase * CFrame.new(x, 4.5, 0), Color3.fromRGB(30, 41, 59), Enum.Material.Metal)
+	end
+	local board = newPart(model, Vector3.new(13, 5, 0.6), signBase * CFrame.new(0, 6.5, 0), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
+	newPart(model, Vector3.new(13.4, 0.4, 0.8), signBase * CFrame.new(0, 9.1, 0), style.accent, Enum.Material.Neon).CastShadow = false
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Front
+	signGui.LightInfluence = 0
+	signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	signGui.PixelsPerStud = 30
+	local signTitle = surfaceLabel(signGui, "🏗️ PARCELA LIBRE", UDim2.fromScale(0.92, 0.5), UDim2.fromScale(0.04, 0.06), Color3.fromRGB(250, 204, 21), true)
+	local signInfo = surfaceLabel(signGui, "Espera a un nuevo emprendedor", UDim2.fromScale(0.92, 0.32), UDim2.fromScale(0.04, 0.6), Color3.fromRGB(226, 232, 240), false)
+	signGui.Parent = board
 
+	model:SetAttribute("PlotIndex", index)
 	model.Parent = city
 
 	local plot: Plot = {
 		index = index,
 		origin = origin,
 		model = model,
-		sign = sign,
-		building = building,
+		signTitle = signTitle,
+		signInfo = signInfo,
+		building = nil,
 		floors = 0,
 		owner = nil,
 	}
 
 	prompt.Triggered:Connect(function(player)
-		if plot.owner == player and onComputerOpened then
-			onComputerOpened(player)
+		if plot.owner == player then
+			onOpen(player)
 		end
 	end)
 
 	return plot
 end
 
--- Crea la ciudad entera. Llamar una sola vez al arrancar el servidor.
-function PlotManager.init(openCallback: (Player) -> ())
-	onComputerOpened = openCallback
-
-	local city = Instance.new("Folder")
-	city.Name = "CiudadImperioWeb"
-
-	local half = PLOT_COUNT // 2
-	local streetLength = half * PLOT_SPACING + 40
-
-	-- Si el sitio no tiene suelo, ponemos uno
-	if not Workspace:FindFirstChild("Baseplate") then
-		newPart(city, Vector3.new(streetLength + 200, 2, 400), CFrame.new(0, -1, 0), Color3.fromRGB(70, 140, 75), Enum.Material.Grass)
+-- Crea la ciudad y las parcelas. Llamar una sola vez al arrancar.
+function PlotManager.init(onOpen: (Player) -> ())
+	local origins = World.build()
+	local folder = Instance.new("Folder")
+	folder.Name = "Parcelas"
+	for i, origin in origins do
+		table.insert(plots, buildPlot(folder, i, origin, onOpen))
 	end
-
-	-- Calle central
-	newPart(city, Vector3.new(streetLength, 0.4, 26), CFrame.new(0, 0.2, 0), Color3.fromRGB(45, 45, 50), Enum.Material.Asphalt)
-	for x = -streetLength / 2 + 10, streetLength / 2 - 10, 16 do
-		newPart(city, Vector3.new(6, 0.45, 0.8), CFrame.new(x, 0.22, 0), Color3.fromRGB(240, 220, 90), Enum.Material.SmoothPlastic)
-	end
-
-	-- Parcelas a ambos lados de la calle, mirando hacia ella
-	for i = 1, PLOT_COUNT do
-		local column = (i - 1) % half
-		local side = if i <= half then 1 else -1
-		local x = (column - (half - 1) / 2) * PLOT_SPACING
-		local z = side * (13 + PLOT_SIZE / 2)
-		-- lookAt hacia la calle: el lado -Z local de la parcela da a la calle
-		local origin = CFrame.lookAt(Vector3.new(x, 0, z), Vector3.new(x, 0, 0))
-		table.insert(plots, buildPlot(city, i, origin))
-	end
-
-	city.Parent = Workspace
+	folder.Parent = Workspace
 end
 
 function PlotManager.claim(player: Player): boolean
@@ -161,7 +160,8 @@ function PlotManager.claim(player: Player): boolean
 		if plot.owner == nil then
 			plot.owner = player
 			plotByPlayer[player] = plot
-			plot.sign.Text = "🏢 " .. player.DisplayName .. " Corp."
+			plot.model:SetAttribute("OwnerUserId", player.UserId)
+			plot.signTitle.Text = "🏢 " .. string.upper(player.DisplayName) .. " CORP."
 			return true
 		end
 	end
@@ -175,82 +175,57 @@ function PlotManager.release(player: Player)
 	end
 	plotByPlayer[player] = nil
 	plot.owner = nil
-	plot.sign.Text = "🏗️ Parcela libre"
-	plot.building:ClearAllChildren()
+	plot.model:SetAttribute("OwnerUserId", nil)
+	plot.signTitle.Text = "🏗️ PARCELA LIBRE"
+	plot.signInfo.Text = "Espera a un nuevo emprendedor"
+	if plot.building then
+		plot.building:Destroy()
+		plot.building = nil
+	end
 	plot.floors = 0
 end
 
 function PlotManager.getSpawnCFrame(player: Player): CFrame
 	local plot = plotByPlayer[player]
 	if plot then
-		-- Delante del edificio, mirando hacia el ordenador
-		local position = (plot.origin * CFrame.new(0, 4, -PLOT_SIZE / 2 + 12)).Position
-		local target = (plot.origin * CFrame.new(-10, 4, -PLOT_SIZE / 2 + 6)).Position
+		-- En el camino, mirando hacia el terminal
+		local position = (plot.origin * CFrame.new(-3, 4, -HALF + 10)).Position
+		local target = (plot.origin * CFrame.new(-11, 4, -HALF + 14)).Position
 		return CFrame.lookAt(position, target)
 	end
-	return CFrame.new(0, 5, 0)
+	return CFrame.new(-212, 5, 0)
 end
 
-local FLOOR_COLORS = {
-	Color3.fromRGB(120, 190, 255),
-	Color3.fromRGB(150, 210, 255),
-	Color3.fromRGB(110, 170, 240),
-}
-
--- Ajusta el número de plantas del rascacielos del jugador.
-function PlotManager.setFloors(player: Player, floors: number)
+-- Actualiza el cartel y, si cambia el número de plantas, el rascacielos.
+function PlotManager.update(player: Player, lifetimeEarned: number, income: number)
 	local plot = plotByPlayer[player]
 	if not plot then
 		return
 	end
-	floors = math.clamp(math.floor(floors), 1, MAX_FLOORS)
+	local floors = Config.buildingFloors(lifetimeEarned)
+	plot.signInfo.Text = string.format("%d plantas · %s/s", floors, Config.formatMoney(income))
 	if floors == plot.floors then
 		return
 	end
 
-	local base = plot.origin * CFrame.new(0, 1, 8)
-
-	-- Añadir plantas
-	for floor = plot.floors + 1, floors do
-		local floorModel = Instance.new("Model")
-		floorModel.Name = "Planta" .. floor
-		local y = (floor - 1) * FLOOR_HEIGHT
-		newPart(floorModel, Vector3.new(BUILDING_SIZE, 0.6, BUILDING_SIZE), base * CFrame.new(0, y + 0.3, 0), Color3.fromRGB(230, 230, 235), Enum.Material.Concrete)
-		local glass = newPart(
-			floorModel,
-			Vector3.new(BUILDING_SIZE - 1, FLOOR_HEIGHT - 0.6, BUILDING_SIZE - 1),
-			base * CFrame.new(0, y + 0.6 + (FLOOR_HEIGHT - 0.6) / 2, 0),
-			FLOOR_COLORS[(floor - 1) % #FLOOR_COLORS + 1],
-			Enum.Material.Glass
-		)
-		glass.Transparency = 0.25
-		floorModel.Parent = plot.building
+	local animateFrom = if plot.floors == 0 then floors else plot.floors
+	if plot.building then
+		plot.building:Destroy()
 	end
-
-	-- Quitar plantas (al salir a bolsa se reinicia el imperio)
-	for floor = plot.floors, floors + 1, -1 do
-		local floorModel = plot.building:FindFirstChild("Planta" .. floor)
-		if floorModel then
-			floorModel:Destroy()
-		end
-	end
-
-	-- Azotea con un letrero de neón
-	local roof = plot.building:FindFirstChild("Azotea")
-	if roof then
-		roof:Destroy()
-	end
-	local roofPart = newPart(
-		plot.building,
-		Vector3.new(BUILDING_SIZE * 0.6, 1.5, BUILDING_SIZE * 0.6),
-		base * CFrame.new(0, floors * FLOOR_HEIGHT + 0.75, 0),
-		Color3.fromRGB(255, 200, 60),
-		Enum.Material.Neon
+	plot.building = Building.build(
+		plot.model,
+		plot.origin * BUILDING_OFFSET,
+		floors,
+		plot.index,
+		player.DisplayName,
+		World.isNight(),
+		animateFrom
 	)
-	roofPart.Name = "Azotea"
-	addBillboard(roofPart, "🏢 " .. player.DisplayName .. " Corp. · " .. floors .. " plantas", Vector3.new(0, 5, 0), UDim2.fromOffset(320, 60))
-
 	plot.floors = floors
+end
+
+function PlotManager.setLeaderboard(rows, message: string?)
+	World.setLeaderboard(rows, message)
 end
 
 return PlotManager

@@ -9,8 +9,21 @@
       "$path": "src/ServerScriptService"
     },
     "StarterPlayer": {
+      "$properties": {
+        "CharacterWalkSpeed": 22
+      },
       "StarterPlayerScripts": {
         "$path": "src/StarterPlayerScripts"
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 14,
+        "Brightness": 2.4,
+        "GlobalShadows": true,
+        "EnvironmentDiffuseScale": 1,
+        "EnvironmentSpecularScale": 1
       }
     }
   }
