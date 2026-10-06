@@ -1,6 +1,20 @@
-# 🌐 Imperio Web Tycoon · v1.3 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v2.0 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v2.0
+Ideas sacadas de los juegos que mejor funcionan (Grow a Garden, Pet Simulator 99, AdVenture Capitalist, Egg Inc. y las guías oficiales de Roblox):
+- **✨ Webs raras** (como las mutaciones): al terminar una web puede salir ✨ Brillante (x2 visitas, 8 %), 🌈 Arcoíris (x4, 2 %), 💎 Diamante (x10, 0,5 %) o 🌌 Cósmica (x30, 0,1 %). Las 💎 y 🌌 se anuncian a todo el servidor. Probabilidades visibles.
+- **📖 Colección**: casillas tipo de web × rareza. Cada casilla nueva da **+1 % de dinero para siempre** y cada tipo completo **+10 %**.
+- **💡 Patentes e I+D**: al salir a bolsa ganas patentes y las gastas en 12 mejoras **permanentes** (dinero inicial, ventas, clics, huecos, visitas, suerte, oficina…), en la pestaña 📈 Bolsa.
+- **🎫 Pase de temporada** (4 semanas, 30 niveles): ⭐ con misiones, objetivos, tiempo jugado, ventas y metas del servidor. Columna gratis y columna Premium (Developer Product).
+- **⏱️ Premios por tiempo jugado** cada día (5, 10, 15, 25, 40, 60 y 90 min) y nueva misión "Juega X minutos".
+- **⚡ Eventos del servidor** para todos a la vez, cada 8–14 min: Hora punta (visitas x2), Tormenta de datos (webs raras x5), Black Friday (clientes x2), Hackatón (clics x3). El cielo cambia de color.
+- **🤝 Meta del servidor**: entre todos hay que ganar una cantidad en 15 min y el premio es para todos.
+- **🔥 Combo de clics**: si tecleas seguido, cada clic vale hasta x3.
+- **🏢 Empresas**: comprar **x1 / x10 / MÁX** e **hitos** a los niveles 10, 25, 50, 100, 150 y 200 (cada uno x1,5).
+- **🎟️ Códigos** en la Tienda (para TikTok/Discord): `LANZAMIENTO`, `WEBEMPIRE`, `V2`.
+- **🎁 Pack de inicio** (Developer Product, solo las primeras 72 h, una vez) y nuevas misiones y objetivos.
 
 ## Novedades de la v1.3
 - **Inglés y español**: el juego usa el idioma de la cuenta de Roblox de cada jugador (español si la tiene en español; si no, inglés). Botón **🌐 ES / EN** arriba en la ventana del ordenador para cambiarlo (se guarda). También se traducen los carteles de la ciudad, solo en la pantalla de cada uno.
@@ -51,7 +65,7 @@ Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las v
 8. **🏆 Ranking**: evento de fin de semana, ranking semanal con premios, jugadores del servidor para visitar y los más ricos de siempre.
 
 ## Probarlo en Roblox Studio
-1. Descarga `ImperioWeb.rbxl` ([enlace directo a la v1.3](https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl)).
+1. Descarga `ImperioWeb.rbxl` ([enlace directo a la v2.0](https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl)).
 2. Ábrelo con **Roblox Studio** y pulsa **▶ Play**.
 3. Abre **View → Output** para ver posibles errores.
 
@@ -108,6 +122,8 @@ Las compras de productos se guardan antes de confirmarse a Roblox y no se pueden
 - **Velocidad del día**: `Config.DAY_LENGTH_MINUTES`.
 - **Textos en inglés**: `LocaleEN.luau` (clave = texto en español exacto, valor = inglés). Si cambias un texto en español, cambia también su clave allí.
 - **Premios del ranking semanal y eventos de fin de semana**: `Config.WeeklyPrizes` y `Config.WeekendEvents` en `TycoonConfig.luau`.
+- **Códigos**: `Config.Codes` (código en MAYÚSCULAS, premio en minutos de ingresos, `expires` opcional). Añade uno nuevo cada vez que publiques un vídeo.
+- **Webs raras, I+D, pase, premios por tiempo, eventos del servidor y meta común**: `Config.Variants`, `Config.Research`, `Config.seasonReward`, `Config.PlaytimeRewards`, `Config.ServerEvents`, `Config.COMMUNITY_*`.
 
 ## Estructura
 ```

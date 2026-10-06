@@ -314,6 +314,8 @@ do
 	cfg.Monetization.GamePasses[1].id = 555 -- x2 (UserOwnsGamePassAsync devuelve true)
 	cfg.Monetization.Products[5].id = 666 -- headhunter
 	cfg.Monetization.Products[7].id = 777 -- contrato legendario
+	cfg.Monetization.Products[8].id = 989 -- pack de inicio
+	cfg.Monetization.Products[9].id = 888 -- pase de temporada premium
 end
 -- Arrancar el script del servidor (se queda dormido en su bucle principal)
 do
@@ -613,6 +615,7 @@ print("Cierre del servidor OK")
 fakeTime += 3600
 saved["player_42"].career.xp.tech = 20000
 saved["player_42"].money = 5e6
+saved["player_42"].totalEarned = 4e6 -- para poder salir a bolsa y probar las patentes
 realPlayer.Parent = playersFolder
 Players.PlayerAdded:Fire(player)
 s = lastState()
@@ -644,6 +647,67 @@ for _ = 1, 12 do invoke(player, "recruit") fakeTime += 1 end
 local ok, msg = act("recruit")
 s = lastState()
 print("  equipo:", #s.career.programmers, "/", s.career.agency.capacity)
+-- v2.0 ------------------------------------------------------------
+print("-- v2.0 --")
+fakeTime += 2
+act("buyCompany", "devs", 10)
+act("buyCompany", "marketing", "max")
+s = lastState()
+print("  niveles: devs", s.companies.devs, "· marketing", s.companies.marketing, "· x", Config.companyMult(s, "marketing"))
+assert((s.companies.marketing or 0) >= 10, "comprar al máximo debería subir varios niveles")
+fakeTime += 2
+act("redeemCode", " lanzamiento ")
+assert(not act("redeemCode", "LANZAMIENTO"), "un código solo se usa una vez")
+act("redeemCode", "NOEXISTE")
+act("redeemCode", 123)
+fakeTime += 2
+for i = 1, #Config.PlaytimeRewards do
+	act("claimPlaytime", i)
+end
+s = lastState()
+print(string.format("  jugado hoy %s · premios recogidos %d", Config.formatTime(s.playtime.seconds), (function() local n = 0 for _ in s.playtime.claimed do n += 1 end return n end)()))
+fakeTime += 2
+local patentsBefore = s.patents
+act("ipo")
+s = lastState()
+print("  patentes tras salir a bolsa:", patentsBefore, "→", s.patents, "· dinero inicial", Config.formatMoney(s.money))
+assert(s.patents > patentsBefore, "salir a bolsa debería dar patentes")
+fakeTime += 2
+act("buyResearch", "capital")
+act("buyResearch", "viral")
+act("buyResearch", "nope")
+act("buyResearch", "autolab") -- puede faltar
+s = lastState()
+print("  I+D:", serde.encode("json", s.research), "· patentes", s.patents)
+assert(Config.research(s, "capital") == 1, "debería tener Capital semilla 1")
+fakeTime += 2
+act("claimSeason", 1, false)
+act("claimSeason", 1, true) -- sin premium
+act("claimSeason", 99, false)
+print("  pase:", s.season.xp, "⭐ · premium", s.season.premium)
+print("  receipt pase premium ->", MarketplaceService.ProcessReceipt({ PlayerId = 42, ProductId = 888, PurchaseId = "s1" }))
+print("  receipt pack inicio ->", MarketplaceService.ProcessReceipt({ PlayerId = 42, ProductId = 989, PurchaseId = "st1" }))
+s = lastState()
+assert(s.season.premium, "el pase premium debería estar activo")
+assert(s.starterLeft == 0, "el pack de inicio ya no debería ofrecerse")
+-- Muchas webs para ver variantes raras y la colección
+fakeTime += 2
+local rares = 0
+for _ = 1, 40 do
+	act("startProject", "landing")
+	for _ = 1, 40 do invoke(player, "click") fakeTime += 0.05 end
+	tick(1)
+	s = lastState()
+	if #s.sites >= s.slots then act("quickSell", s.sites[1].id) end
+	fakeTime += 0.3
+end
+s = lastState()
+local entries = Config.collectionStats(s)
+for _, site in s.sites do if site.variant then rares += 1 end end
+print("  colección:", entries, "casillas · bonus", Config.collectionBonus(s), "· mejor combo", s.bestCombo, "· webs raras ahora", rares)
+print("  evento del servidor:", s.serverEvent and s.serverEvent.id, "· meta común:", s.community and Config.formatMoney(s.community.target))
+assert(s.bestCombo >= 3, "el combo debería subir con clics seguidos")
+
 fs.writeFile("state.json", serde.encode("json", lastState()))
 
 -- Traducciones: todo lo que ha dicho el servidor debe salir en inglés

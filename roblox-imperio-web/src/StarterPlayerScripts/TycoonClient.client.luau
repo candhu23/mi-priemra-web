@@ -559,7 +559,7 @@ local tabBar = create("Frame", {
 	Size = UDim2.new(1, -20, 0, 74),
 }, {
 	create("UIGridLayout", {
-		CellSize = UDim2.new(1 / 6, -6, 0, 34),
+		CellSize = UDim2.new(1 / 7, -6, 0, 34),
 		CellPadding = UDim2.fromOffset(6, 6),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	}),
@@ -581,6 +581,8 @@ local TABS = {
 	{ id = "career", emoji = "💼", name = "Carrera", color = Color3.fromRGB(14, 165, 233) },
 	{ id = "agency", emoji = "👥", name = "Agencia", color = Color3.fromRGB(217, 70, 239) },
 	{ id = "missions", emoji = "🎯", name = "Misiones", color = Color3.fromRGB(245, 158, 11) },
+	{ id = "season", emoji = "🎫", name = "Pase", color = Color3.fromRGB(99, 102, 241) },
+	{ id = "collection", emoji = "📖", name = "Colección", color = Color3.fromRGB(16, 185, 129) },
 	{ id = "ranking", emoji = "🏆", name = "Ranking", color = Color3.fromRGB(234, 179, 8) },
 	{ id = "market", emoji = "📈", name = "Bolsa", color = THEME.pink },
 	{ id = "shop", emoji = "🛒", name = "Tienda", color = Color3.fromRGB(20, 184, 166) },
@@ -752,6 +754,9 @@ local HINTS = {
 	epic = "Entrevista programadores en 👥 Agencia",
 	team_10 = "Amplía la oficina y ficha más programadores",
 	cto = "Sigue ascendiendo en tu trabajo",
+	rare_1 = "Programa webs: a veces salen ✨ raras",
+	research_1 = "Abre 📈 Bolsa y gasta tus 💡 patentes en I+D",
+	collection_20 = "Mira 📖 Colección: cada web rara nueva cuenta",
 }
 
 local missionCard = create("Frame", {
@@ -860,6 +865,7 @@ local TOAST_COLORS = {
 	goal = THEME.yellow,
 	money = Color3.fromRGB(22, 163, 74),
 	info = THEME.accent,
+	rare = Color3.fromRGB(219, 39, 119),
 }
 local toastOrder = 0
 
@@ -882,7 +888,11 @@ function showToast(text: string, kind: string?)
 	local scale = create("UIScale", { Parent = toast, Scale = 0.6 })
 	TweenService:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 
-	if kind == "goal" or kind == "money" then
+	if kind == "rare" then
+		-- Web rara: aviso más grande y con sonido especial
+		toast.Size = UDim2.new(1, 0, 0, 58)
+		playSound("crit")
+	elseif kind == "goal" or kind == "money" then
 		playSound("money")
 	elseif kind == "event" or kind == "success" then
 		playSound("success")
@@ -1135,6 +1145,17 @@ local oddsText: (field: string) -> string
 local tutorialTargets: { [string]: GuiObject } = {} -- botones que resalta el tutorial
 local startTutorial: () -> ()
 local tutorialOnState: (any) -> () = function() end
+local renderHudExtras: (any) -> () = function() end -- evento del servidor, meta común, combo
+local showCombo: (combo: number, mult: number) -> () = function() end
+
+-- Etiqueta de web rara ("✨ Brillante ") y su color
+local function variantTag(variantId: string?): (string, Color3?)
+	local variant = variantId and Config.VariantById[variantId]
+	if not variant then
+		return "", nil
+	end
+	return variant.emoji .. " " .. T(variant.name) .. " · ", variant.color
+end
 
 ---------------------------------------------------------------------
 -- Pestaña CREAR
@@ -1328,8 +1349,9 @@ renderers.sites = function(s)
 		local network = Config.AdNetworkById[site.network]
 		row.currentNetwork = site.network
 		row.currentLevel = site.adLevel
-		row.title.Text = (if site.viral then "🔥 " else "") .. def.emoji .. " " .. site.name .. "  ·  " .. T(def.name) .. "  ·  " .. nicheLabel(site.niche)
-		row.title.TextColor3 = if site.viral then THEME.orange else THEME.text
+		local tag, tagColor = variantTag(site.variant)
+		row.title.Text = tag .. (if site.viral then "🔥 " else "") .. def.emoji .. " " .. site.name .. "  ·  " .. T(def.name) .. "  ·  " .. nicheLabel(site.niche)
+		row.title.TextColor3 = if site.viral then THEME.orange else (tagColor or THEME.text)
 		row.info.Text = T("⭐ Calidad %d%% · 🔎 SEO %d/%d · 👀 %s visitas/s · 💵 %s/s",
 			math.floor(site.quality * 100), site.seo, Config.MAX_SEO, num(site.visits), fmt(site.income))
 
@@ -1547,7 +1569,9 @@ function renderDetail(s)
 		return
 	end
 	local def = Config.WebTypeById[site.type]
-	detailTitle.Text = (if site.viral then "🔥 " else "") .. def.emoji .. " " .. site.name
+	local tag, tagColor = variantTag(site.variant)
+	detailTitle.Text = tag .. (if site.viral then "🔥 " else "") .. def.emoji .. " " .. site.name
+	detailTitle.TextColor3 = tagColor or THEME.text
 	detailSubtitle.Text = T("%s · %s · ⭐ Calidad %d%% · 🔎 SEO %d/%d · 🎨 Diseño %d/%d",
 		T(def.name), nicheLabel(site.niche), math.floor(site.quality * 100), site.seo, Config.MAX_SEO, site.design, Config.MAX_DESIGN)
 	statVisits.Text = num(site.visits)
@@ -1756,9 +1780,21 @@ end
 ---------------------------------------------------------------------
 do
 local companiesPage = pages.companies
-local companiesHeader = makeCard(companiesPage, 56, 1, Color3.fromRGB(84, 46, 18))
+local companiesHeader = makeCard(companiesPage, 92, 1, Color3.fromRGB(84, 46, 18))
 makeLabel(companiesHeader, "🏢 Tus empresas", 0, 22, 17, THEME.text, true)
 local companiesSummary = makeLabel(companiesHeader, "", 22, 18, 14, THEME.green, true)
+-- Cuántos niveles compra cada botón
+local buyAmount: number | string = 1
+local amountRow = makeButtonRow(companiesHeader, 46, 28)
+local amountButtons = {}
+for _, option in { 1, 10, "max" } do
+	amountButtons[option] = makeButton(amountRow, if option == "max" then "MÁX" else "x" .. option, THEME.card, UDim2.new(1 / 3, -4, 1, 0), function()
+		buyAmount = option
+		if state then
+			renderers.companies(state)
+		end
+	end)
+end
 
 local companyRows = {}
 for i, def in Config.Companies do
@@ -1766,7 +1802,7 @@ for i, def in Config.Companies do
 	local title = makeLabel(card, "", 0, 22, 17, THEME.text, true)
 	makeLabel(card, def.desc, 24, 18, 14, THEME.muted) -- texto fijo: se traduce solo
 	local button = makeButton(card, "", THEME.orange, UDim2.new(1, 0, 0, 30), function()
-		sendAction("buyCompany", def.id)
+		sendAction("buyCompany", def.id, buyAmount)
 	end)
 	button.Position = UDim2.fromOffset(0, 46)
 	companyRows[def.id] = { title = title, button = button }
@@ -1777,14 +1813,34 @@ renderers.companies = function(s)
 	for _, def in Config.Companies do
 		local row = companyRows[def.id]
 		local level = s.companies[def.id] or 0
-		local incomeText = if def.income > 0 then T(" · +%s/s por nivel", fmt(def.income * s.moneyMult)) else ""
-		row.title.Text = def.emoji .. " " .. T("%s  —  Nivel %d", T(def.name), level) .. incomeText
+		local mult = Config.companyMult(s, def.id)
+		local incomeText = if def.income > 0 then T(" · +%s/s por nivel", fmt(def.income * mult * s.moneyMult)) else ""
+		local nextMilestone = Config.nextMilestone(level)
+		local milestoneText = (if mult > 1 then string.format(" · 🏅 x%.1f", mult) else "")
+			.. (if nextMilestone then T(" · hito en nivel %d", nextMilestone) else "")
+		row.title.Text = def.emoji .. " " .. T("%s  —  Nivel %d", T(def.name), level) .. incomeText .. milestoneText
 		if level >= def.maxLevel then
 			setButton(row.button, T("NIVEL MÁXIMO"), false)
 		else
-			local cost = Config.companyCost(def.id, level)
-			setButton(row.button, if level == 0 then T("🏗️ Fundar por %s", fmt(cost)) else T("⬆️ Mejorar por %s", fmt(cost)), s.money >= cost)
+			local remaining = def.maxLevel - level
+			local count, cost
+			if buyAmount == "max" then
+				count, cost = Config.companyAffordable(def.id, level, s.money, remaining)
+				if count == 0 then
+					count, cost = 1, Config.companyCost(def.id, level)
+				end
+			else
+				count = math.min(buyAmount :: number, remaining)
+				cost = Config.companyBulkCost(def.id, level, count)
+			end
+			local text = if level == 0 and count == 1 then T("🏗️ Fundar por %s", fmt(cost))
+				elseif count == 1 then T("⬆️ Mejorar por %s", fmt(cost))
+				else T("⬆️ +%d niveles por %s", count, fmt(cost))
+			setButton(row.button, text, s.money >= cost)
 		end
+	end
+	for option, button in amountButtons do
+		setButton(button, if option == "max" then T("MÁX") else "x" .. option, true, if option == buyAmount then THEME.orange else THEME.card)
 	end
 end
 end
@@ -2276,6 +2332,183 @@ end
 end
 
 ---------------------------------------------------------------------
+-- Pestaña PASE (pase de temporada: 30 niveles gratis y premium)
+---------------------------------------------------------------------
+do
+local seasonPage = pages.season
+local seasonProduct = Config.ProductByKey.seasonPremium
+
+local seasonHeader = makeCard(seasonPage, 156, 1, Color3.fromRGB(49, 46, 129))
+local seasonTitle = makeLabel(seasonHeader, "", 0, 24, 19, THEME.text, true)
+local seasonInfo = makeLabel(seasonHeader, "", 26, 18, 14, THEME.yellow, true)
+local _seasonBack, seasonFill, seasonText = makeProgressBar(seasonHeader, UDim2.fromOffset(0, 48), UDim2.new(1, 0, 0, 18), Color3.fromRGB(129, 140, 248))
+makeLabel(seasonHeader, "Ganas ⭐ con misiones diarias, objetivos, premios por tiempo, ventas y metas del servidor.", 70, 18, 13, THEME.muted)
+local premiumLabel = makeLabel(seasonHeader, "", 90, 18, 13, THEME.muted, true)
+local premiumButton = makeButton(seasonHeader, "", THEME.yellow, UDim2.new(1, 0, 0, 30), function()
+	if seasonProduct.id ~= 0 then
+		MarketplaceService:PromptProductPurchase(player, seasonProduct.id)
+	end
+end)
+premiumButton.Position = UDim2.fromOffset(0, 112)
+
+-- Cómo se llama un premio
+local function rewardText(reward): string
+	if reward.kind == "cash" then
+		return T("💰 %d min de ingresos", reward.minutes)
+	elseif reward.kind == "boost" then
+		return T("🚀 Boost x2 %d min", reward.minutes)
+	elseif reward.kind == "patents" then
+		return T("💡 %d patentes", reward.amount)
+	elseif reward.ticket == "legendary" then
+		return T("👑 Contrato Legendario")
+	end
+	return T("🎯 Headhunter Premium")
+end
+
+local tierRows = {}
+for tier = 1, Config.SEASON_TIERS do
+	local card = makeCard(seasonPage, 46, 10 + tier)
+	local label = makeLabel(card, "", 0, 26, 16, THEME.text, true)
+	label.Size = UDim2.new(0.16, 0, 0, 26)
+	bindText(label, function()
+		return T("Nivel %d", tier)
+	end)
+	local free = makeButton(card, "", THEME.green, UDim2.new(0.42, -6, 0, 26), function()
+		sendAction("claimSeason", tier, false, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	free.Position = UDim2.fromScale(0.16, 0)
+	local premium = makeButton(card, "", THEME.yellow, UDim2.new(0.42, 0, 0, 26), function()
+		sendAction("claimSeason", tier, true, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	premium.Position = UDim2.fromScale(0.58, 0)
+	tierRows[tier] = { label = label, free = free, premium = premium }
+end
+
+renderers.season = function(s)
+	local season = s.season
+	local tier = math.min(Config.SEASON_TIERS, season.xp // Config.SEASON_XP_PER_TIER)
+	seasonTitle.Text = T("🎫 %s · termina en %s", T(Config.seasonName(season.id)), Config.formatTime(season.endsIn))
+	if tier >= Config.SEASON_TIERS then
+		seasonInfo.Text = T("¡Nivel máximo! %d ⭐ en total", season.xp)
+		seasonFill.Size = UDim2.fromScale(1, 1)
+		seasonText.Text = T("MÁX")
+	else
+		local into = season.xp - tier * Config.SEASON_XP_PER_TIER
+		seasonInfo.Text = T("Nivel %d de %d · %d ⭐ en total", tier, Config.SEASON_TIERS, season.xp)
+		seasonFill.Size = UDim2.fromScale(into / Config.SEASON_XP_PER_TIER, 1)
+		seasonText.Text = T("%d / %d ⭐ para el nivel %d", into, Config.SEASON_XP_PER_TIER, tier + 1)
+	end
+	if season.premium then
+		premiumLabel.Text = T("🎫 Tienes el Premium de esta temporada: recoge también la columna dorada")
+		premiumButton.Visible = false
+	elseif seasonProduct.id ~= 0 then
+		premiumLabel.Text = T("🎫 Premium: el doble de premios (patentes, boosts y 3 Contratos Legendarios)")
+		premiumButton.Visible = true
+		setButton(premiumButton, T("🎫 Conseguir el Premium"), true, THEME.yellow)
+	else
+		premiumLabel.Text = T("🎫 La columna dorada (Premium) estará disponible pronto")
+		premiumButton.Visible = false
+	end
+	for t, row in tierRows do
+		local reached = tier >= t
+		row.label.TextColor3 = if reached then THEME.green else THEME.muted
+		local key = tostring(t)
+		local freeReward = rewardText(Config.seasonReward(t, false))
+		if season.free[key] then
+			setButton(row.free, "✓ " .. freeReward, false, THEME.green)
+			row.free:SetAttribute("PaintColor", THEME.green)
+		else
+			setButton(row.free, (if reached then "🎁 " else "🔒 ") .. freeReward, reached, THEME.accent)
+		end
+		local premiumReward = rewardText(Config.seasonReward(t, true))
+		if season.premiumClaimed[key] then
+			setButton(row.premium, "✓ " .. premiumReward, false, THEME.green)
+			row.premium:SetAttribute("PaintColor", THEME.green)
+		else
+			setButton(row.premium, (if reached and season.premium then "🎁 " else "🔒 ") .. premiumReward, reached and season.premium, Color3.fromRGB(202, 138, 4))
+		end
+	end
+end
+end
+
+---------------------------------------------------------------------
+-- Pestaña COLECCIÓN (índice de webs raras)
+---------------------------------------------------------------------
+do
+local collectionPage = pages.collection
+local collectionHeader = makeCard(collectionPage, 96, 1, Color3.fromRGB(6, 78, 59))
+makeLabel(collectionHeader, "📖 Colección de webs", 0, 22, 18, THEME.text, true)
+local collectionInfo = makeLabel(collectionHeader, "", 24, 18, 14, THEME.green, true)
+local oddsInfo = makeLabel(collectionHeader, "", 44, 18, 13, THEME.yellow, true)
+makeLabel(collectionHeader, "Cada casilla nueva: +1 % de dinero para siempre. Tipo completo: +10 % más. No se pierde al salir a bolsa.", 64, 18, 12, THEME.muted)
+
+local COLUMNS = { { id = "normal", emoji = "⚪", mult = 1 } }
+for _, variant in Config.Variants do
+	table.insert(COLUMNS, variant)
+end
+local typeCards = {}
+for i, def in Config.WebTypes do
+	local card = makeCard(collectionPage, 78, 10 + i)
+	local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
+	local row = makeButtonRow(card, 24, 34)
+	local cells = {}
+	for c, column in COLUMNS do
+		local cell = create("TextLabel", {
+			Parent = row,
+			LayoutOrder = c,
+			Size = UDim2.new(1 / #COLUMNS, -6, 1, 0),
+			BackgroundColor3 = THEME.bg,
+			Text = "",
+			TextColor3 = THEME.text,
+			Font = Enum.Font.GothamBold,
+			TextScaled = true,
+		}, { corner(8), padding(4), maxText(15) })
+		cells[column.id] = cell
+	end
+	typeCards[def.id] = { title = title, cells = cells }
+end
+
+renderers.collection = function(s)
+	local entries, rows = Config.collectionStats(s)
+	collectionInfo.Text = T("%d/%d casillas · %d tipos completos · +%d%% de dinero para siempre", entries, #Config.WebTypes * #COLUMNS, rows,
+		math.floor(Config.collectionBonus(s) * 100 + 0.5))
+	local chanceMult = Config.variantChanceMult(s, if s.serverEvent and s.serverEvent.id == "datastorm" then 5 else 1)
+	local parts = {}
+	for _, variant in Config.Variants do
+		local chance = variant.chance * chanceMult * 100
+		table.insert(parts, string.format(if chance < 1 then "%s %.1f%%" else "%s %d%%", variant.emoji, if chance < 1 then chance else math.floor(chance + 0.5)))
+	end
+	oddsInfo.Text = T("Probabilidad al terminar una web: %s", table.concat(parts, " · "))
+	for _, def in Config.WebTypes do
+		local card = typeCards[def.id]
+		local owned = s.collection[def.id] or {}
+		local complete = true
+		for _, column in COLUMNS do
+			local cell = card.cells[column.id]
+			if owned[column.id] then
+				cell.Text = column.emoji .. " x" .. column.mult
+				cell.BackgroundColor3 = if column.color then darken(column.color, 0.35) else THEME.card
+			else
+				complete = false
+				cell.Text = "❓"
+				cell.BackgroundColor3 = THEME.bg
+			end
+		end
+		card.title.Text = def.emoji .. " " .. T(def.name) .. (if complete then T("  ·  ✅ ¡completo! +10 %") else "")
+		card.title.TextColor3 = if complete then THEME.yellow else THEME.text
+	end
+end
+end
+
+---------------------------------------------------------------------
 -- Pestaña RANKING (eventos de fin de semana, top semanal y vecinos)
 ---------------------------------------------------------------------
 do
@@ -2435,7 +2668,7 @@ local ipoInfo1 = makeLabel(ipoCard, "", 24, 18, 14, THEME.muted)
 local ipoInfo2 = makeLabel(ipoCard, "", 44, 18, 15, THEME.green, true)
 makeLabel(ipoCard, "Se reinicia: dinero, webs, empresas, apps y reputación.", 64, 18, 13, THEME.muted)
 bindText(makeLabel(ipoCard, "", 84, 18, 13, THEME.muted), function()
-	return T("Te quedas: acciones (+%d%% dinero cada una), objetivos y tu rascacielos.", math.floor(Config.SHARE_BONUS * 100))
+	return T("Te quedas: acciones (+%d%% dinero cada una), patentes e I+D, colección, carrera y tu rascacielos.", math.floor(Config.SHARE_BONUS * 100))
 end)
 local confirmUntil = 0
 local ipoButton: TextButton
@@ -2459,11 +2692,43 @@ local saveButton = makeButton(statsCard, "💾 Guardar ahora", THEME.accent, UDi
 end)
 saveButton.Position = UDim2.fromOffset(0, 70)
 
+-- I+D: mejoras permanentes que se pagan con patentes
+local researchHeader = makeCard(marketPage, 64, 3, Color3.fromRGB(30, 58, 138))
+local patentsLabel = makeLabel(researchHeader, "", 0, 22, 17, THEME.yellow, true)
+makeLabel(researchHeader, "Mejoras para SIEMPRE (no se pierden al salir a bolsa). Las patentes se ganan al salir a bolsa y en el 🎫 Pase.", 24, 30, 13, THEME.muted).TextWrapped = true
+local researchRows = {}
+for b, branch in Config.ResearchBranches do
+	local branchCard = makeCard(marketPage, 30, 10 + b * 20, Color3.fromRGB(23, 37, 84))
+	bindText(makeLabel(branchCard, "", 0, 14, 15, THEME.text, true), function()
+		return branch.emoji .. " " .. T(branch.name)
+	end)
+	branchCard.Size = UDim2.new(1, -8, 0, 34)
+	local order = 0
+	for _, def in Config.Research do
+		if def.branch == branch.id then
+			order += 1
+			local card = makeCard(marketPage, 66, 10 + b * 20 + order)
+			local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
+			title.Size = UDim2.new(1, -170, 0, 20)
+			local desc = makeLabel(card, def.desc, 22, 30, 13, THEME.muted)
+			desc.Size = UDim2.new(1, -170, 0, 30)
+			desc.TextWrapped = true
+			desc.TextTruncate = Enum.TextTruncate.None
+			local button = makeButton(card, "", THEME.accent, UDim2.fromOffset(160, 34), function()
+				sendAction("buyResearch", def.id)
+			end)
+			button.AnchorPoint = Vector2.new(1, 0.5)
+			button.Position = UDim2.new(1, 0, 0.5, 0)
+			researchRows[def.id] = { title = title, button = button }
+		end
+	end
+end
+
 
 renderers.market = function(s)
 	ipoInfo1.Text = T("Ganado en esta partida: %s · Acciones: %d (x%.2f dinero)", fmt(s.totalEarned), s.shares, 1 + s.shares * Config.SHARE_BONUS)
 	if s.ipoShares >= 1 then
-		ipoInfo2.Text = T("Si sales a bolsa ahora consigues +%d acciones", s.ipoShares)
+		ipoInfo2.Text = T("Si sales a bolsa ahora consigues +%d acciones y +%d 💡 patentes", s.ipoShares, s.ipoPatents)
 		if os.clock() >= confirmUntil then
 			setButton(ipoButton, T("📈 Salir a bolsa (+%d acciones)", s.ipoShares), true)
 		end
@@ -2483,6 +2748,21 @@ renderers.market = function(s)
 		saveText = T("💾 Último guardado hace %s%s", Config.formatTime(s.lastSaveAgo), if s.lastSaveOk == false then T(" (falló, se reintentará)") else " ✓")
 	end
 	saveLabel.Text = T("Ganado en total %s · %s", fmt(s.lifetimeEarned), saveText)
+
+	patentsLabel.Text = T("💡 I+D · tienes %d patentes", s.patents)
+	for _, def in Config.Research do
+		local row = researchRows[def.id]
+		local level = Config.research(s, def.id)
+		row.title.Text = string.format("%s %s · %d/%d", def.emoji, T(def.name), level, def.maxLevel)
+		row.title.TextColor3 = if level > 0 then THEME.green else THEME.text
+		if level >= def.maxLevel then
+			setButton(row.button, T("MÁX"), false, THEME.green)
+			row.button:SetAttribute("PaintColor", THEME.green)
+		else
+			local cost = Config.researchCost(def.id, level)
+			setButton(row.button, T("Mejorar · 💡 %d", cost), s.patents >= cost)
+		end
+	end
 	saveLabel.TextColor3 = if s.canSave then THEME.muted else THEME.red
 end
 end
@@ -2513,7 +2793,49 @@ local dailyButton = makeButton(dailyCard, "", THEME.green, UDim2.new(1, 0, 0, 30
 end)
 dailyButton.Position = UDim2.fromOffset(0, 28)
 
-local bonusCard = makeCard(shopPage, 124, 3)
+-- Premios por tiempo jugado hoy
+local playtimeCard = makeCard(shopPage, 100, 3, Color3.fromRGB(19, 78, 74))
+local playtimeTitle = makeLabel(playtimeCard, "", 0, 22, 17, THEME.text, true)
+local playtimeRow = makeButtonRow(playtimeCard, 26, 40)
+local playtimeButtons = {}
+for i, reward in Config.PlaytimeRewards do
+	playtimeButtons[i] = makeButton(playtimeRow, reward.minutes .. "m", THEME.card, UDim2.new(1 / #Config.PlaytimeRewards, -6, 1, 0), function()
+		sendAction("claimPlaytime", i, nil, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+end
+local playtimeNext = makeLabel(playtimeCard, "", 72, 18, 13, THEME.muted)
+
+-- Códigos (los que publiques en TikTok, Discord...)
+local codesCard = makeCard(shopPage, 74, 4, Color3.fromRGB(19, 78, 74))
+makeLabel(codesCard, "🎟️ Códigos", 0, 20, 17, THEME.text, true)
+local codeBox = create("TextBox", {
+	Parent = codesCard,
+	Position = UDim2.fromOffset(0, 26),
+	Size = UDim2.new(0.65, -6, 0, 32),
+	BackgroundColor3 = THEME.bg,
+	Text = "",
+	PlaceholderText = "🎟️ CÓDIGO / CODE",
+	PlaceholderColor3 = THEME.muted,
+	TextColor3 = THEME.text,
+	Font = Enum.Font.GothamBold,
+	TextSize = 16,
+	ClearTextOnFocus = false,
+}, { corner(8), stroke(THEME.stroke, 1) })
+local codeButton = makeButton(codesCard, "🎟️ Canjear", THEME.green, UDim2.new(0.35, 0, 0, 32), function()
+	sendAction("redeemCode", codeBox.Text, nil, function(ok)
+		if ok then
+			codeBox.Text = ""
+			pulseMoney()
+		end
+	end)
+end)
+codeButton.Position = UDim2.new(0.65, 0, 0, 26)
+
+local bonusCard = makeCard(shopPage, 124, 5)
 makeLabel(bonusCard, "✨ Tus bonus de dinero", 0, 22, 17, THEME.text, true)
 local bonusLabel = makeLabel(bonusCard, "", 24, 40, 14, THEME.muted)
 bonusLabel.TextWrapped = true
@@ -2545,12 +2867,12 @@ for _, product in Config.Monetization.Products do
 	end
 end
 
-local robuxTitle = makeCard(shopPage, 40, 4, Color3.fromRGB(76, 29, 149))
+local robuxTitle = makeCard(shopPage, 40, 6, Color3.fromRGB(76, 29, 149))
 makeLabel(robuxTitle, "💎 Tienda (Robux)", 0, 20, 17, THEME.text, true)
 robuxTitle.Visible = #robuxItems > 0 or RunService:IsStudio()
 
 if #robuxItems == 0 and RunService:IsStudio() then
-	local info = makeCard(shopPage, 70, 5)
+	local info = makeCard(shopPage, 70, 7)
 	local label = makeLabel(info, "Solo lo ves tú en Studio: crea Game Passes y Developer Products en el Creator Hub y pon sus IDs en TycoonConfig → Monetization para activar la tienda.", 0, 50, 14, THEME.muted)
 	label.TextWrapped = true
 	label.TextTruncate = Enum.TextTruncate.None
@@ -2603,9 +2925,38 @@ renderers.shop = function(s)
 		setButton(dailyButton, T("Ya la has recogido. ¡Vuelve mañana!"), false)
 	end
 
+	-- Premios por tiempo jugado
+	local played = s.playtime.seconds
+	playtimeTitle.Text = T("⏱️ Premios por jugar hoy · llevas %s", Config.formatTime(played))
+	local nextText = nil
+	for i, reward in Config.PlaytimeRewards do
+		local claimed = s.playtime.claimed[tostring(i)] == true
+		local ready = played >= reward.minutes * 60
+		if claimed then
+			setButton(playtimeButtons[i], "✓", false, THEME.green)
+			playtimeButtons[i]:SetAttribute("PaintColor", THEME.green)
+		elseif ready then
+			setButton(playtimeButtons[i], "🎁 " .. reward.minutes .. "m", true, THEME.yellow)
+		else
+			setButton(playtimeButtons[i], reward.minutes .. "m", false, THEME.card)
+		end
+		if not claimed and not nextText then
+			local what = if reward.kind == "cash" then T("💰 %d min de ingresos", reward.rewardMinutes)
+				elseif reward.kind == "boost" then T("🚀 Boost x2 %d min", reward.boostMinutes)
+				else T("🎯 Headhunter Premium")
+			nextText = if ready then T("🎁 ¡Listo! A los %d min: %s", reward.minutes, what)
+				else T("Siguiente a los %d min (%s): %s", reward.minutes, Config.formatTime(reward.minutes * 60 - played), what)
+		end
+	end
+	playtimeNext.Text = nextText or T("¡Has recogido todos los de hoy! Mañana más.")
+
 	local b = s.bonuses
 	local parts = {}
 	table.insert(parts, T("📈 Acciones x%.2f", 1 + s.shares * Config.SHARE_BONUS))
+	local collectionBonus = Config.collectionBonus(s)
+	if collectionBonus > 0 then
+		table.insert(parts, T("📖 Colección +%d%%", math.floor(collectionBonus * 100 + 0.5)))
+	end
 	if b.pass then
 		table.insert(parts, T("💎 Pase x2"))
 	end
@@ -2628,6 +2979,8 @@ renderers.shop = function(s)
 	for _, row in robuxRows do
 		local def = row.item.def
 		row.card.Visible = not (def.random and b.randomRestricted)
+			and not (def.kind == "starter" and s.starterLeft <= 0)
+			and not (def.kind == "season" and s.season.premium)
 		local price = prices[def.id]
 		local priceText = if price then " (R$ " .. price .. ")" else ""
 		if row.item.kind == "pass" and b[def.key] then
@@ -2636,6 +2989,9 @@ renderers.shop = function(s)
 		elseif row.item.kind == "product" and def.kind == "cash" then
 			row.desc.Text = T(def.desc) .. T(" Ahora: +%s", fmt(math.max(def.min, s.income * def.minutes * 60)))
 			setButton(row.button, T("Comprar") .. priceText, true)
+		elseif row.item.kind == "product" and def.kind == "starter" then
+			row.desc.Text = T(def.desc) .. T(" · Se acaba en %s", Config.formatTime(s.starterLeft))
+			setButton(row.button, T("Comprar") .. priceText, true, THEME.yellow)
 		elseif row.item.kind == "product" and def.kind == "finish" then
 			setButton(row.button, if s.project then T("Comprar") .. priceText else T("Empieza una web primero"), s.project ~= nil)
 		else
@@ -2661,6 +3017,9 @@ function doClick()
 	playSound("click")
 	floatText(quickBar, "+" .. num(power), THEME.yellow, 28)
 	sendAction("click", nil, nil, function(ok, _message, extra)
+		if ok and type(extra) == "table" and extra.combo then
+			showCombo(extra.combo, extra.comboMult or 1)
+		end
 		if ok and type(extra) == "table" and extra.crit then
 			pendingClickWork += (extra.power or power) - power
 			playSound("crit")
@@ -2890,6 +3249,86 @@ end)
 end
 
 ---------------------------------------------------------------------
+-- Evento del servidor, meta común y combo (encima de todo)
+---------------------------------------------------------------------
+do
+local serverEventLabel = create("TextLabel", {
+	Parent = mainGui,
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 140),
+	Size = UDim2.fromOffset(520, 30),
+	BackgroundColor3 = Color3.fromRGB(14, 116, 144),
+	Text = "",
+	TextColor3 = THEME.text,
+	Font = Enum.Font.GothamBold,
+	TextScaled = true,
+	Visible = false,
+}, { corner(10), padding(5), maxText(16), shade(), stroke(Color3.fromRGB(8, 51, 68), 2) })
+autoScale(serverEventLabel)
+
+-- Meta del servidor (arriba a la izquierda)
+local communityCard = create("Frame", {
+	Parent = mainGui,
+	Position = UDim2.fromOffset(10, 100),
+	Size = UDim2.fromOffset(270, 62),
+	BackgroundColor3 = THEME.bg,
+	BackgroundTransparency = 0.1,
+	Visible = false,
+}, { corner(12), padding(8), stroke(THEME.pink, 2) })
+autoScale(communityCard)
+local communityTitle = makeLabel(communityCard, "", 0, 18, 13, THEME.text, true)
+local _communityBack, communityFill, communityText = makeProgressBar(communityCard, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 20), THEME.pink)
+
+-- Combo de clics (encima del botón PROGRAMAR)
+local comboLabel = create("TextLabel", {
+	Parent = quickBar,
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 0, -6),
+	Size = UDim2.new(1, 0, 0, 28),
+	BackgroundTransparency = 1,
+	Text = "",
+	TextColor3 = THEME.orange,
+	TextStrokeTransparency = 0.2,
+	Font = Enum.Font.FredokaOne,
+	TextScaled = true,
+	Visible = false,
+})
+local comboUntil = 0
+
+function showCombo(combo: number, mult: number)
+	if combo < 3 then
+		comboLabel.Visible = false
+		return
+	end
+	comboUntil = os.clock() + Config.COMBO_WINDOW + 0.2
+	comboLabel.Visible = true
+	comboLabel.Text = T("🔥 COMBO %d · x%.1f", combo, mult)
+	comboLabel.TextColor3 = if combo >= Config.COMBO_MAX then THEME.red elseif combo >= Config.COMBO_MAX / 2 then THEME.orange else THEME.yellow
+end
+
+RunService.RenderStepped:Connect(function()
+	if comboLabel.Visible and os.clock() > comboUntil then
+		comboLabel.Visible = false
+	end
+end)
+
+function renderHudExtras(s)
+	local event = s.serverEvent and Config.ServerEventById[s.serverEvent.id]
+	serverEventLabel.Visible = event ~= nil
+	if event then
+		serverEventLabel.Text = string.format("%s %s · %s (%s)", event.emoji, T(event.name), T(event.desc), Config.formatTime(s.serverEvent.endsIn))
+	end
+	local goal = s.community
+	communityCard.Visible = goal ~= nil and not window.Visible
+	if goal then
+		communityTitle.Text = T("🤝 Meta del servidor · %s", Config.formatTime(goal.endsIn))
+		communityFill.Size = UDim2.fromScale(math.clamp(goal.progress / goal.target, 0, 1), 1)
+		communityText.Text = fmt(goal.progress) .. " / " .. fmt(goal.target)
+	end
+end
+end
+
+---------------------------------------------------------------------
 -- Recibir estado del servidor
 ---------------------------------------------------------------------
 local function renderAlways(s)
@@ -2928,7 +3367,6 @@ local function renderAlways(s)
 		end
 	end
 	setBadge("ads", canUnlock)
-	setBadge("market", s.ipoShares >= 1)
 	local c = s.career
 	setBadge("career", (c.job ~= nil and c.job.taskLeft <= 0) or (c.job == nil and #c.jobOffers > 0))
 	local agencyReady = false
@@ -2940,7 +3378,32 @@ local function renderAlways(s)
 	end
 	setBadge("agency", agencyReady)
 	saveBanner.Visible = not s.canSave
-	setBadge("shop", s.giftLeft <= 0 or s.dailyAvailable)
+	local playtimeReady = 0
+	for i, reward in Config.PlaytimeRewards do
+		if not s.playtime.claimed[tostring(i)] and s.playtime.seconds >= reward.minutes * 60 then
+			playtimeReady += 1
+		end
+	end
+	setBadge("shop", if s.giftLeft <= 0 or s.dailyAvailable then playtimeReady + 1 else playtimeReady)
+	local seasonTier = math.min(Config.SEASON_TIERS, s.season.xp // Config.SEASON_XP_PER_TIER)
+	local seasonReady = 0
+	for tier = 1, seasonTier do
+		if not s.season.free[tostring(tier)] then
+			seasonReady += 1
+		end
+		if s.season.premium and not s.season.premiumClaimed[tostring(tier)] then
+			seasonReady += 1
+		end
+	end
+	setBadge("season", seasonReady)
+	local researchReady = false
+	for _, def in Config.Research do
+		local level = Config.research(s, def.id)
+		if level < def.maxLevel and s.patents >= Config.researchCost(def.id, level) then
+			researchReady = true
+		end
+	end
+	setBadge("market", s.ipoShares >= 1 or researchReady)
 	local claimable = 0
 	for _, goal in Config.Goals do
 		if not s.goals[goal.id] and goal.value(s) >= goal.target then
@@ -2996,6 +3459,7 @@ local function renderAlways(s)
 	end
 
 	renderMission(s)
+	renderHudExtras(s)
 	if not myPlotPart then
 		findMyPlot()
 	end

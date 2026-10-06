@@ -340,6 +340,16 @@ s2.globalTop = { { name = "Ana", value = 5e9, userId = 43 } }
 s2.weekend = { id = "jobs", endsIn = 7200, nextId = "money", startsIn = 500000 }
 s2.goldLeft = 3600
 s2.likes = 5
+-- v2.0: patentes, tiempo jugado, pase, evento del servidor, meta común, colección
+s2.patents = 30
+s2.playtime = { seconds = 6000, claimed = { ["1"] = true } }
+s2.season.xp = 2500
+s2.season.premium = true
+s2.serverEvent = { id = "datastorm", endsIn = 90 }
+s2.community = { target = 50000, progress = 20000, endsIn = 600 }
+s2.starterLeft = 3600
+s2.collection = { landing = { normal = true, brillante = true, arcoiris = true, diamante = true, cosmica = true }, blog = { normal = true } }
+s2.sites[1].variant = "diamante"
 fireState(s2)
 -- Sin evento de fin de semana (muestra el próximo)
 local s3 = serde.decode("json", serde.encode("json", s2))

@@ -277,4 +277,8 @@ function PlotManager.setWeeklyBoard(rows, message: string?)
 	World.setWeeklyBoard(rows, message)
 end
 
+function PlotManager.setEventTint(tint: Color3?)
+	World.setEventTint(tint)
+end
+
 return PlotManager

@@ -54,6 +54,7 @@ function CareerService.addXp(player: Player, session, nicheId: string, amount: n
 	if session.bonuses.xpPass then
 		amount *= 2
 	end
+	amount *= 1 + Config.researchValue(session.data, "mentor")
 	local before = Career.nicheLevel(career, nicheId)
 	career.xp[nicheId] = (career.xp[nicheId] or 0) + amount
 	local after = Career.nicheLevel(career, nicheId)
@@ -273,9 +274,18 @@ local function rollRarity(field: string): any
 	return Career.Rarities[#Career.Rarities]
 end
 
-local function capacity(session): number
+function CareerService.capacity(session): number
 	local agency = session.data.career.agency
-	return if agency then Career.officeCapacity(agency.officeLevel, session.bonuses.agencyPro) else 0
+	if not agency then
+		return 0
+	end
+	return Career.officeCapacity(agency.officeLevel, session.bonuses.agencyPro) + Config.researchValue(session.data, "office")
+end
+local capacity = CareerService.capacity
+
+-- Coste de una entrevista (con el descuento de I+D "Ojeador")
+function CareerService.recruitCost(session): number
+	return math.floor(Career.recruitCost(ctx.income(session)) * (1 - Config.researchValue(session.data, "recruiter")))
 end
 
 local function hire(player: Player, session, rarity, nicheId: string?)
@@ -415,7 +425,7 @@ function Actions.recruit(player: Player, session)
 	if #career.programmers >= capacity(session) then
 		return false, "Oficina llena: amplíala o despide a alguien."
 	end
-	local cost = Career.recruitCost(ctx.income(session))
+	local cost = CareerService.recruitCost(session)
 	if data.money < cost then
 		return false, "No tienes suficiente dinero."
 	end
@@ -595,7 +605,7 @@ function CareerService.buildState(session)
 		programmers = programmers,
 		pity = career.pity,
 		tickets = career.tickets,
-		recruitCost = Career.recruitCost(income),
+		recruitCost = CareerService.recruitCost(session),
 		stats = career.stats,
 	}
 end

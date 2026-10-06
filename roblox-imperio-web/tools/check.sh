@@ -36,7 +36,7 @@ echo "== 5/7 Interfaz: se crea entera y se pulsan todos los botones (Lune)"
 
 echo "== 6/7 Economía: bot de 6 horas (luau)"
 mkdir -p "$OUT/sim"
-cp "$SRC/ReplicatedStorage/TycoonConfig.luau" "$OUT/sim/"
+{ echo 'local Color3 = { fromRGB = function() return {} end }'; cat "$SRC/ReplicatedStorage/TycoonConfig.luau"; } > "$OUT/sim/TycoonConfig.luau"
 { echo 'local Color3 = { fromRGB = function() return {} end }'; cat "$SRC/ReplicatedStorage/CareerConfig.luau"; } > "$OUT/sim/CareerConfig.luau"
 cp "$ROOT/tools/sim/sim.luau" "$OUT/sim/"
 (cd "$OUT/sim" && "$BIN/luau" sim.luau -a career | grep -E "ganado \\\$(1.00K|100K|1.00M|100M)|primera (Red|Metaverso)|funda") || status=1

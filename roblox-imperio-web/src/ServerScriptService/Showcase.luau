@@ -362,7 +362,8 @@ local function updateScreen(handle: Handle, extra)
 	local text = "Aún no tiene webs"
 	if site then
 		local def = Config.WebTypeById[site.type]
-		text = string.format("%s %s · %s visitas/s", if def then def.emoji else "🌐", site.name, Config.formatNumber(site.visits))
+		local variant = site.variant and Config.VariantById[site.variant]
+		text = string.format("%s %s · %s visitas/s", (if variant then variant.emoji .. " " else "") .. (if def then def.emoji else "🌐"), site.name, Config.formatNumber(site.visits))
 	end
 	if handle.screenText.Text ~= text then
 		handle.screenText.Text = text

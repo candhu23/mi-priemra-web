@@ -10,18 +10,18 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, trabaja en
   empresas ficticias, funda su agencia de programadores y sale a bolsa.
-- **Versión actual del código: 1.3** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
+- **Versión actual del código: 2.0** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
   cada versión nueva).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
   - Experience (universe) ID: `10769603072`
   - Place ID (lugar de inicio): `129921526137293`
 - **Repo:** `candhu23/mi-priemra-web`. La v1.2 (rama `claude/roblox-game-h5olkl`) ya está
-  fusionada en `main`. La **v1.3** está en `claude/optimistic-thompson-296nik`. Cada sesión
+  fusionada en `main`. La **v1.3 y la v2.0** están en `claude/optimistic-thompson-296nik`. Cada sesión
   trabaja en la rama que le indique el sistema.
   El juego vive en `roblox-imperio-web/`. `index.html` en la raíz es una web personal del
   usuario, no tiene relación con el juego. Otras ramas del repo tienen otros juegos/proyectos
   del usuario (Steal an Alien, Obby de las Monedas, web SEO…): no mezclar.
-- **Descarga directa del lugar** (lo que el usuario abre en Studio), v1.3:
+- **Descarga directa del lugar** (lo que el usuario abre en Studio), v2.0:
   `https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl`
 
 ## 2. Sobre el usuario (cómo trabajar con él)
@@ -90,7 +90,9 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   setNetworkAll, setAdLevel, unlockNetwork, buyCompany, sellToOffer, quickSell, ipo,
   setNiche, claimGoal, claimDailyMission, finishTutorial, setMuted, claimDaily, claimGift,
   saveNow, acceptJobOffer, sendCV, quitJob, solveTask, foundAgency, upgradeOffice,
-  recruit, redeemTicket, trainProgrammer, fireProgrammer, setLanguage, visitPlot, likePlot`.
+  recruit, redeemTicket, trainProgrammer, fireProgrammer, setLanguage, visitPlot, likePlot,
+  buyResearch, claimSeason(tier, premium), claimPlaytime(i), redeemCode(texto)`. `buyCompany(id, 1|10|"max")`.
+  `click` devuelve también `combo` y `comboMult`. Notify tipo `rare` = aviso grande de web rara.
   `ACTION_STATS` en el servidor mapea acciones → contadores de misiones diarias.
 - Bucle del servidor (1 s): eventos aleatorios, boost, carrera (`CareerService.tick`:
   XP del trabajo, ascensos, ofertas de empleo), ingresos, visitas por web, trabajo
@@ -100,7 +102,10 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   `agencyWork, agencyBonus` (de los programadores), `weekend` (id del evento de fin de semana
   activo o nil). Las fórmulas de `TycoonConfig` los reciben.
 - El estado también lleva `weekly{earned,resetIn,top}`, `weekend{id,endsIn,nextId,startsIn}`,
-  `goldLeft`, `likes`, `neighbors[]` (otros jugadores del servidor) y `globalTop[]`.
+  `goldLeft`, `likes`, `neighbors[]` (otros jugadores del servidor) y `globalTop[]`; y desde la
+  v2.0 `collection, research, patents, ipoPatents, combo, bestCombo, season{id,xp,free,premiumClaimed,
+  premium,endsIn}, playtime{seconds,claimed}, starterLeft, serverEvent{id,endsIn}, community{target,
+  progress,endsIn}` y `variant` en cada web. `maintenance` ya incluye la mejora de I+D.
 
 ## 5. Datos guardados
 
@@ -119,7 +124,12 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   goals{id=true → reclamado}, nextSiteId, stats{built,sold,clicks,crits,byType}, daily{lastDay,streak},
   boostUntil, receipts{purchaseId=time} (últimas 50), selectedNiche, career{…}, tutorialDone,
   dailyMissions{day,list,bonusGiven}, settings{muted, lang="auto"|"es"|"en"}, lastOnline,
-  weekly{week,earned,prevWeek,prevEarned,rewardedWeek}, goldUntil, likes, likesGiven{day,ids{"u<id>"=true}}`.
+  weekly{week,earned,prevWeek,prevEarned,rewardedWeek}, goldUntil, likes, likesGiven{day,ids{"u<id>"=true}},
+  collection{tipo={normal|brillante|…=true}}, research{id=nivel}, patents, season{id,xp,free{"n"},
+  premiumClaimed{"n"},premium}, playtime{day,seconds,claimed{"i"}}, codes{CÓDIGO=true}, firstJoin,
+  starterBought, bestCombo`. Cada web: `variant` (nil o id de `Config.Variants`).
+- **Salir a bolsa** también da `patents` y respeta I+D (`capital` = dinero inicial, `autolab` = Lab IA 1).
+  **No** se pierden colección, I+D, patentes ni pase.
 - `career`: `xp{nicho=xp}, job{companyId,rank,rankSince,salaryMult,xpMult}, agency{name,officeLevel},
   programmers[{id,name,rarity,niche,level}], nextProgrammerId, pity, tickets{premium,legendary}, stats{…}`.
 - **Salir a bolsa** reinicia dinero, webs, empresas, apps, reputación y mantenimiento.
@@ -192,6 +202,22 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   o, en "auto", `Player.LocaleId` (es* → español; si no, inglés). Nombres de empresas, de
   programadores y de webs NO se traducen (son nombres propios).
 
+- **v2.0 (todo en `TycoonConfig`)**:
+  - **Webs raras** `Config.Variants` (se tira de la más rara a la menos; `variantChanceMult` = I+D
+    "luck" × Tormenta de datos x5, tope x10) → multiplican visitas en `siteVisits`.
+  - **Colección** `collectionStats/collectionBonus` (+1 %/casilla, +10 %/tipo completo) en `moneyMult`.
+  - **I+D** `Config.Research` (4 ramas, 12 mejoras), `research()/researchValue()/researchCost()`;
+    patentes = acciones/4 (mín. 1).
+  - **Hitos** `COMPANY_MILESTONES` x1.5 cada uno (`companyMult`), compra en bloque `companyAffordable`.
+  - **Combo** `comboMult` (hasta x3 con 50 clics seguidos, ventana 0,8 s; sesión, no se guarda).
+  - **Pase** temporadas de 4 semanas (`seasonIndex`), 30 niveles × 200 ⭐ (`Config.SeasonXp`),
+    premios `Config.seasonReward(tier, premium)`. Premium = Developer Product `seasonPremium`.
+  - **Premios por tiempo** `Config.PlaytimeRewards` (por día UTC). **Códigos** `Config.Codes`.
+  - **Eventos del servidor** `Config.ServerEvents` (globales en TycoonServer: `serverEvent`,
+    `serverEventIs`, tinte con `PlotManager.setEventTint`). **Meta común** `community` (objetivo =
+    7 min de ingresos de todos; recompensa 8 min de ingresos + ⭐).
+  - **Pack de inicio** producto `starter` (72 h desde `firstJoin`, una vez).
+
 ## 7. Monetización
 
 `Config.Monetization` en `TycoonConfig.luau`. `id = 0` → el artículo no aparece.
@@ -203,7 +229,7 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
 | `slotsPass` | Game Pass +3 Website Slots | `2006769799` | 49 |
 | `agencyPro` | Game Pass Agency Pro | `2008664354` | 239 |
 | `xpPass` | Game Pass Mentor x2 XP | `2006871734` | 99 |
-| `cash_small`, `cash_big`, `boost`, `finish`, `headhunter`, `headhunter5`, `legendary` | Developer Products | **pendientes (id = 0)** | — |
+| `cash_small`, `cash_big`, `boost`, `finish`, `headhunter`, `headhunter5`, `legendary`, `starter`, `seasonPremium` | Developer Products | **pendientes (id = 0)** | — |
 
 - `ProcessReceipt` es idempotente (`data.receipts`) y solo confirma tras guardar.
 - **El creador es dueño de sus propios pases**: en su cuenta la tienda muestra "✓ Ya lo tienes".
@@ -293,8 +319,10 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
 - [x] **Sistema de idiomas ES/EN** (v1.3).
 - [x] Escaparate 3D, visitas y me gusta; ranking semanal con premios; eventos de fin de
       semana (v1.3). **Sin probar en Studio** todavía: revisar con el usuario cómo se ven.
-- [ ] Publicar la v1.3. Poner en la descripción del juego (en inglés) los eventos de fin
-      de semana y el ranking semanal.
+- [x] v2.0: webs raras, colección, I+D, pase, premios por tiempo, eventos del servidor, meta
+      común, combo, hitos y compra en bloque, códigos, pack de inicio. **Sin probar en Studio.**
+- [ ] Publicar la v2.0. Poner en la descripción (en inglés) las novedades y los códigos.
+- [ ] Crear los productos `starter` (pack de inicio, ~99–199 R$) y `seasonPremium` (~199–399 R$).
 - [ ] Conseguir los 250 jugadores 16+ (TikTok/Discord) para abrir a todas las edades.
 - [ ] Ajustar precios de pases (x2 Money a 99 parece barato; 199–299 es lo habitual).
 - [ ] Ideas: mascotas/skins del rascacielos, más idiomas (portugués: Brasil es un mercado

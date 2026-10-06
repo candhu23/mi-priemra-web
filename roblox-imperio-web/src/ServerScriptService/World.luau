@@ -34,6 +34,8 @@ local leaderboardStatus: TextLabel? = nil
 -- El panel semanal tiene dos caras (una para cada lado de la avenida)
 local weeklyRows: { { TextLabel } } = {}
 local weeklyStatus: { TextLabel } = {}
+local colorEffect: ColorCorrectionEffect? = nil
+local NORMAL_TINT = Color3.fromRGB(255, 250, 244)
 
 local function newPart(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?): Part
 	local part = Instance.new("Part")
@@ -118,7 +120,8 @@ local function setupLighting()
 	color.Brightness = 0.02
 	color.Contrast = 0.1
 	color.Saturation = 0.15
-	color.TintColor = Color3.fromRGB(255, 250, 244)
+	color.TintColor = NORMAL_TINT
+	colorEffect = color
 
 	local rays = getOrCreate("SunRaysEffect", Lighting)
 	rays.Intensity = 0.05
@@ -425,6 +428,13 @@ local function applyNight(night: boolean)
 		if core:IsA("BasePart") then
 			Building.applyWindowLight(core, night)
 		end
+	end
+end
+
+-- Tiñe el cielo durante un evento del servidor (nil = color normal)
+function World.setEventTint(tint: Color3?)
+	if colorEffect then
+		colorEffect.TintColor = tint or NORMAL_TINT
 	end
 end
 
