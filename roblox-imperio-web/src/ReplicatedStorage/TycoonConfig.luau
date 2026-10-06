@@ -10,14 +10,15 @@
 
 local Config = {}
 
-Config.VERSION = "1.0"
+Config.VERSION = "1.1"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
 ---------------------------------------------------------------------
 Config.DATASTORE_NAME = "ImperioWeb_v1"
 Config.LEADERBOARD_NAME = "ImperioWebTop_v1"
-Config.AUTOSAVE_INTERVAL = 120 -- segundos
+Config.AUTOSAVE_INTERVAL = 60 -- segundos
+Config.MANUAL_SAVE_COOLDOWN = 30 -- segundos entre guardados manuales
 Config.LEADERBOARD_REFRESH = 120 -- segundos
 Config.STARTING_MONEY = 25
 Config.BASE_SLOTS = 3 -- webs que puedes tener a la vez sin Hosting
@@ -29,6 +30,8 @@ Config.QUICK_SALE_MULT = 0.6 -- vender sin cliente paga menos
 Config.SALE_SECONDS = 150 -- una empresa paga ~150 s de lo que puede ganar la web
 Config.MAINTENANCE_RATE = 0.0002 -- contrato de mantenimiento: % del precio de venta por segundo
 Config.MAX_SEO = 10
+Config.MAX_DESIGN = 5
+Config.DESIGN_QUALITY_BONUS = 0.10 -- cada nivel de rediseño: +10 % de calidad
 Config.SEO_VISIT_BONUS = 1.25 -- cada nivel de SEO multiplica las visitas
 Config.IPO_MIN_EARNED = 1_000_000 -- dinero ganado en la partida para salir a bolsa
 Config.SHARE_BONUS = 0.05 -- +5 % de dinero por cada acción
@@ -53,6 +56,8 @@ Config.Monetization = {
 		{ key = "pass", id = 0, emoji = "💎", name = "x2 Dinero", desc = "Ganas el doble de dinero para siempre." },
 		{ key = "turbo", id = 0, emoji = "⚡", name = "Programador Turbo", desc = "Programas el doble de rápido para siempre." },
 		{ key = "slotsPass", id = 0, emoji = "🗄️", name = "+3 Huecos", desc = "Puedes tener 3 webs más a la vez." },
+		{ key = "agencyPro", id = 0, emoji = "🏙️", name = "Agencia Pro", desc = "+5 puestos en tu oficina y programadores +25 % mejores." },
+		{ key = "xpPass", id = 0, emoji = "🎓", name = "Mentor x2 XP", desc = "Subes de nivel en los nichos el doble de rápido." },
 	},
 	Products = {
 		{ key = "cash_small", id = 0, emoji = "💼", name = "Maletín de dinero", kind = "cash", minutes = 15, min = 1000,
@@ -63,6 +68,14 @@ Config.Monetization = {
 			desc = "Todo tu dinero x2 durante 30 minutos." },
 		{ key = "finish", id = 0, emoji = "⏩", name = "Terminar web ya", kind = "finish",
 			desc = "Termina al instante la web que estás programando." },
+		-- random = true: contiene un resultado aleatorio. Se muestran las
+		-- probabilidades y se oculta donde Roblox restringe estos artículos.
+		{ key = "headhunter", id = 0, emoji = "🎯", name = "Headhunter Premium", kind = "ticket", ticket = "premium", amount = 1, random = true,
+			desc = "1 fichaje con probabilidades mejoradas (Raro o mejor)." },
+		{ key = "headhunter5", id = 0, emoji = "🎯", name = "Headhunter Premium x5", kind = "ticket", ticket = "premium", amount = 5, random = true,
+			desc = "5 fichajes con probabilidades mejoradas (Raro o mejor)." },
+		{ key = "legendary", id = 0, emoji = "👑", name = "Contrato Legendario", kind = "ticket", ticket = "legendary", amount = 1,
+			desc = "Un programador Legendario del nicho que tú elijas." },
 	},
 	GROUP_ID = 0, -- ID de tu grupo de Roblox (0 = desactivado)
 	GROUP_BONUS = 0.10,
@@ -195,6 +208,12 @@ local function built(typeId: string)
 	end
 end
 
+local function careerStat(field: string)
+	return function(d): number
+		return (d.career and d.career.stats and d.career.stats[field]) or 0
+	end
+end
+
 local function goal(id: string, text: string, reward: number, target: number, value: (any) -> number)
 	return { id = id, text = text, reward = reward, target = target, value = value }
 end
@@ -204,18 +223,25 @@ Config.Goals = {
 	goal("earn_1k", "Gana $1K", 200, 1e3, function(d) return d.totalEarned end),
 	goal("blog", "Programa un Blog", 300, 1, built("blog")),
 	goal("sell_1", "Vende una web a una empresa", 400, 1, function(d) return d.stats.sold end),
+	goal("job_1", "Consigue un trabajo en una empresa", 300, 1, careerStat("jobs")),
 	goal("company_1", "Funda tu primera empresa", 500, 1, companyLevels),
 	goal("network_2", "Desbloquea una segunda app de anuncios", 1500, 2, networksUnlocked),
 	goal("tienda", "Programa una Tienda Online", 2000, 1, built("tienda")),
 	goal("sites_5", "Ten 5 webs a la vez", 3000, 5, function(d) return #d.sites end),
+	goal("dev_8", "Llega a nivel de programador 8", 4000, 8, careerStat("devLevel")),
+	goal("agency", "Funda tu propia agencia", 6000, 1, careerStat("agency")),
 	goal("seo_5", "Sube una web a SEO 5", 5000, 5, maxSeo),
 	goal("sell_10", "Vende 10 webs", 10000, 10, function(d) return d.stats.sold end),
 	goal("earn_100k", "Gana $100K", 20000, 1e5, function(d) return d.totalEarned end),
+	goal("senior", "Asciende a Senior en tu trabajo", 30000, 3, careerStat("bestRank")),
+	goal("epic", "Ficha a un programador Épico o mejor", 40000, 4, careerStat("bestRarity")),
 	goal("noticias", "Programa un Periódico Digital", 30000, 1, built("noticias")),
 	goal("companies_25", "Suma 25 niveles de empresas", 100000, 25, companyLevels),
 	goal("earn_1m", "Gana $1M", 250000, 1e6, function(d) return d.totalEarned end),
 	goal("ipo_1", "Sal a bolsa por primera vez", 0, 1, function(d) return d.ipoCount end),
 	goal("red_social", "Programa una Red Social", 500000, 1, built("red_social")),
+	goal("team_10", "Ten 10 programadores en tu agencia", 1000000, 10, careerStat("team")),
+	goal("cto", "Llega a CTO", 5000000, 5, careerStat("bestRank")),
 	goal("sell_100", "Vende 100 webs", 1000000, 100, function(d) return d.stats.sold end),
 	goal("earn_1b", "Gana $1B", 50000000, 1e9, function(d) return d.totalEarned end),
 	goal("streaming", "Programa una Plataforma de Streaming", 100000000, 1, built("streaming")),
@@ -290,9 +316,11 @@ function Config.slots(data, bonuses): number
 	return Config.BASE_SLOTS + Config.level(data, "hosting") + extra
 end
 
+-- bonuses.agencyWork = trabajo/s de los programadores de tu agencia
 function Config.workPerSec(data, bonuses): number
 	local turbo = if bonuses and bonuses.turbo then 2 else 1
-	return Config.level(data, "devs") * 1.5 * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo
+	local agency = if bonuses and bonuses.agencyWork then bonuses.agencyWork else 0
+	return (Config.level(data, "devs") * 1.5 + agency) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo
 end
 
 function Config.clickPower(data, bonuses): number
@@ -328,6 +356,8 @@ function Config.moneyMult(data, bonuses): number
 			mult *= 2
 		end
 		mult *= 1 + Config.socialBonus(bonuses)
+		-- bonuses.agencyBonus = % extra de los programadores de tu agencia
+		mult *= 1 + (bonuses.agencyBonus or 0)
 	end
 	return mult
 end
@@ -336,7 +366,7 @@ function Config.siteVisits(data, site, eventMult: number?): number
 	local def = Config.WebTypeById[site.type]
 	local network = Config.AdNetworkById[site.network] or Config.AdNetworks[1]
 	local adLevel = Config.AdLevels[site.adLevel] or Config.AdLevels[1]
-	local visits = def.visits * site.quality
+	local visits = def.visits * site.quality * (1 + Config.DESIGN_QUALITY_BONUS * (site.design or 0))
 	visits *= Config.SEO_VISIT_BONUS ^ site.seo
 	visits *= 1 + 0.10 * Config.level(data, "marketing")
 	visits *= adLevel.visits * (1 - network.penalty)
@@ -373,6 +403,11 @@ end
 function Config.seoCost(site): number
 	local def = Config.WebTypeById[site.type]
 	return math.floor((def.cost + 50) * 3 * 2.1 ^ site.seo)
+end
+
+function Config.designCost(site): number
+	local def = Config.WebTypeById[site.type]
+	return math.floor((def.cost + 80) * 6 * 2.6 ^ (site.design or 0))
 end
 
 function Config.companiesIncome(data, moneyMult: number): number

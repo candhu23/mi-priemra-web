@@ -1,6 +1,16 @@
-# 🌐 Imperio Web Tycoon · v1.0 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v1.1 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v1.1
+- **Arreglado**: los textos de los botones (precios, mejoras...) no se veían. Era un degradado que también teñía el texto.
+- **Arreglado**: la interfaz superaba el límite de 200 variables locales de Luau y no habría arrancado; ahora cada pestaña va en su bloque.
+- **Ficha de cada web** (🌐 Webs → 🔍 Abrir): visitas en directo con gráfica, visitas y dinero totales, comparativa de **lo que pagaría cada app de anuncios** por visita en esa web, cantidad de anuncios con lo que ganarías, mejoras (SEO y rediseño) y la mejor oferta de compra.
+- **Nichos** (10): eliges el nicho de tus webs. Cada nicho tiene nivel propio: +2 % de calidad por nivel, y las empresas de ese nicho pagan **x1.5**.
+- **💼 Carrera**: 500 empresas ficticias (50 por nicho) donde puedes trabajar. Cobras sueldo, resuelves tareas cada 40 s y asciendes de Junior a CTO.
+- **👥 Agencia** (desde nivel de programador 8): ficha programadores de 6 rarezas (Común → Mítico). Programan por ti y dan un % extra de TODO tu dinero. Puedes entrenarlos y ampliar la oficina. Hay un Legendario garantizado cada 60 entrevistas. La carrera y la agencia **no se pierden al salir a bolsa**.
+- **Guardado**: ahora cada 60 s, botón **💾 Guardar ahora** (📈 Bolsa), indicador del último guardado y aviso rojo con instrucciones si está desactivado.
+- **Tienda**: nuevos pases (🏙️ Agencia Pro, 🎓 Mentor x2 XP) y productos (🎯 Headhunter Premium x1/x5, 👑 Contrato Legendario).
 
 ## Novedades de la v1.0
 - **Ciudad nueva**: iluminación realista (*Future*), atmósfera, *bloom*, ciclo de día y noche (las ventanas y farolas se encienden de noche), avenida con aceras y farolas, plaza con fuente, árboles, arco de bienvenida y un horizonte de edificios al fondo.
@@ -34,9 +44,12 @@ rojo build default.project.json --output ImperioWeb.rbxl
 ```
 
 ## Guardar partidas y clasificación
-Funcionan con DataStores, que solo van en un juego **publicado**:
-1. *File → Publish to Roblox*.
-2. *Home → Game Settings → Security* → activa **Enable Studio Access to API Services**.
+El progreso **ya se guarda solo** (cada 60 s, al salir y al cerrar el servidor), pero Roblox solo permite guardar en juegos **publicados**. Para que funcione también al probar en Studio:
+1. *File → Publish to Roblox* (créalo como experiencia nueva).
+2. *Home → Game Settings → Security* → activa **Enable Studio Access to API Services** → *Save*.
+3. Para la prueba (*Stop*) y vuelve a pulsar *Play*.
+
+Si el guardado está desactivado verás un **aviso rojo** arriba a la izquierda; al pulsarlo te explica estos pasos. Jugando al juego publicado desde la web o la app se guarda siempre.
 
 ## Ganar Robux
 En `src/ReplicatedStorage/TycoonConfig.luau` → `Config.Monetization`:
@@ -49,6 +62,10 @@ En `src/ReplicatedStorage/TycoonConfig.luau` → `Config.Monetization`:
 | Producto | 💼 Maletín / 🚚 Camión | 15 min / 2 h de ingresos al instante | 25–49 / 99–149 R$ |
 | Producto | 🚀 Boost x2 30 min | dinero x2 durante 30 min | 49–79 R$ |
 | Producto | ⏩ Terminar web ya | termina la web que programas | 15–25 R$ |
+| Game Pass | 🏙️ Agencia Pro | +5 puestos y programadores +25 % | 199–299 R$ |
+| Game Pass | 🎓 Mentor x2 XP | sube de nivel el doble de rápido | 99–199 R$ |
+| Producto | 🎯 Headhunter Premium (x1 / x5) | fichaje Raro o mejor (aleatorio) | 49–79 / 199–299 R$ |
+| Producto | 👑 Contrato Legendario | Legendario del nicho que elijas | 299–499 R$ |
 
 \* Son precios típicos en tycoons de Roblox, no datos comprobados de este juego: ajústalos según veas qué compra la gente.
 
@@ -58,6 +75,8 @@ Pasos:
 3. Opcional: pon el ID de tu **grupo** de Roblox en `GROUP_ID` para dar +10 % a quien se una (ayuda a conseguir jugadores).
 
 Las compras de productos se guardan antes de confirmarse a Roblox y no se pueden cobrar dos veces.
+
+**Artículos aleatorios (Headhunter Premium)**: Roblox exige mostrar las probabilidades antes de comprar (el juego las muestra en la tienda y en la agencia) y los restringe en algunos países. El juego consulta `PolicyService` y oculta esos artículos a quien no pueda comprarlos. El 👑 Contrato Legendario no es aleatorio (eliges el nicho), así que está disponible para todos.
 
 ## Cambiar el juego
 - **Economía**: todos los números están en `TycoonConfig.luau` (precios, visitas, reputación, empresas, objetivos, recompensas...).
@@ -71,6 +90,8 @@ roblox-imperio-web/
 ├── ImperioWeb.rbxl        # lugar listo para abrir en Studio
 └── src/
     ├── ReplicatedStorage/TycoonConfig.luau            # datos y fórmulas
+    ├── ReplicatedStorage/CareerConfig.luau            # nichos, 500 empresas, puestos, rarezas
+    ├── ServerScriptService/CareerService.luau         # trabajos, agencia y fichajes (servidor)
     ├── ServerScriptService/World.luau                 # ciudad, luces, día/noche, clasificación
     ├── ServerScriptService/Building.luau              # generador de rascacielos
     ├── ServerScriptService/PlotManager.luau           # parcelas de los jugadores
