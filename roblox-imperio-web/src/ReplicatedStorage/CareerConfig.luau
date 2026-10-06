@@ -192,6 +192,49 @@ function Career.officeCapacity(officeLevel: number, agencyPro: boolean?): number
 	return 3 + 2 * officeLevel + (if agencyPro then 5 else 0)
 end
 
+-- Mejoras que se abren al ampliar la oficina (y se ven en el edificio)
+Career.OfficePerks = {
+	{ id = "cafe", level = 2, emoji = "☕", name = "Cafetería", desc = "Tus programadores ganan experiencia un 30 % más rápido." },
+	{ id = "meeting", level = 4, emoji = "🗣️", name = "Sala de reuniones", desc = "+10 % a todo lo que aporta tu equipo." },
+	{ id = "lounge", level = 6, emoji = "🛋️", name = "Zona de descanso", desc = "+20 % de trabajo de tu equipo." },
+	{ id = "lab", level = 8, emoji = "🧪", name = "Laboratorio", desc = "+10 % de probabilidad de webs raras." },
+	{ id = "rooftop", level = 10, emoji = "🌇", name = "Terraza en la azotea", desc = "+20 % a todo lo que aporta tu equipo." },
+}
+Career.PerkById = {}
+for _, perk in Career.OfficePerks do
+	Career.PerkById[perk.id] = perk
+end
+
+function Career.perkLevel(id: string): number
+	local perk = Career.PerkById[id]
+	return if perk then perk.level else math.huge
+end
+
+function Career.hasPerk(career, id: string): boolean
+	return career.agency ~= nil and (career.agency.officeLevel or 1) >= Career.perkLevel(id)
+end
+
+-- Equipo completo: al menos un programador de cada especialidad
+Career.FULL_TEAM_BONUS = 0.15
+function Career.rolesInTeam(career): { [string]: number }
+	local roles = {}
+	for _, programmer in career.programmers do
+		local role = programmer.role or "dev"
+		roles[role] = (roles[role] or 0) + 1
+	end
+	return roles
+end
+
+function Career.fullTeam(career): boolean
+	local roles = Career.rolesInTeam(career)
+	for _, role in Career.Roles do
+		if not roles[role.id] then
+			return false
+		end
+	end
+	return true
+end
+
 function Career.officeUpgradeCost(officeLevel: number): number
 	return math.floor(5000 * 3 ^ (officeLevel - 1))
 end
@@ -314,6 +357,16 @@ function Career.agencyTotals(career, projectNiche: string?, agencyPro: boolean?,
 			totals[key] += value
 		end
 	end
+	-- Mejoras de la oficina y equipo completo
+	local mult = 1 + (if Career.hasPerk(career, "meeting") then 0.10 else 0) + (if Career.hasPerk(career, "rooftop") then 0.20 else 0)
+		+ (if Career.fullTeam(career) then Career.FULL_TEAM_BONUS else 0)
+	for key, value in totals do
+		totals[key] = value * mult
+	end
+	if Career.hasPerk(career, "lab") then
+		totals.rare += 0.10
+	end
+	work *= mult * (if Career.hasPerk(career, "lounge") then 1.2 else 1)
 	return work, totals
 end
 

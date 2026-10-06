@@ -332,6 +332,7 @@ function CareerService.tick(player: Player, session, dt: number)
 			if programmer.level < Career.PROGRAMMER_MAX_LEVEL then
 				local others = mentors - (if programmer.trait == "mentor" then 1 else 0)
 				local rate = (if programmer.trait == "incansable" then 2 else 1) * (1 + 0.25 * others)
+					* (if Career.hasPerk(career, "cafe") then 1.3 else 1)
 				programmer.xp = (programmer.xp or 0) + dt * rate
 				local needed = Career.programmerXpNeeded(programmer.level)
 				if programmer.xp >= needed then
@@ -501,7 +502,7 @@ function Actions.foundAgency(player: Player, session)
 	return true, nil
 end
 
-function Actions.upgradeOffice(_player: Player, session)
+function Actions.upgradeOffice(player: Player, session)
 	local data = session.data
 	local agency = data.career.agency
 	if not agency then
@@ -516,6 +517,11 @@ function Actions.upgradeOffice(_player: Player, session)
 	end
 	data.money -= cost
 	agency.officeLevel += 1
+	for _, perk in Career.OfficePerks do
+		if perk.level == agency.officeLevel then
+			ctx.popup(player, "🏢 ¡Oficina ampliada!", string.format("%s %s\n\n%s\n\n(Mira tu edificio de la agencia: ¡ya se ve!)", perk.emoji, perk.name, perk.desc))
+		end
+	end
 	return true, "🏢 Oficina ampliada: " .. capacity(session) .. " puestos"
 end
 

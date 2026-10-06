@@ -5,9 +5,10 @@
 	aceras y farolas, árboles, plaza con fuente y zona de aparición,
 	arco de bienvenida, panel de clasificación global, horizonte de
 	edificios al fondo, el panel del ranking semanal en mitad de la avenida,
-	el edificio de la Bolsa con sus precios en directo (v3), pasos de
-	cebra, coches aparcados, el cartel de "Cómo jugar" y el ciclo de día
-	y noche.
+	el edificio de la Bolsa con sus precios en directo, pasos de cebra, el
+	cartel de "Cómo jugar" y el ciclo de día y noche. Desde la v3.1 la
+	plaza es una glorieta en el CENTRO de la ciudad (ver CityLayout) y los
+	coches que circulan los mueve cada cliente (Traffic).
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -15,18 +16,20 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("TycoonConfig"))
+local City = require(game:GetService("ReplicatedStorage"):WaitForChild("CityLayout"))
 local Building = require(script.Parent:WaitForChild("Building"))
 
 local World = {}
 
 World.PLOT_COUNT = 8
-World.PLOT_SIZE = 64
-World.PLOT_SPACING = 80
-local STREET_WIDTH = 28
-local SIDEWALK = 8
-local AVENUE_START = -200
-local AVENUE_END = 190
-local PLAZA_CENTER = Vector3.new(-240, 0, 0)
+World.PLOT_SIZE = City.PLOT_SIZE
+local STREET_WIDTH = City.STREET_WIDTH
+local SIDEWALK = City.SIDEWALK
+local AVENUE_HALF = City.AVENUE_HALF
+local PLAZA_CENTER = Vector3.new(0, 0, 0) -- la plaza está en el centro de la glorieta
+local ASPHALT = Color3.fromRGB(48, 50, 56)
+local CONCRETE = Color3.fromRGB(196, 196, 202)
+local CURB = Color3.fromRGB(150, 150, 158)
 local TAG_LAMP = "ImperioStreetLamp"
 
 local random = Random.new(2024)
@@ -168,37 +171,77 @@ function World.tree(parent: Instance, position: Vector3, scale: number)
 	end
 end
 
+-- Avenida a los dos lados de la glorieta, con una rotonda en cada punta
 local function buildAvenue(city: Folder)
-	local length = AVENUE_END - AVENUE_START
-	local centerX = (AVENUE_START + AVENUE_END) / 2
-	newPart(city, Vector3.new(length, 0.3, STREET_WIDTH), CFrame.new(centerX, 0.15, 0), Color3.fromRGB(48, 50, 56), Enum.Material.Asphalt)
-	-- Líneas de la calzada
-	for x = AVENUE_START + 8, AVENUE_END - 8, 14 do
-		newPart(city, Vector3.new(6, 0.32, 0.6), CFrame.new(x, 0.16, 0), Color3.fromRGB(245, 222, 100), Enum.Material.SmoothPlastic)
-	end
-	for _, side in { -1, 1 } do
-		local z = side * (STREET_WIDTH / 2 + SIDEWALK / 2)
-		newPart(city, Vector3.new(length, 0.6, SIDEWALK), CFrame.new(centerX, 0.3, z), Color3.fromRGB(196, 196, 202), Enum.Material.Concrete)
-		-- Bordillo
-		newPart(city, Vector3.new(length, 0.7, 0.6), CFrame.new(centerX, 0.35, side * (STREET_WIDTH / 2 + 0.3)), Color3.fromRGB(150, 150, 158), Enum.Material.Concrete)
-		for x = AVENUE_START + 20, AVENUE_END - 10, 40 do
-			streetLamp(city, Vector3.new(x, 0.6, side * (STREET_WIDTH / 2 + 1.6)), -side)
+	local from = City.RING_INNER -- se mete un poco en la glorieta para que no quede hueco
+	local length = AVENUE_HALF - from
+	for _, dir in { -1, 1 } do
+		local centerX = dir * (from + length / 2)
+		newPart(city, Vector3.new(length, 0.3, STREET_WIDTH), CFrame.new(centerX, 0.15, 0), ASPHALT, Enum.Material.Asphalt)
+		-- Línea discontinua del centro
+		for x = City.RING_OUTER + 10, AVENUE_HALF - City.TURN_RADIUS * 2, 14 do
+			newPart(city, Vector3.new(6, 0.32, 0.6), CFrame.new(dir * x, 0.16, 0), Color3.fromRGB(245, 222, 100), Enum.Material.SmoothPlastic)
 		end
+		-- Aceras y bordillos (empiezan donde acaba la acera de la glorieta)
+		local walkFrom = City.RING_OUTER + 2
+		local walkLength = AVENUE_HALF - City.TURN_RADIUS * 2 - walkFrom
+		local walkX = dir * (walkFrom + walkLength / 2)
+		for _, side in { -1, 1 } do
+			local z = side * (STREET_WIDTH / 2 + SIDEWALK / 2)
+			newPart(city, Vector3.new(walkLength, 0.6, SIDEWALK), CFrame.new(walkX, 0.3, z), CONCRETE, Enum.Material.Concrete)
+			newPart(city, Vector3.new(walkLength, 0.7, 0.6), CFrame.new(walkX, 0.35, side * (STREET_WIDTH / 2 + 0.3)), CURB, Enum.Material.Concrete)
+			for x = walkFrom + 16, walkFrom + walkLength - 6, 40 do
+				streetLamp(city, Vector3.new(dir * x, 0.6, side * (STREET_WIDTH / 2 + 1.6)), -side)
+			end
+		end
+		-- Rotonda de la punta (los coches dan aquí la vuelta)
+		local endX = dir * (AVENUE_HALF - City.TURN_RADIUS)
+		verticalCylinder(city, 0.3, City.TURN_RADIUS * 2 + 8, Vector3.new(endX, 0.15, 0), CONCRETE, Enum.Material.Concrete)
+		verticalCylinder(city, 0.32, City.TURN_RADIUS * 2, Vector3.new(endX, 0.16, 0), ASPHALT, Enum.Material.Asphalt)
+		verticalCylinder(city, 0.8, 4, Vector3.new(endX, 0.4, 0), Color3.fromRGB(104, 172, 92), Enum.Material.Grass)
+		World.tree(city, Vector3.new(endX, 0.8, 0), 0.7)
 	end
 end
 
+-- Plaza central: glorieta con la fuente en la isla, árboles, bancos,
+-- flores, farolas y la zona de aparición. Los coches dan la vuelta por fuera.
 local function buildPlaza(city: Folder)
 	local c = PLAZA_CENTER
-	verticalCylinder(city, 0.6, 96, c + Vector3.new(0, 0.3, 0), Color3.fromRGB(214, 206, 192), Enum.Material.Pavement)
-	verticalCylinder(city, 0.62, 70, c + Vector3.new(0, 0.31, 0), Color3.fromRGB(190, 182, 168), Enum.Material.Pavement)
+	-- Calzada de la glorieta y acera exterior (por tramos, sin tapar la avenida)
+	verticalCylinder(city, 0.3, City.RING_OUTER * 2, c + Vector3.new(0, 0.15, 0), ASPHALT, Enum.Material.Asphalt)
+	local walkR = City.RING_OUTER + City.RING_SIDEWALK / 2
+	local pieces = 36
+	for i = 0, pieces - 1 do
+		local angle = (i + 0.5) / pieces * math.pi * 2
+		local z = math.sin(angle) * walkR
+		if math.abs(z) > STREET_WIDTH / 2 + 1 then
+			local length = 2 * math.pi * walkR / pieces + 0.8
+			local cf = CFrame.new(c + Vector3.new(math.cos(angle) * walkR, 0.3, z)) * CFrame.Angles(0, -angle, 0)
+			newPart(city, Vector3.new(City.RING_SIDEWALK, 0.6, length), cf, CONCRETE, Enum.Material.Concrete)
+		end
+	end
+	-- Isla: plaza con baldosas y bordillo
+	verticalCylinder(city, 0.7, City.RING_INNER * 2 + 1.2, c + Vector3.new(0, 0.35, 0), CURB, Enum.Material.Concrete)
+	verticalCylinder(city, 0.6, City.RING_INNER * 2, c + Vector3.new(0, 0.3, 0), Color3.fromRGB(214, 206, 192), Enum.Material.Pavement)
+	verticalCylinder(city, 0.62, 52, c + Vector3.new(0, 0.31, 0), Color3.fromRGB(190, 182, 168), Enum.Material.Pavement)
+	-- Mosaico: estrella de 8 puntas alrededor de la fuente
+	for i = 0, 7 do
+		local angle = i / 8 * math.pi * 2
+		local cf = CFrame.new(c + Vector3.new(math.cos(angle) * 18, 0.33, math.sin(angle) * 18)) * CFrame.Angles(0, -angle, 0)
+		newPart(city, Vector3.new(10, 0.64, 2), cf, if i % 2 == 0 then Color3.fromRGB(37, 99, 235) else Color3.fromRGB(250, 204, 21), Enum.Material.SmoothPlastic)
+	end
 
-	-- Fuente
+	-- Fuente de dos pisos
 	verticalCylinder(city, 2.2, 22, c + Vector3.new(0, 1.1, 0), Color3.fromRGB(220, 220, 225), Enum.Material.Marble)
 	local water = verticalCylinder(city, 2.3, 20, c + Vector3.new(0, 1.15, 0), Color3.fromRGB(70, 160, 230), Enum.Material.Glass)
 	water.Transparency = 0.25
 	water.Reflectance = 0.3
 	verticalCylinder(city, 7, 2.4, c + Vector3.new(0, 3.5, 0), Color3.fromRGB(220, 220, 225), Enum.Material.Marble)
 	local bowl = verticalCylinder(city, 1, 8, c + Vector3.new(0, 7, 0), Color3.fromRGB(220, 220, 225), Enum.Material.Marble)
+	verticalCylinder(city, 3, 1.4, c + Vector3.new(0, 9, 0), Color3.fromRGB(220, 220, 225), Enum.Material.Marble)
+	local globe = newPart(city, Vector3.new(3.2, 3.2, 3.2), CFrame.new(c + Vector3.new(0, 11.8, 0)), Color3.fromRGB(56, 140, 255), Enum.Material.Neon)
+	globe.Shape = Enum.PartType.Ball
+	globe.CastShadow = false
 	local attachment = Instance.new("Attachment")
 	attachment.Position = Vector3.new(0.6, 0, 0) -- eje X local = arriba (cilindro girado)
 	attachment.Orientation = Vector3.new(0, 0, -90)
@@ -215,53 +258,68 @@ local function buildPlaza(city: Folder)
 	spray.EmissionDirection = Enum.NormalId.Top
 	spray.Parent = attachment
 
-	-- Zona de aparición
+	-- Zona de aparición (al norte de la fuente, mirando al cartel de ayuda)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Anchored = true
-	spawn.Size = Vector3.new(12, 1, 12)
-	spawn.CFrame = CFrame.new(c + Vector3.new(28, 0.5, 0))
+	spawn.Size = Vector3.new(10, 1, 10)
+	spawn.CFrame = CFrame.new(c + Vector3.new(0, 0.6, 22)) * CFrame.Angles(0, math.pi, 0)
 	spawn.Color = Color3.fromRGB(37, 99, 235)
 	spawn.Material = Enum.Material.SmoothPlastic
 	spawn.Duration = 0
 	spawn.Neutral = true
 	spawn.Parent = city
 
-	-- Bancos y árboles alrededor
+	-- Anillo de árboles, bancos mirando a la fuente, jardineras y farolas
 	for i = 0, 7 do
 		local angle = i / 8 * math.pi * 2 + math.pi / 8
-		local pos = c + Vector3.new(math.cos(angle) * 40, 0.6, math.sin(angle) * 40)
-		if math.abs(math.sin(angle)) > 0.3 then
-			World.tree(city, pos, 1.1)
+		local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		World.tree(city, c + dir * 34 + Vector3.new(0, 0.6, 0), 1)
+		-- Jardinera con flores al pie del árbol
+		verticalCylinder(city, 1, 6, c + dir * 34 + Vector3.new(0, 1, 0), Color3.fromRGB(150, 110, 80), Enum.Material.Brick)
+		for k = 0, 3 do
+			local a = angle + k * math.pi / 2
+			local flower = newPart(city, Vector3.new(1, 1, 1), CFrame.new(c + dir * 34 + Vector3.new(math.cos(a) * 2, 1.9, math.sin(a) * 2)),
+				if k % 2 == 0 then Color3.fromRGB(244, 114, 182) else Color3.fromRGB(250, 204, 21), Enum.Material.SmoothPlastic)
+			flower.Shape = Enum.PartType.Ball
 		end
-	end
-	for _, z in { -16, 16 } do
-		newPart(city, Vector3.new(6, 0.5, 2), CFrame.new(c + Vector3.new(-14, 1.6, z)), Color3.fromRGB(140, 96, 60), Enum.Material.WoodPlanks)
-		newPart(city, Vector3.new(0.5, 1.4, 1.6), CFrame.new(c + Vector3.new(-16.5, 0.9, z)), Color3.fromRGB(40, 40, 46), Enum.Material.Metal)
-		newPart(city, Vector3.new(0.5, 1.4, 1.6), CFrame.new(c + Vector3.new(-11.5, 0.9, z)), Color3.fromRGB(40, 40, 46), Enum.Material.Metal)
+		local benchAngle = angle + math.pi / 8
+		local bdir = Vector3.new(math.cos(benchAngle), 0, math.sin(benchAngle))
+		local bench = CFrame.lookAt(c + bdir * 27 + Vector3.new(0, 1.6, 0), c + Vector3.new(0, 1.6, 0))
+		newPart(city, Vector3.new(6, 0.5, 2), bench, Color3.fromRGB(140, 96, 60), Enum.Material.WoodPlanks)
+		newPart(city, Vector3.new(6, 1.6, 0.4), bench * CFrame.new(0, 1, 1), Color3.fromRGB(140, 96, 60), Enum.Material.WoodPlanks)
+		for _, x in { -2.5, 2.5 } do
+			newPart(city, Vector3.new(0.5, 1.4, 1.6), bench * CFrame.new(x, -0.7, 0), Color3.fromRGB(40, 40, 46), Enum.Material.Metal)
+		end
+		if i % 2 == 0 then
+			streetLamp(city, c + bdir * 38 + Vector3.new(0, 0.6, 0), 0)
+		end
 	end
 end
 
+-- Arcos de bienvenida en las dos entradas de la glorieta
 local function buildWelcomeArch(city: Folder)
-	local x = AVENUE_START + 6
 	local half = STREET_WIDTH / 2 + SIDEWALK
 	local pillarColor = Color3.fromRGB(30, 41, 59)
-	for _, side in { -1, 1 } do
-		newPart(city, Vector3.new(3, 22, 3), CFrame.new(x, 11, side * half), pillarColor, Enum.Material.Metal)
+	for _, dir in { -1, 1 } do
+		local x = dir * (City.RING_OUTER + City.RING_SIDEWALK + 10)
+		for _, side in { -1, 1 } do
+			newPart(city, Vector3.new(3, 22, 3), CFrame.new(x, 11, side * half), pillarColor, Enum.Material.Metal)
+		end
+		local beam = newPart(city, Vector3.new(3, 5, half * 2 + 3), CFrame.new(x, 24, 0), Color3.fromRGB(37, 99, 235), Enum.Material.SmoothPlastic)
+		surfaceLabel(beam, Enum.NormalId.Right, if dir < 0 then "💰 ¡HAZTE MILLONARIO! 💰" else "🌐 CIUDAD WEB 🌐", Color3.new(1, 1, 1))
+		surfaceLabel(beam, Enum.NormalId.Left, if dir < 0 then "🌐 CIUDAD WEB 🌐" else "💰 ¡HAZTE MILLONARIO! 💰", Color3.new(1, 1, 1))
+		local glow = newPart(city, Vector3.new(3.2, 0.5, half * 2 + 3.2), CFrame.new(x, 21.3, 0), Color3.fromRGB(96, 165, 250), Enum.Material.Neon)
+		glow.CastShadow = false
 	end
-	local beam = newPart(city, Vector3.new(3, 5, half * 2 + 3), CFrame.new(x, 24, 0), Color3.fromRGB(37, 99, 235), Enum.Material.SmoothPlastic)
-	surfaceLabel(beam, Enum.NormalId.Right, "🌐 CIUDAD WEB 🌐", Color3.new(1, 1, 1))
-	surfaceLabel(beam, Enum.NormalId.Left, "💰 ¡HAZTE MILLONARIO! 💰", Color3.new(1, 1, 1))
-	local glow = newPart(city, Vector3.new(3.2, 0.5, half * 2 + 3.2), CFrame.new(x, 21.3, 0), Color3.fromRGB(96, 165, 250), Enum.Material.Neon)
-	glow.CastShadow = false
 end
 
 local function buildLeaderboard(city: Folder)
-	local position = PLAZA_CENTER + Vector3.new(-34, 9, 0)
+	-- Al norte de la plaza, junto al panel semanal, mirando a la fuente (-Z)
+	local position = Vector3.new(-15, 9, City.BOARDS_Z)
 	local frameColor = Color3.fromRGB(30, 41, 59)
-	newPart(city, Vector3.new(1.5, 18, 1.5), CFrame.new(position + Vector3.new(0, -4.5, -10)), frameColor, Enum.Material.Metal)
-	newPart(city, Vector3.new(1.5, 18, 1.5), CFrame.new(position + Vector3.new(0, -4.5, 10)), frameColor, Enum.Material.Metal)
-	-- El panel mira hacia +X (hacia la plaza y la avenida)
-	local board = newPart(city, Vector3.new(22, 16, 1), CFrame.lookAt(position, position + Vector3.new(1, 0, 0)), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
+	newPart(city, Vector3.new(1.5, 18, 1.5), CFrame.new(position + Vector3.new(-10, -4.5, 0)), frameColor, Enum.Material.Metal)
+	newPart(city, Vector3.new(1.5, 18, 1.5), CFrame.new(position + Vector3.new(10, -4.5, 0)), frameColor, Enum.Material.Metal)
+	local board = newPart(city, Vector3.new(22, 16, 1), CFrame.lookAt(position, position + Vector3.new(0, 0, -1)), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
 	board.Name = "Clasificacion"
 
 	local gui = Instance.new("SurfaceGui")
@@ -321,12 +379,12 @@ function World.setLeaderboard(rows: { { name: string, value: number } }?, messag
 	end
 end
 
--- Panel del ranking semanal en mitad de la avenida, con dos caras
+-- Panel del ranking semanal al norte de la plaza, con dos caras
 local function buildWeeklyBoard(city: Folder)
-	local center = Vector3.new(0, 16, 0)
+	local center = Vector3.new(15, 9, City.BOARDS_Z)
 	local frameColor = Color3.fromRGB(30, 41, 59)
 	for _, x in { -12.5, 12.5 } do
-		newPart(city, Vector3.new(1.4, 23.5, 1.4), CFrame.new(x, 11.75, 0), frameColor, Enum.Material.Metal)
+		newPart(city, Vector3.new(1.4, 16.5, 1.4), CFrame.new(center.X + x, 8.25, center.Z), frameColor, Enum.Material.Metal)
 	end
 	local board = newPart(city, Vector3.new(24, 15, 1), CFrame.new(center), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
 	board.Name = "RankingSemanal"
@@ -396,7 +454,7 @@ local function buildSkyline(city: Folder)
 	local colors = { Color3.fromRGB(70, 82, 104), Color3.fromRGB(84, 96, 120), Color3.fromRGB(60, 70, 90) }
 	for i = 1, 44 do
 		local angle = i / 44 * math.pi * 2
-		local radius = random:NextNumber(330, 400)
+		local radius = random:NextNumber(470, 540)
 		local width = random:NextNumber(26, 46)
 		local height = random:NextNumber(50, 190)
 		local position = Vector3.new(math.cos(angle) * radius, height / 2, math.sin(angle) * radius)
@@ -407,17 +465,17 @@ local function buildSkyline(city: Folder)
 end
 
 local function scatterTrees(city: Folder)
-	for _ = 1, 70 do
-		local x = random:NextNumber(-300, 280)
-		local z = random:NextNumber(110, 280) * (if random:NextNumber() < 0.5 then -1 else 1)
+	for _ = 1, 90 do
+		local x = random:NextNumber(-420, 420)
+		local z = random:NextNumber(135, 360) * (if random:NextNumber() < 0.5 then -1 else 1)
 		World.tree(city, Vector3.new(x, 0, z), random:NextNumber(0.9, 1.6))
 	end
 end
 
 ---------------------------------------------------------------------
--- v3: Bolsa, pasos de cebra, coches y cartel de ayuda
+-- Bolsa, pasos de cebra y cartel de ayuda
 ---------------------------------------------------------------------
-local BOLSA_CENTER = PLAZA_CENTER + Vector3.new(0, 0, -78)
+local BOLSA_CENTER = Vector3.new(0, 0, City.BOLSA_Z)
 
 -- Pantalla con una fila por empresa de la Bolsa
 local function marketScreen(part: BasePart, face: Enum.NormalId, rowsCount: number)
@@ -501,8 +559,9 @@ local function buildStockExchange(city: Folder)
 			newPart(city, Vector3.new(0.6, 2, 0.6), CFrame.new(base + Vector3.new(x, 1.8 + 0.2, z)), gold, Enum.Material.Metal)
 		end
 	end
-	-- Camino de la plaza a la Bolsa
-	newPart(city, Vector3.new(14, 0.64, 22), CFrame.new(c + Vector3.new(0, 0.32, 26)), Color3.fromRGB(190, 182, 168), Enum.Material.Pavement)
+	-- Camino de la acera de la glorieta a la Bolsa
+	local pathFrom, pathTo = c.Z + 15, -(City.RING_OUTER + City.RING_SIDEWALK / 2)
+	newPart(city, Vector3.new(14, 0.64, pathTo - pathFrom), CFrame.new(0, 0.32, (pathFrom + pathTo) / 2), Color3.fromRGB(190, 182, 168), Enum.Material.Pavement)
 end
 
 -- rows = { { ticker, emoji, price, change } } (MarketService.rows)
@@ -522,57 +581,37 @@ function World.setMarketBoard(rows)
 	end
 end
 
--- Pasos de cebra entre las parcelas
+-- Pasos de cebra: en la avenida (entre parcelas y en las entradas de la
+-- glorieta) y cruzando la glorieta hacia la Bolsa y hacia los paneles
+local function zebra(city: Folder, x: number, fromZ: number, toZ: number)
+	for z = fromZ, toZ, 3 do
+		newPart(city, Vector3.new(6, 0.32, 1.6), CFrame.new(x, 0.17, z), Color3.fromRGB(240, 240, 240), Enum.Material.SmoothPlastic)
+	end
+end
+
 local function buildCrosswalks(city: Folder)
-	for _, x in { -80, 80 } do
-		for z = -12, 12, 3 do
-			newPart(city, Vector3.new(6, 0.32, 1.6), CFrame.new(x, 0.17, z), Color3.fromRGB(240, 240, 240), Enum.Material.SmoothPlastic)
-		end
+	for _, x in City.CROSSWALK_X do
+		zebra(city, x, -12, 12)
 	end
-end
-
--- Coches aparcados junto a la acera
-local CAR_COLORS = {
-	Color3.fromRGB(220, 38, 38), Color3.fromRGB(37, 99, 235), Color3.fromRGB(250, 204, 21),
-	Color3.fromRGB(255, 255, 255), Color3.fromRGB(30, 30, 34), Color3.fromRGB(34, 197, 94),
-}
-local function car(parent: Instance, position: Vector3, color: Color3)
-	local model = Instance.new("Model")
-	model.Name = "Coche"
-	newPart(model, Vector3.new(9, 1.8, 4.2), CFrame.new(position + Vector3.new(0, 1.5, 0)), color, Enum.Material.SmoothPlastic)
-	local cabin = newPart(model, Vector3.new(5, 1.6, 3.8), CFrame.new(position + Vector3.new(-0.5, 3.2, 0)), Color3.fromRGB(150, 190, 220), Enum.Material.Glass)
-	cabin.Transparency = 0.2
-	for _, x in { -3, 3 } do
-		for _, z in { -2, 2 } do
-			local wheel = newPart(model, Vector3.new(0.8, 1.6, 1.6), CFrame.new(position + Vector3.new(x, 0.8, z)) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(25, 25, 28), Enum.Material.SmoothPlastic)
-			wheel.Shape = Enum.PartType.Cylinder
-		end
-	end
-	model.Parent = parent
-end
-
-local function buildParkedCars(city: Folder)
-	local i = 0
 	for _, side in { -1, 1 } do
-		for x = -150, 150, 50 do
-			-- Sin tapar los pasos de cebra ni el panel semanal
-			if math.abs(x) > 12 and math.abs(math.abs(x) - 80) > 10 then
-				i += 1
-				if i % 3 ~= 0 then
-					car(city, Vector3.new(x + 6, 0.3, side * (STREET_WIDTH / 2 - 3)), CAR_COLORS[i % #CAR_COLORS + 1])
-				end
-			end
+		local from = City.RING_INNER + 2
+		local to = City.RING_OUTER - 2
+		if side < 0 then
+			zebra(city, 0, -to, -from)
+		else
+			zebra(city, 0, from, to)
 		end
 	end
 end
 
 -- Cartel con los primeros pasos, junto a la zona de aparición
 local function buildHelpSign(city: Folder)
-	local position = PLAZA_CENTER + Vector3.new(30, 6.5, -14)
+	-- Detrás de la zona de aparición, mirando hacia ella (-Z)
+	local position = PLAZA_CENTER + Vector3.new(0, 6.5, 31)
 	local frameColor = Color3.fromRGB(30, 41, 59)
-	newPart(city, Vector3.new(0.8, 9, 0.8), CFrame.new(position + Vector3.new(0, -2.5, -5)), frameColor, Enum.Material.Metal)
-	newPart(city, Vector3.new(0.8, 9, 0.8), CFrame.new(position + Vector3.new(0, -2.5, 5)), frameColor, Enum.Material.Metal)
-	local board = newPart(city, Vector3.new(12, 8, 0.6), CFrame.lookAt(position, position + Vector3.new(1, 0, 0)), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
+	newPart(city, Vector3.new(0.8, 9, 0.8), CFrame.new(position + Vector3.new(-5, -2.5, 0)), frameColor, Enum.Material.Metal)
+	newPart(city, Vector3.new(0.8, 9, 0.8), CFrame.new(position + Vector3.new(5, -2.5, 0)), frameColor, Enum.Material.Metal)
+	local board = newPart(city, Vector3.new(12, 8, 0.6), CFrame.lookAt(position, position + Vector3.new(0, 0, -1)), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
 	board.Name = "ComoJugar"
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
@@ -682,7 +721,7 @@ function World.build(): { CFrame }
 	city.Name = "CiudadWeb"
 
 	if not Workspace:FindFirstChild("Baseplate") then
-		local ground = newPart(city, Vector3.new(900, 2, 900), CFrame.new(0, -1, 0), Color3.fromRGB(96, 158, 88), Enum.Material.Grass)
+		local ground = newPart(city, Vector3.new(1200, 2, 1200), CFrame.new(0, -1, 0), Color3.fromRGB(96, 158, 88), Enum.Material.Grass)
 		ground.Name = "Suelo"
 	end
 
@@ -695,7 +734,6 @@ function World.build(): { CFrame }
 	scatterTrees(city)
 	buildStockExchange(city)
 	buildCrosswalks(city)
-	buildParkedCars(city)
 	buildHelpSign(city)
 	World.setLeaderboard(nil, "Cargando...")
 	World.setWeeklyBoard(nil, "Cargando...")
@@ -703,10 +741,10 @@ function World.build(): { CFrame }
 	local origins = {}
 	local half = World.PLOT_COUNT // 2
 	for i = 1, World.PLOT_COUNT do
-		local column = (i - 1) % half
+		local column = (i - 1) % half + 1
 		local side = if i <= half then 1 else -1
-		local x = (column - (half - 1) / 2) * World.PLOT_SPACING
-		local z = side * (STREET_WIDTH / 2 + SIDEWALK + World.PLOT_SIZE / 2)
+		local x = City.PLOT_X[column]
+		local z = side * City.plotZ()
 		table.insert(origins, CFrame.lookAt(Vector3.new(x, 0, z), Vector3.new(x, 0, 0)))
 	end
 

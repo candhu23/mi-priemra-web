@@ -107,7 +107,7 @@ for t = 1, 6 * 3600 do
 	end
 	-- ofertas de clientes: cada ~25 s, para un tipo que tienes
 	offerTimer += 1
-	if offerTimer >= 25 and #d.sites > 0 then
+	if offerTimer >= Config.OFFER_INTERVAL and #d.sites > 0 then
 		offerTimer = 0
 		local ty = d.sites[math.random(1, #d.sites)].type
 		local mult = 0.9 + math.random() * 0.9 + math.min(Config.level(d, "comercial") * 0.03, 0.9)

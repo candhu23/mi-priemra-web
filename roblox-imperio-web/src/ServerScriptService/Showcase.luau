@@ -3,11 +3,11 @@
 
 	Lo que se ve del imperio de cada jugador en su parcela, además del
 	rascacielos:
-	  · Oficina de la agencia al aire libre (derecha): tus 8 mejores
-	    programadores trabajando en su mesa, con el color de su rareza.
-	    Los Legendarios y Míticos brillan y llevan aureola.
-	  · Paseo de la fama (izquierda): un pedestal por tipo de web que se
-	    enciende cuando la has programado alguna vez. Tu mejor web, con luz.
+	  · Edificio de la agencia (derecha, AgencyOffice): tus programadores
+	    trabajando en su mesa detrás de la fachada de cristal; crece y
+	    enseña sus salas al ampliar la oficina.
+	  · Paseo de la fama (delante del rascacielos): un pedestal por tipo de
+	    web que se enciende cuando la has programado. Tu mejor web, con luz.
 	  · Pantalla en la fachada con tu web estrella y sus visitas.
 	Todo se actualiza solo cuando cambia algo (no cada segundo).
 ]]
@@ -16,14 +16,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
+local AgencyOffice = require(script.Parent:WaitForChild("AgencyOffice"))
 
 local Showcase = {}
 
-local MAX_DESKS = 8
 local GROUND = 0.8 -- altura del césped de la parcela
 local DECK_TOP = GROUND + 0.3
-local SLOT_X = { 20.75, 26.25 } -- columnas (lado derecho de la parcela)
-local SLOT_Z = { 0, 7, 14, 21 } -- filas, de delante (avenida) hacia atrás
+-- Coordenadas dentro de la parcela (-Z = avenida)
+Showcase.AGENCY_OFFSET = CFrame.new(24, GROUND, 10) -- centro del edificio de la agencia
+local FAME_Z = -22 -- fila del paseo de la fama
+local FAME_X0, FAME_STEP = -41, 4.6 -- primer pedestal y separación
 
 -- Color de cada tipo de web en el paseo de la fama
 local TYPE_COLORS = {
@@ -37,13 +39,6 @@ local TYPE_COLORS = {
 	metaverso = Color3.fromRGB(236, 72, 153),
 }
 local LOCKED_COLOR = Color3.fromRGB(60, 64, 74)
-local SKIN_TONES = {
-	Color3.fromRGB(255, 205, 160),
-	Color3.fromRGB(234, 184, 146),
-	Color3.fromRGB(198, 134, 96),
-	Color3.fromRGB(141, 85, 54),
-	Color3.fromRGB(255, 224, 189),
-}
 
 local function newPart(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?): Part
 	local part = Instance.new("Part")
@@ -99,6 +94,7 @@ type Pedestal = { cube: Part, emoji: TextLabel, count: TextLabel, light: PointLi
 export type Handle = {
 	origin: CFrame,
 	model: Model,
+	accent: Color3,
 	team: Model?,
 	teamKey: string,
 	fameKey: string,
@@ -118,20 +114,15 @@ function Showcase.create(plotModel: Model, origin: CFrame, buildingBase: CFrame,
 	local model = Instance.new("Model")
 	model.Name = "Escaparate"
 
-	-- Oficina al aire libre (lado derecho)
-	local officeCenter = origin * CFrame.new(23.5, 0, 11)
-	newPart(model, Vector3.new(11, 0.3, 30), officeCenter * CFrame.new(0, GROUND + 0.15, 0), Color3.fromRGB(176, 140, 104), Enum.Material.WoodPlanks)
-	local officeInfo = smallSign(model, origin * CFrame.new(23.5, GROUND, -6), "👥 AGENCIA", Color3.fromRGB(217, 70, 239))
+	-- Cartel de la agencia delante de su edificio
+	local officeInfo = smallSign(model, origin * Showcase.AGENCY_OFFSET * CFrame.new(12, 0, -22), "👥 AGENCIA", Color3.fromRGB(217, 70, 239))
 
-	-- Paseo de la fama (lado izquierdo): un pedestal por tipo de web
-	local fameCenter = origin * CFrame.new(-23.5, 0, 11)
-	newPart(model, Vector3.new(11, 0.3, 30), fameCenter * CFrame.new(0, GROUND + 0.15, 0), Color3.fromRGB(205, 200, 190), Enum.Material.Slate)
-	local fameInfo = smallSign(model, origin * CFrame.new(-23.5, GROUND, -6), "🏆 PASEO DE LA FAMA", Color3.fromRGB(250, 204, 21))
+	-- Paseo de la fama: una fila de pedestales delante del rascacielos
+	newPart(model, Vector3.new(FAME_STEP * #Config.WebTypes + 2, 0.3, 7), origin * CFrame.new(FAME_X0 + FAME_STEP * (#Config.WebTypes - 1) / 2, GROUND + 0.15, FAME_Z), Color3.fromRGB(205, 200, 190), Enum.Material.Slate)
+	local fameInfo = smallSign(model, origin * CFrame.new(FAME_X0 + FAME_STEP * (#Config.WebTypes - 1) / 2, GROUND, FAME_Z - 7), "🏆 PASEO DE LA FAMA", Color3.fromRGB(250, 204, 21))
 	local pedestals: { [string]: Pedestal } = {}
 	for i, def in Config.WebTypes do
-		local column = (i - 1) % 2 + 1
-		local row = (i - 1) // 2 + 1
-		local base = origin * CFrame.new(-SLOT_X[3 - column], DECK_TOP, SLOT_Z[row])
+		local base = origin * CFrame.new(FAME_X0 + (i - 1) * FAME_STEP, DECK_TOP, FAME_Z)
 		local stand = newPart(model, Vector3.new(3.2, 1.4, 3.2), base * CFrame.new(0, 0.7, 0), Color3.fromRGB(226, 222, 214), Enum.Material.Marble)
 		local standGui = surfaceGui(stand, Enum.NormalId.Front, 40)
 		label(standGui, def.name, UDim2.fromScale(0.96, 0.7), UDim2.fromScale(0.02, 0.15), Color3.fromRGB(30, 41, 59), true)
@@ -175,6 +166,7 @@ function Showcase.create(plotModel: Model, origin: CFrame, buildingBase: CFrame,
 	local handle: Handle = {
 		origin = origin,
 		model = model,
+		accent = accent,
 		team = nil,
 		teamKey = "",
 		fameKey = "",
@@ -192,66 +184,8 @@ function Showcase.create(plotModel: Model, origin: CFrame, buildingBase: CFrame,
 end
 
 ---------------------------------------------------------------------
--- Programadores en su mesa
+-- Edificio de la agencia con el equipo
 ---------------------------------------------------------------------
-local function buildDesk(parent: Instance, slot: CFrame, programmer, index: number)
-	local rarity = Career.RarityById[programmer.rarity] or Career.Rarities[1]
-	local wood = Color3.fromRGB(150, 111, 70)
-	newPart(parent, Vector3.new(3.2, 2.5, 1.6), slot * CFrame.new(0, 1.25, 0), wood, Enum.Material.WoodPlanks)
-	local monitor = newPart(parent, Vector3.new(1.8, 1.1, 0.15), slot * CFrame.new(0, 2.5 + 0.6, -0.1), rarity.color, Enum.Material.Neon)
-	monitor.CastShadow = false
-	-- Silla
-	local chair = Color3.fromRGB(40, 44, 52)
-	newPart(parent, Vector3.new(1.8, 0.3, 1.6), slot * CFrame.new(0, 1.6, 1.9), chair)
-	newPart(parent, Vector3.new(1.8, 1.8, 0.3), slot * CFrame.new(0, 2.6, 2.75), chair)
-	-- Programador: cuerpo del color de su rareza, cabeza y brazos tecleando
-	local skin = SKIN_TONES[(programmer.id or index) % #SKIN_TONES + 1]
-	local torso = newPart(parent, Vector3.new(2, 2, 1), slot * CFrame.new(0, 2.75, 1.9), rarity.color)
-	local head = newPart(parent, Vector3.new(1.3, 1.3, 1.3), slot * CFrame.new(0, 4.4, 1.9), skin)
-	head.Shape = Enum.PartType.Ball
-	for _, x in { -0.75, 0.75 } do
-		newPart(parent, Vector3.new(0.5, 0.5, 1.3), slot * CFrame.new(x, 2.7, 1.15), rarity.color)
-	end
-
-	-- Nombre y rareza encima
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromOffset(150, 42)
-	billboard.StudsOffset = Vector3.new(0, 1.7, 0)
-	billboard.MaxDistance = 90
-	billboard.LightInfluence = 0
-	-- Icono de su especialidad (💻 🎨 📣 🤝 📊) delante del nombre
-	local role = Career.RoleById[programmer.role or "dev"]
-	local nameLabel = label(billboard, (if role then role.emoji .. " " else "") .. programmer.name, UDim2.fromScale(1, 0.55), UDim2.fromScale(0, 0), Color3.new(1, 1, 1), true)
-	nameLabel.TextStrokeTransparency = 0.3
-	local rarityLabel = label(billboard, rarity.name, UDim2.fromScale(1, 0.45), UDim2.fromScale(0, 0.55), rarity.color, true)
-	rarityLabel.TextStrokeTransparency = 0.3
-	billboard.Parent = head
-
-	-- Legendarios y Míticos: luz, aureola y destellos
-	if rarity.order >= 5 then
-		local light = Instance.new("PointLight")
-		light.Color = rarity.color
-		light.Range = 10
-		light.Brightness = 2.5
-		light.Parent = torso
-		local halo = newPart(parent, Vector3.new(0.12, 1.5, 1.5), slot * CFrame.new(0, 5.35, 1.9) * CFrame.Angles(0, 0, math.rad(90)), rarity.color, Enum.Material.Neon)
-		halo.Shape = Enum.PartType.Cylinder
-		halo.Transparency = 0.2
-		halo.CastShadow = false
-		local attachment = Instance.new("Attachment")
-		attachment.Parent = head
-		local sparkles = Instance.new("ParticleEmitter")
-		sparkles.Rate = 10
-		sparkles.Lifetime = NumberRange.new(0.8, 1.4)
-		sparkles.Speed = NumberRange.new(1, 2.5)
-		sparkles.SpreadAngle = Vector2.new(180, 180)
-		sparkles.Size = NumberSequence.new(0.3, 0)
-		sparkles.LightEmission = 1
-		sparkles.Color = ColorSequence.new(rarity.color, Color3.new(1, 1, 1))
-		sparkles.Parent = attachment
-	end
-end
-
 -- Los mejores primero (rareza y luego nivel)
 local function bestProgrammers(list): { any }
 	local sorted = table.clone(list)
@@ -266,16 +200,13 @@ local function bestProgrammers(list): { any }
 		end
 		return (a.id or 0) < (b.id or 0)
 	end)
-	local top = {}
-	for i = 1, math.min(MAX_DESKS, #sorted) do
-		top[i] = sorted[i]
-	end
-	return top
+	return sorted
 end
 
 local function updateTeam(handle: Handle, extra)
-	local programmers = if extra and extra.agency then bestProgrammers(extra.programmers or {}) else {}
-	local parts = { if extra and extra.agency then "A" else "-" }
+	local hasAgency = extra ~= nil and extra.agency == true
+	local programmers = if hasAgency then bestProgrammers(extra.programmers or {}) else {}
+	local parts = { if extra == nil then "-" elseif hasAgency then "A" else "S", tostring(extra and extra.officeLevel), tostring(extra and extra.capacity), tostring(extra and extra.agencyName) }
 	for _, p in programmers do
 		table.insert(parts, string.format("%s:%s:%s:%d:%s", tostring(p.id), p.name, p.rarity, p.level, tostring(p.role)))
 	end
@@ -288,27 +219,28 @@ local function updateTeam(handle: Handle, extra)
 		handle.team:Destroy()
 		handle.team = nil
 	end
+	local base = handle.origin * Showcase.AGENCY_OFFSET
 	if not extra then
 		handle.officeInfo.Text = ""
+		handle.team = AgencyOffice.buildLot(handle.model, base)
 		return
 	end
-	if not extra.agency then
-		handle.officeInfo.Text = "Funda tu agencia para ver aquí a tus programadores"
+	if not hasAgency then
+		handle.officeInfo.Text = "Funda tu agencia para construir aquí tu edificio"
+		handle.team = AgencyOffice.buildLot(handle.model, base)
 		return
 	end
-	local total = #(extra.programmers or {})
+	local total = #programmers
+	local shown = math.min(total, AgencyOffice.floorsFor(extra.officeLevel or 1) * AgencyOffice.DESKS_PER_FLOOR)
 	handle.officeInfo.Text = if total == 1 then "1 programador"
-		elseif total > MAX_DESKS then string.format("%d programadores · se ven los %d mejores", total, MAX_DESKS)
+		elseif total > shown then string.format("%d programadores · se ven los %d mejores", total, shown)
 		else string.format("%d programadores", total)
-	local team = Instance.new("Model")
-	team.Name = "Equipo"
-	for i, programmer in programmers do
-		local column = (i - 1) % 2 + 1
-		local row = (i - 1) // 2 + 1
-		buildDesk(team, handle.origin * CFrame.new(SLOT_X[column], DECK_TOP, SLOT_Z[row]), programmer, i)
-	end
-	team.Parent = handle.model
-	handle.team = team
+	handle.team = AgencyOffice.build(handle.model, base, {
+		name = extra.agencyName,
+		officeLevel = extra.officeLevel,
+		capacity = extra.capacity,
+		programmers = programmers,
+	}, handle.accent)
 end
 
 ---------------------------------------------------------------------

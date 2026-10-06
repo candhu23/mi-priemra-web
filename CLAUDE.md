@@ -10,18 +10,18 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
   para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
-- **Versión actual del código: 3.0** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
+- **Versión actual del código: 3.1** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
   cada versión nueva).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
   - Experience (universe) ID: `10769603072`
   - Place ID (lugar de inicio): `129921526137293`
 - **Repo:** `candhu23/mi-priemra-web`. La v1.2 (rama `claude/roblox-game-h5olkl`) ya está
-  fusionada en `main`. La **v1.3, v2.0, v2.1 y v3.0** están en `claude/optimistic-thompson-296nik`. Cada sesión
+  fusionada en `main`. La **v1.3, v2.0, v2.1, v3.0 y v3.1** están en `claude/optimistic-thompson-296nik`. Cada sesión
   trabaja en la rama que le indique el sistema.
   El juego vive en `roblox-imperio-web/`. `index.html` en la raíz es una web personal del
   usuario, no tiene relación con el juego. Otras ramas del repo tienen otros juegos/proyectos
   del usuario (Steal an Alien, Obby de las Monedas, web SEO…): no mezclar.
-- **Descarga directa del lugar** (lo que el usuario abre en Studio), v3.0:
+- **Descarga directa del lugar** (lo que el usuario abre en Studio), v3.1:
   `https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl`
 
 ## 2. Sobre el usuario (cómo trabajar con él)
@@ -56,6 +56,9 @@ roblox-imperio-web/
     │   ├── CareerConfig.luau   # Nichos, 500 empresas, rangos y encargos, rarezas, especialidades
     │   │                       #   y rasgos de programadores, agencia
     │   ├── MarketConfig.luau   # Bolsa (v3): 6 empresas cotizadas, tendencias, noticias, comisión
+    │   ├── CityLayout.luau     # (v3.1) Plano de la ciudad compartido: parcelas, glorieta, recorrido
+    │   │                       #   de los coches (trafficPath)
+    │   ├── Traffic.luau        # (v3.1) Coches que circulan: start(parent) / step(dt), en el CLIENTE
     │   ├── Locale.luau         # Idiomas: resolve / t / f / translate (ver §6 Idiomas)
     │   └── LocaleEN.luau       # Diccionario español → inglés (~900 textos)
     ├── ServerScriptService/
@@ -64,13 +67,16 @@ roblox-imperio-web/
     │   │                             #   agencia, fichajes, XP pasiva de programadores
     │   ├── MarketService.luau        # Bolsa: precios por tick (30 s), dividendos, buy/sell
     │   ├── PlotManager.luau          # Parcelas (8), cartel con "Ver imperio", terminal con ProximityPrompt
-    │   ├── Showcase.luau             # Escaparate de cada parcela: oficina con programadores,
+    │   ├── Showcase.luau             # Escaparate de cada parcela: edificio de la agencia,
     │   │                             #   paseo de la fama (pedestales por tipo de web), pantalla
+    │   ├── AgencyOffice.luau         # (v3.1) Edificio de la agencia: plantas, mesas con gente,
+    │   │                             #   salas de las mejoras de la oficina, solar en obras
     │   ├── Building.luau             # Generador del rascacielos por plantas
     │   └── World.luau                # Ciudad, iluminación, día/noche, clasificación global,
     │                                 #   edificio de la Bolsa (setMarketBoard), coches, cartel de ayuda
     └── StarterPlayerScripts/
-        └── TycoonClient.client.luau  # TODA la interfaz (≈4.000 líneas, 14 pestañas)
+        ├── TycoonClient.client.luau  # TODA la interfaz (≈4.100 líneas, 15 pestañas, 8 por fila)
+        └── TrafficClient.client.luau # Arranca Traffic y lo mueve en Heartbeat
 ```
 
 Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = Script,
@@ -179,17 +185,23 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   **Ya no hay sueldo, tareas ni ofertas de empleo.**
 - **Agencia** (nivel de programador 8, $2.500): programadores de 6 rarezas
   (Común 60 %, Poco común 25 %, Raro 10 %, Épico 4 %, Legendario 0,9 %, Mítico 0,1 %).
-  Cada uno tiene **especialidad** (`Career.Roles`: dev=dinero, design=calidad, marketing=visitas,
+  **Mejoras de oficina** `Career.OfficePerks` (cafe 2: XP x1.3; meeting 4: +10 %; lounge 6:
+  trabajo x1.2; lab 8: +0,10 raras; rooftop 10: +20 %) y **equipo completo** (una de cada
+  especialidad, +15 %), aplicados en `Career.agencyTotals`. Cada uno tiene **especialidad** (`Career.Roles`: dev=dinero, design=calidad, marketing=visitas,
   sales=venta, data=raras) y **rasgo** (`Career.Traits`: rápido, perfeccionista, noctámbulo (usa
   `World.isNight`), carismático, suertudo, mentor, incansable); `Career.programmerPower` devuelve
   (trabajo, {money,quality,visits,sale,rare}). Suben de nivel solos (`programmerXpNeeded` =
   240·L² s de trabajo). Legendario garantizado cada 60
   entrevistas (`pity`). Tickets: Headhunter Premium (aleatorio, oculto si
   `randomRestricted`) y Contrato Legendario (eliges nicho, no aleatorio).
-- **Misiones**: pestaña 🎯. 3 diarias (fácil/media/difícil, `Config.DailyMissionPool`,
-  premio en minutos de ingresos; completar las 3 da boost x2 10 min) + 30 objetivos
-  (`Config.Goals`) que **se reclaman a mano** (`claimGoal`). Premios escalados con
-  `Config.GOAL_REWARD_SCALE = 0.5`.
+- **Misiones**: pestaña 🎯. **6 diarias** (2 fáciles, 2 medias, 2 difíciles; tier = (i+1)//2;
+  premios 1,5/3/5 min de ingresos × `REWARD_SCALE`; completarlas todas da boost x2 10 min),
+  **6 semanales** difíciles (`WeeklyMissionPool`, 20 min de ingresos cada una) + objetivos
+  (`Config.Goals`) que **se reclaman a mano** (`claimGoal`, `GOAL_REWARD_SCALE = 0.2`).
+  Los **logros** tienen su propia pestaña 🏅 (`renderers.achievements`).
+- **Ventas (v3.1, más lentas)**: `DealSeconds` 60 s (landing) → 900 s (metaverso), -2 %/nivel
+  de Comercial (mín. x0,6); `maxDeals` 2 (+1 cada 15 niveles, máx. 4); ofertas de una en una
+  cada `OFFER_INTERVAL` 45 s (máx. 3); venta rápida x0,5 y cada `QUICK_SALE_COOLDOWN` 90 s.
 - **Tutorial** interactivo de 7 pasos (cliente), una vez por jugador (`tutorialDone`),
   premio $100, se puede repetir desde Misiones.
 - Otros: recompensa diaria (racha de 7, el 7º da boost), regalo cada 10 min, eventos
@@ -198,14 +210,18 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   (`GROUP_ID = 0`, desactivado).
 - **Rascacielos**: plantas = `1 + floor(2,6·log10(1 + lifetimeEarned/100))`, máx 40.
   Retranqueos a 16 y 28 plantas; azotea cambia a 6/16/28 plantas. Nunca encoge.
-- **Mundo**: 8 parcelas (por eso **Max Players = 8**), avenida, plaza con fuente,
-  SpawnLocation, panel de clasificación, día/noche de 16 min (la noche va x2). Panel del
-  **top semanal** de dos caras en mitad de la avenida (x = 0).
-- **Escaparate de la parcela** (`Showcase.luau`, coordenadas locales de la parcela; −Z = avenida):
-  oficina al aire libre a la derecha (x≈23, 8 mesas 2×4 con los mejores programadores; rareza
-  ≥ Legendario → PointLight + aureola + partículas), paseo de la fama a la izquierda (8
-  pedestales, Neon si `stats.byType[tipo] > 0`, el mejor con luz), pantalla en la 1ª planta
-  de la fachada con la web estrella. Solo se reconstruye cuando cambia (claves `teamKey`/`fameKey`).
+- **Mundo (v3.1, medidas en `CityLayout`)**: glorieta en el centro (0,0,0): isla-plaza r=40 con
+  fuente, SpawnLocation y cartel de ayuda; calzada hasta r=56; acera hasta r=64. Avenida en X
+  hasta ±330 con rotondas en las puntas. 8 parcelas de 96 (`PLOT_X` = ±130, ±246; z = ±70) →
+  **Max Players = 8**. Bolsa en z=-100, paneles (global y semanal) en z=+96. Día/noche de 16 min.
+  **Coches**: los crea y mueve cada cliente (`Traffic`, CanCollide false) por `City.trafficPath()`
+  (carril z=+7 hacia +X, media glorieta por el norte, vuelta en la punta, z=-7 hacia -X…).
+  Ojo: en Lune `CFrame.lookAt` mira al revés; `run_world` lo corrige para los dibujos.
+- **Parcela (v3.1)** (coordenadas locales; −Z = avenida): rascacielos en (-20, 12), agencia
+  (`AgencyOffice`, 36×24, 1–3 plantas de 9 según `officeLevel` 1/4/8, 8 mesas por planta, mesas
+  vacías = puestos libres, salas de `Career.OfficePerks`) en (24, 10), paseo de la fama en fila
+  en z=-22, ordenador en (10, -34), cartel en (30, -44), piscina y pícnic detrás. Pantalla de
+  la web estrella en la fachada del rascacielos. Solo se reconstruye cuando cambia (claves `teamKey`/`fameKey`).
   `PlotManager.update(player, lifetimeEarned, income, extra)` con `extra = plotExtras(session)`.
 - **Visitas y me gusta**: ProximityPrompt "Ver imperio" en el cartel (12 studs, el del
   ordenador llega a 14) o botón en 🏆 Ranking. 1 me gusta por imperio y día, máx. 20/día;
@@ -307,9 +323,9 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    (`tools/out/state.json`, `visit.json`) y **pulsa todos los botones** + recorre el tutorial.
    Luego cambia a inglés con el botón 🌐, vuelve a pulsarlo todo y falla si queda algún texto
    en español o si el cliente pide una clave que no está en LocaleEN. Debe dar `CLIENTE OK`.
-6. `sim.luau`: bot de economía 6 h (ritmo actual, v3.0 aún más lenta a petición del usuario, con
-   negociaciones y encargos: $1M ≈ 33 min, $100M ≈ 1 h 01 min, Metaverso ≈ 2 h 26 min para un bot
-   perfecto; un humano va bastante más lento). Ajuste v3 sobre la v2.1: rpv ×0,75, ingresos de
+6. `sim.luau`: bot de economía 6 h (ritmo actual, v3.1 con ventas lentas: $1M ≈ 42 min,
+   $100M ≈ 1 h 25 min, Metaverso ≈ 4 h 45 min para un bot perfecto; un humano va bastante más
+   lento; en la v3.1 se bajó la reputación de Red Social/Streaming/IA/Metaverso para compensar). Ajuste v3 sobre la v2.1: rpv ×0,75, ingresos de
    empresas ×0,75, coste base de empresas ×1,5, reputación de webs ×1,4, trabajo de webs ×1,3.
    El bot no cuenta las webs raras (≈ +20 % de dinero de media) ni la Bolsa.
 7. `rojo build` → regenera `ImperioWeb.rbxl` (solo si todo lo anterior pasa). **Súbelo en el commit.**
@@ -383,7 +399,9 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
       rangos, programadores con especialidad/rasgo y XP pasiva, ayudas por pestaña y al
       desbloquear, I+D en su pestaña, mapa (Bolsa, coches, pasos de cebra, cartel de ayuda),
       economía más lenta. **Sin probar en Studio.**
-- [ ] Publicar la v3.0. Poner en la descripción (en inglés) las novedades y los códigos.
+- [x] v3.1: ciudad con glorieta central y tráfico, parcelas de 96, edificio de la agencia con
+      gente y mejoras de oficina, ventas más lentas, 6+6 misiones, logros aparte. **Sin probar en Studio.**
+- [ ] Publicar la v3.1. Poner en la descripción (en inglés) las novedades y los códigos.
 - [ ] Crear los productos `starter` (pack de inicio, ~99–199 R$) y `seasonPremium` (~199–399 R$).
 - [ ] Conseguir los 250 jugadores 16+ (TikTok/Discord) para abrir a todas las edades.
 - [ ] Ajustar precios de pases (x2 Money a 99 parece barato; 199–299 es lo habitual).

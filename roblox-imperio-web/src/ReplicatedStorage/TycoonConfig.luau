@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "3.0"
+Config.VERSION = "3.1"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -24,14 +24,16 @@ Config.STARTING_MONEY = 25
 Config.BASE_SLOTS = 3 -- webs que puedes tener a la vez sin Hosting
 Config.OFFLINE_MAX_HOURS = 8
 Config.OFFLINE_RATE = 0.35 -- % de los ingresos que ganas estando desconectado
-Config.OFFER_COUNT = 4 -- ofertas de clientes visibles a la vez
+Config.OFFER_COUNT = 3 -- ofertas de clientes visibles a la vez (como máximo)
 Config.OFFER_LIFETIME = 90 -- segundos que dura una oferta
-Config.QUICK_SALE_MULT = 0.6 -- vender sin cliente paga menos
+Config.OFFER_INTERVAL = 45 -- segundos entre ofertas nuevas (antes salían al momento)
+Config.QUICK_SALE_MULT = 0.5 -- vender sin cliente paga menos...
+Config.QUICK_SALE_COOLDOWN = 90 -- ...y solo se puede cada 90 s
 Config.SALE_SECONDS = 130 -- una empresa paga ~130 s de lo que puede ganar la web
 -- Las ventas a clientes no son instantáneas: hay que negociar. Segundos por
 -- tipo de web (la Agencia Comercial lo acorta un 3 % por nivel, hasta la mitad)
-Config.DealSeconds = { landing = 20, blog = 30, tienda = 45, noticias = 60, red_social = 90, streaming = 120, app_ia = 150, metaverso = 180 }
-Config.MAX_DEALS = 2 -- negociaciones a la vez (+1 cada 10 niveles de Agencia Comercial, máx. 5)
+Config.DealSeconds = { landing = 60, blog = 90, tienda = 150, noticias = 240, red_social = 360, streaming = 480, app_ia = 600, metaverso = 900 }
+Config.MAX_DEALS = 2 -- negociaciones a la vez (+1 cada 15 niveles de Agencia Comercial, máx. 4)
 Config.MAINTENANCE_RATE = 0.0002 -- contrato de mantenimiento: % del precio de venta por segundo
 Config.MAX_SEO = 10
 Config.MAX_DESIGN = 5
@@ -44,7 +46,7 @@ Config.EVENT_MAX_DELAY = 180
 Config.CLICK_RATE_LIMIT = 15 -- clics por segundo como máximo
 Config.CRIT_CHANCE = 0.06 -- probabilidad de clic crítico
 Config.CRIT_MULT = 5
-Config.GOAL_REWARD_SCALE = 0.35 -- premios de los objetivos (1 = como antes)
+Config.GOAL_REWARD_SCALE = 0.2 -- premios de los objetivos (1 = como en la v1)
 Config.REWARD_SCALE = 0.6 -- TODAS las recompensas gratis en minutos de ingresos (diaria, regalo,
 -- misiones, tiempo jugado, me gusta, meta común, pase, códigos, ranking...). Las compras con Robux no.
 Config.TUTORIAL_REWARD = 100 -- premio por terminar el tutorial
@@ -127,10 +129,10 @@ Config.WebTypes = {
 	{ id = "blog", name = "Blog", emoji = "✍️", work = 94, cost = 40, visits = 12, rep = 6, repReward = 3 },
 	{ id = "tienda", name = "Tienda Online", emoji = "🛒", work = 390, cost = 300, visits = 36, rep = 59, repReward = 8 },
 	{ id = "noticias", name = "Periódico Digital", emoji = "📰", work = 1560, cost = 1500, visits = 110, rep = 392, repReward = 20 },
-	{ id = "red_social", name = "Red Social", emoji = "💬", work = 6240, cost = 20000, visits = 330, rep = 1960, repReward = 50 },
-	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 24960, cost = 250000, visits = 1000, rep = 7840, repReward = 120 },
-	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 101400, cost = 3000000, visits = 3000, rep = 29400, repReward = 300 },
-	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 405600, cost = 50000000, visits = 9000, rep = 98000, repReward = 800 },
+	{ id = "red_social", name = "Red Social", emoji = "💬", work = 6240, cost = 20000, visits = 330, rep = 1700, repReward = 50 },
+	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 24960, cost = 250000, visits = 1000, rep = 6000, repReward = 120 },
+	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 101400, cost = 3000000, visits = 3000, rep = 20000, repReward = 300 },
+	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 405600, cost = 50000000, visits = 9000, rep = 65000, repReward = 800 },
 }
 
 ---------------------------------------------------------------------
@@ -185,17 +187,17 @@ Config.Companies = {
 -- ingresos o, como mínimo, "min".
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
--- Misiones diarias: cada día tocan 3 (una fácil, una media y una
--- difícil). Completar las 3 da un boost extra.
+-- Misiones diarias: cada día tocan 6 (2 fáciles, 2 medias y 2
+-- difíciles). Completarlas todas da un boost extra.
 --   stat    = qué cuenta para la misión
 --   amounts = objetivo según la dificultad (fácil, media, difícil)
 --   needs   = solo sale si tienes la Carrera ("career") o agencia ("agency")
 ---------------------------------------------------------------------
-Config.DAILY_MISSION_COUNT = 3
+Config.DAILY_MISSION_COUNT = 6
 Config.DAILY_ALL_BONUS_BOOST_MINUTES = 10
 Config.DailyMissionPool = {
 	{ id = "built", text = "Programa %d webs", amounts = { 5, 10, 18 } },
-	{ id = "sold", text = "Vende %d webs a empresas", amounts = { 3, 6, 10 } },
+	{ id = "sold", text = "Vende %d webs a empresas", amounts = { 2, 4, 7 } },
 	{ id = "clicks", text = "Haz %d clics programando", amounts = { 250, 600, 1200 } },
 	{ id = "seo", text = "Mejora el SEO %d veces", amounts = { 3, 6, 12 } },
 	{ id = "companies", text = "Mejora tus empresas %d veces", amounts = { 5, 12, 25 } },
@@ -207,9 +209,9 @@ Config.DailyMissionPool = {
 	{ id = "combo", text = "Haz un combo de %d clics", amounts = { 20, 35, 50 } },
 }
 Config.DailyMissionRewards = {
-	{ name = "Fácil", minutes = 4, min = 300 },
-	{ name = "Media", minutes = 8, min = 800 },
-	{ name = "Difícil", minutes = 15, min = 2000 },
+	{ name = "Fácil", minutes = 1.5, min = 100 },
+	{ name = "Media", minutes = 3, min = 250 },
+	{ name = "Difícil", minutes = 5, min = 600 },
 }
 Config.DailyMissionById = {}
 for _, mission in Config.DailyMissionPool do
@@ -217,24 +219,24 @@ for _, mission in Config.DailyMissionPool do
 end
 
 ---------------------------------------------------------------------
--- Misiones semanales: 4 por semana (se renuevan el lunes 00:00 UTC),
--- mucho más largas. Cuentan lo mismo que las diarias. Completar las 4
+-- Misiones semanales: 6 por semana (se renuevan el lunes 00:00 UTC),
+-- bastante difíciles. Cuentan lo mismo que las diarias. Completar las 6
 -- da patentes y un boost.
 ---------------------------------------------------------------------
-Config.WEEKLY_MISSION_COUNT = 4
+Config.WEEKLY_MISSION_COUNT = 6
 Config.WeeklyMissionPool = {
-	{ id = "built", text = "Programa %d webs esta semana", amount = 60 },
-	{ id = "sold", text = "Vende %d webs a empresas esta semana", amount = 35 },
-	{ id = "clicks", text = "Haz %d clics programando esta semana", amount = 6000 },
-	{ id = "seo", text = "Mejora el SEO %d veces esta semana", amount = 40 },
-	{ id = "companies", text = "Mejora tus empresas %d veces esta semana", amount = 120 },
-	{ id = "rares", text = "Consigue %d webs raras esta semana", amount = 12 },
-	{ id = "playtime", text = "Juega %d minutos esta semana", amount = 240 },
-	{ id = "missions", text = "Completa %d misiones diarias esta semana", amount = 12 },
-	{ id = "contracts", text = "Entrega %d encargos de empresas esta semana", amount = 12, needs = "career" },
-	{ id = "recruits", text = "Entrevista a %d programadores esta semana", amount = 20, needs = "agency" },
+	{ id = "built", text = "Programa %d webs esta semana", amount = 150 },
+	{ id = "sold", text = "Vende %d webs a empresas esta semana", amount = 60 },
+	{ id = "clicks", text = "Haz %d clics programando esta semana", amount = 15000 },
+	{ id = "seo", text = "Mejora el SEO %d veces esta semana", amount = 90 },
+	{ id = "companies", text = "Mejora tus empresas %d veces esta semana", amount = 300 },
+	{ id = "rares", text = "Consigue %d webs raras esta semana", amount = 30 },
+	{ id = "playtime", text = "Juega %d minutos esta semana", amount = 420 },
+	{ id = "missions", text = "Completa %d misiones diarias esta semana", amount = 30 },
+	{ id = "contracts", text = "Entrega %d encargos de empresas esta semana", amount = 35, needs = "career" },
+	{ id = "recruits", text = "Entrevista a %d programadores esta semana", amount = 40, needs = "agency" },
 }
-Config.WeeklyMissionReward = { minutes = 45, min = 15000, seasonXp = 150 }
+Config.WeeklyMissionReward = { minutes = 20, min = 5000, seasonXp = 150 }
 Config.WEEKLY_ALL_PATENTS = 2
 Config.WEEKLY_ALL_BOOST_MINUTES = 30
 Config.WeeklyMissionById = {}
@@ -886,12 +888,12 @@ end
 -- Segundos que tarda un cliente en comprar una web de ese tipo
 function Config.dealSeconds(data, typeId: string): number
 	local base = Config.DealSeconds[typeId] or 60
-	return math.floor(base * math.max(0.5, 1 - 0.03 * Config.level(data, "comercial")))
+	return math.floor(base * math.max(0.6, 1 - 0.02 * Config.level(data, "comercial")))
 end
 
 -- Negociaciones de venta que puedes tener a la vez
 function Config.maxDeals(data): number
-	return math.min(5, Config.MAX_DEALS + Config.level(data, "comercial") // 10)
+	return math.min(4, Config.MAX_DEALS + Config.level(data, "comercial") // 15)
 end
 
 -- Contratos de mantenimiento (con la mejora de I+D)

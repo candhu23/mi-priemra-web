@@ -1,6 +1,17 @@
-# 🌐 Imperio Web Tycoon · v3.0 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v3.1 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v3.1 (ciudad nueva y agencia de verdad)
+- **🗺️ Ciudad rehecha**: la plaza está ahora en el **centro**, como una **glorieta** con la fuente, árboles, bancos, flores y farolas. Al sur, la Bolsa; al norte, los paneles de clasificación. Arcos de bienvenida en las dos entradas y una rotonda en cada punta de la avenida.
+- **🚗 Tráfico que circula sin parar**: 16 vehículos (coches, taxis, furgonetas y autobuses) dan vueltas por la avenida y la glorieta. Los mueve el ordenador de cada jugador (van suaves y no gastan red) y no atropellan a nadie.
+- **🏡 Parcelas más grandes** (96 en vez de 64): rascacielos, edificio de la agencia, paseo de la fama delante, ordenador junto a la entrada y jardín con piscina y mesa de pícnic detrás.
+- **🏢 Edificio de la agencia con su gente**: fachada de cristal para ver a tus programadores sentados en su mesa (color de su rareza, nombre, nivel e icono de especialidad). Crece al ampliar la oficina (2 plantas en el nivel 4, 3 en el 8) y las mejoras **se ven**: ☕ cafetería con barista, 🗣️ sala de reuniones, 🛋️ zona de descanso con tele y máquina arcade, 🧪 laboratorio con servidores y 🌇 terraza en la azotea. Antes de fundarla, un solar en obras.
+- **👥 Agencia mejorada**: cada nivel de oficina abre una **mejora** (más experiencia, +10/+20 % a lo que aporta el equipo, +20 % de trabajo, +10 % de webs raras) y tener **una persona de cada especialidad** da +15 % ("equipo completo").
+- **🐢 Ventas mucho más lentas**: la negociación con un cliente tarda de 1 min (Landing) a 15 min (Metaverso); las ofertas llegan de una en una (cada ~45 s, máx. 3) y la venta rápida paga la mitad y solo se puede cada 90 s.
+- **🎯 Misiones**: **6 al día** (2 fáciles, 2 medias, 2 difíciles) y **6 a la semana**, bastante más difíciles. Dan bastante menos dinero (y los objetivos también).
+- **🏅 Logros** en su propia pestaña.
+- Ritmo (bot perfecto): $1M a los ~42 min y el Metaverso a las ~4 h 45 min.
 
 ## Novedades de la v3.0 (todo rehecho para que se entienda y dure más)
 - **📈 Bolsa nueva** (inspirada en el mercado de Cookie Clicker): 6 empresas cotizadas (ByteCorp, ShopNova, PixelPlay, CobreBank, VitaSalud y ViajaYa). Los precios cambian cada 30 s según su **tendencia** (estable, sube, baja, se dispara, se hunde, caótica), siempre tiran hacia su **valor justo** y hay **noticias** que lo cambian todo (se anuncian a todo el servidor). Compras con un 2 % de comisión, cobras **dividendos** mientras las tienes y hay un máximo invertible por empresa (15 min de tus mejores ingresos). Gráfica de cada empresa y lo que ganas o pierdes. El mercado es el mismo para todos los del servidor.

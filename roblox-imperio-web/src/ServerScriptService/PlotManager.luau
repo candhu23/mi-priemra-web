@@ -6,7 +6,9 @@
 	  · un cartel con su nombre, su progreso y "Ver imperio" (para visitas)
 	  · su rascacielos, que crece con todo lo que ha ganado (dorado si ganó
 	    el ranking semanal)
-	  · el escaparate (Showcase): programadores, paseo de la fama y pantalla
+	  · el escaparate (Showcase): edificio de la agencia con tus
+	    programadores, paseo de la fama y pantalla
+	  · jardín con piscina detrás (desde la v3.1 las parcelas miden 96)
 ]]
 
 local Workspace = game:GetService("Workspace")
@@ -20,7 +22,8 @@ local PlotManager = {}
 
 local SIZE = World.PLOT_SIZE
 local HALF = SIZE / 2
-local BUILDING_OFFSET = CFrame.new(0, 0.6, 10) -- centro del edificio dentro de la parcela
+local BUILDING_OFFSET = CFrame.new(-20, 0.6, 12) -- centro del rascacielos dentro de la parcela
+local TERMINAL_OFFSET = CFrame.new(10, 0.8, -34) -- ordenador, junto al camino de entrada
 
 type Plot = {
 	index: number,
@@ -73,8 +76,11 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 	-- Base de piedra y césped
 	newPart(model, Vector3.new(SIZE + 2, 0.8, SIZE + 2), origin * CFrame.new(0, 0.2, 0), Color3.fromRGB(176, 172, 164), Enum.Material.Concrete)
 	newPart(model, Vector3.new(SIZE - 2, 0.4, SIZE - 2), origin * CFrame.new(0, 0.6, 0), Color3.fromRGB(104, 172, 92), Enum.Material.Grass)
-	-- Camino hasta el edificio
-	newPart(model, Vector3.new(8, 0.45, 26), origin * CFrame.new(0, 0.64, -HALF + 12), Color3.fromRGB(214, 210, 200), Enum.Material.Pavement)
+	-- Caminos: de la acera al paseo que une el rascacielos y la agencia
+	local paving = Color3.fromRGB(214, 210, 200)
+	newPart(model, Vector3.new(8, 0.45, HALF - 9), origin * CFrame.new(0, 0.64, (-HALF + 1 - 10) / 2), paving, Enum.Material.Pavement)
+	newPart(model, Vector3.new(56, 0.45, 6), origin * CFrame.new(1, 0.64, -10), paving, Enum.Material.Pavement)
+	newPart(model, Vector3.new(7, 0.45, 9), origin * CFrame.new(-20, 0.64, -5), paving, Enum.Material.Pavement)
 
 	-- Setos en los laterales y al fondo
 	local hedge = Color3.fromRGB(58, 120, 62)
@@ -82,12 +88,29 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 	newPart(model, Vector3.new(1.6, 3, SIZE - 6), origin * CFrame.new(HALF - 2, 2.2, 2), hedge, Enum.Material.Grass)
 	newPart(model, Vector3.new(SIZE - 4, 3, 1.6), origin * CFrame.new(0, 2.2, HALF - 2), hedge, Enum.Material.Grass)
 
-	-- Árboles delanteros
-	World.tree(model, (origin * CFrame.new(-HALF + 7, 0.8, -HALF + 7)).Position, 1)
-	World.tree(model, (origin * CFrame.new(HALF - 7, 0.8, -HALF + 7)).Position, 1)
+	-- Árboles delanteros y del jardín de atrás
+	for _, position in { Vector3.new(-HALF + 7, 0.8, -HALF + 7), Vector3.new(HALF - 7, 0.8, -HALF + 7), Vector3.new(2, 0.8, 38), Vector3.new(40, 0.8, 39), Vector3.new(12, 0.8, 41) } do
+		World.tree(model, (origin * CFrame.new(position)).Position, 1)
+	end
+	-- Piscina detrás del rascacielos
+	local poolCenter = origin * CFrame.new(-22, 0.8, 37)
+	newPart(model, Vector3.new(22, 0.3, 13), poolCenter * CFrame.new(0, 0.15, 0), Color3.fromRGB(226, 222, 214), Enum.Material.Marble)
+	local water = newPart(model, Vector3.new(18, 0.35, 9), poolCenter * CFrame.new(0, 0.2, 0), Color3.fromRGB(56, 170, 230), Enum.Material.Glass)
+	water.Transparency = 0.2
+	water.Reflectance = 0.2
+	for _, x in { -6, 0, 6 } do
+		newPart(model, Vector3.new(2, 0.5, 4.5), poolCenter * CFrame.new(x, 0.55, 8.5), Color3.fromRGB(245, 245, 245))
+	end
+	-- Mesa de pícnic detrás de la agencia
+	local picnic = origin * CFrame.new(26, 0.8, 32)
+	newPart(model, Vector3.new(7, 0.4, 3), picnic * CFrame.new(0, 2.4, 0), Color3.fromRGB(150, 111, 70), Enum.Material.WoodPlanks)
+	for _, z in { -2.4, 2.4 } do
+		newPart(model, Vector3.new(7, 0.3, 1.2), picnic * CFrame.new(0, 1.4, z), Color3.fromRGB(150, 111, 70), Enum.Material.WoodPlanks)
+	end
+	newPart(model, Vector3.new(0.6, 2.2, 0.6), picnic * CFrame.new(0, 1.1, 0), Color3.fromRGB(110, 80, 50), Enum.Material.Wood)
 
 	-- Terminal con ordenador
-	local terminalBase = origin * CFrame.new(-11, 0.8, -HALF + 14)
+	local terminalBase = origin * TERMINAL_OFFSET
 	local desk = newPart(model, Vector3.new(6, 3, 3), terminalBase * CFrame.new(0, 1.5, 0), Color3.fromRGB(30, 41, 59), Enum.Material.SmoothPlastic)
 	newPart(model, Vector3.new(6.2, 0.3, 3.2), terminalBase * CFrame.new(0, 3.15, 0), style.accent, Enum.Material.SmoothPlastic)
 	local screen = newPart(model, Vector3.new(5, 3.2, 0.3), terminalBase * CFrame.new(0, 5, 0.6) * CFrame.Angles(math.rad(-12), 0, 0), Color3.fromRGB(56, 140, 255), Enum.Material.Neon)
@@ -109,7 +132,7 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 	prompt.Parent = desk
 
 	-- Cartel junto a la acera
-	local signBase = origin * CFrame.new(12, 0.8, -HALF + 4)
+	local signBase = origin * CFrame.new(30, 0.8, -HALF + 4)
 	for _, x in { -5.5, 5.5 } do
 		newPart(model, Vector3.new(0.6, 9, 0.6), signBase * CFrame.new(x, 4.5, 0), Color3.fromRGB(30, 41, 59), Enum.Material.Metal)
 	end
@@ -221,11 +244,11 @@ function PlotManager.getSpawnCFrame(player: Player): CFrame
 	local plot = plotByPlayer[player]
 	if plot then
 		-- En el camino, mirando hacia el terminal
-		local position = (plot.origin * CFrame.new(-3, 4, -HALF + 10)).Position
-		local target = (plot.origin * CFrame.new(-11, 4, -HALF + 14)).Position
+		local position = (plot.origin * CFrame.new(3, 4, -HALF + 6)).Position
+		local target = (plot.origin * TERMINAL_OFFSET * CFrame.new(0, 3.2, 0)).Position
 		return CFrame.lookAt(position, target)
 	end
-	return CFrame.new(-212, 5, 0)
+	return CFrame.new(0, 5, 22)
 end
 
 -- Actualiza el cartel, el escaparate y, si cambia el número de plantas

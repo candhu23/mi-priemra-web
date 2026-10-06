@@ -561,7 +561,7 @@ local tabBar = create("Frame", {
 	Size = UDim2.new(1, -20, 0, 74),
 }, {
 	create("UIGridLayout", {
-		CellSize = UDim2.new(1 / 7, -6, 0, 34),
+		CellSize = UDim2.new(1 / 8, -6, 0, 34),
 		CellPadding = UDim2.fromOffset(6, 6),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	}),
@@ -583,6 +583,7 @@ local TABS = {
 	{ id = "career", emoji = "💼", name = "Carrera", color = Color3.fromRGB(14, 165, 233) },
 	{ id = "agency", emoji = "👥", name = "Agencia", color = Color3.fromRGB(217, 70, 239) },
 	{ id = "missions", emoji = "🎯", name = "Misiones", color = Color3.fromRGB(245, 158, 11) },
+	{ id = "achievements", emoji = "🏅", name = "Logros", color = Color3.fromRGB(234, 88, 12) },
 	{ id = "season", emoji = "🎫", name = "Pase", color = Color3.fromRGB(99, 102, 241) },
 	{ id = "collection", emoji = "📖", name = "Colección", color = Color3.fromRGB(16, 185, 129) },
 	{ id = "ranking", emoji = "🏆", name = "Ranking", color = Color3.fromRGB(234, 179, 8) },
@@ -683,7 +684,8 @@ local TAB_HELP = {
 	companies = "Negocios que compras y te ayudan para siempre. Cada uno dice qué hace ahora y qué hará al subirlo.",
 	career = "Las empresas te encargan webs con un plazo. Acepta, pulsa «Programar ahora» y al terminar se entrega sola: pagan mucho más que una venta.",
 	agency = "Tus programadores trabajan solos. Cada uno mejora algo según su especialidad y su rasgo, y sube de nivel con el tiempo.",
-	missions = "Misiones diarias y semanales, logros con bonus para siempre y objetivos con premio.",
+	missions = "6 misiones diarias, 6 semanales (más difíciles) y objetivos con premio.",
+	achievements = "Cada nivel de un logro da un bonus PARA SIEMPRE (no se pierde ni al salir a bolsa).",
 	season = "Todo lo que haces da ⭐ del pase. Cada nivel tiene premio.",
 	collection = "Cada combinación de web y rareza que consigas da +1 % de dinero para siempre.",
 	ranking = "Los mejores del servidor y de la semana. Visita imperios y da me gusta: ganáis los dos.",
@@ -1452,7 +1454,8 @@ renderers.sites = function(s)
 		if site.deal then
 			setButton(row.sell, T("🤝 Vendiendo · %s", Config.formatTime(site.deal.endsIn)), false, THEME.yellow)
 		else
-			setButton(row.sell, T("Vender %s", fmt(site.saleBase * Config.QUICK_SALE_MULT)), true)
+			setButton(row.sell, if (s.quickSaleLeft or 0) > 0 then T("Venta rápida en %s", Config.formatTime(s.quickSaleLeft))
+				else T("Vender %s", fmt(site.saleBase * Config.QUICK_SALE_MULT)), (s.quickSaleLeft or 0) <= 0)
 		end
 	end)
 end
@@ -1751,7 +1754,11 @@ function renderDetail(s)
 		sellInfo.Text = T("Ahora mismo ninguna empresa busca un %s. Las ofertas cambian cada poco.", T(def.name))
 		setButton(detailOfferButton, T("Sin ofertas para esta web"), false)
 	end
-	setButton(detailQuickButton, T("Venta rápida · %s", fmt(site.saleBase * Config.QUICK_SALE_MULT)), true)
+	if (s.quickSaleLeft or 0) > 0 then
+		setButton(detailQuickButton, T("Venta rápida en %s", Config.formatTime(s.quickSaleLeft)), false)
+	else
+		setButton(detailQuickButton, T("Venta rápida · %s", fmt(site.saleBase * Config.QUICK_SALE_MULT)), true)
+	end
 end
 
 function openSiteDetail(siteId: number)
@@ -2186,8 +2193,18 @@ local officeButton = makeButton(agencyCard, "", THEME.orange, UDim2.new(1, 0, 0,
 end)
 officeButton.Position = UDim2.fromOffset(0, 90)
 
+-- Mejoras de la oficina (se ven en tu edificio) y equipo completo
+local perksCard = makeCard(agencyPage, 30 + #Career.OfficePerks * 18 + 24, 5, Color3.fromRGB(20, 83, 45))
+makeLabel(perksCard, "🏗️ Mejoras de la oficina (se ven en tu edificio)", 0, 20, 15, THEME.text, true)
+local perkLabels = {}
+for i in Career.OfficePerks do
+	perkLabels[i] = makeLabel(perksCard, "", 4 + i * 18, 18, 12, THEME.muted)
+end
+local teamLabel = makeLabel(perksCard, "", 8 + (#Career.OfficePerks + 1) * 18, 18, 13, THEME.yellow, true)
+
 -- Especialidades y rasgos (para que se entienda qué hace cada uno)
 local rolesCard = makeCard(agencyPage, 34 + #Career.Roles * 18 + 22 + math.ceil(#Career.Traits / 2) * 18, 6, Color3.fromRGB(23, 37, 84))
+perksCard.Visible = false
 makeLabel(rolesCard, "📚 Especialidades y rasgos", 0, 20, 15, THEME.text, true)
 for i, role in Career.Roles do
 	bindText(makeLabel(rolesCard, "", 4 + i * 18, 18, 12, THEME.muted), function()
@@ -2345,6 +2362,7 @@ renderers.agency = function(s)
 	recruitCard.Visible = agency ~= nil
 	ticketsCard.Visible = agency ~= nil
 	teamTitle.Visible = agency ~= nil
+	perksCard.Visible = agency ~= nil
 
 	if not agency then
 		foundInfo.Text = T("Necesitas nivel de programador %d (tienes %d) y %s. Cada programador trabaja para ti y mejora algo según su especialidad.",
@@ -2363,8 +2381,29 @@ renderers.agency = function(s)
 		math.floor((totals.quality or 0) * 100 + 0.5), math.floor((totals.visits or 0) * 100 + 0.5),
 		math.floor((totals.sale or 0) * 100 + 0.5), math.floor((totals.rare or 0) * 100 + 0.5))
 	agencyInfo2.Text = T("Puestos ocupados: %d/%d%s", #c.programmers, agency.capacity, if s.bonuses.agencyPro then T(" · 🏙️ Agencia Pro") else "")
+	-- Mejoras de la oficina y equipo completo
+	local nextPerk = nil
+	for i, perk in Career.OfficePerks do
+		local has = agency.officeLevel >= perk.level
+		perkLabels[i].Text = T("%s %s %s (nivel %d): %s", if has then "✅" else "🔒", perk.emoji, T(perk.name), perk.level, T(perk.desc))
+		perkLabels[i].TextColor3 = if has then THEME.green else THEME.muted
+		if not has and not nextPerk then
+			nextPerk = perk
+		end
+	end
+	local roles = Career.rolesInTeam(c)
+	local missingRoles = {}
+	for _, role in Career.Roles do
+		if not roles[role.id] then
+			table.insert(missingRoles, role.emoji)
+		end
+	end
+	teamLabel.Text = if #missingRoles == 0 then T("👥 ¡Equipo completo! +%d%% a todo lo que aporta tu equipo", math.floor(Career.FULL_TEAM_BONUS * 100))
+		else T("👥 Equipo completo (una de cada especialidad): +%d%% · te faltan %s", math.floor(Career.FULL_TEAM_BONUS * 100), table.concat(missingRoles, " "))
+	teamLabel.TextColor3 = if #missingRoles == 0 then THEME.green else THEME.yellow
 	if agency.upgradeCost then
-		setButton(officeButton, T("🏗️ Ampliar oficina (+2 puestos) · %s", fmt(agency.upgradeCost)), s.money >= agency.upgradeCost)
+		local perkText = if nextPerk and nextPerk.level == agency.officeLevel + 1 then " · " .. nextPerk.emoji .. " " .. T(nextPerk.name) else ""
+		setButton(officeButton, T("🏗️ Ampliar oficina (+2 puestos) · %s", fmt(agency.upgradeCost)) .. perkText, s.money >= agency.upgradeCost)
 	else
 		setButton(officeButton, T("Oficina al máximo"), false)
 	end
@@ -2450,7 +2489,7 @@ local dailyCards = {}
 for i = 1, Config.DAILY_MISSION_COUNT do
 	local card = makeCard(missionsPage, 96, 1 + i)
 	local title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
-	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 18), TIER_COLORS[i] or THEME.accent)
+	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 18), TIER_COLORS[(i + 1) // 2] or THEME.accent)
 	local button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
 		sendAction("claimDailyMission", i, nil, function(ok)
 			if ok then
@@ -2463,12 +2502,12 @@ for i = 1, Config.DAILY_MISSION_COUNT do
 end
 
 -- Misiones semanales
-local weeklyHeader = makeCard(missionsPage, 66, 5, Color3.fromRGB(76, 29, 149))
+local weeklyHeader = makeCard(missionsPage, 66, 20, Color3.fromRGB(76, 29, 149))
 local weeklyTitle = makeLabel(weeklyHeader, "", 0, 22, 18, THEME.text, true)
 local weeklyBonus = makeLabel(weeklyHeader, "", 24, 18, 14, THEME.yellow, true)
 local weeklyCards = {}
 for i = 1, Config.WEEKLY_MISSION_COUNT do
-	local card = makeCard(missionsPage, 96, 5 + i)
+	local card = makeCard(missionsPage, 96, 20 + i)
 	local title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
 	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 18), THEME.purple)
 	local button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
@@ -2480,22 +2519,6 @@ for i = 1, Config.WEEKLY_MISSION_COUNT do
 	end)
 	button.Position = UDim2.fromOffset(0, 46)
 	weeklyCards[i] = { card = card, title = title, fill = fill, text = text, button = button }
-end
-
--- Logros (bonus permanentes por niveles)
-local achievementsHeader = makeCard(missionsPage, 66, 20, Color3.fromRGB(120, 53, 15))
-local achievementsTitle = makeLabel(achievementsHeader, "", 0, 22, 18, THEME.text, true)
-local achievementsInfo = makeLabel(achievementsHeader, "", 24, 30, 13, THEME.yellow, true)
-achievementsInfo.TextWrapped = true
-achievementsInfo.TextTruncate = Enum.TextTruncate.None
-local BONUS_NAMES = { money = "dinero", click = "clic", visits = "visitas", sale = "ventas", work = "trabajo", rare = "webs raras" }
-local achievementCards = {}
-for i, achievement in Config.Achievements do
-	local card = makeCard(missionsPage, 70, 20 + i)
-	local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
-	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 16), THEME.orange)
-	local info = makeLabel(card, "", 44, 16, 12, THEME.muted)
-	achievementCards[achievement.id] = { title = title, fill = fill, text = text, info = info }
 end
 
 local goalsHeader = makeCard(missionsPage, 82, 50, Color3.fromRGB(30, 58, 138))
@@ -2572,7 +2595,58 @@ renderers.missions = function(s)
 		end
 	end
 
-	-- Logros
+	local claimable, done = 0, 0
+	for i, goal in Config.Goals do
+		local slot = goalCards[goal.id]
+		local claimed = s.goals[goal.id] == true
+		local value = math.min(goal.value(s), goal.target)
+		local complete = value >= goal.target
+		local rewardText = if goal.reward > 0 then fmt(goal.reward) else T("¡acciones!")
+		slot.fill.Size = UDim2.fromScale(math.clamp(value / goal.target, 0, 1), 1)
+		slot.text.Text = if goal.target >= 1000 then fmt(value) .. " / " .. fmt(goal.target) else num(value) .. " / " .. num(goal.target)
+		if claimed then
+			done += 1
+			slot.card.LayoutOrder = 400 + i
+			slot.title.TextColor3 = THEME.muted
+			setButton(slot.button, T("✓ Reclamado"), false, THEME.green)
+			slot.button:SetAttribute("PaintColor", THEME.green)
+		elseif complete then
+			claimable += 1
+			slot.card.LayoutOrder = 100 + i
+			slot.title.TextColor3 = THEME.yellow
+			setButton(slot.button, T("🎁 Reclamar %s", rewardText), true, THEME.green)
+		else
+			slot.card.LayoutOrder = 200 + i
+			slot.title.TextColor3 = THEME.text
+			setButton(slot.button, T("Premio: %s", rewardText), false)
+		end
+	end
+	goalsTitle.Text = T("🏆 Objetivos · %d/%d completados%s", done, #Config.Goals, if claimable > 0 then T(" · %d por reclamar", claimable) else "")
+end
+end
+
+---------------------------------------------------------------------
+-- Pestaña LOGROS (bonus permanentes por niveles)
+---------------------------------------------------------------------
+do
+local achievementsPage = pages.achievements
+local achievementsHeader = makeCard(achievementsPage, 66, 1, Color3.fromRGB(120, 53, 15))
+local achievementsTitle = makeLabel(achievementsHeader, "", 0, 22, 18, THEME.text, true)
+local achievementsInfo = makeLabel(achievementsHeader, "", 24, 30, 13, THEME.yellow, true)
+achievementsInfo.TextWrapped = true
+achievementsInfo.TextTruncate = Enum.TextTruncate.None
+local BONUS_NAMES = { money = "dinero", click = "clic", visits = "visitas", sale = "ventas", work = "trabajo", rare = "webs raras" }
+local achievementCards = {}
+for i, achievement in Config.Achievements do
+	local card = makeCard(achievementsPage, 70, 1 + i)
+	local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
+	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 16), THEME.orange)
+	local info = makeLabel(card, "", 44, 16, 12, THEME.muted)
+	achievementCards[achievement.id] = { title = title, fill = fill, text = text, info = info }
+end
+
+
+renderers.achievements = function(s)
 	local tiersDone, tiersTotal = 0, 0
 	local totals = {}
 	for _, achievement in Config.Achievements do
@@ -2609,33 +2683,6 @@ renderers.missions = function(s)
 	achievementsInfo.Text = if #bonusParts > 0 then T("Bonus permanentes: %s", table.concat(bonusParts, " · "))
 		else T("Cada nivel de logro da un bonus PERMANENTE que no se pierde nunca.")
 
-	local claimable, done = 0, 0
-	for i, goal in Config.Goals do
-		local slot = goalCards[goal.id]
-		local claimed = s.goals[goal.id] == true
-		local value = math.min(goal.value(s), goal.target)
-		local complete = value >= goal.target
-		local rewardText = if goal.reward > 0 then fmt(goal.reward) else T("¡acciones!")
-		slot.fill.Size = UDim2.fromScale(math.clamp(value / goal.target, 0, 1), 1)
-		slot.text.Text = if goal.target >= 1000 then fmt(value) .. " / " .. fmt(goal.target) else num(value) .. " / " .. num(goal.target)
-		if claimed then
-			done += 1
-			slot.card.LayoutOrder = 400 + i
-			slot.title.TextColor3 = THEME.muted
-			setButton(slot.button, T("✓ Reclamado"), false, THEME.green)
-			slot.button:SetAttribute("PaintColor", THEME.green)
-		elseif complete then
-			claimable += 1
-			slot.card.LayoutOrder = 100 + i
-			slot.title.TextColor3 = THEME.yellow
-			setButton(slot.button, T("🎁 Reclamar %s", rewardText), true, THEME.green)
-		else
-			slot.card.LayoutOrder = 200 + i
-			slot.title.TextColor3 = THEME.text
-			setButton(slot.button, T("Premio: %s", rewardText), false)
-		end
-	end
-	goalsTitle.Text = T("🏆 Objetivos · %d/%d completados%s", done, #Config.Goals, if claimable > 0 then T(" · %d por reclamar", claimable) else "")
 end
 end
 

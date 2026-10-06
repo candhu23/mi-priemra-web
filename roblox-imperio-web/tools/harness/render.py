@@ -70,12 +70,13 @@ for p in data:
     if p.get("plot") is not None:
         plots.setdefault(p["plot"], []).append(p)
 
-# Marco de cada parcela: la losa base de 66x0.8x66
+# Marco de cada parcela: la losa base (la pieza de 0.8 de alto más grande)
 frames = {}
 for idx, parts in plots.items():
     for p in parts:
-        if abs(p["s"][0] - 66) < 0.01 and abs(p["s"][1] - 0.8) < 0.01:
-            frames[idx] = p
+        if abs(p["s"][1] - 0.8) < 0.01 and abs(p["s"][0] - p["s"][2]) < 0.01 and p["s"][0] > 60:
+            if idx not in frames or p["s"][0] > frames[idx]["s"][0]:
+                frames[idx] = p
 occupied = sorted(i for i, parts in plots.items() if any(q["n"] == "Azotea" for q in parts))
 
 fig, axes = plt.subplots(1, len(occupied), figsize=(4.2 * len(occupied), 9), facecolor=(0.62, 0.8, 0.95))
@@ -90,17 +91,17 @@ for ax, idx in zip(axes, occupied):
     floors = [q for q in plots[idx] if q["n"].startswith("Planta")] # (las plantas son modelos; las piezas no tienen ese nombre)
     ax.set_facecolor((0.62, 0.8, 0.95))
     ax.set_title(f"Parcela {idx}", fontsize=12)
-    ax.set_xlim(-34, 34)
+    ax.set_xlim(-50, 50)
     ax.set_ylim(-1, 260)
     ax.axis("off")
 plt.tight_layout()
 plt.savefig(out + "_fachadas.png", dpi=110)
 
 # Vista cenital
-fig, ax = plt.subplots(figsize=(14, 9), facecolor="white")
+fig, ax = plt.subplots(figsize=(16, 7), facecolor="white")
 draw(ax, data, lambda c: (c[0], -c[2]), lambda c: c[1])
-ax.set_xlim(-300, 220)
-ax.set_ylim(-120, 120)
+ax.set_xlim(-345, 345)
+ax.set_ylim(-140, 140)
 ax.axis("off")
 plt.tight_layout()
 plt.savefig(out + "_ciudad.png", dpi=90)

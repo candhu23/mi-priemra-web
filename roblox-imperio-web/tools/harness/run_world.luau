@@ -143,6 +143,9 @@ local function addModule(parent, name, path)
 end
 addModule(services.ReplicatedStorage, "TycoonConfig", SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 addModule(services.ReplicatedStorage, "CareerConfig", SRC .. "/ReplicatedStorage/CareerConfig.luau")
+addModule(services.ReplicatedStorage, "CityLayout", SRC .. "/ReplicatedStorage/CityLayout.luau")
+local trafficModule = addModule(services.ReplicatedStorage, "Traffic", SRC .. "/ReplicatedStorage/Traffic.luau")
+addModule(services.ServerScriptService, "AgencyOffice", SRC .. "/ServerScriptService/AgencyOffice.luau")
 addModule(services.ServerScriptService, "Building", SRC .. "/ServerScriptService/Building.luau")
 addModule(services.ServerScriptService, "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
 addModule(services.ServerScriptService, "World", SRC .. "/ServerScriptService/World.luau")
@@ -202,6 +205,13 @@ function requireModule(moduleProxy)
 	for _, name in { "Vector3", "Vector2", "CFrame", "Color3", "UDim", "UDim2", "NumberRange", "NumberSequence", "ColorSequence", "BrickColor" } do
 		env[name] = roblox[name]
 	end
+	-- CFrame.lookAt de Lune mira hacia el lado contrario que el de Roblox:
+	-- se corrige para que el volcado (y los dibujos) salgan como en el juego
+	env.CFrame = setmetatable({
+		lookAt = function(at, target, up)
+			return roblox.CFrame.lookAt(at, at * 2 - target, up)
+		end,
+	}, { __index = roblox.CFrame })
 	setmetatable(env, { __index = _G })
 	local chunk = luau.load(fs.readFile(path), { debugName = path, environment = env })
 	local result = chunk()
@@ -215,12 +225,13 @@ PlotManager.init(function() end)
 
 local rarities = { "comun", "pococomun", "raro", "epico", "legendario", "mitico" }
 local players = {
-	{ name = "Ana", earned = 2e3, team = 0, types = 1 },
-	{ name = "Jorge", earned = 1e6, team = 3, types = 3 },
-	{ name = "Leo", earned = 3e9, team = 6, types = 5, gold = true },
-	{ name = "Marta", earned = 1e13, team = 8, types = 7 },
-	{ name = "Nico", earned = 1e17, team = 12, types = 8, gold = true },
+	{ name = "Ana", earned = 2e3, team = 0, types = 1, office = 0 },
+	{ name = "Jorge", earned = 1e6, team = 3, types = 3, office = 1 },
+	{ name = "Leo", earned = 3e9, team = 6, types = 5, gold = true, office = 3 },
+	{ name = "Marta", earned = 1e13, team = 14, types = 7, office = 6 },
+	{ name = "Nico", earned = 1e17, team = 26, types = 8, gold = true, office = 10 },
 }
+local roles = { "dev", "design", "marketing", "sales", "data" }
 local Config = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("TycoonConfig")))
 for i, p in players do
 	local fakePlayer = { DisplayName = p.name, UserId = i }
@@ -228,7 +239,7 @@ for i, p in players do
 	-- Lo que se ve de su imperio: programadores, webs creadas y web estrella
 	local programmers = {}
 	for k = 1, p.team do
-		table.insert(programmers, { id = k, name = "Prog " .. k, rarity = rarities[(k - 1) % #rarities + 1], niche = "tech", level = k % 10 + 1 })
+		table.insert(programmers, { id = k, name = "Prog " .. k, rarity = rarities[(k - 1) % #rarities + 1], niche = "tech", level = k % 10 + 1, role = roles[k % #roles + 1] })
 	end
 	local built = {}
 	for k = 1, p.types do
@@ -238,6 +249,9 @@ for i, p in players do
 		gold = false,
 		likes = i * 2,
 		agency = p.team > 0,
+		agencyName = p.name .. " Dev Studio",
+		officeLevel = p.office,
+		capacity = 3 + 2 * p.office,
 		programmers = programmers,
 		builtTypes = built,
 		bestSite = { name = "NovaHub.io", type = Config.WebTypes[p.types].id, visits = 1234 },
@@ -255,6 +269,38 @@ local leaving = { DisplayName = "Temp", UserId = 99 }
 PlotManager.claim(leaving)
 PlotManager.update(leaving, 5e4, 1)
 PlotManager.release(leaving)
+
+-- Tráfico (en el juego lo mueve cada cliente)
+local Traffic = requireModule(wrap(trafficModule))
+local City = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("CityLayout")))
+Traffic.start(wrap(services.Workspace))
+local path = Traffic.path()
+local function distanceToPath(position)
+	local best = math.huge
+	for i, a in path do
+		local b = path[i % #path + 1]
+		local ab = b - a
+		local t = math.clamp((position - a):Dot(ab) / math.max(ab:Dot(ab), 1e-6), 0, 1)
+		best = math.min(best, (a + ab * t - position).Magnitude)
+	end
+	return best
+end
+for frame = 1, 600 do
+	Traffic.step(1 / 30)
+	if frame % 100 == 0 then
+		for _, car in Traffic.cars() do
+			local position = car.cframe.Position
+			assert(position == position, "coche con posición NaN")
+			assert(distanceToPath(position) < 0.5, "un coche se ha salido de la carretera")
+		end
+	end
+end
+-- Las parcelas no pisan la calzada de la glorieta ni la avenida
+for _, x in City.PLOT_X do
+	local edge = math.abs(x) - City.PLOT_SIZE / 2
+	assert(math.sqrt(edge * edge + (City.plotZ() - City.PLOT_SIZE / 2) ^ 2) > City.RING_OUTER + City.RING_SIDEWALK, "una parcela pisa la glorieta")
+end
+print(string.format("Tráfico: %d coches · recorrido de %.0f studs (una vuelta cada %.0f s)", #Traffic.cars(), Traffic.length(), Traffic.length() / Traffic.SPEED))
 
 -- Volcado
 local parts = {}

@@ -195,6 +195,8 @@ type Session = {
 	bonuses: Bonuses,
 	offers: { Offer },
 	nextOfferId: number,
+	nextOfferAt: number, -- cuándo llega la próxima oferta de cliente
+	quickSaleReadyAt: number, -- venta rápida disponible otra vez
 	event: ActiveEvent?,
 	nextEventAt: number,
 	giftReadyAt: number,
@@ -394,8 +396,13 @@ local function refreshOffers(session: Session)
 			table.remove(session.offers, i)
 		end
 	end
-	while #session.offers < Config.OFFER_COUNT + Config.researchValue(session.data, "offers") do
+	-- Las ofertas nuevas llegan de una en una (cada OFFER_INTERVAL s)
+	local maxOffers = Config.OFFER_COUNT + Config.researchValue(session.data, "offers")
+	if #session.offers >= maxOffers then
+		session.nextOfferAt = math.max(session.nextOfferAt, now + Config.OFFER_INTERVAL)
+	elseif now >= session.nextOfferAt then
 		table.insert(session.offers, makeOffer(session))
+		session.nextOfferAt = now + Config.OFFER_INTERVAL * (0.75 + random:NextNumber() * 0.5)
 	end
 end
 
@@ -585,7 +592,9 @@ local function ensureDailyMissions(session: Session)
 		end
 	end
 	local list = {}
-	for tier = 1, math.min(Config.DAILY_MISSION_COUNT, #pool) do
+	-- 2 fáciles, 2 medias y 2 difíciles
+	for i = 1, math.min(Config.DAILY_MISSION_COUNT, #pool) do
+		local tier = math.clamp((i + 1) // 2, 1, #Config.DailyMissionRewards)
 		local def = table.remove(pool, random:NextInteger(1, #pool))
 		table.insert(list, { id = def.id, tier = tier, target = def.amounts[tier], progress = 0, claimed = false })
 	end
@@ -793,6 +802,7 @@ local function buildState(session: Session)
 		ipoShares = Config.sharesForIpo(data.totalEarned),
 		ipoPatents = Config.patentsForShares(Config.sharesForIpo(data.totalEarned)),
 		maxDeals = Config.maxDeals(data),
+		quickSaleLeft = math.max(0, session.quickSaleReadyAt - now),
 		weeklyMissions = {
 			list = data.weeklyMissions.list,
 			bonusGiven = data.weeklyMissions.bonusGiven,
@@ -1209,6 +1219,11 @@ function Actions.quickSell(player: Player, session: Session, siteId: any)
 	if site.deal then
 		return false, "Esa web ya está en negociación."
 	end
+	local now = os.clock()
+	if now < session.quickSaleReadyAt then
+		return false, string.format("Espera %d s para otra venta rápida.", math.ceil(session.quickSaleReadyAt - now))
+	end
+	session.quickSaleReadyAt = now + Config.QUICK_SALE_COOLDOWN
 	local price = salePrice(session, site, Config.QUICK_SALE_MULT, nil)
 	completeSale(player, session, site, price)
 	return true, string.format("🤝 Vendiste %s a %s por %s", site.name, "un comprador anónimo", Config.formatMoney(price)), { money = true }
@@ -2041,6 +2056,8 @@ local function plotExtras(session: Session)
 		gold = data.goldUntil > os.time(),
 		likes = data.likes,
 		agency = career.agency ~= nil,
+		agencyName = if career.agency then career.agency.name else nil,
+		officeLevel = if career.agency then career.agency.officeLevel else 0,
 		capacity = CareerService.capacity(session),
 		programmers = career.programmers,
 		builtTypes = data.stats.byType,
@@ -2145,6 +2162,8 @@ local function onPlayerAdded(player: Player)
 		bonuses = bonuses,
 		offers = {},
 		nextOfferId = 0,
+		nextOfferAt = 0,
+		quickSaleReadyAt = 0,
 		event = nil,
 		nextEventAt = os.clock() + 60,
 		giftReadyAt = os.clock() + Config.GIFT_INTERVAL,
@@ -2188,6 +2207,10 @@ local function onPlayerAdded(player: Player)
 	CareerService.initSession(session)
 	CareerService.refreshBonuses(session)
 
+	-- Al entrar ya hay ofertas; luego llegan de una en una
+	for _ = 1, Config.OFFER_COUNT do
+		table.insert(session.offers, makeOffer(session))
+	end
 	refreshOffers(session)
 	session.income = computeIncome(session, false)
 

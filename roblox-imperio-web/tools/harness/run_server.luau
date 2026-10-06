@@ -14,7 +14,7 @@ local function readSource(path)
 	end
 	return sources[path]
 end
-for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ServerScriptService/MarketService.luau", "/ReplicatedStorage/MarketConfig.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
+for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ServerScriptService/MarketService.luau", "/ReplicatedStorage/MarketConfig.luau", "/ReplicatedStorage/CityLayout.luau", "/ServerScriptService/AgencyOffice.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
 	readSource(SRC .. rel)
 end
 
@@ -241,6 +241,8 @@ end
 addModule(services.ReplicatedStorage, "ModuleScript", "TycoonConfig", SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "CareerConfig", SRC .. "/ReplicatedStorage/CareerConfig.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "MarketConfig", SRC .. "/ReplicatedStorage/MarketConfig.luau")
+addModule(services.ReplicatedStorage, "ModuleScript", "CityLayout", SRC .. "/ReplicatedStorage/CityLayout.luau")
+addModule(services.ServerScriptService, "ModuleScript", "AgencyOffice", SRC .. "/ServerScriptService/AgencyOffice.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "Locale", SRC .. "/ReplicatedStorage/Locale.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "LocaleEN", SRC .. "/ReplicatedStorage/LocaleEN.luau")
 addModule(services.ServerScriptService, "ModuleScript", "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
