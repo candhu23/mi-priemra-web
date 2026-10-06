@@ -10,6 +10,7 @@ local process = require("@lune/process")
 local SRC = process.args[1]
 local configSource = fs.readFile(SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 local careerSource = fs.readFile(SRC .. "/ReplicatedStorage/CareerConfig.luau")
+local marketSource = fs.readFile(SRC .. "/ReplicatedStorage/MarketConfig.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/TycoonClient.client.luau")
 local localeSource = fs.readFile(SRC .. "/ReplicatedStorage/Locale.luau")
 local localeEnSource = fs.readFile(SRC .. "/ReplicatedStorage/LocaleEN.luau")
@@ -264,6 +265,10 @@ end
 
 local Config = luau.load(configSource, { debugName = "TycoonConfig", environment = env(nil) })()
 local CareerCfg = luau.load(careerSource, { debugName = "CareerConfig", environment = env(nil) })()
+local MarketCfg = luau.load(marketSource, { debugName = "MarketConfig", environment = env(nil) })()
+local marketModule = roblox.Instance.new("ModuleScript")
+marketModule.Name = "MarketConfig"
+marketModule.Parent = services.ReplicatedStorage
 local careerModule = roblox.Instance.new("ModuleScript")
 careerModule.Name = "CareerConfig"
 careerModule.Parent = services.ReplicatedStorage
@@ -282,7 +287,7 @@ local missing = {}
 Locale.onMissing = function(text)
 	missing[text] = true
 end
-local modulesByName = { CareerConfig = CareerCfg, Locale = Locale, LocaleEN = EN, TycoonConfig = Config }
+local modulesByName = { CareerConfig = CareerCfg, MarketConfig = MarketCfg, Locale = Locale, LocaleEN = EN, TycoonConfig = Config }
 local clientEnv = env(nil)
 clientEnv.require = function(m)
 	return assert(modulesByName[realOf[m] and realOf[m].Name], "módulo desconocido")
@@ -315,18 +320,31 @@ s2.bonuses.boost = true
 s2.boostLeft = 100
 s2.socialBonus = 0.2
 s2.ipoShares = 3
-s2.career.agency = { name = "Jorge Dev Studio", officeLevel = 2, capacity = 7, upgradeCost = 45000 }
-s2.career.job = { companyId = 3, rank = 2, salary = 12, xpRate = 2, promotion = "Faltan 3 min", taskLeft = 0 }
+s2.career.agency = { name = "Jorge Dev Studio", officeLevel = 2, capacity = 7, upgradeCost = 45000,
+	totals = { work = 48, money = 0.05, quality = 0.06, visits = 0.1, sale = 0.02, rare = 0.03 } }
+local function stats(money, quality, visits, sale, rare)
+	return { money = money, quality = quality, visits = visits, sale = sale, rare = rare }
+end
 s2.career.programmers = {
-	{ id = 1, name = "Lucía M.", rarity = "epico", niche = "gaming", level = 2, work = 46, bonus = 0.17, trainCost = 5000 },
-	{ id = 2, name = "Hugo P.", rarity = "comun", niche = "salud", level = 1, work = 2, bonus = 0.01, trainCost = 900 },
+	{ id = 1, name = "Lucía M.", rarity = "epico", niche = "gaming", level = 2, role = "marketing", trait = "noctambulo", xp = 300, xpNeeded = 960,
+		work = 46, stats = stats(0.04, 0, 0.1, 0, 0), trainCost = 5000 },
+	{ id = 2, name = "Hugo P.", rarity = "comun", niche = "salud", level = 1, role = "design", trait = "mentor", xp = 10, xpNeeded = 240,
+		work = 2, stats = stats(0.0025, 0.004, 0, 0, 0), trainCost = 900 },
+	{ id = 3, name = "Mei K.", rarity = "legendario", niche = "tech", level = 10, role = "data", trait = "suertudo", xp = 0, xpNeeded = 24000,
+		work = 120, stats = stats(0.1, 0, 0, 0, 0.5), trainCost = 900 },
 }
 s2.career.tickets = { premium = 2, legendary = 1 }
-s2.career.jobOffers = {
-	{ id = 1, companyId = 12, rank = 1, salaryMult = 1.42, xpMult = 0.9, salary = 20, xpRate = 3, timeLeft = 120 },
-	{ id = 2, companyId = 60, rank = 2, salaryMult = 0.8, xpMult = 1.3, salary = 9, xpRate = 5, timeLeft = 40 },
+s2.career.rank = 3
+s2.career.slots = 2
+s2.career.fair = true
+s2.career.askLeft = 0
+s2.career.board = {
+	{ id = 7, companyId = 12, type = "blog", niche = "ecommerce", pay = 9000, rep = 6, xp = 30, duration = 300, timeLeft = 200 },
+	{ id = 8, companyId = 60, type = "landing", niche = "gaming", pay = 3000, rep = 2, xp = 10, duration = 180, timeLeft = 40 },
 }
-s2.career.cvLeft = 0
+s2.career.contracts = {
+	{ id = 5, companyId = 3, type = "blog", niche = "ecommerce", pay = 9500, rep = 6, xp = 30, duration = 300, timeLeft = 50, working = true },
+}
 -- Ranking: vecinos, top semanal y de siempre, evento de fin de semana y dorado
 s2.neighbors = {
 	{ userId = 43, name = "Ana", floors = 7, likes = 2, liked = false },
@@ -337,7 +355,7 @@ for i = 1, 10 do
 	table.insert(s2.weekly.top, { name = "Jugador" .. i, value = 1e6 / i, userId = if i == 4 then 42 else 100 + i })
 end
 s2.globalTop = { { name = "Ana", value = 5e9, userId = 43 } }
-s2.weekend = { id = "jobs", endsIn = 7200, nextId = "money", startsIn = 500000 }
+s2.weekend = { id = "contracts", endsIn = 7200, nextId = "money", startsIn = 500000 }
 s2.goldLeft = 3600
 s2.likes = 5
 -- v2.0: patentes, tiempo jugado, pase, evento del servidor, meta común, colección
@@ -370,8 +388,12 @@ end
 print("Pestañas con candado para un jugador nuevo:", locked)
 assert(locked >= 9, "un jugador nuevo debería ver las pestañas bloqueadas")
 fireState(s2)
--- Sin evento de fin de semana (muestra el próximo)
+-- Sin evento de fin de semana (muestra el próximo); encargo sin empezar
 local s3 = serde.decode("json", serde.encode("json", s2))
+s3.project = nil
+s3.career.contracts[1].working = false
+s3.career.contracts[2] = { id = 6, companyId = 9, type = "landing", niche = "salud", pay = 2000, rep = 2, xp = 10, duration = 180, timeLeft = 170, working = false }
+s3.career.rank = 5
 s3.weekend = { endsIn = 0, nextId = "viral", startsIn = 100000 }
 s3.goldLeft = 0
 fireState(s3)
@@ -386,11 +408,13 @@ signalFor(idOf(openRemote), "OnClientEvent"):Fire()
 local pressed = 0
 for pass = 1, 3 do
 	for _, d in playerGui:GetDescendants() do
-		-- (el botón de idioma se prueba aparte, más abajo)
-		if d:IsA("TextButton") and string.sub(d.Text, 1, #"🌐") ~= "🌐" then
-			signalFor(idOf(d), "Activated"):Fire()
-			signalFor(idOf(d), "MouseEnter"):Fire()
-			signalFor(idOf(d), "MouseLeave"):Fire()
+		-- (el botón de idioma se prueba aparte, más abajo; los botones que
+		-- otro botón ya ha borrado se saltan)
+		local alive, id = pcall(idOf, d)
+		if alive and d:IsA("TextButton") and string.sub(d.Text, 1, #"🌐") ~= "🌐" then
+			signalFor(id, "Activated"):Fire()
+			signalFor(id, "MouseEnter"):Fire()
+			signalFor(id, "MouseLeave"):Fire()
 			pressed += 1
 		end
 	end

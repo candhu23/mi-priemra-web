@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "2.1"
+Config.VERSION = "3.0"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -123,14 +123,14 @@ Config.Sounds = {
 --   repReward = reputación que ganas al terminarla
 ---------------------------------------------------------------------
 Config.WebTypes = {
-	{ id = "landing", name = "Landing Page", emoji = "📄", work = 18, cost = 0, visits = 4, rep = 0, repReward = 1 },
-	{ id = "blog", name = "Blog", emoji = "✍️", work = 72, cost = 40, visits = 12, rep = 4, repReward = 3 },
-	{ id = "tienda", name = "Tienda Online", emoji = "🛒", work = 300, cost = 300, visits = 36, rep = 42, repReward = 8 },
-	{ id = "noticias", name = "Periódico Digital", emoji = "📰", work = 1200, cost = 1500, visits = 110, rep = 280, repReward = 20 },
-	{ id = "red_social", name = "Red Social", emoji = "💬", work = 4800, cost = 20000, visits = 330, rep = 1400, repReward = 50 },
-	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 19200, cost = 250000, visits = 1000, rep = 5600, repReward = 120 },
-	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 78000, cost = 3000000, visits = 3000, rep = 21000, repReward = 300 },
-	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 312000, cost = 50000000, visits = 9000, rep = 70000, repReward = 800 },
+	{ id = "landing", name = "Landing Page", emoji = "📄", work = 23, cost = 0, visits = 4, rep = 0, repReward = 1 },
+	{ id = "blog", name = "Blog", emoji = "✍️", work = 94, cost = 40, visits = 12, rep = 6, repReward = 3 },
+	{ id = "tienda", name = "Tienda Online", emoji = "🛒", work = 390, cost = 300, visits = 36, rep = 59, repReward = 8 },
+	{ id = "noticias", name = "Periódico Digital", emoji = "📰", work = 1560, cost = 1500, visits = 110, rep = 392, repReward = 20 },
+	{ id = "red_social", name = "Red Social", emoji = "💬", work = 6240, cost = 20000, visits = 330, rep = 1960, repReward = 50 },
+	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 24960, cost = 250000, visits = 1000, rep = 7840, repReward = 120 },
+	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 101400, cost = 3000000, visits = 3000, rep = 29400, repReward = 300 },
+	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 405600, cost = 50000000, visits = 9000, rep = 98000, repReward = 800 },
 }
 
 ---------------------------------------------------------------------
@@ -139,13 +139,13 @@ Config.WebTypes = {
 --   penalty = % de visitas que se pierden porque molestan
 ---------------------------------------------------------------------
 Config.AdNetworks = {
-	{ id = "adsimple", name = "AdSimple", emoji = "🟢", rpv = 0.2, penalty = 0.00, cost = 0, rep = 0 },
-	{ id = "clickboom", name = "ClickBoom", emoji = "💥", rpv = 0.36, penalty = 0.08, cost = 2500, rep = 10 },
-	{ id = "bannerpro", name = "BannerPro", emoji = "🖼️", rpv = 0.64, penalty = 0.12, cost = 50000, rep = 80 },
-	{ id = "videomax", name = "VideoMax", emoji = "📺", rpv = 1.2, penalty = 0.20, cost = 1200000, rep = 600 },
-	{ id = "influads", name = "InfluAds", emoji = "🤳", rpv = 1.92, penalty = 0.10, cost = 25000000, rep = 2500 },
-	{ id = "premium", name = "PremiumAds Global", emoji = "💎", rpv = 3.2, penalty = 0.06, cost = 600000000, rep = 10000 },
-	{ id = "neuroads", name = "NeuroAds IA", emoji = "🧠", rpv = 5.6, penalty = 0.03, cost = 20000000000, rep = 35000 },
+	{ id = "adsimple", name = "AdSimple", emoji = "🟢", rpv = 0.15, penalty = 0.00, cost = 0, rep = 0 },
+	{ id = "clickboom", name = "ClickBoom", emoji = "💥", rpv = 0.27, penalty = 0.08, cost = 2500, rep = 10 },
+	{ id = "bannerpro", name = "BannerPro", emoji = "🖼️", rpv = 0.48, penalty = 0.12, cost = 50000, rep = 80 },
+	{ id = "videomax", name = "VideoMax", emoji = "📺", rpv = 0.9, penalty = 0.20, cost = 1200000, rep = 600 },
+	{ id = "influads", name = "InfluAds", emoji = "🤳", rpv = 1.44, penalty = 0.10, cost = 25000000, rep = 2500 },
+	{ id = "premium", name = "PremiumAds Global", emoji = "💎", rpv = 2.4, penalty = 0.06, cost = 600000000, rep = 10000 },
+	{ id = "neuroads", name = "NeuroAds IA", emoji = "🧠", rpv = 4.2, penalty = 0.03, cost = 20000000000, rep = 35000 },
 }
 
 -- Cuántos anuncios pones en cada web: más anuncios = más dinero por visita,
@@ -162,21 +162,21 @@ Config.AdLevels = {
 --   growth = cuánto sube el precio en cada nivel
 ---------------------------------------------------------------------
 Config.Companies = {
-	{ id = "devs", name = "Equipo de Programadores", emoji = "👩‍💻", baseCost = 50, growth = 1.15, income = 0, maxLevel = 200,
+	{ id = "devs", name = "Equipo de Programadores", emoji = "👩‍💻", baseCost = 75, growth = 1.15, income = 0.0, maxLevel = 200,
 		desc = "+1.5 de trabajo por segundo por nivel: programan por ti." },
-	{ id = "hosting", name = "Hosting Nube", emoji = "☁️", baseCost = 300, growth = 1.75, income = 1.6, maxLevel = 40,
+	{ id = "hosting", name = "Hosting Nube", emoji = "☁️", baseCost = 450, growth = 1.75, income = 1.2, maxLevel = 40,
 		desc = "+1 hueco para tener más webs a la vez." },
-	{ id = "marketing", name = "Agencia de Marketing", emoji = "📣", baseCost = 1000, growth = 1.32, income = 4, maxLevel = 200,
+	{ id = "marketing", name = "Agencia de Marketing", emoji = "📣", baseCost = 1500, growth = 1.32, income = 3.0, maxLevel = 200,
 		desc = "+10 % de visitas en todas tus webs." },
-	{ id = "design", name = "Estudio de Diseño", emoji = "🎨", baseCost = 4000, growth = 1.33, income = 12, maxLevel = 200,
+	{ id = "design", name = "Estudio de Diseño", emoji = "🎨", baseCost = 6000, growth = 1.33, income = 9.0, maxLevel = 200,
 		desc = "+8 % de calidad en las webs nuevas." },
-	{ id = "comercial", name = "Agencia Comercial", emoji = "🤝", baseCost = 10000, growth = 1.38, income = 32, maxLevel = 200,
+	{ id = "comercial", name = "Agencia Comercial", emoji = "🤝", baseCost = 15000, growth = 1.38, income = 24.0, maxLevel = 200,
 		desc = "+12 % al vender webs y clientes que pagan más." },
-	{ id = "ia_lab", name = "Laboratorio de IA", emoji = "🧪", baseCost = 75000, growth = 1.45, income = 120, maxLevel = 200,
+	{ id = "ia_lab", name = "Laboratorio de IA", emoji = "🧪", baseCost = 112500, growth = 1.45, income = 90.0, maxLevel = 200,
 		desc = "+25 % de velocidad programando. Nivel 1 activa el modo automático." },
-	{ id = "adnet", name = "Red de Anuncios Propia", emoji = "📡", baseCost = 1000000, growth = 1.45, income = 800, maxLevel = 200,
+	{ id = "adnet", name = "Red de Anuncios Propia", emoji = "📡", baseCost = 1500000, growth = 1.45, income = 600.0, maxLevel = 200,
 		desc = "+15 % de dinero por anuncios." },
-	{ id = "datacenter", name = "Centro de Datos", emoji = "🏭", baseCost = 25000000, growth = 1.5, income = 16000, maxLevel = 200,
+	{ id = "datacenter", name = "Centro de Datos", emoji = "🏭", baseCost = 37500000, growth = 1.5, income = 12000.0, maxLevel = 200,
 		desc = "+5 % a todo el dinero y tus webs no se caen." },
 }
 
@@ -189,7 +189,7 @@ Config.Companies = {
 -- difícil). Completar las 3 da un boost extra.
 --   stat    = qué cuenta para la misión
 --   amounts = objetivo según la dificultad (fácil, media, difícil)
---   needs   = solo sale si tienes trabajo ("job") o agencia ("agency")
+--   needs   = solo sale si tienes la Carrera ("career") o agencia ("agency")
 ---------------------------------------------------------------------
 Config.DAILY_MISSION_COUNT = 3
 Config.DAILY_ALL_BONUS_BOOST_MINUTES = 10
@@ -200,7 +200,7 @@ Config.DailyMissionPool = {
 	{ id = "seo", text = "Mejora el SEO %d veces", amounts = { 3, 6, 12 } },
 	{ id = "companies", text = "Mejora tus empresas %d veces", amounts = { 5, 12, 25 } },
 	{ id = "gifts", text = "Recoge %d regalos gratis", amounts = { 2, 3, 5 } },
-	{ id = "tasks", text = "Resuelve %d tareas del trabajo", amounts = { 3, 6, 10 }, needs = "job" },
+	{ id = "contracts", text = "Entrega %d encargos de empresas", amounts = { 1, 2, 4 }, needs = "career" },
 	{ id = "recruits", text = "Entrevista a %d programadores", amounts = { 2, 4, 8 }, needs = "agency" },
 	{ id = "rares", text = "Consigue %d webs raras", amounts = { 1, 3, 5 } },
 	{ id = "playtime", text = "Juega %d minutos", amounts = { 15, 30, 60 } },
@@ -231,7 +231,7 @@ Config.WeeklyMissionPool = {
 	{ id = "rares", text = "Consigue %d webs raras esta semana", amount = 12 },
 	{ id = "playtime", text = "Juega %d minutos esta semana", amount = 240 },
 	{ id = "missions", text = "Completa %d misiones diarias esta semana", amount = 12 },
-	{ id = "tasks", text = "Resuelve %d tareas del trabajo esta semana", amount = 30, needs = "job" },
+	{ id = "contracts", text = "Entrega %d encargos de empresas esta semana", amount = 12, needs = "career" },
 	{ id = "recruits", text = "Entrevista a %d programadores esta semana", amount = 20, needs = "agency" },
 }
 Config.WeeklyMissionReward = { minutes = 45, min = 15000, seasonXp = 150 }
@@ -279,6 +279,10 @@ Config.Achievements = {
 		bonus = "visits", per = 0.04, value = function(d) return d.likes or 0 end },
 	{ id = "combo", emoji = "🔥", name = "Imparable", text = "Mejor combo", tiers = { 10, 20, 30, 40, 50 },
 		bonus = "click", per = 0.03, value = function(d) return d.bestCombo or 0 end },
+	{ id = "freelance", emoji = "🧾", name = "Profesional", text = "Encargos entregados", tiers = { 5, 25, 100, 400, 1500 },
+		bonus = "sale", per = 0.04, value = function(d) return (d.career and d.career.stats and d.career.stats.contracts) or 0 end },
+	{ id = "trader", emoji = "📈", name = "Lobo de la bolsa", text = "Beneficio en la Bolsa", tiers = { 1e4, 1e6, 1e8, 1e10, 1e12 },
+		bonus = "money", per = 0.03, value = function(d) return (d.stats and d.stats.marketProfit) or 0 end },
 }
 
 -- Niveles conseguidos de un logro (0..5)
@@ -421,7 +425,7 @@ Config.Goals = {
 	goal("sell_1", "Vende una web a una empresa", 400, 1, function(d) return d.stats.sold end),
 	goal("network_2", "Desbloquea una segunda app de anuncios", 1500, 2, networksUnlocked),
 	goal("company_1", "Funda tu primera empresa", 500, 1, companyLevels),
-	goal("job_1", "Consigue un trabajo en una empresa", 300, 1, careerStat("jobs")),
+	goal("contract_1", "Entrega tu primer encargo a una empresa", 600, 1, careerStat("contracts")),
 	goal("tienda", "Programa una Tienda Online", 2000, 1, built("tienda")),
 	goal("sites_5", "Ten 5 webs a la vez", 3000, 5, function(d) return #d.sites end),
 	goal("dev_8", "Llega a nivel de programador 8", 4000, 8, careerStat("devLevel")),
@@ -430,7 +434,7 @@ Config.Goals = {
 	goal("rare_1", "Consigue una web rara (✨ o mejor)", 8000, 1, rareEntries),
 	goal("sell_10", "Vende 10 webs", 10000, 10, function(d) return d.stats.sold end),
 	goal("earn_100k", "Gana $100K", 20000, 1e5, function(d) return d.totalEarned end),
-	goal("senior", "Asciende a Senior en tu trabajo", 30000, 3, careerStat("bestRank")),
+	goal("senior", "Llega al rango Senior (pestaña Carrera)", 30000, 3, careerStat("rank")),
 	goal("epic", "Ficha a un programador Épico o mejor", 40000, 4, careerStat("bestRarity")),
 	goal("noticias", "Programa un Periódico Digital", 30000, 1, built("noticias")),
 	goal("companies_25", "Suma 25 niveles de empresas", 100000, 25, companyLevels),
@@ -439,7 +443,7 @@ Config.Goals = {
 	goal("research_1", "Compra una mejora de I+D con patentes", 60000, 1, researchLevels),
 	goal("red_social", "Programa una Red Social", 500000, 1, built("red_social")),
 	goal("team_10", "Ten 10 programadores en tu agencia", 1000000, 10, careerStat("team")),
-	goal("cto", "Llega a CTO", 5000000, 5, careerStat("bestRank")),
+	goal("cto", "Llega al rango CTO", 5000000, 5, careerStat("rank")),
 	goal("sell_100", "Vende 100 webs", 1000000, 100, function(d) return d.stats.sold end),
 	goal("collection_20", "Llena 20 casillas de la colección", 5000000, 20, collectionEntries),
 	goal("earn_1b", "Gana $1B", 50000000, 1e9, function(d) return d.totalEarned end),
@@ -511,15 +515,15 @@ Config.WeekendEvents = {
 		desc = "Todo el dinero que ganas vale el doble." },
 	{ id = "viral", emoji = "🔥", name = "Fin de semana Viral", short = "+50% visitas",
 		desc = "Todas tus webs reciben un 50 % más de visitas." },
-	{ id = "jobs", emoji = "💼", name = "Feria de Empleo", short = "Feria de Empleo",
-		desc = "Ofertas de trabajo el doble de a menudo, sueldos x1.5 y XP x1.5." },
+	{ id = "contracts", emoji = "💼", name = "Feria de Encargos", short = "Encargos x1.5",
+		desc = "Llegan encargos el doble de a menudo y pagan x1.5." },
 }
 Config.WEEKEND_START = 4 * 86400 + 20 * 3600 -- desde el lunes 00:00 UTC: viernes 20:00
 Config.WEEKEND_DURATION = 56 * 3600 -- hasta el lunes a las 04:00
 Config.WEEKEND_MONEY_MULT = 2
 Config.WEEKEND_VISITS_MULT = 1.5
-Config.WEEKEND_JOB_MULT = 1.5 -- sueldo y XP en la Feria de Empleo
-Config.WEEKEND_JOB_OFFER_SPEED = 2 -- las ofertas de empleo llegan el doble de rápido
+Config.WEEKEND_CONTRACT_MULT = 1.5 -- paga de los encargos en la Feria de Encargos
+Config.WEEKEND_CONTRACT_SPEED = 2 -- llegan encargos el doble de rápido
 
 -- Semana actual (empieza el lunes a las 00:00 UTC; el 1-1-1970 fue jueves)
 function Config.weekIndex(unixTime: number): number
@@ -868,7 +872,8 @@ function Config.collectionBonus(data): number
 	return entries * Config.COLLECTION_ENTRY_BONUS + rows * Config.COLLECTION_ROW_BONUS
 end
 
--- Multiplicador de probabilidad de webs raras (I+D y evento del servidor)
+-- Multiplicador de probabilidad de webs raras (I+D, logros, evento del
+-- servidor y programadores de Datos: eventMult ya los incluye)
 function Config.variantChanceMult(data, eventMult: number?): number
 	return math.min(Config.MAX_VARIANT_CHANCE_MULT, (1 + Config.researchValue(data, "luck") + Config.achievementBonus(data, "rare")) * (eventMult or 1))
 end
@@ -994,11 +999,13 @@ function Config.bestRpv(data): number
 end
 
 -- Precio de venta de una web (sin multiplicador de cliente)
-function Config.saleBase(data, site, moneyMult: number): number
+-- bonuses.agencySale = % extra de tus programadores de Ventas
+function Config.saleBase(data, site, moneyMult: number, bonuses: any?): number
 	local visits = Config.siteVisits(data, site, 1)
+	local agency = 1 + (if bonuses then bonuses.agencySale or 0 else 0)
 	local commercial = 1 + 0.12 * Config.level(data, "comercial")
 	local negotiator = 1 + Config.researchValue(data, "negotiator") + Config.achievementBonus(data, "sale")
-	return visits * Config.SALE_SECONDS * Config.bestRpv(data) * commercial * negotiator * moneyMult
+	return visits * Config.SALE_SECONDS * Config.bestRpv(data) * commercial * negotiator * agency * moneyMult
 end
 
 function Config.seoCost(site): number

@@ -3,9 +3,12 @@ Color3 = { fromRGB = function() return {} end }
 local Config = require("./TycoonConfig")
 local Career = require("./CareerConfig")
 local CAREER = (...) ~= "nocareer"
-local career = { xp = {}, programmers = {}, agency = nil, pity = 0 }
-local job = nil
-local bonuses = { agencyWork = 0, agencyBonus = 0 }
+local career = { xp = {}, programmers = {}, agency = nil, pity = 0, stats = { contracts = 0 } }
+local bonuses = { agencyWork = 0, agencyBonus = 0, agencyVisits = 0, agencySale = 0, agencyQuality = 0 }
+-- Encargos: el bot acepta uno cuando tiene hueco y llega al tablón (~cada 90 s)
+local contracts = {}
+local boardTimer = 0
+local contractIncome = 0
 local CLICKS_PER_SEC = 4
 math.randomseed(42)
 
@@ -17,13 +20,8 @@ local function gain(x) d.money += x; d.totalEarned += x end
 local function income()
 	local mm = Config.moneyMult(d, bonuses)
 	local t = 0
-	for _, s in d.sites do t += Config.siteIncome(d, s, Config.siteVisits(d, s, 1), mm) end
-	local salary = 0
-	if job then
-		local c = Career.company(job.companyId)
-		salary = Career.salary(c, job.rank, Career.nicheLevel(career, c.niche), mm)
-	end
-	return t + Config.companiesIncome(d, mm) + d.maintenance + salary
+	for _, s in d.sites do t += Config.siteIncome(d, s, Config.siteVisits(d, s, 1 + bonuses.agencyVisits), mm) end
+	return t + Config.companiesIncome(d, mm) + d.maintenance
 end
 local function bestNet()
 	local best, bv = "adsimple", 0
@@ -51,7 +49,7 @@ end
 local function sell(i, mult)
 	local s = d.sites[i]
 	if s.dealAt or dealsActive() >= Config.maxDeals(d) then return end
-	s.dealPrice = Config.saleBase(d, s, Config.moneyMult(d, bonuses)) * mult
+	s.dealPrice = Config.saleBase(d, s, Config.moneyMult(d, bonuses), bonuses) * mult
 	s.dealAt = now + Config.dealSeconds(d, s.type)
 end
 local function finishDeals()
@@ -69,6 +67,10 @@ for t = 1, 6 * 3600 do
 	now = t
 	finishDeals()
 	-- trabajo
+	if not d.project and CAREER and contracts[1] and d.money >= Config.WebTypeById[contracts[1].type].cost then
+		local def = Config.WebTypeById[contracts[1].type]
+		d.money -= def.cost; d.project = { type = def.id, progress = 0, required = def.work, contract = true }
+	end
 	if not d.project then
 		local def = bestType()
 		if def and #d.sites < Config.slots(d) then
@@ -86,7 +88,17 @@ for t = 1, 6 * 3600 do
 		d.project.progress += Config.workPerSec(d, bonuses) + CLICKS_PER_SEC * Config.clickPower(d)
 		if d.project.progress >= d.project.required then
 			local def = Config.WebTypeById[d.project.type]
+			local wasContract = d.project.contract
 			d.project = nil
+			if wasContract then
+				local c = table.remove(contracts, 1)
+				gain(c.pay); contractIncome += c.pay
+				d.reputation += def.repReward * Career.CONTRACT_REP
+				career.xp.ecommerce = (career.xp.ecommerce or 0) + def.work / 5 * (1 + Career.CONTRACT_XP)
+				career.stats.contracts += 1
+				d.stats.built += 1
+				continue
+			end
 			table.insert(d.sites, { id = d.nextId, type = def.id, quality = (0.85 + math.random()*0.3) * (1 + 0.08*Config.level(d,"design")), seo = 0, network = bestNet(), adLevel = 2 })
 			d.nextId += 1; d.stats.built += 1; d.reputation += def.repReward
 			career.xp.ecommerce = (career.xp.ecommerce or 0) + def.work / 5
@@ -107,20 +119,19 @@ for t = 1, 6 * 3600 do
 	end
 	gain(income())
 	if CAREER then
-		local niche = "ecommerce"
-		local lvl = Career.nicheLevel(career, niche)
-		-- mejor trabajo disponible
-		local best = nil
-		for _, c in Career.CompaniesByNiche[niche] do if c.reqLevel <= lvl then best = c end end
-		if best and (not job or job.companyId ~= best.id) then job = { companyId = best.id, rank = 1, rankSince = t } end
-		if job then
-			local c = Career.company(job.companyId)
-			career.xp[niche] = (career.xp[niche] or 0) + Career.jobXpRate(c, job.rank, 1)
-			if t % 40 == 0 then
-				gain(Career.salary(c, job.rank, lvl, Config.moneyMult(d, bonuses)) * 60)
-				career.xp[niche] += Career.jobXpRate(c, job.rank, 1) * 30
+		-- Tablón: un encargo cada ~90 s; el bot coge los de su nicho (~65 %)
+		boardTimer += 1
+		local rank = Career.Ranks[Career.rankOf(career)]
+		if boardTimer >= 90 then
+			boardTimer = 0
+			local types = {}
+			for _, ty in Config.WebTypes do if d.reputation >= ty.rep then table.insert(types, ty) end end
+			local ty = types[math.random(math.max(1, #types - 2), #types)]
+			if #contracts < rank.slots and math.random() < 0.65 then
+				local site = { type = ty.id, quality = 1, seo = 0, design = 0, network = "adsimple", adLevel = 1 }
+				local pay = Config.saleBase(d, site, Config.moneyMult(d, bonuses), bonuses) * Career.CONTRACT_PAY * rank.payMult * 1.05
+				table.insert(contracts, { type = ty.id, pay = pay })
 			end
-			if Career.canPromote(job, lvl, t) then job.rank += 1; job.rankSince = t end
 		end
 		if not career.agency and Career.devLevel(career) >= 8 and d.money > 2500 then
 			d.money -= 2500; career.agency = { officeLevel = 1 }
@@ -135,11 +146,13 @@ for t = 1, 6 * 3600 do
 				roll = math.random() * total
 				local pick = Career.Rarities[1]
 				for _, r in Career.Rarities do roll -= r.weight; if roll <= 0 then pick = r; break end end
-				table.insert(career.programmers, { rarity = pick.id, niche = "ecommerce", level = 1 })
+				table.insert(career.programmers, { rarity = pick.id, niche = "ecommerce", level = 1, role = Career.Roles[math.random(1, #Career.Roles)].id })
 			end
 			local up = Career.officeUpgradeCost(career.agency.officeLevel + 1)
 			if career.agency.officeLevel < Career.MAX_OFFICE_LEVEL and d.money > up * 3 then d.money -= up; career.agency.officeLevel += 1 end
-			bonuses.agencyWork, bonuses.agencyBonus = Career.agencyTotals(career, "ecommerce", false)
+			local work, totals = Career.agencyTotals(career, "ecommerce", false, false)
+			bonuses.agencyWork, bonuses.agencyBonus = work, totals.money
+			bonuses.agencyVisits, bonuses.agencySale, bonuses.agencyQuality = totals.visits, totals.sale, totals.quality
 		end
 	end
 	-- compras: lo más barato que tenga sentido (deja dinero para el siguiente proyecto)
@@ -166,3 +179,4 @@ for t = 1, 6 * 3600 do
 	end
 end
 print("Acciones al salir a bolsa tras 6h:", Config.sharesForIpo(d.totalEarned))
+print(string.format("Encargos entregados: %d · rango %s · cobrado por encargos %s", career.stats.contracts, Career.Ranks[Career.rankOf(career)].name, Config.formatMoney(contractIncome)))

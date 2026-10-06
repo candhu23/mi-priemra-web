@@ -19,6 +19,7 @@ local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
 local PlotManager = require(ServerScriptService:WaitForChild("PlotManager"))
 local CareerService = require(ServerScriptService:WaitForChild("CareerService"))
+local MarketService = require(ServerScriptService:WaitForChild("MarketService"))
 
 local random = Random.new()
 local Monetization = Config.Monetization
@@ -111,7 +112,7 @@ local function newData()
 		maintenance = 0, -- $/s de contratos de mantenimiento
 		goals = {},
 		nextSiteId = 1,
-		stats = { built = 0, sold = 0, clicks = 0, crits = 0, byType = {}, missions = 0 },
+		stats = { built = 0, sold = 0, clicks = 0, crits = 0, byType = {}, missions = 0, marketProfit = 0 },
 		daily = { lastDay = -1, streak = 0 },
 		boostUntil = 0,
 		receipts = {},
@@ -138,6 +139,9 @@ local function newData()
 		bestCombo = 0,
 		-- v2.1
 		weeklyMissions = { week = -1, list = {}, bonusGiven = false },
+		-- v3.0
+		portfolio = {}, -- Bolsa: [empresa] = { units, invested }
+		peakIncome = 0, -- mejores ingresos/s de la partida (máximo invertible)
 	}
 end
 
@@ -174,7 +178,11 @@ type Bonuses = {
 	group: boolean,
 	randomRestricted: boolean, -- Roblox no permite artículos aleatorios de pago a este jugador
 	agencyWork: number,
-	agencyBonus: number,
+	agencyBonus: number, -- % extra de dinero de tus programadores
+	agencyQuality: number, -- % extra de calidad (Diseño)
+	agencyVisits: number, -- % extra de visitas (Marketing)
+	agencySale: number, -- % extra al vender (Ventas)
+	agencyRare: number, -- % extra de webs raras (Datos)
 	weekend: string?, -- evento de fin de semana activo
 }
 type Session = {
@@ -190,8 +198,9 @@ type Session = {
 	event: ActiveEvent?,
 	nextEventAt: number,
 	giftReadyAt: number,
-	taskReadyAt: number,
-	taskNotified: boolean,
+	contractBoard: { any }, -- encargos del tablón (CareerService)
+	nextContractAt: number,
+	askReadyAt: number,
 	lastManualSave: number,
 	lastSaveOk: boolean?,
 	lastSaveAt: number,
@@ -299,7 +308,8 @@ local function visitMult(session: Session, site): number
 	if serverEventIs("rushhour") then
 		mult *= 2
 	end
-	return mult
+	-- Programadores de Marketing
+	return mult * (1 + (session.bonuses.agencyVisits or 0))
 end
 
 -- Ingresos por segundo (webs + empresas + mantenimiento)
@@ -313,7 +323,6 @@ local function computeIncome(session: Session, withEvents: boolean): number
 	end
 	total += Config.companiesIncome(data, moneyMult)
 	total += Config.maintenanceIncome(data)
-	total += CareerService.salaryPerSec(session)
 	return total
 end
 
@@ -396,7 +405,8 @@ local progressDaily: (session: Session, stat: string, amount: number) -> ()
 ---------------------------------------------------------------------
 -- Proyectos (webs en construcción)
 ---------------------------------------------------------------------
-local function canStartProject(session: Session, def): (boolean, string?)
+-- forContract: la web de un encargo no ocupa hueco (se entrega al acabar)
+local function canStartProject(session: Session, def, forContract: boolean?): (boolean, string?)
 	local data = session.data
 	if data.project then
 		return false, "Ya estás programando una web."
@@ -404,7 +414,7 @@ local function canStartProject(session: Session, def): (boolean, string?)
 	if data.reputation < def.rep then
 		return false, "Necesitas " .. Config.formatNumber(def.rep) .. " de reputación."
 	end
-	if #data.sites >= Config.slots(data, session.bonuses) then
+	if not forContract and #data.sites >= Config.slots(data, session.bonuses) then
 		return false, "No te quedan huecos. Vende una web o mejora el Hosting."
 	end
 	if data.money < def.cost then
@@ -413,9 +423,9 @@ local function canStartProject(session: Session, def): (boolean, string?)
 	return true, nil
 end
 
-local function startProject(data, def)
+local function startProject(data, def, contractId: number?)
 	data.money -= def.cost
-	data.project = { type = def.id, progress = 0, required = def.work, niche = data.selectedNiche or Career.DEFAULT_NICHE }
+	data.project = { type = def.id, progress = 0, required = def.work, niche = data.selectedNiche or Career.DEFAULT_NICHE, contractId = contractId }
 end
 
 local function tryAutoStart(session: Session)
@@ -439,7 +449,7 @@ local function finishProject(player: Player, session: Session)
 	data.project = nil
 
 	-- ¿Sale una web rara? Se prueba de la más rara a la menos rara
-	local chanceMult = Config.variantChanceMult(data, if serverEventIs("datastorm") then 5 else 1)
+	local chanceMult = Config.variantChanceMult(data, (if serverEventIs("datastorm") then 5 else 1) * (1 + (session.bonuses.agencyRare or 0)))
 	local variant = nil
 	local roll = random:NextNumber()
 	local acc = 0
@@ -452,7 +462,27 @@ local function finishProject(player: Player, session: Session)
 	end
 
 	local niche = project.niche or Career.DEFAULT_NICHE
+	-- ¿Era la web de un encargo? Se entrega y no se queda en tus webs
+	if CareerService.tryDeliver(player, session, project, variant) then
+		local row = data.collection[def.id] or {}
+		local isNewEntry = not row[if variant then variant.id else "normal"]
+		row[if variant then variant.id else "normal"] = true
+		data.collection[def.id] = row
+		data.stats.built += 1
+		data.stats.byType[def.id] = (data.stats.byType[def.id] or 0) + 1
+		progressDaily(session, "built", 1)
+		if variant then
+			progressDaily(session, "rares", 1)
+			notify(player, string.format("%s ¡Web %s! Al cliente le ha encantado: paga el doble", variant.emoji, variant.name), "rare")
+		end
+		if isNewEntry then
+			notify(player, "📖 ¡Nueva casilla en tu colección! +1 % de dinero para siempre", "goal")
+		end
+		tryAutoStart(session)
+		return
+	end
 	local quality = (0.85 + random:NextNumber() * 0.3) * (1 + 0.08 * Config.level(data, "design")) * Career.qualityBonus(data.career, niche)
+		* (1 + (session.bonuses.agencyQuality or 0))
 	local site = {
 		id = data.nextSiteId,
 		type = def.id,
@@ -548,7 +578,7 @@ local function ensureDailyMissions(session: Session)
 	local pool = {}
 	for _, def in Config.DailyMissionPool do
 		local available = (def.needs == nil)
-			or (def.needs == "job" and data.career.job ~= nil)
+			or (def.needs == "career" and Config.isUnlocked(data, "career"))
 			or (def.needs == "agency" and data.career.agency ~= nil)
 		if available then
 			table.insert(pool, def)
@@ -586,7 +616,7 @@ local function ensureWeeklyMissions(session: Session)
 	local pool = {}
 	for _, def in Config.WeeklyMissionPool do
 		local available = (def.needs == nil)
-			or (def.needs == "job" and data.career.job ~= nil)
+			or (def.needs == "career" and Config.isUnlocked(data, "career"))
 			or (def.needs == "agency" and data.career.agency ~= nil)
 		if available then
 			table.insert(pool, def)
@@ -641,7 +671,6 @@ local ACTION_STATS = {
 	upgradeSeo = "seo",
 	buyCompany = "companies",
 	claimGift = "gifts",
-	solveTask = "tasks",
 	recruit = "recruits",
 	redeemTicket = "recruits",
 	click = "clicks",
@@ -652,9 +681,10 @@ local ACTION_FEATURES = {
 	sellToOffer = "clients",
 	unlockNetwork = "ads",
 	buyCompany = "companies",
-	acceptJobOffer = "career",
-	sendCV = "career",
-	solveTask = "career",
+	acceptContract = "career",
+	abandonContract = "career",
+	workOnContract = "career",
+	askContract = "career",
 	foundAgency = "agency",
 	recruit = "agency",
 	redeemTicket = "agency",
@@ -663,6 +693,8 @@ local ACTION_FEATURES = {
 	claimSeason = "season",
 	ipo = "market",
 	buyResearch = "market",
+	buyStock = "market",
+	sellStock = "market",
 }
 
 -- Devuelve (disponible, día de la racha que tocaría 1..7)
@@ -700,7 +732,7 @@ local function buildState(session: Session)
 			adLevel = site.adLevel,
 			visits = visits,
 			income = Config.siteIncome(data, site, visits, moneyMult),
-			saleBase = Config.saleBase(data, site, moneyMult),
+			saleBase = Config.saleBase(data, site, moneyMult, bonuses),
 			seoCost = Config.seoCost(site),
 			niche = site.niche,
 			design = site.design or 0,
@@ -794,6 +826,7 @@ local function buildState(session: Session)
 		lastSaveAgo = if session.lastSaveAt > 0 then os.time() - session.lastSaveAt else -1,
 		selectedNiche = data.selectedNiche,
 		career = CareerService.buildState(session),
+		market = MarketService.buildState(session, now),
 		tutorialDone = data.tutorialDone,
 		settings = data.settings,
 		likes = data.likes,
@@ -1090,7 +1123,7 @@ local function salePrice(session: Session, site, mult: number, buyerNiche: strin
 	if specialist then
 		mult *= Career.NICHE_MATCH_SALE_BONUS
 	end
-	return Config.saleBase(data, site, Config.moneyMult(data, session.bonuses)) * mult, specialist
+	return Config.saleBase(data, site, Config.moneyMult(data, session.bonuses), session.bonuses) * mult, specialist
 end
 
 -- Cobra la venta y quita la web
@@ -1203,10 +1236,25 @@ function Actions.ipo(_player: Player, session: Session)
 	data.maintenance = 0
 	data.shares += newShares
 	data.ipoCount += 1
+	data.peakIncome = 0
+	MarketService.clear(session)
 	session.offers = {}
 	session.event = nil
 	refreshOffers(session)
 	return true, string.format("📈 ¡Saliste a bolsa! +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", newShares, math.floor(newShares * Config.SHARE_BONUS * 100), newPatents), { money = true }
+end
+
+-- Bolsa de Ciudad Web (MarketService): fraction = parte del dinero / de tus acciones
+function Actions.buyStock(_player: Player, session: Session, stockId: any, fraction: any)
+	return MarketService.buy(session, stockId, fraction)
+end
+
+function Actions.sellStock(_player: Player, session: Session, stockId: any, fraction: any)
+	local ok, message, profit = MarketService.sell(session, stockId, fraction)
+	if ok and profit and profit > 0 then
+		session.data.stats.marketProfit = (session.data.stats.marketProfit or 0) + profit
+	end
+	return ok, message, if ok then { money = true } else nil
 end
 
 function Actions.upgradeDesign(_player: Player, session: Session, siteId: any)
@@ -2051,6 +2099,10 @@ local function onPlayerAdded(player: Player)
 		randomRestricted = true, -- por seguridad, hasta que PolicyService diga lo contrario
 		agencyWork = 0,
 		agencyBonus = 0,
+		agencyQuality = 0,
+		agencyVisits = 0,
+		agencySale = 0,
+		agencyRare = 0,
 	}
 	local okPolicy, policy = pcall(function()
 		return PolicyService:GetPolicyInfoForPlayerAsync(player)
@@ -2067,6 +2119,18 @@ local function onPlayerAdded(player: Player)
 		site.earned = site.earned or 0
 	end
 	data.career.stats.devLevel = Career.devLevel(data.career)
+	CareerService.migrate(data.career)
+	-- Misiones que ya no existen (v3: "tareas del trabajo"): se sortean otras
+	for _, mission in data.dailyMissions.list do
+		if not Config.DailyMissionById[mission.id] then
+			data.dailyMissions.day = -1
+		end
+	end
+	for _, mission in data.weeklyMissions.list do
+		if not Config.WeeklyMissionById[mission.id] then
+			data.weeklyMissions.week = -1
+		end
+	end
 	checkPasses(player, bonuses)
 	if Monetization.GROUP_ID ~= 0 then
 		local ok, inGroup = pcall(function()
@@ -2084,8 +2148,9 @@ local function onPlayerAdded(player: Player)
 		event = nil,
 		nextEventAt = os.clock() + 60,
 		giftReadyAt = os.clock() + Config.GIFT_INTERVAL,
-		taskReadyAt = os.clock() + Career.TASK_INTERVAL,
-		taskNotified = false,
+		contractBoard = {},
+		nextContractAt = 0,
+		askReadyAt = 0,
 		lastManualSave = -math.huge,
 		lastSaveOk = nil,
 		lastSaveAt = 0,
@@ -2273,16 +2338,57 @@ CareerService.init({
 		return computeIncome(session, false)
 	end,
 	random = random,
+	saleValue = function(session, typeId)
+		-- Una web nueva de calidad normal
+		local data = session.data
+		local site = { type = typeId, quality = 1, seo = 0, design = 0, network = "adsimple", adLevel = 1 }
+		return Config.saleBase(data, site, Config.moneyMult(data, session.bonuses), session.bonuses)
+	end,
+	workRate = function(session)
+		-- Trabajo automático + unos 3 clics por segundo
+		return Config.workPerSec(session.data, session.bonuses) + Config.clickPower(session.data, session.bonuses) * 3
+	end,
+	isNight = PlotManager.isNight,
+	progress = function(session, stat, amount)
+		progressDaily(session, stat, amount)
+	end,
+	startContract = function(session, typeId, contractId)
+		local def = Config.WebTypeById[typeId]
+		if not def then
+			return false, nil
+		end
+		local ok, reason = canStartProject(session, def, true)
+		if not ok then
+			return false, reason
+		end
+		startProject(session.data, def, contractId)
+		return true, "💻 ¡A programar! Cuando termines la web se entrega sola."
+	end,
 })
 for name, handler in CareerService.Actions do
 	Actions[name] = handler
 end
+
+MarketService.init({
+	random = random,
+	gain = gain,
+	notifyAll = function(text, kind)
+		for other in sessions do
+			notify(other, text, kind)
+		end
+	end,
+	sessions = function()
+		return sessions
+	end,
+	onTick = PlotManager.setMarketBoard,
+})
 
 PlotManager.init(function(player)
 	openComputerEvent:FireClient(player)
 end, function(visitor, owner)
 	sendVisit(visitor, owner)
 end)
+PlotManager.setMarketBoard(MarketService.rows())
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
@@ -2403,6 +2509,19 @@ local function updateCommunity(now: number)
 	end
 end
 
+-- Qué es cada parte del juego (ventana al desbloquearla)
+local UNLOCK_INFO = {
+	clients = "Ahora las empresas quieren comprarte webs.\n\nEn 🤝 Clientes verás sus ofertas. Al aceptar una, la negociación tarda un rato y luego cobras. Cada venta te deja un contrato de mantenimiento que paga para siempre.",
+	ads = "En 📢 Anuncios puedes desbloquear apps de anuncios mejores.\n\nCada app paga más por visita, pero algunas espantan a parte de tus visitas. También eliges cuántos anuncios pones en cada web.",
+	ranking = "En 🏆 Ranking ves a los mejores del servidor y de la semana.\n\nVisita sus imperios y dales me gusta: los dos ganáis dinero.",
+	companies = "En 🏢 Empresas compras negocios que te ayudan para siempre: programadores que trabajan solos, más visitas, mejores ventas...\n\nCada empresa te dice qué hace ahora y qué hará al subirla.",
+	season = "El 🎫 Pase de temporada sube con todo lo que haces. Cada nivel tiene un premio gratis.",
+	career = "Las empresas te harán ENCARGOS: te piden una web concreta (tipo y nicho) con un plazo.\n\nAcepta uno en 💼 Carrera, pulsa «Programar ahora» y cuando termines la web se entrega sola. Pagan mucho más que vender una web y con ellos subes de rango.",
+	collection = "📖 Colección: cada combinación de tipo de web y rareza que consigas da +1 % de dinero para siempre.",
+	agency = "Con nivel de programador 8 puedes fundar tu 👥 Agencia y fichar programadores.\n\nCada uno tiene una especialidad (programación, diseño, marketing, ventas o datos) y un rasgo, y sube de nivel solo trabajando.",
+	market = "📈 La Bolsa de Ciudad Web: compra acciones de 6 empresas cuando estén baratas y véndelas cuando suban. Los precios cambian cada 30 s y son iguales para todo el servidor. Mientras las tengas, cobras dividendos.\n\nAhí también puedes SALIR A BOLSA con tu imperio: empiezas de cero, pero ganas más dinero para siempre y patentes para 💡 I+D.",
+}
+
 -- Nombre de cada parte del juego que se desbloquea (para el aviso)
 local UNLOCK_NAMES = {
 	clients = "🤝 Clientes",
@@ -2413,7 +2532,7 @@ local UNLOCK_NAMES = {
 	career = "💼 Carrera",
 	collection = "📖 Colección",
 	agency = "👥 Agencia",
-	market = "📈 Bolsa e I+D",
+	market = "📈 Bolsa e 💡 I+D",
 }
 
 -- Bucle de la economía: una vez por segundo
@@ -2428,6 +2547,7 @@ while true do
 	local weekendId = if weekendEvent then weekendEvent.id else nil
 	updateServerEvent(now)
 	updateCommunity(now)
+	MarketService.tick(now)
 	for player, session in sessions do
 		local data = session.data
 
@@ -2453,6 +2573,7 @@ while true do
 			for feature, floor in Config.Unlocks do
 				if floor > session.floors and floor <= floors then
 					notify(player, "🔓 ¡Desbloqueado: " .. UNLOCK_NAMES[feature] .. "! Mira tu ordenador", "goal")
+					popup(player, "🔓 " .. UNLOCK_NAMES[feature], UNLOCK_INFO[feature])
 				end
 			end
 			session.floors = floors
@@ -2509,6 +2630,8 @@ while true do
 		ensureDailyMissions(session)
 		session.income = computeIncome(session, true)
 		gain(data, session.income * dt)
+		-- Lo máximo que puedes invertir en Bolsa depende de tus mejores ingresos
+		data.peakIncome = math.max(data.peakIncome, computeIncome(session, false))
 		-- Visitas y dinero acumulados por cada web (para su ficha)
 		local moneyMult = Config.moneyMult(data, session.bonuses)
 		for _, site in data.sites do

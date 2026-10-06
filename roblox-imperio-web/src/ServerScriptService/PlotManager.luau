@@ -277,6 +277,15 @@ function PlotManager.setWeeklyBoard(rows, message: string?)
 	World.setWeeklyBoard(rows, message)
 end
 
+function PlotManager.isNight(): boolean
+	return World.isNight()
+end
+
+-- Panel de la Bolsa de la plaza
+function PlotManager.setMarketBoard(rows)
+	World.setMarketBoard(rows)
+end
+
 function PlotManager.setEventTint(tint: Color3?)
 	World.setEventTint(tint)
 end

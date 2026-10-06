@@ -25,6 +25,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
+local Market = require(ReplicatedStorage:WaitForChild("MarketConfig"))
 local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 local remotes = ReplicatedStorage:WaitForChild("TycoonRemotes")
 local actionFunction = remotes:WaitForChild("Action") :: RemoteFunction
@@ -306,7 +307,8 @@ end
 
 -- Mantiene una lista de filas sincronizada con los datos sin recrearla
 -- entera cada segundo (así no parpadea ni pierde el scroll).
-local function syncRows(container: Instance, rows: { [any]: any }, items: { any }, keyOf: (any) -> any, build: (any) -> any, update: (any, any) -> ())
+-- baseOrder: LayoutOrder de la primera fila menos 1 (por defecto 100)
+local function syncRows(container: Instance, rows: { [any]: any }, items: { any }, keyOf: (any) -> any, build: (any) -> any, update: (any, any) -> (), baseOrder: number?)
 	local seen = {}
 	for i, item in items do
 		local key = keyOf(item)
@@ -317,7 +319,7 @@ local function syncRows(container: Instance, rows: { [any]: any }, items: { any 
 			rows[key] = row
 			row.frame.Parent = container
 		end
-		row.frame.LayoutOrder = 100 + i
+		row.frame.LayoutOrder = (baseOrder or 100) + i
 		update(row, item)
 	end
 	for key, row in rows do
@@ -585,6 +587,7 @@ local TABS = {
 	{ id = "collection", emoji = "📖", name = "Colección", color = Color3.fromRGB(16, 185, 129) },
 	{ id = "ranking", emoji = "🏆", name = "Ranking", color = Color3.fromRGB(234, 179, 8) },
 	{ id = "market", emoji = "📈", name = "Bolsa", color = THEME.pink },
+	{ id = "research", emoji = "💡", name = "I+D", color = Color3.fromRGB(59, 130, 246) },
 	{ id = "shop", emoji = "🛒", name = "Tienda", color = Color3.fromRGB(20, 184, 166) },
 }
 
@@ -619,7 +622,7 @@ local onTabChanged: () -> () = function() end
 -- Parte del juego que tiene que estar desbloqueada para abrir cada pestaña
 local TAB_FEATURES = {
 	clients = "clients", ads = "ads", ranking = "ranking", companies = "companies", season = "season",
-	career = "career", collection = "collection", agency = "agency", market = "market",
+	career = "career", collection = "collection", agency = "agency", market = "market", research = "market",
 }
 
 local function tabLocked(id: string): boolean
@@ -669,6 +672,40 @@ for i, tab in TABS do
 	button.LayoutOrder = i
 	tabButtons[tab.id] = button
 	makePage(tab.id)
+end
+
+-- Para qué sirve cada pestaña (una línea arriba del todo)
+local TAB_HELP = {
+	create = "Elige una web y pulsa PROGRAMAR (o la tecla F). Al terminarla empieza a ganar dinero sola con sus visitas.",
+	sites = "Tus webs ganan dinero cada segundo con sus visitas. Sube el SEO o rediséñalas para tener más. Toca una para ver su ficha.",
+	clients = "Empresas que quieren comprarte webs: cobras mucho de golpe y un mantenimiento para siempre, pero la web deja de ser tuya.",
+	ads = "Cada app paga distinto por visita. Más anuncios = más dinero por visita, pero menos visitas.",
+	companies = "Negocios que compras y te ayudan para siempre. Cada uno dice qué hace ahora y qué hará al subirlo.",
+	career = "Las empresas te encargan webs con un plazo. Acepta, pulsa «Programar ahora» y al terminar se entrega sola: pagan mucho más que una venta.",
+	agency = "Tus programadores trabajan solos. Cada uno mejora algo según su especialidad y su rasgo, y sube de nivel con el tiempo.",
+	missions = "Misiones diarias y semanales, logros con bonus para siempre y objetivos con premio.",
+	season = "Todo lo que haces da ⭐ del pase. Cada nivel tiene premio.",
+	collection = "Cada combinación de web y rareza que consigas da +1 % de dinero para siempre.",
+	ranking = "Los mejores del servidor y de la semana. Visita imperios y da me gusta: ganáis los dos.",
+	market = "Compra acciones baratas y véndelas caras. Los precios cambian cada 30 s. Abajo puedes salir a bolsa con tu imperio.",
+	research = "Mejoras para siempre que se pagan con 💡 patentes (salir a bolsa y el pase).",
+	shop = "Premios gratis por jugar, códigos y mejoras con Robux.",
+}
+for id, text in TAB_HELP do
+	local help = create("TextLabel", {
+		Parent = pages[id],
+		LayoutOrder = -100,
+		BackgroundColor3 = THEME.bg,
+		Size = UDim2.new(1, -8, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Text = "ℹ️ " .. text,
+		TextColor3 = THEME.muted,
+		TextSize = 13,
+		Font = Enum.Font.GothamMedium,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, { corner(8), padding(6) })
+	help.Name = "Ayuda"
 end
 
 ---------------------------------------------------------------------
@@ -768,23 +805,23 @@ end
 local HINTS = {
 	first_site = "Pulsa ➕ Nueva web abajo y luego ⌨️ PROGRAMAR",
 	earn_1k = "Ten varias webs y deja que ganen dinero",
-	blog = "Consigue ⭐ 4 de reputación y crea un Blog",
+	blog = "Consigue ⭐ 6 de reputación y crea un Blog",
 	sell_1 = "Abre 🤝 Clientes y vende una web",
 	company_1 = "Abre 🏢 Empresas y funda el Equipo de Programadores",
 	network_2 = "Abre 📢 Anuncios y desbloquea ClickBoom",
-	tienda = "Llega a ⭐ 42 vendiendo y creando webs",
+	tienda = "Llega a ⭐ 59 vendiendo y creando webs",
 	sites_5 = "Compra ☁️ Hosting para tener más huecos",
 	seo_5 = "En 🌐 Webs mejora el SEO de tu mejor web",
 	ipo_1 = "Abre 📈 Bolsa cuando ganes $1M",
-	job_1 = "Abre 💼 Carrera y acepta una oferta de empleo",
-	dev_8 = "Programa webs y trabaja para subir de nivel",
+	contract_1 = "Abre 💼 Carrera, acepta un encargo y pulsa «Programar ahora»",
+	dev_8 = "Programa webs y entrega encargos para subir de nivel",
 	agency = "Abre 👥 Agencia y fúndala",
-	senior = "Sigue trabajando y sube el nivel de ese nicho",
+	senior = "Entrega encargos y sube tu nivel de programador",
 	epic = "Entrevista programadores en 👥 Agencia",
 	team_10 = "Amplía la oficina y ficha más programadores",
-	cto = "Sigue ascendiendo en tu trabajo",
+	cto = "Sigue entregando encargos para subir de rango",
 	rare_1 = "Programa webs: a veces salen ✨ raras",
-	research_1 = "Abre 📈 Bolsa y gasta tus 💡 patentes en I+D",
+	research_1 = "Abre 💡 I+D y gasta tus patentes",
 	collection_20 = "Mira 📖 Colección: cada web rara nueva cuenta",
 }
 
@@ -825,7 +862,7 @@ end
 
 -- Objetivos que necesitan una parte del juego desbloqueada
 local GOAL_FEATURES = {
-	sell_1 = "clients", network_2 = "ads", company_1 = "companies", job_1 = "career", dev_8 = "career",
+	sell_1 = "clients", network_2 = "ads", company_1 = "companies", contract_1 = "career", dev_8 = "career",
 	agency = "agency", senior = "career", epic = "agency", companies_25 = "companies", ipo_1 = "market",
 	research_1 = "market", team_10 = "agency", cto = "career", sell_100 = "clients", sell_10 = "clients",
 	collection_20 = "collection", ipo_5 = "market",
@@ -1184,6 +1221,7 @@ local detailSiteId: number? = nil
 local detail: ScrollingFrame
 local bestSiteFor: (any, any) -> (any, number)
 local oddsText: (field: string) -> string
+local programmerStatsText: (work: number, stats: any) -> string
 local tutorialTargets: { [string]: GuiObject } = {} -- botones que resalta el tutorial
 local startTutorial: () -> ()
 local tutorialOnState: (any) -> () = function() end
@@ -1251,7 +1289,13 @@ renderers.create = function(s)
 	local project = s.project
 	if project then
 		local def = Config.WebTypeById[project.type]
-		projectTitle.Text = T("Programando: %s %s", def.emoji, T(def.name))
+		local forContract = false
+		for _, contract in s.career.contracts do
+			if contract.working then
+				forContract = true
+			end
+		end
+		projectTitle.Text = T("Programando: %s %s", def.emoji, T(def.name)) .. (if forContract then T(" · 🧾 encargo") else "")
 		setButton(programButton, T("⌨️ PROGRAMAR  (+%s por clic · tecla F)", num(s.clickPower)), true)
 		cancelButton.Visible = true
 	else
@@ -1860,16 +1904,37 @@ for _, option in { 1, 10, "max" } do
 	end)
 end
 
+-- Lo que hace una empresa con "level" niveles (en total)
+local function companyEffect(s, id: string, level: number): string
+	if id == "devs" then
+		return T("%s de trabajo/s", num(level * 1.5 * Config.companyMult(s, "devs")))
+	elseif id == "hosting" then
+		return T("+%d huecos para webs", level)
+	elseif id == "marketing" then
+		return T("+%d%% de visitas", level * 10)
+	elseif id == "design" then
+		return T("+%d%% de calidad", level * 8)
+	elseif id == "comercial" then
+		return T("+%d%% al vender", level * 12)
+	elseif id == "ia_lab" then
+		return T("+%d%% de velocidad", level * 25)
+	elseif id == "adnet" then
+		return T("+%d%% por anuncios", level * 15)
+	end
+	return T("+%d%% a todo el dinero", level * 5)
+end
+
 local companyRows = {}
 for i, def in Config.Companies do
-	local card = makeCard(companiesPage, 96, 10 + i)
+	local card = makeCard(companiesPage, 114, 10 + i)
 	local title = makeLabel(card, "", 0, 22, 17, THEME.text, true)
 	makeLabel(card, def.desc, 24, 18, 14, THEME.muted) -- texto fijo: se traduce solo
+	local effect = makeLabel(card, "", 44, 18, 14, THEME.green, true)
 	local button = makeButton(card, "", THEME.orange, UDim2.new(1, 0, 0, 30), function()
 		sendAction("buyCompany", def.id, buyAmount)
 	end)
-	button.Position = UDim2.fromOffset(0, 46)
-	companyRows[def.id] = { title = title, button = button }
+	button.Position = UDim2.fromOffset(0, 66)
+	companyRows[def.id] = { title = title, button = button, effect = effect }
 end
 
 renderers.companies = function(s)
@@ -1883,6 +1948,8 @@ renderers.companies = function(s)
 		local milestoneText = (if mult > 1 then string.format(" · 🏅 x%.1f", mult) else "")
 			.. (if nextMilestone then T(" · hito en nivel %d", nextMilestone) else "")
 		row.title.Text = def.emoji .. " " .. T("%s  —  Nivel %d", T(def.name), level) .. incomeText .. milestoneText
+		row.effect.Text = if level >= def.maxLevel then T("Ahora: %s (máximo)", companyEffect(s, def.id, level))
+			else T("Ahora: %s  →  al subir: %s", companyEffect(s, def.id, level), companyEffect(s, def.id, level + 1))
 		if level >= def.maxLevel then
 			setButton(row.button, T("NIVEL MÁXIMO"), false)
 		else
@@ -1910,21 +1977,50 @@ end
 end
 
 ---------------------------------------------------------------------
--- Pestaña CARRERA (niveles por nicho, trabajo y bolsa de empleo)
+-- Pestaña CARRERA (encargos de empresas, rangos y niveles por nicho)
 ---------------------------------------------------------------------
 do
 local careerPage = pages.career
 
-local profileCard = makeCard(careerPage, 76, 1, Color3.fromRGB(30, 58, 138))
+local profileCard = makeCard(careerPage, 96, 1, Color3.fromRGB(30, 58, 138))
 local profileTitle = makeLabel(profileCard, "", 0, 26, 20, THEME.text, true)
-local profileInfo = makeLabel(profileCard, "Subes de nivel programando webs del nicho elegido, trabajando y resolviendo tareas.", 30, 18, 13, THEME.muted)
-profileInfo.TextWrapped = true
-profileInfo.TextTruncate = Enum.TextTruncate.None
+local profileInfo = makeLabel(profileCard, "", 28, 18, 14, THEME.green, true)
+local profileNext = makeLabel(profileCard, "", 48, 30, 13, THEME.yellow, true)
+profileNext.TextWrapped = true
+profileNext.TextTruncate = Enum.TextTruncate.None
 
--- Rejilla de nichos con su nivel
+-- Rangos y lo que da cada uno
+local ranksCard = makeCard(careerPage, 30 + #Career.Ranks * 20, 2, Color3.fromRGB(23, 37, 84))
+makeLabel(ranksCard, "🪜 Rangos (suben con encargos entregados y tu nivel de programador)", 0, 20, 14, THEME.text, true)
+local rankLabels = {}
+for i in Career.Ranks do
+	rankLabels[i] = makeLabel(ranksCard, "", 4 + i * 20, 18, 13, THEME.muted)
+end
+
+-- Encargos aceptados
+local mineHeader = makeCard(careerPage, 40, 3, Color3.fromRGB(20, 83, 45))
+local mineTitle = makeLabel(mineHeader, "", 0, 20, 17, THEME.text, true)
+local emptyMine = makeCard(careerPage, 50, 4)
+makeLabel(emptyMine, "No tienes encargos. Acepta uno del tablón de abajo 👇", 0, 30, 14, THEME.muted)
+
+-- Tablón de encargos
+local boardHeader = makeCard(careerPage, 96, 50, Color3.fromRGB(23, 37, 84))
+makeLabel(boardHeader, "📨 Tablón de encargos", 0, 20, 17, THEME.text, true)
+local boardInfo = makeLabel(boardHeader, "", 22, 18, 13, THEME.muted)
+local askButton = makeButton(boardHeader, "", THEME.accent, UDim2.new(1, 0, 0, 30), function()
+	sendAction("askContract")
+end)
+askButton.Position = UDim2.fromOffset(0, 46)
+local emptyBoard = makeCard(careerPage, 50, 51)
+makeLabel(emptyBoard, "No hay encargos ahora mismo. Pide uno o espera a que te escriban.", 0, 30, 14, THEME.muted)
+
+-- Niveles por nicho (al final)
+local nicheHeader = makeCard(careerPage, 54, 80, Color3.fromRGB(30, 58, 138))
+makeLabel(nicheHeader, "🎓 Tus nichos", 0, 20, 17, THEME.text, true)
+makeLabel(nicheHeader, "Subes de nivel programando webs de ese nicho y entregando encargos. +2 % de calidad por nivel.", 22, 18, 12, THEME.muted)
 local nicheGrid = create("Frame", {
 	Parent = careerPage,
-	LayoutOrder = 2,
+	LayoutOrder = 81,
 	BackgroundTransparency = 1,
 	Size = UDim2.new(1, -8, 0, 5 * 46),
 }, {
@@ -1942,53 +2038,114 @@ for i, niche in Career.Niches do
 	nicheCells[niche.id] = { label = label, fill = fill, text = text, cell = cell }
 end
 
--- Trabajo actual
-local jobCard = makeCard(careerPage, 132, 3, Color3.fromRGB(20, 83, 45))
-local jobTitle = makeLabel(jobCard, "", 0, 22, 17, THEME.text, true)
-local jobInfo = makeLabel(jobCard, "", 24, 18, 14, THEME.muted)
-local jobPromotion = makeLabel(jobCard, "", 44, 18, 13, THEME.yellow, true)
-local jobRow = makeButtonRow(jobCard, 72, 36)
-local taskButton = makeButton(jobRow, "", THEME.green, UDim2.new(0.7, -3, 1, 0), function()
-	sendAction("solveTask", nil, nil, function(ok)
-		if ok then
-			pulseMoney()
-		end
-	end)
-end)
-local quitConfirm = 0
-local quitButton: TextButton
-quitButton = makeButton(jobRow, "Dimitir", THEME.red, UDim2.new(0.3, -3, 1, 0), function()
-	if os.clock() < quitConfirm then
-		quitConfirm = 0
-		sendAction("quitJob")
-	else
-		quitConfirm = os.clock() + 3
-		quitButton.Text = T("¿Seguro?")
-	end
-end)
+local mineRows = {}
+local boardRows = {}
 
--- Ofertas de empleo que te llegan (cada una con su sueldo aleatorio)
-local offersHeader = makeCard(careerPage, 96, 4, Color3.fromRGB(23, 37, 84))
-makeLabel(offersHeader, "📨 Ofertas de empleo", 0, 20, 17, THEME.text, true)
-local offersInfo = makeLabel(offersHeader, "Te llegan solas cada poco. Cada empresa paga distinto y cada oferta tiene sus condiciones.", 22, 18, 13, THEME.muted)
-local cvButton = makeButton(offersHeader, "", THEME.accent, UDim2.new(1, 0, 0, 30), function()
-	sendAction("sendCV")
-end)
-cvButton.Position = UDim2.fromOffset(0, 46)
+-- "🛒 Tienda Online · 🎮 Videojuegos"
+local function wantText(contract): string
+	local def = Config.WebTypeById[contract.type]
+	return string.format("%s %s · %s", def.emoji, T(def.name), nicheLabel(contract.niche))
+end
 
-local emptyOffers = makeCard(careerPage, 50, 5)
-makeLabel(emptyOffers, "No tienes ofertas ahora mismo. Envía un currículum o espera a que te escriban.", 0, 30, 14, THEME.muted)
-
-local offerJobRows = {}
-
-local function multText(mult: number): string
-	local percent = math.floor((mult - 1) * 100 + 0.5)
-	return if percent >= 0 then "+" .. percent .. "%" else tostring(percent) .. "%"
+local function contractCard(order: number, color: Color3): any
+	local card = makeCard(careerPage, 108, order, color)
+	local row: any = { frame = card }
+	row.title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
+	row.want = makeLabel(card, "", 22, 18, 14, THEME.yellow, true)
+	row.info = makeLabel(card, "", 42, 18, 13, THEME.muted)
+	row.buttons = makeButtonRow(card, 66, 30)
+	return row
 end
 
 renderers.career = function(s)
 	local c = s.career
-	profileTitle.Text = T("🎓 Nivel de programador %d%s", c.devLevel, if s.bonuses.xpPass then "  ·  🎓 x2 XP" else "")
+	local rank = Career.Ranks[c.rank]
+	local nextRank = Career.Ranks[c.rank + 1]
+	profileTitle.Text = T("💼 Rango: %s · Nivel de programador %d%s", T(rank.name), c.devLevel, if s.bonuses.xpPass then "  ·  🎓 x2 XP" else "")
+	profileInfo.Text = T("🧾 Encargos entregados: %d · A la vez: %d · Paga x%.2f", c.stats.contracts or 0, c.slots, rank.payMult)
+	if nextRank then
+		profileNext.Text = T("⬆️ Para ser %s: %d encargos (tienes %d) y nivel de programador %d (tienes %d)",
+			T(nextRank.name), nextRank.contracts, c.stats.contracts or 0, nextRank.devLevel, c.devLevel)
+	else
+		profileNext.Text = T("👑 ¡Has llegado al rango más alto!")
+	end
+	for i, def in Career.Ranks do
+		local label = rankLabels[i]
+		label.Text = T("%s %s · %d encargos y nivel %d → %d a la vez, paga x%.2f", if i <= c.rank then "✅" else "🔒", T(def.name), def.contracts, def.devLevel, def.slots, def.payMult)
+		label.TextColor3 = if i == c.rank then THEME.green elseif i < c.rank then THEME.text else THEME.muted
+	end
+
+	-- Mis encargos
+	mineTitle.Text = T("🧾 Tus encargos (%d/%d)", #c.contracts, c.slots)
+	emptyMine.Visible = #c.contracts == 0
+	local full = #c.contracts >= c.slots
+	syncRows(careerPage, mineRows, c.contracts, function(contract)
+		return contract.id
+	end, function(contract)
+		local row = contractCard(5, Color3.fromRGB(20, 60, 40))
+		row.id = contract.id
+		row.confirm = 0
+		row.work = makeButton(row.buttons, "", THEME.green, UDim2.new(0.7, -3, 1, 0), function()
+			sendAction("workOnContract", row.id)
+		end)
+		row.drop = makeButton(row.buttons, "Dejar", THEME.red, UDim2.new(0.3, -3, 1, 0), function()
+			if os.clock() < row.confirm then
+				row.confirm = 0
+				sendAction("abandonContract", row.id)
+			else
+				row.confirm = os.clock() + 3
+				row.drop.Text = T("¿Seguro?")
+			end
+		end)
+		return row
+	end, function(row, contract)
+		local company = Career.company(contract.companyId)
+		row.title.Text = string.format("%s %s · %s", company.tier.emoji, company.name, T(company.tier.name))
+		row.want.Text = T("Quiere: %s", wantText(contract))
+		row.info.Text = T("💵 %s · ⭐ +%s reputación · ⌛ quedan %s", fmt(contract.pay), num(contract.rep), Config.formatTime(contract.timeLeft))
+		row.info.TextColor3 = if contract.timeLeft < 60 then THEME.red else THEME.muted
+		if contract.working then
+			setButton(row.work, T("⌨️ Programándola... (pestaña Crear)"), false)
+		elseif s.project then
+			setButton(row.work, T("Termina antes la web que estás programando"), false)
+		else
+			local def = Config.WebTypeById[contract.type]
+			setButton(row.work, T("💻 Programar ahora (%s)", fmt(def.cost)), s.money >= def.cost, THEME.green)
+		end
+		if os.clock() >= row.confirm then
+			setButton(row.drop, T("Dejar"), true, THEME.red)
+		end
+	end, 5)
+
+	-- Tablón
+	boardInfo.Text = T("Llega uno nuevo cada 1-2 min%s. Pagan %.1f veces lo que vale vender esa web.", if c.fair then T(" (¡Feria de Encargos: x1.5!)") else "", Career.CONTRACT_PAY)
+	if c.askLeft > 0 then
+		setButton(askButton, T("📨 Pedir un encargo (en %s)", Config.formatTime(c.askLeft)), false)
+	else
+		setButton(askButton, T("📨 Pedir un encargo a una empresa"), true, THEME.accent)
+	end
+	emptyBoard.Visible = #c.board == 0
+	syncRows(careerPage, boardRows, c.board, function(contract)
+		return contract.id
+	end, function(contract)
+		local row = contractCard(52, Color3.fromRGB(23, 37, 84))
+		row.id = contract.id
+		row.accept = makeButton(row.buttons, "", THEME.green, UDim2.new(1, 0, 1, 0), function()
+			sendAction("acceptContract", row.id)
+		end)
+		return row
+	end, function(row, contract)
+		local company = Career.company(contract.companyId)
+		local def = Config.WebTypeById[contract.type]
+		row.title.Text = string.format("%s %s · %s", company.tier.emoji, company.name, T(company.tier.name))
+		row.want.Text = T("Quiere: %s", wantText(contract))
+		row.info.Text = T("💵 %s · ⭐ +%s reputación · plazo %s · se va en %s", fmt(contract.pay), num(contract.rep), Config.formatTime(contract.duration), Config.formatTime(contract.timeLeft))
+		if full then
+			setButton(row.accept, T("Ya tienes %d encargo(s): entrega uno o sube de rango", c.slots), false)
+		else
+			setButton(row.accept, T("✅ Aceptar encargo (la web cuesta %s)", fmt(def.cost)), true, THEME.green)
+		end
+	end, 52)
 
 	for _, niche in Career.Niches do
 		local cell = nicheCells[niche.id]
@@ -2000,65 +2157,6 @@ renderers.career = function(s)
 		cell.fill.Size = UDim2.fromScale(ratio, 1)
 		cell.text.Text = if level >= Career.MAX_NICHE_LEVEL then T("MÁX") else string.format("%d / %d XP", math.floor(xp - from), math.floor(to - from))
 	end
-
-	-- Trabajo
-	local job = c.job
-	if job then
-		local company = Career.company(job.companyId)
-		local rank = Career.Ranks[job.rank]
-		jobTitle.Text = string.format("💼 %s · %s %s", company.name, company.tier.emoji, T(company.tier.name))
-		jobInfo.Text = T("%s · Puesto: %s · Sueldo %s/s (%s) · +%s XP/s", nicheLabel(company.niche), T(rank.name), fmt(job.salary), multText(job.salaryMult or 1), num(job.xpRate))
-		jobPromotion.Text = if job.promotion then T("⬆️ Próximo ascenso: %s", TR(job.promotion)) else T("⬆️ ¡Ascenso inminente!")
-		if job.taskLeft <= 0 then
-			setButton(taskButton, T("✅ Resolver tarea (+%s)", fmt(job.salary * Career.TASK_SALARY_SECONDS)), true, THEME.green)
-		else
-			setButton(taskButton, T("Próxima tarea en %s", Config.formatTime(job.taskLeft)), false)
-		end
-		quitButton.Visible = true
-		if os.clock() >= quitConfirm then
-			setButton(quitButton, T("Dimitir"), true, THEME.red)
-		end
-	else
-		jobTitle.Text = T("💼 Sin trabajo")
-		jobInfo.Text = T("Acepta una de las ofertas de abajo: cobrarás un sueldo y subirás de nivel.")
-		jobPromotion.Text = ""
-		setButton(taskButton, T("Acepta una oferta de empleo 👇"), false)
-		quitButton.Visible = false
-	end
-
-	-- Currículum
-	if c.cvLeft > 0 then
-		setButton(cvButton, T("📨 Enviar currículum (en %s)", Config.formatTime(c.cvLeft)), false)
-	else
-		setButton(cvButton, T("📨 Enviar currículum a una empresa"), true, THEME.accent)
-	end
-	offersInfo.Text = T("Te llegan solas cada poco (máx. %d). Cada empresa paga distinto y cada oferta tiene sus condiciones.", Career.JOB_OFFER_MAX)
-	emptyOffers.Visible = #c.jobOffers == 0
-
-	syncRows(careerPage, offerJobRows, c.jobOffers, function(offer)
-		return offer.id
-	end, function(offer)
-		local card = makeCard(careerPage, 104, 0)
-		local row: any = { frame = card, id = offer.id }
-		row.title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
-		row.info = makeLabel(card, "", 22, 18, 13, THEME.muted)
-		row.info2 = makeLabel(card, "", 42, 18, 13, THEME.text)
-		row.button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
-			sendAction("acceptJobOffer", row.id)
-		end)
-		row.button.Position = UDim2.fromOffset(0, 64)
-		return row
-	end, function(row, offer)
-		local company = Career.company(offer.companyId)
-		local rank = Career.Ranks[offer.rank]
-		local better = job == nil or offer.salary > job.salary
-		row.title.Text = string.format("%s %s · %s · %s", company.tier.emoji, company.name, T(company.tier.name), nicheLabel(company.niche))
-		row.title.TextColor3 = if offer.salaryMult >= 1.3 then THEME.yellow else THEME.text
-		row.info.Text = T("Puesto: %s · caduca en %s", T(rank.name), Config.formatTime(offer.timeLeft))
-		row.info2.Text = string.format("💵 %s/s (%s) · 🎓 %s XP/s (%s)%s", fmt(offer.salary), multText(offer.salaryMult), num(offer.xpRate), multText(offer.xpMult),
-			if job then (if better then T("  ·  ⬆️ mejor que tu sueldo") else T("  ·  ⬇️ menos que tu sueldo")) else "")
-		setButton(row.button, if job then T("Cambiar a este trabajo") else T("✅ Aceptar oferta"), true, if better then THEME.green else THEME.orange)
-	end)
 end
 end
 
@@ -2078,14 +2176,50 @@ local foundButton = makeButton(foundCard, "", THEME.green, UDim2.new(1, 0, 0, 30
 end)
 foundButton.Position = UDim2.fromOffset(0, 64)
 
-local agencyCard = makeCard(agencyPage, 112, 2, Color3.fromRGB(30, 58, 138))
+local agencyCard = makeCard(agencyPage, 132, 2, Color3.fromRGB(30, 58, 138))
 local agencyTitle = makeLabel(agencyCard, "", 0, 22, 18, THEME.text, true)
 local agencyInfo = makeLabel(agencyCard, "", 26, 18, 14, THEME.green, true)
-local agencyInfo2 = makeLabel(agencyCard, "", 46, 18, 13, THEME.muted)
+local agencyStats = makeLabel(agencyCard, "", 46, 18, 13, THEME.yellow, true)
+local agencyInfo2 = makeLabel(agencyCard, "", 66, 18, 13, THEME.muted)
 local officeButton = makeButton(agencyCard, "", THEME.orange, UDim2.new(1, 0, 0, 30), function()
 	sendAction("upgradeOffice")
 end)
-officeButton.Position = UDim2.fromOffset(0, 70)
+officeButton.Position = UDim2.fromOffset(0, 90)
+
+-- Especialidades y rasgos (para que se entienda qué hace cada uno)
+local rolesCard = makeCard(agencyPage, 34 + #Career.Roles * 18 + 22 + math.ceil(#Career.Traits / 2) * 18, 6, Color3.fromRGB(23, 37, 84))
+makeLabel(rolesCard, "📚 Especialidades y rasgos", 0, 20, 15, THEME.text, true)
+for i, role in Career.Roles do
+	bindText(makeLabel(rolesCard, "", 4 + i * 18, 18, 12, THEME.muted), function()
+		return role.emoji .. " " .. T(role.name) .. ": " .. T(role.desc)
+	end)
+end
+local traitsY = 4 + (#Career.Roles + 1) * 18 + 4
+for i, trait in Career.Traits do
+	local label = makeLabel(rolesCard, "", traitsY + ((i - 1) // 2) * 18, 18, 12, THEME.muted)
+	label.Size = UDim2.new(0.5, -4, 0, 18)
+	label.Position = UDim2.new(if i % 2 == 1 then 0 else 0.5, if i % 2 == 1 then 0 else 4, 0, traitsY + ((i - 1) // 2) * 18)
+	bindText(label, function()
+		return trait.emoji .. " " .. T(trait.name) .. ": " .. T(trait.desc)
+	end)
+end
+
+-- "+12% visitas · +3% dinero · +5 trabajo/s"
+function programmerStatsText(work: number, stats): string
+	local parts = {}
+	local labels = {
+		{ "quality", "+%.1f%% calidad" }, { "visits", "+%.1f%% visitas" }, { "sale", "+%.1f%% al vender" },
+		{ "rare", "+%.1f%% webs raras" }, { "money", "+%.1f%% dinero" },
+	}
+	for _, entry in labels do
+		local value = stats[entry[1]] or 0
+		if value > 0.0005 then
+			table.insert(parts, T(entry[2], value * 100))
+		end
+	end
+	table.insert(parts, T("+%s trabajo/s", num(work)))
+	return table.concat(parts, " · ")
+end
 
 function oddsText(field: string): string
 	local parts = {}
@@ -2123,14 +2257,16 @@ end)
 local legendaryButton = makeButton(legendaryRow, "", THEME.yellow, UDim2.new(0.6, -3, 1, 0), function() end)
 local ticketsHint = makeLabel(ticketsCard, "Los tickets se consiguen en 🛒 Tienda.", 118, 16, 12, THEME.muted)
 
-local teamTitle = makeCard(agencyPage, 40, 5)
+local teamTitle = makeCard(agencyPage, 40, 7)
 local teamTitleLabel = makeLabel(teamTitle, "👥 Tu equipo", 0, 20, 17, THEME.text, true)
 
 -- Revelación de un fichaje
 local function showRecruit(programmer)
 	local rarity = Career.RarityById[programmer.rarity]
 	local niche = Career.NicheById[programmer.niche]
-	local work, bonus = Career.programmerPower(programmer, state and state.bonuses.agencyPro)
+	local work, stats = Career.programmerPower(programmer, state and state.bonuses.agencyPro, false)
+	local role = Career.RoleById[programmer.role or "dev"] or Career.Roles[1]
+	local trait = Career.TraitById[programmer.trait or ""]
 	if rarity.order >= 4 then
 		playSound("crit")
 	end
@@ -2166,12 +2302,13 @@ local function showRecruit(programmer)
 		create("TextLabel", {
 			Parent = cardFrame,
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(0, 100),
-			Size = UDim2.new(1, 0, 0, 60),
-			Text = T("%s %s\n+%d%% a todo tu dinero · +%s trabajo/s", niche.emoji, T(niche.name), math.floor(bonus * 100 + 0.5), num(work)),
+			Position = UDim2.fromOffset(0, 96),
+			Size = UDim2.new(1, 0, 0, 84),
+			Text = string.format("%s %s · %s %s%s\n%s", role.emoji, T(role.name), niche.emoji, T(niche.name),
+				if trait then " · " .. trait.emoji .. " " .. T(trait.name) else "", programmerStatsText(work, stats)),
 			TextColor3 = THEME.text,
 			Font = Enum.Font.GothamBold,
-			TextSize = 18,
+			TextSize = 16,
 			TextWrapped = true,
 		})
 	end)
@@ -2210,7 +2347,7 @@ renderers.agency = function(s)
 	teamTitle.Visible = agency ~= nil
 
 	if not agency then
-		foundInfo.Text = T("Necesitas nivel de programador %d (tienes %d) y %s. Tus programadores programarán por ti y te darán un %% extra de TODO tu dinero.",
+		foundInfo.Text = T("Necesitas nivel de programador %d (tienes %d) y %s. Cada programador trabaja para ti y mejora algo según su especialidad.",
 			Career.AGENCY_LEVEL_REQUIRED, c.devLevel, fmt(Career.AGENCY_COST))
 		local can = c.devLevel >= Career.AGENCY_LEVEL_REQUIRED and s.money >= Career.AGENCY_COST
 		setButton(foundButton, if c.devLevel < Career.AGENCY_LEVEL_REQUIRED then T("🔒 Sube a nivel %d en 💼 Carrera", Career.AGENCY_LEVEL_REQUIRED) else T("🏢 Fundar agencia (%s)", fmt(Career.AGENCY_COST)), can)
@@ -2220,7 +2357,11 @@ renderers.agency = function(s)
 
 	local full = #c.programmers >= agency.capacity
 	agencyTitle.Text = T("🏢 %s · Oficina nivel %d", agency.name, agency.officeLevel)
-	agencyInfo.Text = T("+%d%% a todo tu dinero · +%s trabajo/s", math.floor(s.bonuses.agencyBonus * 100 + 0.5), num(s.bonuses.agencyWork))
+	local totals = agency.totals or {}
+	agencyInfo.Text = T("+%d%% a todo tu dinero · +%s trabajo/s", math.floor((totals.money or 0) * 100 + 0.5), num(totals.work or 0))
+	agencyStats.Text = T("🎨 +%d%% calidad · 📣 +%d%% visitas · 🤝 +%d%% al vender · 📊 +%d%% webs raras",
+		math.floor((totals.quality or 0) * 100 + 0.5), math.floor((totals.visits or 0) * 100 + 0.5),
+		math.floor((totals.sale or 0) * 100 + 0.5), math.floor((totals.rare or 0) * 100 + 0.5))
 	agencyInfo2.Text = T("Puestos ocupados: %d/%d%s", #c.programmers, agency.capacity, if s.bonuses.agencyPro then T(" · 🏙️ Agencia Pro") else "")
 	if agency.upgradeCost then
 		setButton(officeButton, T("🏗️ Ampliar oficina (+2 puestos) · %s", fmt(agency.upgradeCost)), s.money >= agency.upgradeCost)
@@ -2252,13 +2393,14 @@ renderers.agency = function(s)
 		local rarity = Career.RarityById[p.rarity]
 		local card = create("Frame", {
 			Parent = agencyPage,
-			Size = UDim2.new(1, -8, 0, 84),
+			Size = UDim2.new(1, -8, 0, 104),
 			BackgroundColor3 = darken(rarity.color, 0.6),
 		}, { corner(12), padding(10), stroke(rarity.color, 2) })
 		local row: any = { frame = card, id = p.id, confirm = 0 }
 		row.title = makeLabel(card, "", 0, 20, 16, rarity.color, true)
 		row.info = makeLabel(card, "", 22, 18, 13, THEME.text)
-		local buttons = makeButtonRow(card, 44, 28)
+		row.stats = makeLabel(card, "", 42, 18, 13, THEME.yellow, true)
+		local buttons = makeButtonRow(card, 64, 28)
 		row.train = makeButton(buttons, "", THEME.accent, UDim2.new(0.7, -3, 1, 0), function()
 			sendAction("trainProgrammer", row.id)
 		end)
@@ -2274,8 +2416,13 @@ renderers.agency = function(s)
 		return row
 	end, function(row, p)
 		local rarity = Career.RarityById[p.rarity]
-		row.title.Text = T("👩‍💻 %s · %s · Nv %d/%d", p.name, T(rarity.name), p.level, Career.PROGRAMMER_MAX_LEVEL)
-		row.info.Text = T("%s · +%.1f%% dinero · +%s trabajo/s (x1.5 en webs de su nicho)", nicheLabel(p.niche), p.bonus * 100, num(p.work))
+		local role = Career.RoleById[p.role] or Career.Roles[1]
+		local trait = Career.TraitById[p.trait or ""]
+		local xpText = if p.level >= Career.PROGRAMMER_MAX_LEVEL then "" else string.format(" (%d%%)", math.floor(math.clamp(p.xp / math.max(p.xpNeeded, 1), 0, 1) * 100))
+		row.title.Text = T("👩‍💻 %s · %s · Nv %d/%d", p.name, T(rarity.name), p.level, Career.PROGRAMMER_MAX_LEVEL) .. xpText
+		row.info.Text = string.format("%s %s · %s%s", role.emoji, T(role.name), nicheLabel(p.niche),
+			if trait then " · " .. trait.emoji .. " " .. T(trait.name) else "")
+		row.stats.Text = programmerStatsText(p.work, p.stats)
 		if p.level >= Career.PROGRAMMER_MAX_LEVEL then
 			setButton(row.train, T("Nivel máximo"), false)
 		else
@@ -2819,15 +2966,71 @@ visitEvent.OnClientEvent:Connect(function(info)
 end)
 
 ---------------------------------------------------------------------
--- Pestaña BOLSA (prestigio, objetivos y estadísticas)
+-- Pestaña BOLSA (compra y venta de acciones, salir a bolsa y estadísticas)
 ---------------------------------------------------------------------
 do
 local marketPage = pages.market
-local ipoCard = makeCard(marketPage, 172, 1, Color3.fromRGB(80, 20, 54))
-makeLabel(ipoCard, "📈 Salir a bolsa", 0, 22, 18, THEME.text, true)
+local marketHeader = makeCard(marketPage, 76, 1, Color3.fromRGB(80, 20, 54))
+makeLabel(marketHeader, "📈 Bolsa de Ciudad Web", 0, 22, 18, THEME.text, true)
+local marketInfo = makeLabel(marketHeader, "", 24, 18, 13, THEME.muted)
+local marketTotal = makeLabel(marketHeader, "", 44, 18, 14, THEME.green, true)
+
+local CHART_POINTS = Market.HISTORY
+local stockRows = {}
+for i, def in Market.Stocks do
+	local card = makeCard(marketPage, 176, 1 + i, Color3.fromRGB(30, 27, 48))
+	local title = makeLabel(card, "", 0, 22, 17, THEME.text, true)
+	local trend = makeLabel(card, "", 22, 18, 13, THEME.muted)
+	-- Gráfica de barras con los últimos precios
+	local chart = create("Frame", {
+		Parent = card,
+		Position = UDim2.fromOffset(0, 42),
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = THEME.bg,
+	}, { corner(6) })
+	local bars = {}
+	for k = 1, CHART_POINTS do
+		bars[k] = create("Frame", {
+			Parent = chart,
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new((k - 1) / CHART_POINTS, 1, 1, 0),
+			Size = UDim2.new(1 / CHART_POINTS, -1, 0.5, 0),
+			BackgroundColor3 = THEME.green,
+			BorderSizePixel = 0,
+		})
+	end
+	local position = makeLabel(card, "", 90, 18, 13, THEME.text, true)
+	local buyRow = makeButtonRow(card, 112, 26)
+	local buyButtons = {}
+	for _, fraction in { 0.1, 0.25, 0.5, 1 } do
+		buyButtons[fraction] = makeButton(buyRow, "", THEME.green, UDim2.new(0.25, -5, 1, 0), function()
+			sendAction("buyStock", def.id, fraction)
+		end)
+	end
+	local sellRow = makeButtonRow(card, 142, 26)
+	local sellHalf = makeButton(sellRow, "", THEME.orange, UDim2.new(0.5, -3, 1, 0), function()
+		sendAction("sellStock", def.id, 0.5, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	local sellAll = makeButton(sellRow, "", THEME.red, UDim2.new(0.5, -3, 1, 0), function()
+		sendAction("sellStock", def.id, 1, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	stockRows[def.id] = { title = title, trend = trend, bars = bars, position = position, buy = buyButtons, sellHalf = sellHalf, sellAll = sellAll }
+end
+
+-- Salir a bolsa (prestigio)
+local ipoCard = makeCard(marketPage, 172, 50, Color3.fromRGB(80, 20, 54))
+makeLabel(ipoCard, "🔔 Salir a bolsa con tu imperio", 0, 22, 18, THEME.text, true)
 local ipoInfo1 = makeLabel(ipoCard, "", 24, 18, 14, THEME.muted)
 local ipoInfo2 = makeLabel(ipoCard, "", 44, 18, 15, THEME.green, true)
-makeLabel(ipoCard, "Se reinicia: dinero, webs, empresas, apps y reputación.", 64, 18, 13, THEME.muted)
+makeLabel(ipoCard, "Se reinicia: dinero, webs, empresas, apps, reputación y tus acciones de la Bolsa.", 64, 18, 13, THEME.muted)
 bindText(makeLabel(ipoCard, "", 84, 18, 13, THEME.muted), function()
 	return T("Te quedas: acciones (+%d%% dinero cada una), patentes e I+D, colección, carrera y tu rascacielos.", math.floor(Config.SHARE_BONUS * 100))
 end)
@@ -2844,7 +3047,7 @@ ipoButton = makeButton(ipoCard, "", THEME.pink, UDim2.new(1, 0, 0, 38), function
 end)
 ipoButton.Position = UDim2.fromOffset(0, 112)
 
-local statsCard = makeCard(marketPage, 120, 2)
+local statsCard = makeCard(marketPage, 120, 51)
 makeLabel(statsCard, "📊 Estadísticas y guardado", 0, 22, 17, THEME.text, true)
 local statsLabel = makeLabel(statsCard, "", 24, 18, 14, THEME.muted)
 local saveLabel = makeLabel(statsCard, "", 44, 18, 13, THEME.muted)
@@ -2853,45 +3056,77 @@ local saveButton = makeButton(statsCard, "💾 Guardar ahora", THEME.accent, UDi
 end)
 saveButton.Position = UDim2.fromOffset(0, 70)
 
--- I+D: mejoras permanentes que se pagan con patentes
-local researchHeader = makeCard(marketPage, 64, 3, Color3.fromRGB(30, 58, 138))
-local patentsLabel = makeLabel(researchHeader, "", 0, 22, 17, THEME.yellow, true)
-makeLabel(researchHeader, "Mejoras para SIEMPRE (no se pierden al salir a bolsa). Las patentes se ganan al salir a bolsa y en el 🎫 Pase.", 24, 30, 13, THEME.muted).TextWrapped = true
-local researchRows = {}
-for b, branch in Config.ResearchBranches do
-	local branchCard = makeCard(marketPage, 30, 10 + b * 20, Color3.fromRGB(23, 37, 84))
-	bindText(makeLabel(branchCard, "", 0, 14, 15, THEME.text, true), function()
-		return branch.emoji .. " " .. T(branch.name)
-	end)
-	branchCard.Size = UDim2.new(1, -8, 0, 34)
-	local order = 0
-	for _, def in Config.Research do
-		if def.branch == branch.id then
-			order += 1
-			local card = makeCard(marketPage, 66, 10 + b * 20 + order)
-			local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
-			title.Size = UDim2.new(1, -170, 0, 20)
-			local desc = makeLabel(card, def.desc, 22, 30, 13, THEME.muted)
-			desc.Size = UDim2.new(1, -170, 0, 30)
-			desc.TextWrapped = true
-			desc.TextTruncate = Enum.TextTruncate.None
-			local button = makeButton(card, "", THEME.accent, UDim2.fromOffset(160, 34), function()
-				sendAction("buyResearch", def.id)
-			end)
-			button.AnchorPoint = Vector2.new(1, 0.5)
-			button.Position = UDim2.new(1, 0, 0.5, 0)
-			researchRows[def.id] = { title = title, button = button }
-		end
-	end
+local function percentText(value: number): string
+	return string.format("%s%.1f%%", if value >= 0 then "+" else "-", math.abs(value) * 100)
 end
 
-
 renderers.market = function(s)
+	local m = s.market
+	local totalValue, totalInvested = 0, 0
+	for _, stock in m.stocks do
+		local def = Market.StockById[stock.id]
+		local row = stockRows[stock.id]
+		local mode = Market.ModeById[stock.mode]
+		local change = stock.price / math.max(stock.last, 0.0001) - 1
+		local value = stock.units * stock.price
+		totalValue += value
+		totalInvested += stock.invested
+		row.title.Text = string.format("%s %s (%s) · %s  %s", def.emoji, def.name, def.ticker, fmt(stock.price), percentText(change))
+		row.title.TextColor3 = if change >= 0 then THEME.green else THEME.red
+		row.trend.Text = T("Tendencia: %s %s · Valor justo ~%s · Riesgo %s", mode.emoji, T(mode.name), fmt(def.rest),
+			if def.vol >= 1.3 then T("alto") elseif def.vol <= 0.7 then T("bajo") else T("medio"))
+		-- Gráfica
+		local low, high = math.huge, -math.huge
+		for _, price in stock.history do
+			low = math.min(low, price)
+			high = math.max(high, price)
+		end
+		local range = math.max(high - low, high * 0.02)
+		for k, bar in row.bars do
+			local price = stock.history[k]
+			if price then
+				bar.Visible = true
+				bar.Size = UDim2.new(1 / CHART_POINTS, -1, 0.1 + 0.9 * (price - low) / range, 0)
+				local previous = stock.history[k - 1] or price
+				bar.BackgroundColor3 = if price >= previous then THEME.green else THEME.red
+			else
+				bar.Visible = false
+			end
+		end
+		-- Tu inversión
+		if stock.units > 0 then
+			local profit = value - stock.invested
+			row.position.Text = T("Tienes %s (pagaste %s) · %s %s", fmt(value), fmt(stock.invested), if profit >= 0 then "📈" else "📉",
+				(if profit >= 0 then "+" else "-") .. fmt(math.abs(profit)))
+			row.position.TextColor3 = if profit >= 0 then THEME.green else THEME.red
+		else
+			row.position.Text = T("No tienes acciones · máximo invertible %s", fmt(m.cap))
+			row.position.TextColor3 = THEME.muted
+		end
+		local room = m.cap - value
+		for fraction, button in row.buy do
+			local amount = math.min(s.money * fraction, room)
+			setButton(button, if fraction == 1 then T("Comprar MÁX") else T("Comprar %d%%", math.floor(fraction * 100)), amount >= 1, THEME.green)
+		end
+		setButton(row.sellHalf, T("Vender la mitad"), stock.units > 0, THEME.orange)
+		setButton(row.sellAll, if stock.units > 0 then T("Vender todo (%s)", fmt(value)) else T("Vender todo"), stock.units > 0, THEME.red)
+	end
+	marketInfo.Text = T("Precios nuevos en %s · comisión %d%% al comprar · dividendo %.2f%% cada 30 s",
+		Config.formatTime(m.nextTick), math.floor(Market.FEE * 100), Market.DIVIDEND * 100)
+	if totalValue > 0 then
+		local profit = totalValue - totalInvested
+		marketTotal.Text = T("💼 Tu cartera vale %s · %s%s", fmt(totalValue), if profit >= 0 then "+" else "-", fmt(math.abs(profit)))
+		marketTotal.TextColor3 = if profit >= 0 then THEME.green else THEME.red
+	else
+		marketTotal.Text = T("Compra cuando el precio esté por debajo de su valor justo y vende cuando suba.")
+		marketTotal.TextColor3 = THEME.yellow
+	end
+
 	ipoInfo1.Text = T("Ganado en esta partida: %s · Acciones: %d (x%.2f dinero)", fmt(s.totalEarned), s.shares, 1 + s.shares * Config.SHARE_BONUS)
 	if s.ipoShares >= 1 then
 		ipoInfo2.Text = T("Si sales a bolsa ahora consigues +%d acciones y +%d 💡 patentes", s.ipoShares, s.ipoPatents)
 		if os.clock() >= confirmUntil then
-			setButton(ipoButton, T("📈 Salir a bolsa (+%d acciones)", s.ipoShares), true)
+			setButton(ipoButton, T("🔔 Salir a bolsa (+%d acciones)", s.ipoShares), true)
 		end
 	else
 		ipoInfo2.Text = T("Necesitas ganar %s en esta partida", fmt(Config.IPO_MIN_EARNED))
@@ -2909,7 +3144,47 @@ renderers.market = function(s)
 		saveText = T("💾 Último guardado hace %s%s", Config.formatTime(s.lastSaveAgo), if s.lastSaveOk == false then T(" (falló, se reintentará)") else " ✓")
 	end
 	saveLabel.Text = T("Ganado en total %s · %s", fmt(s.lifetimeEarned), saveText)
+	saveLabel.TextColor3 = if s.canSave then THEME.muted else THEME.red
+end
+end
 
+---------------------------------------------------------------------
+-- Pestaña I+D (mejoras para siempre que se pagan con patentes)
+---------------------------------------------------------------------
+do
+local researchPage = pages.research
+local researchHeader = makeCard(researchPage, 64, 3, Color3.fromRGB(30, 58, 138))
+local patentsLabel = makeLabel(researchHeader, "", 0, 22, 17, THEME.yellow, true)
+makeLabel(researchHeader, "Mejoras para SIEMPRE (no se pierden al salir a bolsa). Las patentes se ganan al salir a bolsa y en el 🎫 Pase.", 24, 30, 13, THEME.muted).TextWrapped = true
+local researchRows = {}
+for b, branch in Config.ResearchBranches do
+	local branchCard = makeCard(researchPage, 30, 10 + b * 20, Color3.fromRGB(23, 37, 84))
+	bindText(makeLabel(branchCard, "", 0, 14, 15, THEME.text, true), function()
+		return branch.emoji .. " " .. T(branch.name)
+	end)
+	branchCard.Size = UDim2.new(1, -8, 0, 34)
+	local order = 0
+	for _, def in Config.Research do
+		if def.branch == branch.id then
+			order += 1
+			local card = makeCard(researchPage, 66, 10 + b * 20 + order)
+			local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
+			title.Size = UDim2.new(1, -170, 0, 20)
+			local desc = makeLabel(card, def.desc, 22, 30, 13, THEME.muted)
+			desc.Size = UDim2.new(1, -170, 0, 30)
+			desc.TextWrapped = true
+			desc.TextTruncate = Enum.TextTruncate.None
+			local button = makeButton(card, "", THEME.accent, UDim2.fromOffset(160, 34), function()
+				sendAction("buyResearch", def.id)
+			end)
+			button.AnchorPoint = Vector2.new(1, 0.5)
+			button.Position = UDim2.new(1, 0, 0.5, 0)
+			researchRows[def.id] = { title = title, button = button }
+		end
+	end
+end
+
+renderers.research = function(s)
 	patentsLabel.Text = T("💡 I+D · tienes %d patentes", s.patents)
 	for _, def in Config.Research do
 		local row = researchRows[def.id]
@@ -2924,7 +3199,6 @@ renderers.market = function(s)
 			setButton(row.button, T("Mejorar · 💡 %d", cost), s.patents >= cost)
 		end
 	end
-	saveLabel.TextColor3 = if s.canSave then THEME.muted else THEME.red
 end
 end
 
@@ -3529,7 +3803,7 @@ local function renderAlways(s)
 	end
 	setBadge("ads", canUnlock)
 	local c = s.career
-	setBadge("career", (c.job ~= nil and c.job.taskLeft <= 0) or (c.job == nil and #c.jobOffers > 0))
+	setBadge("career", if #c.contracts < c.slots then #c.board else 0)
 	local agencyReady = false
 	if c.agency then
 		local space = #c.programmers < c.agency.capacity
@@ -3564,7 +3838,8 @@ local function renderAlways(s)
 			researchReady = true
 		end
 	end
-	setBadge("market", s.ipoShares >= 1 or researchReady)
+	setBadge("market", s.ipoShares >= 1)
+	setBadge("research", researchReady)
 	local claimable = 0
 	for _, goal in Config.Goals do
 		if not s.goals[goal.id] and goal.value(s) >= goal.target then

@@ -219,7 +219,9 @@ local function buildDesk(parent: Instance, slot: CFrame, programmer, index: numb
 	billboard.StudsOffset = Vector3.new(0, 1.7, 0)
 	billboard.MaxDistance = 90
 	billboard.LightInfluence = 0
-	local nameLabel = label(billboard, programmer.name, UDim2.fromScale(1, 0.55), UDim2.fromScale(0, 0), Color3.new(1, 1, 1), true)
+	-- Icono de su especialidad (💻 🎨 📣 🤝 📊) delante del nombre
+	local role = Career.RoleById[programmer.role or "dev"]
+	local nameLabel = label(billboard, (if role then role.emoji .. " " else "") .. programmer.name, UDim2.fromScale(1, 0.55), UDim2.fromScale(0, 0), Color3.new(1, 1, 1), true)
 	nameLabel.TextStrokeTransparency = 0.3
 	local rarityLabel = label(billboard, rarity.name, UDim2.fromScale(1, 0.45), UDim2.fromScale(0, 0.55), rarity.color, true)
 	rarityLabel.TextStrokeTransparency = 0.3
@@ -275,7 +277,7 @@ local function updateTeam(handle: Handle, extra)
 	local programmers = if extra and extra.agency then bestProgrammers(extra.programmers or {}) else {}
 	local parts = { if extra and extra.agency then "A" else "-" }
 	for _, p in programmers do
-		table.insert(parts, string.format("%s:%s:%s:%d", tostring(p.id), p.name, p.rarity, p.level))
+		table.insert(parts, string.format("%s:%s:%s:%d:%s", tostring(p.id), p.name, p.rarity, p.level, tostring(p.role)))
 	end
 	local key = table.concat(parts, "|")
 	if key == handle.teamKey then

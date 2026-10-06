@@ -14,7 +14,7 @@ local function readSource(path)
 	end
 	return sources[path]
 end
-for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
+for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ServerScriptService/MarketService.luau", "/ReplicatedStorage/MarketConfig.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
 	readSource(SRC .. rel)
 end
 
@@ -240,10 +240,12 @@ local function addModule(parent, className, name, path)
 end
 addModule(services.ReplicatedStorage, "ModuleScript", "TycoonConfig", SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "CareerConfig", SRC .. "/ReplicatedStorage/CareerConfig.luau")
+addModule(services.ReplicatedStorage, "ModuleScript", "MarketConfig", SRC .. "/ReplicatedStorage/MarketConfig.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "Locale", SRC .. "/ReplicatedStorage/Locale.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "LocaleEN", SRC .. "/ReplicatedStorage/LocaleEN.luau")
 addModule(services.ServerScriptService, "ModuleScript", "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
 addModule(services.ServerScriptService, "ModuleScript", "CareerService", SRC .. "/ServerScriptService/CareerService.luau")
+addModule(services.ServerScriptService, "ModuleScript", "MarketService", SRC .. "/ServerScriptService/MarketService.luau")
 addModule(services.ServerScriptService, "ModuleScript", "Building", SRC .. "/ServerScriptService/Building.luau")
 addModule(services.ServerScriptService, "ModuleScript", "World", SRC .. "/ServerScriptService/World.luau")
 addModule(services.ServerScriptService, "ModuleScript", "PlotManager", SRC .. "/ServerScriptService/PlotManager.luau")
@@ -435,11 +437,21 @@ print("  receipt terminar ->", MarketplaceService.ProcessReceipt({ PlayerId = 42
 assert(lastState().project == nil, "la web debería estar terminada")
 print("  pase x2 activo:", lastState().bonuses.pass, "· multiplicador:", lastState().moneyMult)
 
+-- Comprar dinero hasta desbloquear la Carrera (planta 5)
+for i = 1, 60 do
+	if lastState().lifetimeEarned >= Config.earnedForFloor(Config.unlockFloor("career")) then
+		break
+	end
+	MarketplaceService.ProcessReceipt({ PlayerId = 42, ProductId = 111, PurchaseId = "cash" .. i })
+end
+tick(1)
+print("  ganado para desbloquear la Carrera:", Config.formatMoney(lastState().lifetimeEarned))
+
 -- Carrera
 local Career = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("CareerConfig")))
 local minPay, maxPay = math.huge, 0
 for _, c in Career.Companies do minPay = math.min(minPay, c.payScale); maxPay = math.max(maxPay, c.payScale) end
-print(string.format("Factor de sueldo por empresa: de x%.2f a x%.2f", minPay, maxPay))
+print(string.format("Factor de paga por empresa: de x%.2f a x%.2f", minPay, maxPay))
 print("Empresas generadas:", #Career.Companies, "· primera:", Career.Companies[1].name, "· última:", Career.Companies[500].name)
 local names = {}
 for _, c in Career.Companies do
@@ -448,22 +460,45 @@ for _, c in Career.Companies do
 end
 act("setNiche", "gaming")
 act("setNiche", "noexiste")
+-- Encargos (v3)
+fakeTime += 1.1
 s = lastState()
-print("  ofertas iniciales:", #s.career.jobOffers)
-for _, o in s.career.jobOffers do
-	local company = Career.company(o.companyId)
-	print(string.format("    %s (%s, x%.2f paga empresa) · rango %d · x%.2f sueldo · x%.2f XP · %s/s", company.name, company.niche, company.payScale, o.rank, o.salaryMult, o.xpMult, Config.formatMoney(o.salary)))
+print("  tablón de encargos:", #s.career.board, "· rango", s.career.rank, "· huecos", s.career.slots)
+assert(#s.career.board >= 1, "debería haber encargos en el tablón")
+for _, c in s.career.board do
+	local company = Career.company(c.companyId)
+	print(string.format("    %s quiere %s (%s) · paga %s · plazo %s", company.name, c.type, c.niche, Config.formatMoney(c.pay), Config.formatTime(c.duration)))
 end
-act("acceptJobOffer", s.career.jobOffers[1].id)
-act("acceptJobOffer", 99999) -- no existe
-act("sendCV")
-act("sendCV") -- enfriamiento
-act("solveTask") -- aún no
-fakeTime += 45
-tick(1)
-act("solveTask")
+local contract = s.career.board[1]
+assert(act("acceptContract", contract.id), "aceptar encargo")
+act("acceptContract", 99999) -- no existe
+act("acceptContract", s.career.board[2] and s.career.board[2].id) -- Junior: solo 1 a la vez
+act("askContract")
+act("askContract") -- enfriamiento
+fakeTime += 1.1
+act("workOnContract", contract.id)
 s = lastState()
-print("  trabajo:", s.career.job and s.career.job.salary, "nivel gaming:", s.career.nicheLevels.gaming, "devLevel:", s.career.devLevel)
+assert(s.project and s.project.contractId == contract.id, "debería programar la web del encargo")
+assert(s.selectedNiche == contract.niche, "el nicho debería ser el del encargo")
+local sitesBefore, earnedBefore, contractsBefore = #s.sites, s.lifetimeEarned, s.career.stats.contracts
+print("  receipt terminar (encargo) ->", MarketplaceService.ProcessReceipt({ PlayerId = 42, ProductId = 444, PurchaseId = "p4" }))
+tick(1)
+s = lastState()
+print(string.format("  encargo entregado: webs %d → %d · entregados %d · ganado +%s", sitesBefore, #s.sites, s.career.stats.contracts, Config.formatMoney(s.lifetimeEarned - earnedBefore)))
+assert(s.career.stats.contracts == contractsBefore + 1, "el encargo debería contar como entregado")
+assert(#s.sites == sitesBefore, "la web del encargo no se queda en tus webs")
+assert(#s.career.contracts == 0, "el encargo entregado sale de la lista")
+-- Un encargo que caduca
+s = lastState()
+if s.career.board[1] then
+	fakeTime += 1.1
+	local id = s.career.board[1].id
+	act("acceptContract", id)
+	act("abandonContract", 424242)
+	fakeTime += 2000
+	tick(1)
+	assert(#lastState().career.contracts == 0, "el encargo debería caducar")
+end
 act("foundAgency") -- falla: nivel bajo
 -- Subir de nivel a lo bruto para probar la agencia
 for _ = 1, 400 do
@@ -486,7 +521,8 @@ act("redeemTicket", "legendary", "nope")
 act("redeemTicket", "legendary", "tech")
 s = lastState()
 for _, p in s.career.programmers do
-	print(string.format("    %s · %s · %s · +%.1f%%", p.name, p.rarity, p.niche, p.bonus * 100))
+	print(string.format("    %s · %s · %s · %s · %s · +%.1f%% dinero", p.name, p.rarity, p.niche, p.role, tostring(p.trait), p.stats.money * 100))
+	assert(Career.RoleById[p.role] and Career.TraitById[p.trait], "programador sin especialidad o rasgo")
 	act("trainProgrammer", p.id)
 end
 s = lastState()
@@ -500,7 +536,6 @@ print("  web nueva nicho:", s.sites[#s.sites] and s.sites[#s.sites].niche)
 if s.sites[1] then act("upgradeDesign", s.sites[1].id) end
 act("saveNow")
 act("saveNow") -- enfriamiento
-act("quitJob")
 
 -- Misiones y tutorial
 s = lastState()
@@ -616,10 +651,26 @@ fakeTime += 3600
 saved["player_42"].career.xp.tech = 20000
 saved["player_42"].money = 5e6
 saved["player_42"].totalEarned = 4e6 -- para poder salir a bolsa y probar las patentes
+saved["player_42"].lifetimeEarned = 5e6 -- todo desbloqueado
+-- Partida de la v2.1: trabajo, misión de "tareas" y programador sin especialidad
+saved["player_42"].career.job = { companyId = 3, rank = 2, rankSince = 0, salaryMult = 1, xpMult = 1 }
+saved["player_42"].career.contracts = nil
+saved["player_42"].career.stats.contracts = nil
+table.insert(saved["player_42"].career.programmers, { id = 900, name = "Viejo V.", rarity = "raro", niche = "tech", level = 3 })
+if saved["player_42"].dailyMissions.list[1] then
+	saved["player_42"].dailyMissions.list[1].id = "tasks"
+end
 realPlayer.Parent = playersFolder
 Players.PlayerAdded:Fire(player)
 s = lastState()
 print("Reentrada: webs", #s.sites, "dinero", Config.formatMoney(s.money))
+for _, m in s.dailyMissions.list do
+	assert(Config.DailyMissionById[m.id], "misión antigua sin migrar: " .. m.id)
+end
+for _, p in s.career.programmers do
+	assert(p.role and p.trait, "programador antiguo sin especialidad o rasgo")
+end
+assert(s.career.contracts and s.career.stats.contracts == 0, "carrera antigua sin migrar")
 for _, f in fired do
 	if f[1] == "Notify" and f[3] == "popup" then
 		print("  Popup:", f[2])
@@ -635,7 +686,7 @@ act("redeemTicket", "legendary", "tech")
 for _ = 1, 3 do act("recruit") end
 s = lastState()
 for _, p in s.career.programmers do
-	print(string.format("    %s · %s · %s · +%.1f%% · %s trabajo/s", p.name, p.rarity, p.niche, p.bonus * 100, Config.formatNumber(p.work)))
+	print(string.format("    %s · %s · %s · %s/%s · +%.1f%% · %s trabajo/s", p.name, p.rarity, p.niche, p.role, tostring(p.trait), p.stats.money * 100, Config.formatNumber(p.work)))
 end
 act("trainProgrammer", s.career.programmers[1].id)
 tick(1)
@@ -666,12 +717,44 @@ for i = 1, #Config.PlaytimeRewards do
 end
 s = lastState()
 print(string.format("  jugado hoy %s · premios recogidos %d", Config.formatTime(s.playtime.seconds), (function() local n = 0 for _ in s.playtime.claimed do n += 1 end return n end)()))
+-- Bolsa (v3)
+print("-- Bolsa --")
+fakeTime += 2
+s = lastState()
+print("  acciones:", #s.market.stocks, "· máximo por empresa", Config.formatMoney(s.market.cap), "· próximo precio en", s.market.nextTick)
+assert(#s.market.stocks == 6, "deberían cotizar 6 empresas")
+local moneyBefore = s.money
+act("buyStock", "byte", 0.1)
+act("buyStock", "nope", 0.1)
+act("buyStock", "byte", 5) -- fracción no válida
+act("buyStock", "pixl", 1)
+s = lastState()
+local byte = s.market.stocks[1]
+print(string.format("  BYTE: %.2f participaciones · invertido %s · dinero %s → %s", byte.units, Config.formatMoney(byte.invested), Config.formatMoney(moneyBefore), Config.formatMoney(s.money)))
+assert(byte.units > 0 and s.money < moneyBefore, "la compra de acciones no funcionó")
+for _ = 1, 40 do
+	fakeTime += 30
+	tick(1)
+end
+s = lastState()
+for _, stock in s.market.stocks do
+	print(string.format("    %s %s · %s · %d puntos", stock.id, Config.formatMoney(stock.price), stock.mode, #stock.history))
+end
+fakeTime += 2
+act("sellStock", "byte", 0.5)
+act("sellStock", "byte", 1)
+act("sellStock", "byte", 1) -- ya no tiene
+act("sellStock", "pixl", 2) -- fracción no válida
+assert(lastState().market.stocks[1].units == 0, "debería haber vendido todo")
 fakeTime += 2
 local patentsBefore = s.patents
 act("ipo")
 s = lastState()
 print("  patentes tras salir a bolsa:", patentsBefore, "→", s.patents, "· dinero inicial", Config.formatMoney(s.money))
 assert(s.patents > patentsBefore, "salir a bolsa debería dar patentes")
+for _, stock in s.market.stocks do
+	assert(stock.units == 0, "al salir a bolsa se pierden las acciones")
+end
 fakeTime += 2
 act("buyResearch", "capital")
 act("buyResearch", "viral")

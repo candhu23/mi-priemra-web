@@ -4,8 +4,10 @@
 	Construye "Ciudad Web": iluminación y efectos, suelo, avenida con
 	aceras y farolas, árboles, plaza con fuente y zona de aparición,
 	arco de bienvenida, panel de clasificación global, horizonte de
-	edificios al fondo, el panel del ranking semanal en mitad de la avenida
-	y el ciclo de día y noche.
+	edificios al fondo, el panel del ranking semanal en mitad de la avenida,
+	el edificio de la Bolsa con sus precios en directo (v3), pasos de
+	cebra, coches aparcados, el cartel de "Cómo jugar" y el ciclo de día
+	y noche.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -35,6 +37,8 @@ local leaderboardStatus: TextLabel? = nil
 local weeklyRows: { { TextLabel } } = {}
 local weeklyStatus: { TextLabel } = {}
 local colorEffect: ColorCorrectionEffect? = nil
+-- Filas del panel de la Bolsa (una por empresa, en las dos pantallas)
+local marketRows: { { TextLabel } } = {}
 local NORMAL_TINT = Color3.fromRGB(255, 250, 244)
 
 local function newPart(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?): Part
@@ -411,6 +415,207 @@ local function scatterTrees(city: Folder)
 end
 
 ---------------------------------------------------------------------
+-- v3: Bolsa, pasos de cebra, coches y cartel de ayuda
+---------------------------------------------------------------------
+local BOLSA_CENTER = PLAZA_CENTER + Vector3.new(0, 0, -78)
+
+-- Pantalla con una fila por empresa de la Bolsa
+local function marketScreen(part: BasePart, face: Enum.NormalId, rowsCount: number)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 30
+	gui.LightInfluence = 0
+	gui.Parent = part
+	local list = Instance.new("Frame")
+	list.Size = UDim2.fromScale(1, 1)
+	list.BackgroundTransparency = 1
+	list.Parent = gui
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
+	layout.Parent = list
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingLeft = UDim.new(0, 20)
+	padding.PaddingRight = UDim.new(0, 20)
+	padding.Parent = list
+	local function row(order: number, height: number, text: string, color: Color3): TextLabel
+		local label = Instance.new("TextLabel")
+		label.LayoutOrder = order
+		label.Size = UDim2.new(1, 0, 0, height)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextScaled = true
+		label.Font = Enum.Font.Code
+		label.TextColor3 = color
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Parent = list
+		return label
+	end
+	local title = row(0, 46, "📈 BOLSA DE CIUDAD WEB", Color3.fromRGB(250, 204, 21))
+	title.Font = Enum.Font.FredokaOne
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	row(1, 22, "Precios en directo · cambian cada 30 s", Color3.fromRGB(148, 163, 184)).TextXAlignment = Enum.TextXAlignment.Center
+	local rows = {}
+	for i = 1, rowsCount do
+		table.insert(rows, row(10 + i, 34, "", Color3.fromRGB(226, 232, 240)))
+	end
+	table.insert(marketRows, rows)
+end
+
+local function buildStockExchange(city: Folder)
+	local c = BOLSA_CENTER
+	local stone = Color3.fromRGB(226, 220, 206)
+	local dark = Color3.fromRGB(30, 41, 59)
+	-- Escalinata y edificio (la fachada mira a la plaza, +Z)
+	for i = 0, 2 do
+		newPart(city, Vector3.new(50 - i * 2, 0.8, 8 - i * 2), CFrame.new(c + Vector3.new(0, 0.4 + i * 0.8, 13 - i)), stone, Enum.Material.Concrete)
+	end
+	newPart(city, Vector3.new(46, 24, 20), CFrame.new(c + Vector3.new(0, 12, -2)), Color3.fromRGB(205, 198, 182), Enum.Material.Concrete)
+	-- Columnas
+	for i = 0, 7 do
+		local x = -19.25 + i * 5.5
+		verticalCylinder(city, 18, 2.2, c + Vector3.new(x, 11.4, 10), stone, Enum.Material.Marble)
+	end
+	-- Frontón con el nombre
+	local pediment = newPart(city, Vector3.new(48, 5, 4), CFrame.new(c + Vector3.new(0, 22.9, 10)), stone, Enum.Material.Marble)
+	surfaceLabel(pediment, Enum.NormalId.Front, "🏛️ BOLSA DE CIUDAD WEB", dark)
+	local roof = newPart(city, Vector3.new(48, 2, 26), CFrame.new(c + Vector3.new(0, 26.4, 0)), Color3.fromRGB(180, 172, 156), Enum.Material.Slate)
+	roof.CastShadow = false
+	-- Pantalla grande entre las columnas y cinta LED en la azotea
+	local screen = newPart(city, Vector3.new(30, 13, 0.6), CFrame.new(c + Vector3.new(0, 10.5, 8.2)), Color3.fromRGB(10, 14, 24), Enum.Material.SmoothPlastic)
+	screen.Name = "PantallaBolsa"
+	marketScreen(screen, Enum.NormalId.Front, 6)
+	local led = newPart(city, Vector3.new(44, 1.2, 0.4), CFrame.new(c + Vector3.new(0, 20.2, 12.2)), Color3.fromRGB(34, 197, 94), Enum.Material.Neon)
+	led.CastShadow = false
+	-- Toro dorado delante (el símbolo de la bolsa que sube)
+	local gold = Color3.fromRGB(234, 179, 8)
+	local base = c + Vector3.new(16, 0, 22)
+	newPart(city, Vector3.new(7, 1.2, 4), CFrame.new(base + Vector3.new(0, 0.6, 0)), Color3.fromRGB(120, 120, 128), Enum.Material.Granite)
+	newPart(city, Vector3.new(5, 2.4, 2.4), CFrame.new(base + Vector3.new(0, 3.2, 0)), gold, Enum.Material.Metal)
+	newPart(city, Vector3.new(1.8, 1.8, 1.8), CFrame.new(base + Vector3.new(3, 3.8, 0)), gold, Enum.Material.Metal)
+	for _, z in { -0.8, 0.8 } do
+		newPart(city, Vector3.new(0.4, 0.4, 1.6), CFrame.new(base + Vector3.new(3.4, 5, z * 1.6)), gold, Enum.Material.Metal)
+		for _, x in { -1.8, 1.8 } do
+			newPart(city, Vector3.new(0.6, 2, 0.6), CFrame.new(base + Vector3.new(x, 1.8 + 0.2, z)), gold, Enum.Material.Metal)
+		end
+	end
+	-- Camino de la plaza a la Bolsa
+	newPart(city, Vector3.new(14, 0.64, 22), CFrame.new(c + Vector3.new(0, 0.32, 26)), Color3.fromRGB(190, 182, 168), Enum.Material.Pavement)
+end
+
+-- rows = { { ticker, emoji, price, change } } (MarketService.rows)
+function World.setMarketBoard(rows)
+	for _, list in marketRows do
+		for i, label in list do
+			local entry = rows and rows[i]
+			if entry then
+				local up = entry.change >= 0
+				label.Text = string.format("%s %-5s %8s  %s%.1f%%", entry.emoji, entry.ticker, Config.formatMoney(entry.price),
+					if up then "▲" else "▼", math.abs(entry.change) * 100)
+				label.TextColor3 = if up then Color3.fromRGB(74, 222, 128) else Color3.fromRGB(248, 113, 113)
+			else
+				label.Text = ""
+			end
+		end
+	end
+end
+
+-- Pasos de cebra entre las parcelas
+local function buildCrosswalks(city: Folder)
+	for _, x in { -80, 80 } do
+		for z = -12, 12, 3 do
+			newPart(city, Vector3.new(6, 0.32, 1.6), CFrame.new(x, 0.17, z), Color3.fromRGB(240, 240, 240), Enum.Material.SmoothPlastic)
+		end
+	end
+end
+
+-- Coches aparcados junto a la acera
+local CAR_COLORS = {
+	Color3.fromRGB(220, 38, 38), Color3.fromRGB(37, 99, 235), Color3.fromRGB(250, 204, 21),
+	Color3.fromRGB(255, 255, 255), Color3.fromRGB(30, 30, 34), Color3.fromRGB(34, 197, 94),
+}
+local function car(parent: Instance, position: Vector3, color: Color3)
+	local model = Instance.new("Model")
+	model.Name = "Coche"
+	newPart(model, Vector3.new(9, 1.8, 4.2), CFrame.new(position + Vector3.new(0, 1.5, 0)), color, Enum.Material.SmoothPlastic)
+	local cabin = newPart(model, Vector3.new(5, 1.6, 3.8), CFrame.new(position + Vector3.new(-0.5, 3.2, 0)), Color3.fromRGB(150, 190, 220), Enum.Material.Glass)
+	cabin.Transparency = 0.2
+	for _, x in { -3, 3 } do
+		for _, z in { -2, 2 } do
+			local wheel = newPart(model, Vector3.new(0.8, 1.6, 1.6), CFrame.new(position + Vector3.new(x, 0.8, z)) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(25, 25, 28), Enum.Material.SmoothPlastic)
+			wheel.Shape = Enum.PartType.Cylinder
+		end
+	end
+	model.Parent = parent
+end
+
+local function buildParkedCars(city: Folder)
+	local i = 0
+	for _, side in { -1, 1 } do
+		for x = -150, 150, 50 do
+			-- Sin tapar los pasos de cebra ni el panel semanal
+			if math.abs(x) > 12 and math.abs(math.abs(x) - 80) > 10 then
+				i += 1
+				if i % 3 ~= 0 then
+					car(city, Vector3.new(x + 6, 0.3, side * (STREET_WIDTH / 2 - 3)), CAR_COLORS[i % #CAR_COLORS + 1])
+				end
+			end
+		end
+	end
+end
+
+-- Cartel con los primeros pasos, junto a la zona de aparición
+local function buildHelpSign(city: Folder)
+	local position = PLAZA_CENTER + Vector3.new(30, 6.5, -14)
+	local frameColor = Color3.fromRGB(30, 41, 59)
+	newPart(city, Vector3.new(0.8, 9, 0.8), CFrame.new(position + Vector3.new(0, -2.5, -5)), frameColor, Enum.Material.Metal)
+	newPart(city, Vector3.new(0.8, 9, 0.8), CFrame.new(position + Vector3.new(0, -2.5, 5)), frameColor, Enum.Material.Metal)
+	local board = newPart(city, Vector3.new(12, 8, 0.6), CFrame.lookAt(position, position + Vector3.new(1, 0, 0)), Color3.fromRGB(15, 23, 42), Enum.Material.SmoothPlastic)
+	board.Name = "ComoJugar"
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 30
+	gui.LightInfluence = 0
+	gui.Parent = board
+	local list = Instance.new("Frame")
+	list.Size = UDim2.fromScale(1, 1)
+	list.BackgroundTransparency = 1
+	list.Parent = gui
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = list
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingLeft = UDim.new(0, 16)
+	padding.PaddingRight = UDim.new(0, 16)
+	padding.Parent = list
+	local lines = {
+		"❓ CÓMO JUGAR",
+		"1. 💻 Ve al ordenador de tu parcela",
+		"2. ⌨️ Programa webs (clic, clic, clic)",
+		"3. 📢 Ganan dinero con sus visitas",
+		"4. 🤝 Véndelas o haz encargos",
+		"5. 🏢 Invierte y haz crecer tu rascacielos",
+	}
+	for i, text in lines do
+		local label = Instance.new("TextLabel")
+		label.LayoutOrder = i
+		label.Size = UDim2.new(1, 0, 0, if i == 1 then 44 else 30)
+		label.BackgroundTransparency = 1
+		label.Text = text
+		label.TextScaled = true
+		label.Font = Enum.Font.FredokaOne
+		label.TextColor3 = if i == 1 then Color3.fromRGB(250, 204, 21) else Color3.fromRGB(226, 232, 240)
+		label.TextXAlignment = if i == 1 then Enum.TextXAlignment.Center else Enum.TextXAlignment.Left
+		label.Parent = list
+	end
+end
+
+---------------------------------------------------------------------
 -- Día y noche
 ---------------------------------------------------------------------
 local function applyNight(night: boolean)
@@ -488,6 +693,10 @@ function World.build(): { CFrame }
 	buildWeeklyBoard(city)
 	buildSkyline(city)
 	scatterTrees(city)
+	buildStockExchange(city)
+	buildCrosswalks(city)
+	buildParkedCars(city)
+	buildHelpSign(city)
 	World.setLeaderboard(nil, "Cargando...")
 	World.setWeeklyBoard(nil, "Cargando...")
 

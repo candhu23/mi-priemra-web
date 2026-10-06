@@ -1,6 +1,18 @@
-# 🌐 Imperio Web Tycoon · v2.1 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v3.0 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v3.0 (todo rehecho para que se entienda y dure más)
+- **📈 Bolsa nueva** (inspirada en el mercado de Cookie Clicker): 6 empresas cotizadas (ByteCorp, ShopNova, PixelPlay, CobreBank, VitaSalud y ViajaYa). Los precios cambian cada 30 s según su **tendencia** (estable, sube, baja, se dispara, se hunde, caótica), siempre tiran hacia su **valor justo** y hay **noticias** que lo cambian todo (se anuncian a todo el servidor). Compras con un 2 % de comisión, cobras **dividendos** mientras las tienes y hay un máximo invertible por empresa (15 min de tus mejores ingresos). Gráfica de cada empresa y lo que ganas o pierdes. El mercado es el mismo para todos los del servidor.
+  - **Salir a bolsa con tu imperio** sigue en la misma pestaña (abajo) y ahora también vende tus acciones.
+  - **💡 I+D** pasa a su propia pestaña.
+- **💼 Carrera rehecha: ENCARGOS.** Ya no hay sueldo ni tareas. Las empresas te piden **una web concreta** (tipo + nicho) con un **plazo**. La aceptas, pulsas «Programar ahora» y cuando la terminas **se entrega sola** y cobras el doble de lo que valdría venderla (más si sale rara). Con los encargos entregados y tu nivel de programador subes de **rango** (Junior → Semi-senior → Senior → Lead → CTO): más encargos a la vez y mejor pagados. El fin de semana de la **Feria de Encargos** pagan x1,5.
+- **👥 Trabajadores con personalidad**: cada programador tiene una **especialidad** (💻 Programación, 🎨 Diseño, 📣 Marketing, 🤝 Ventas, 📊 Datos) que mejora una cosa distinta (dinero, calidad, visitas, ventas o webs raras) y un **rasgo** (⚡ Rápido, 💎 Perfeccionista, 🌙 Noctámbulo, 😎 Carismático, 🍀 Suertudo, 🎓 Mentor, 💪 Incansable). Además **suben de nivel solos** trabajando. Las partidas antiguas reciben especialidad y rasgo al azar.
+- **🏢 Empresas más claras**: cada una dice "Ahora: X → al subir: Y".
+- **Se entiende lo que haces**: una línea de ayuda arriba de cada pestaña y una ventana que explica cada parte del juego cuando se desbloquea.
+- **🗺️ Mapa**: edificio de la **Bolsa** junto a la plaza con su pantalla de precios en directo y un toro dorado, pasos de cebra, coches aparcados, cartel de **"Cómo jugar"** junto a la zona de aparición y el icono de la especialidad encima de cada programador de tu oficina.
+- **Más lento**: para un bot perfecto, $1M a los ~33 min (antes ~20) y el Metaverso a las ~2 h 26 min (antes ~1 h 40). Una persona va bastante más lenta.
+- Nuevos logros (🧾 Profesional, 📈 Lobo de la bolsa), misiones de encargos y objetivos de rango.
 
 ## Novedades de la v2.1 (más reto)
 - **Todo se desbloquea poco a poco** según la planta de tu rascacielos: 🤝 Clientes (2), 📢 Anuncios y 🏆 Ranking (3), 🏢 Empresas y 🎫 Pase (4), 💼 Carrera (5), 📖 Colección (6), 👥 Agencia (7), 📈 Bolsa e I+D (9). Las pestañas cerradas salen con 🔒.
@@ -34,7 +46,7 @@ Ideas sacadas de los juegos que mejor funcionan (Grow a Garden, Pet Simulator 99
   - **Ranking semanal** (dinero ganado en la semana; se reinicia el lunes a las 00:00 UTC) con premios: #1 y #2–3 → Contrato Legendario + **rascacielos dorado 7 días** + horas de ingresos; #4–10 → dorado + ingresos; #11–100 → ingresos.
   - Panel del top semanal **en mitad de la avenida**.
   - Lista de jugadores del servidor para visitarlos.
-- **Eventos de fin de semana** (viernes 20:00 → lunes 04:00 UTC), uno distinto cada semana: **💰 x2 Dinero**, **🔥 Viral** (+50 % visitas) y **💼 Feria de Empleo** (ofertas el doble de rápido, sueldo y XP x1.5). Aviso al entrar y cuenta atrás en pantalla.
+- **Eventos de fin de semana** (viernes 20:00 → lunes 04:00 UTC), uno distinto cada semana: **💰 x2 Dinero**, **🔥 Viral** (+50 % visitas) y **💼 Feria de Empleo** (en la v3: Feria de Encargos, pagan x1,5). Aviso al entrar y cuenta atrás en pantalla.
 
 ## Novedades de la v1.2
 - **Tutorial interactivo** al empezar (para todos los jugadores, una vez): resalta cada botón y da $100 al terminarlo. Se puede repetir desde 🎯 Misiones.
@@ -67,9 +79,11 @@ Ideas sacadas de los juegos que mejor funcionan (Grow a Garden, Pet Simulator 99
 3. **🤝 Clientes**: empresas que compran webs y **pagan según sus visitas** (los 👑 VIP pagan x3.5). Cada venta da reputación y un **contrato de mantenimiento** que paga para siempre.
 4. **📢 Anuncios**: 7 apps de anuncios. Cada una paga distinto por visita y espanta más o menos visitas.
 5. **🏢 Empresas**: 8 empresas (Programadores, Hosting, Marketing, Diseño, Comercial, Laboratorio de IA con **modo automático**, Red de Anuncios y Centro de Datos).
-6. **📈 Bolsa**: a partir de $1M puedes **salir a bolsa**. Se reinicia la partida, pero ganas **acciones** (+5 % de dinero cada una, para siempre).
-7. **🛒 Tienda**: regalo gratis, recompensa diaria, tus bonus, invitar amigos y la tienda de Robux.
-8. **🏆 Ranking**: evento de fin de semana, ranking semanal con premios, jugadores del servidor para visitar y los más ricos de siempre.
+6. **💼 Carrera**: acepta **encargos** de empresas (una web concreta con plazo), prográmala y se entrega sola. Pagan el doble que una venta y te hacen subir de rango.
+7. **👥 Agencia**: ficha programadores con especialidad y rasgo; trabajan por ti y suben de nivel solos.
+8. **📈 Bolsa**: compra acciones de 6 empresas y véndelas cuando suban. A partir de $1M también puedes **salir a bolsa con tu imperio**: se reinicia la partida, pero ganas **acciones** (+5 % de dinero cada una, para siempre) y 💡 patentes para **I+D**.
+9. **🛒 Tienda**: regalo gratis, recompensa diaria, tus bonus, invitar amigos y la tienda de Robux.
+10. **🏆 Ranking**: evento de fin de semana, ranking semanal con premios, jugadores del servidor para visitar y los más ricos de siempre.
 
 ## Probarlo en Roblox Studio
 1. Descarga `ImperioWeb.rbxl` ([enlace directo a la v2.0](https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl)).

@@ -8,20 +8,20 @@ repositorio. Léelo entero antes de tocar nada.
 ## 1. Qué es y en qué estado está
 
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
-  las monetiza con apps de anuncios, las vende a empresas según sus visitas, trabaja en
-  empresas ficticias, funda su agencia de programadores y sale a bolsa.
-- **Versión actual del código: 2.1** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
+  las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
+  para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
+- **Versión actual del código: 3.0** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
   cada versión nueva).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
   - Experience (universe) ID: `10769603072`
   - Place ID (lugar de inicio): `129921526137293`
 - **Repo:** `candhu23/mi-priemra-web`. La v1.2 (rama `claude/roblox-game-h5olkl`) ya está
-  fusionada en `main`. La **v1.3 y la v2.0** están en `claude/optimistic-thompson-296nik`. Cada sesión
+  fusionada en `main`. La **v1.3, v2.0, v2.1 y v3.0** están en `claude/optimistic-thompson-296nik`. Cada sesión
   trabaja en la rama que le indique el sistema.
   El juego vive en `roblox-imperio-web/`. `index.html` en la raíz es una web personal del
   usuario, no tiene relación con el juego. Otras ramas del repo tienen otros juegos/proyectos
   del usuario (Steal an Alien, Obby de las Monedas, web SEO…): no mezclar.
-- **Descarga directa del lugar** (lo que el usuario abre en Studio), v2.0:
+- **Descarga directa del lugar** (lo que el usuario abre en Studio), v3.0:
   `https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl`
 
 ## 2. Sobre el usuario (cómo trabajar con él)
@@ -53,19 +53,24 @@ roblox-imperio-web/
     ├── ReplicatedStorage/
     │   ├── TycoonConfig.luau   # TODOS los datos y fórmulas de economía, objetivos, tienda, sonidos,
     │   │                       #   ranking semanal (WeeklyPrizes) y eventos de fin de semana
-    │   ├── CareerConfig.luau   # Nichos, 500 empresas, puestos, ofertas, rarezas, agencia
+    │   ├── CareerConfig.luau   # Nichos, 500 empresas, rangos y encargos, rarezas, especialidades
+    │   │                       #   y rasgos de programadores, agencia
+    │   ├── MarketConfig.luau   # Bolsa (v3): 6 empresas cotizadas, tendencias, noticias, comisión
     │   ├── Locale.luau         # Idiomas: resolve / t / f / translate (ver §6 Idiomas)
-    │   └── LocaleEN.luau       # Diccionario español → inglés (~575 textos)
+    │   └── LocaleEN.luau       # Diccionario español → inglés (~900 textos)
     ├── ServerScriptService/
     │   ├── TycoonServer.server.luau  # Script principal: datos, acciones, tick, compras, guardado
-    │   ├── CareerService.luau        # Lógica de carrera: XP, trabajo, ofertas, agencia, fichajes
+    │   ├── CareerService.luau        # Carrera: XP, encargos (tablón/aceptados/entrega), rangos,
+    │   │                             #   agencia, fichajes, XP pasiva de programadores
+    │   ├── MarketService.luau        # Bolsa: precios por tick (30 s), dividendos, buy/sell
     │   ├── PlotManager.luau          # Parcelas (8), cartel con "Ver imperio", terminal con ProximityPrompt
     │   ├── Showcase.luau             # Escaparate de cada parcela: oficina con programadores,
     │   │                             #   paseo de la fama (pedestales por tipo de web), pantalla
     │   ├── Building.luau             # Generador del rascacielos por plantas
-    │   └── World.luau                # Ciudad, iluminación, día/noche, clasificación global
+    │   └── World.luau                # Ciudad, iluminación, día/noche, clasificación global,
+    │                                 #   edificio de la Bolsa (setMarketBoard), coches, cartel de ayuda
     └── StarterPlayerScripts/
-        └── TycoonClient.client.luau  # TODA la interfaz (≈3.200 líneas)
+        └── TycoonClient.client.luau  # TODA la interfaz (≈4.000 líneas, 14 pestañas)
 ```
 
 Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = Script,
@@ -89,7 +94,8 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   `click, startProject, cancelProject, setAuto, upgradeSeo, upgradeDesign, setNetwork,
   setNetworkAll, setAdLevel, unlockNetwork, buyCompany, sellToOffer, quickSell, ipo,
   setNiche, claimGoal, claimDailyMission, finishTutorial, setMuted, claimDaily, claimGift,
-  saveNow, acceptJobOffer, sendCV, quitJob, solveTask, foundAgency, upgradeOffice,
+  saveNow, acceptContract(id), abandonContract(id), workOnContract(id), askContract,
+  buyStock(id, fracción del dinero), sellStock(id, fracción 0..1], foundAgency, upgradeOffice,
   recruit, redeemTicket, trainProgrammer, fireProgrammer, setLanguage, visitPlot, likePlot,
   buyResearch, claimSeason(tier, premium), claimPlaytime(i), redeemCode(texto), claimWeeklyMission(i)`.
   `buyCompany(id, 1|10|"max")`. **`sellToOffer` ya no vende al momento**: crea `site.deal
@@ -97,12 +103,15 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   `ACTION_FEATURES` bloquea acciones de partes no desbloqueadas (`Config.Unlocks`).
   `click` devuelve también `combo` y `comboMult`. Notify tipo `rare` = aviso grande de web rara.
   `ACTION_STATS` en el servidor mapea acciones → contadores de misiones diarias.
-- Bucle del servidor (1 s): eventos aleatorios, boost, carrera (`CareerService.tick`:
-  XP del trabajo, ascensos, ofertas de empleo), ingresos, visitas por web, trabajo
-  automático, ofertas de clientes, objetivos, rascacielos, `sendState`.
+- Bucle del servidor (1 s): `MarketService.tick` (global), eventos aleatorios, boost, carrera
+  (`CareerService.tick`: tablón de encargos, plazos, rango, XP pasiva de programadores),
+  ingresos, `peakIncome`, visitas por web, trabajo automático, ofertas de clientes, objetivos,
+  rascacielos, ventanas de desbloqueo (`UNLOCK_INFO`), `sendState`.
 - `bonuses` por sesión (servidor): `pass, turbo, slotsPass, agencyPro, xpPass` (Game Passes),
   `boost` (temporal), `friends, premium, group`, `randomRestricted` (PolicyService),
-  `agencyWork, agencyBonus` (de los programadores), `weekend` (id del evento de fin de semana
+  `agencyWork, agencyBonus (dinero), agencyQuality, agencyVisits, agencySale, agencyRare` (de los
+  programadores según su especialidad: calidad en `finishProject`, visitas en `visitMult`, venta
+  en `Config.saleBase(…, bonuses)`, raras en `variantChanceMult`), `weekend` (id del evento de fin de semana
   activo o nil). Las fórmulas de `TycoonConfig` los reciben.
 - El estado también lleva `weekly{earned,resetIn,top}`, `weekend{id,endsIn,nextId,startsIn}`,
   `goldLeft`, `likes`, `neighbors[]` (otros jugadores del servidor) y `globalTop[]`; y desde la
@@ -134,8 +143,13 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   completadas). Cada web: `variant` (nil o id de `Config.Variants`) y `deal` (venta en curso).
 - **Salir a bolsa** también da `patents` y respeta I+D (`capital` = dinero inicial, `autolab` = Lab IA 1).
   **No** se pierden colección, I+D, patentes ni pase.
-- `career`: `xp{nicho=xp}, job{companyId,rank,rankSince,salaryMult,xpMult}, agency{name,officeLevel},
-  programmers[{id,name,rarity,niche,level}], nextProgrammerId, pity, tickets{premium,legendary}, stats{…}`.
+- `career`: `xp{nicho=xp}, contracts[{id,companyId,type,niche,pay,rep,xp,duration,deadline(os.time)}],
+  nextContractId, agency{name,officeLevel}, programmers[{id,name,rarity,niche,level,role,trait,xp}],
+  nextProgrammerId, pity, tickets{premium,legendary}, stats{contracts,rank,bestRank,devLevel,expired,…}`.
+  El tablón de encargos va en la sesión (`session.contractBoard`, no se guarda). `CareerService.migrate`
+  quita el `job` de partidas viejas y da especialidad/rasgo a programadores antiguos.
+- v3: `portfolio{empresa={units,invested}}` (Bolsa), `peakIncome` (máximo invertible = 15 min de
+  esto), `stats.marketProfit`. Al salir a bolsa se vacía `portfolio` y `peakIncome`.
 - **Salir a bolsa** reinicia dinero, webs, empresas, apps, reputación y mantenimiento.
   **NO** reinicia carrera, agencia, programadores, tickets, acciones, objetivos ni rascacielos.
 
@@ -153,14 +167,23 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   Cada venta suma un contrato de mantenimiento (0,02 %/s del precio, para siempre).
 - **Empresas propias** (`Config.Companies`, 8): coste `baseCost × growth^nivel`.
 - **Nichos** (10) con nivel propio (XP: `40·(L-1)^1.8`). +2 % de calidad por nivel.
-- **Carrera**: 500 empresas (`CareerConfig`, 50 por nicho, deterministas). Cada empresa tiene
-  `payScale` fijo 0,75–1,35. **Las ofertas de empleo llegan solas** cada 50–100 s (máx. 4,
-  caducan en 3–5 min) con multiplicadores aleatorios de sueldo (0,7–1,6) y XP (0,8–1,5);
-  se puede **enviar currículum** (enfriamiento 45 s). Puestos Junior→CTO con ascenso
-  automático por tiempo + nivel. Tarea cada 40 s (paga 60 s de sueldo).
+- **Carrera (v3: ENCARGOS)**: 500 empresas (`CareerConfig`, 50 por nicho, deterministas). Cada
+  empresa tiene `payScale` fijo 0,75–1,35. Tablón de 3 encargos (llega uno cada 60–120 s, duran
+  4–7 min sin aceptar; botón "pedir encargo" cada 60 s). Un encargo pide tipo de web (de los 3
+  mejores que sabes hacer) + nicho, con plazo = 3 × lo que tardarías (mín. 3 min, máx. 30) y paga
+  `CONTRACT_PAY` (2) × venta de una web de calidad 1 × `payMult` del rango × `payScale`.
+  `workOnContract` elige el nicho y empieza la web (no ocupa hueco). Al terminarla,
+  `CareerService.tryDeliver` (en `finishProject`) la entrega: cobra (x2 si sale rara), reputación,
+  XP x2 y misión "contracts"; no se añade a tus webs. Rangos `Career.Ranks` (Junior→CTO) por
+  encargos entregados + nivel de programador: más huecos (1/1/2/2/3) y paga (x1→x2,2).
+  **Ya no hay sueldo, tareas ni ofertas de empleo.**
 - **Agencia** (nivel de programador 8, $2.500): programadores de 6 rarezas
   (Común 60 %, Poco común 25 %, Raro 10 %, Épico 4 %, Legendario 0,9 %, Mítico 0,1 %).
-  Cada uno da trabajo/s y **% extra a todo el dinero**. Legendario garantizado cada 60
+  Cada uno tiene **especialidad** (`Career.Roles`: dev=dinero, design=calidad, marketing=visitas,
+  sales=venta, data=raras) y **rasgo** (`Career.Traits`: rápido, perfeccionista, noctámbulo (usa
+  `World.isNight`), carismático, suertudo, mentor, incansable); `Career.programmerPower` devuelve
+  (trabajo, {money,quality,visits,sale,rare}). Suben de nivel solos (`programmerXpNeeded` =
+  240·L² s de trabajo). Legendario garantizado cada 60
   entrevistas (`pity`). Tickets: Headhunter Premium (aleatorio, oculto si
   `randomRestricted`) y Contrato Legendario (eliges nicho, no aleatorio).
 - **Misiones**: pestaña 🎯. 3 diarias (fácil/media/difícil, `Config.DailyMissionPool`,
@@ -193,8 +216,18 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   una sola vez (`rewardedWeek`). Premio: ingresos, Contrato Legendario, `goldUntil` (rascacielos
   dorado: `Building.GOLD_STYLE`, cartel con 👑).
 - **Eventos de fin de semana** (`Config.weekendStatus(t)`, viernes 20:00 → lunes 04:00 UTC,
-  rotan por semana): `money` (moneyMult x2), `viral` (visitas x1.5 en `visitMult`), `jobs`
-  (sueldo y XP x1.5, ofertas de empleo el doble de rápido, en CareerService).
+  rotan por semana): `money` (moneyMult x2), `viral` (visitas x1.5 en `visitMult`), `contracts`
+  (Feria de Encargos: pagan x1.5 y llegan el doble de rápido, en CareerService).
+- **Bolsa (v3)** (`MarketConfig` + `MarketService`, idea del mercado de Cookie Clicker): 6 empresas
+  con `rest` (valor justo) y `vol`. Cada `TICK` (30 s) el precio cambia por la tendencia (`Modes`:
+  stable/slowRise/slowFall/fastRise/fastFall/chaotic) + ruido + un 3 % de vuelta al valor justo,
+  limitado a ×0,2–×4. Tras dispararse, 60 % de hundirse. `NEWS_CHANCE` 8 %/tick: noticia a todo el
+  servidor que fija fastRise/fastFall. Inversión en participaciones (dinero/precio), comisión 2 %,
+  dividendo 0,15 %/tick, máximo por empresa `Market.cap(peakIncome)`. Al vender, solo el
+  beneficio cuenta como ganado (`gain`). Mundo: `World.setMarketBoard` en cada tick.
+- **Claridad (v3)**: `TAB_HELP` (línea "ℹ️" arriba de cada pestaña; sus claves en LocaleEN llevan
+  el "ℹ️ "), `UNLOCK_INFO` (ventana al desbloquear cada parte), empresas con "Ahora → al subir"
+  (`companyEffect` en el cliente), pestaña propia **💡 I+D** (`research`, feature "market").
 - **Idiomas** (`Locale` + `LocaleEN`): el código sigue en español. El cliente traduce:
   `T("texto")` / `T("plantilla %s", x)` para lo suyo; `create()` traduce solo los textos fijos
   que estén en el diccionario (y guarda `SrcText` para cambiar de idioma en caliente);
@@ -274,12 +307,11 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    (`tools/out/state.json`, `visit.json`) y **pulsa todos los botones** + recorre el tutorial.
    Luego cambia a inglés con el botón 🌐, vuelve a pulsarlo todo y falla si queda algún texto
    en español o si el cliente pide una clave que no está en LocaleEN. Debe dar `CLIENTE OK`.
-6. `sim.luau`: bot de economía 6 h (ritmo actual, v2.1 ralentizada a petición del usuario y con
-   negociaciones de venta: $1M ≈ 20 min, $100M ≈ 39 min, Metaverso ≈ 1 h 40 min para un bot
-   perfecto; un humano va
-   bastante más lento). Ajuste hecho: rpv de las apps ×0,8, ingresos de empresas ×0,8,
-   reputación para desbloquear webs ×1,4, trabajo de cada web ×1,2. El bot no cuenta las webs
-   raras (≈ +20 % de dinero de media).
+6. `sim.luau`: bot de economía 6 h (ritmo actual, v3.0 aún más lenta a petición del usuario, con
+   negociaciones y encargos: $1M ≈ 33 min, $100M ≈ 1 h 01 min, Metaverso ≈ 2 h 26 min para un bot
+   perfecto; un humano va bastante más lento). Ajuste v3 sobre la v2.1: rpv ×0,75, ingresos de
+   empresas ×0,75, coste base de empresas ×1,5, reputación de webs ×1,4, trabajo de webs ×1,3.
+   El bot no cuenta las webs raras (≈ +20 % de dinero de media) ni la Bolsa.
 7. `rojo build` → regenera `ImperioWeb.rbxl` (solo si todo lo anterior pasa). **Súbelo en el commit.**
 
 Limitaciones de Lune a recordar (el harness ya las simula): no tiene eventos (`Activated`,
@@ -347,9 +379,11 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
       común, combo, hitos y compra en bloque, códigos, pack de inicio. **Sin probar en Studio.**
 - [x] v2.1: desbloqueo por plantas, negociaciones de venta, misiones semanales, logros, recompensas
       rebajadas. **Sin probar en Studio.**
-- [ ] **Rehacer la Bolsa al estilo de *Fleet Empire*** (juego de Roblox que le gusta al usuario).
-      No se encontró cómo es su bolsa: pedir al usuario capturas/explicación antes de diseñarlo.
-- [ ] Publicar la v2.1. Poner en la descripción (en inglés) las novedades y los códigos.
+- [x] v3.0: Bolsa nueva (el usuario dijo que olvidara Fleet Empire), carrera de encargos con
+      rangos, programadores con especialidad/rasgo y XP pasiva, ayudas por pestaña y al
+      desbloquear, I+D en su pestaña, mapa (Bolsa, coches, pasos de cebra, cartel de ayuda),
+      economía más lenta. **Sin probar en Studio.**
+- [ ] Publicar la v3.0. Poner en la descripción (en inglés) las novedades y los códigos.
 - [ ] Crear los productos `starter` (pack de inicio, ~99–199 R$) y `seasonPremium` (~199–399 R$).
 - [ ] Conseguir los 250 jugadores 16+ (TikTok/Discord) para abrir a todas las edades.
 - [ ] Ajustar precios de pases (x2 Money a 99 parece barato; 199–299 es lo habitual).

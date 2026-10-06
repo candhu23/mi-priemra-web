@@ -2,10 +2,10 @@
 	CareerConfig (ModuleScript en ReplicatedStorage)
 
 	Carrera profesional del jugador:
-	  · 10 nichos con nivel propio (subes programando y trabajando)
-	  · 500 empresas ficticias (50 por nicho) donde puedes trabajar
-	  · puestos de Junior a CTO con ascensos
-	  · tu propia agencia con programadores de 6 rarezas
+	  · 10 nichos con nivel propio (subes programando y entregando encargos)
+	  · 500 empresas ficticias (50 por nicho) que te hacen ENCARGOS
+	  · rangos de Junior a CTO según los encargos que entregas
+	  · tu propia agencia con programadores de 6 rarezas, 5 especialidades y 7 rasgos
 	Lo usan el servidor y el cliente. La lista de empresas se genera igual
 	en los dos, así no hace falta enviarla por la red.
 ]]
@@ -120,7 +120,7 @@ for nicheIndex, niche in Career.Niches do
 				end
 			end
 			local id = (nicheIndex - 1) * 50 + rank
-			-- Cada empresa paga distinto: factor fijo entre 0.75 y 1.35
+			-- Cada empresa paga distinto sus encargos: factor fijo entre 0.75 y 1.35
 			-- (sale siempre igual para la misma empresa)
 			local payScale = 0.75 + ((id * 7919 + 104729) % 61) / 100
 			local company = {
@@ -131,8 +131,6 @@ for nicheIndex, niche in Career.Niches do
 				tier = tier,
 				reqLevel = math.floor(1 + (rank - 1) * 0.9),
 				payScale = payScale,
-				salary = 2 * 1.09 ^ (rank - 1) * payScale, -- $/s base de un Junior
-				xpRate = 1 + rank * 0.08, -- XP/s en el nicho
 			}
 			table.insert(Career.Companies, company)
 			table.insert(list, company)
@@ -146,53 +144,39 @@ function Career.company(id: number)
 end
 
 ---------------------------------------------------------------------
--- Puestos y ascensos
+-- Carrera v3: ENCARGOS. Las empresas te encargan webs concretas (tipo +
+-- nicho) con un plazo. Si terminas de programar una web así a tiempo, se
+-- entrega sola y cobras mucho más que vendiéndola. Con los encargos
+-- entregados (y tu nivel de programador) subes de rango.
 ---------------------------------------------------------------------
 Career.Ranks = {
-	{ name = "Junior", mult = 1.0, minutes = 3, extraLevel = 0 },
-	{ name = "Semi-senior", mult = 1.5, minutes = 8, extraLevel = 3 },
-	{ name = "Senior", mult = 2.2, minutes = 15, extraLevel = 6 },
-	{ name = "Lead", mult = 3.2, minutes = 30, extraLevel = 9 },
-	{ name = "CTO", mult = 5.0, minutes = 0, extraLevel = 12 },
+	{ name = "Junior", contracts = 0, devLevel = 1, slots = 1, payMult = 1.0 },
+	{ name = "Semi-senior", contracts = 5, devLevel = 4, slots = 1, payMult = 1.2 },
+	{ name = "Senior", contracts = 15, devLevel = 10, slots = 2, payMult = 1.45 },
+	{ name = "Lead", contracts = 40, devLevel = 20, slots = 2, payMult = 1.75 },
+	{ name = "CTO", contracts = 100, devLevel = 35, slots = 3, payMult = 2.2 },
 }
-Career.TASK_INTERVAL = 40 -- segundos entre tareas del trabajo
+Career.CONTRACT_BOARD = 3 -- encargos disponibles a la vez en el tablón
+Career.CONTRACT_INTERVAL = { 60, 120 } -- segundos entre encargos nuevos
+Career.CONTRACT_LIFETIME = { 240, 420 } -- segundos que está en el tablón sin aceptar
+Career.CONTRACT_PAY = 2 -- paga = el doble de lo que te darían por vender esa web
+Career.CONTRACT_REP = 1 -- reputación = la misma que al programarla
+Career.CONTRACT_XP = 2 -- XP del nicho = 2 veces la de programarla
+Career.CONTRACT_MIN_DEADLINE = 180
+Career.CONTRACT_DEADLINE_FACTOR = 3 -- plazo = 3 veces lo que tardarías a tu ritmo actual
+Career.ASK_COOLDOWN = 60 -- segundos entre "pedir encargo"
 
--- Ofertas de empleo: te llegan solas cada cierto tiempo, cada una con su
--- sueldo y condiciones aleatorias. También puedes enviar currículums.
-Career.JOB_OFFER_MAX = 4
-Career.JOB_OFFER_INTERVAL = { 50, 100 } -- segundos entre ofertas nuevas
-Career.JOB_OFFER_LIFETIME = { 180, 300 } -- segundos que dura una oferta
-Career.CV_COOLDOWN = 45 -- segundos entre currículums
-Career.OFFER_SALARY_RANGE = { 0.7, 1.6 } -- multiplicador de sueldo de la oferta
-Career.OFFER_XP_RANGE = { 0.8, 1.5 } -- multiplicador de XP de la oferta
-Career.TASK_SALARY_SECONDS = 60 -- una tarea paga 60 s de sueldo...
-Career.TASK_XP_SECONDS = 30 -- ...y 30 s de XP
-
--- offerMult = multiplicador de sueldo negociado en la oferta (1 si no hay)
-function Career.salary(company, rank: number, nicheLevel: number, moneyMult: number, offerMult: number?): number
-	return company.salary * Career.Ranks[rank].mult * (1 + 0.1 * (nicheLevel - 1)) * moneyMult * (offerMult or 1)
-end
-
-function Career.jobXpRate(company, rank: number, xpMult: number): number
-	return company.xpRate * (1 + 0.25 * (rank - 1)) * xpMult
-end
-
--- ¿Puede ascender? Devuelve (sí/no, motivo)
-function Career.canPromote(job, nicheLevel: number, now: number): (boolean, string?)
-	local rank = Career.Ranks[job.rank]
-	local nextRank = Career.Ranks[job.rank + 1]
-	if not nextRank then
-		return false, "Ya eres CTO"
+-- Rango según encargos entregados y nivel de programador (1..5)
+function Career.rankOf(career): number
+	local done = career.stats.contracts or 0
+	local level = Career.devLevel(career)
+	local rank = 1
+	for i, r in Career.Ranks do
+		if done >= r.contracts and level >= r.devLevel then
+			rank = i
+		end
 	end
-	local company = Career.company(job.companyId)
-	if nicheLevel < company.reqLevel + nextRank.extraLevel then
-		return false, "Necesitas nivel " .. (company.reqLevel + nextRank.extraLevel) .. " en el nicho"
-	end
-	local waited = now - job.rankSince
-	if waited < rank.minutes * 60 then
-		return false, "Faltan " .. math.ceil((rank.minutes * 60 - waited) / 60) .. " min"
-	end
-	return true, nil
+	return rank
 end
 
 ---------------------------------------------------------------------
@@ -248,28 +232,89 @@ Career.FirstNames = {
 	"Aisha", "Omar", "Mei", "Yuki", "Amara", "Kenji", "Ingrid", "Rafael", "Zoe", "Samuel",
 }
 
-function Career.programmerPower(programmer, agencyPro: boolean?): (number, number)
-	local rarity = Career.RarityById[programmer.rarity]
-	local levelMult = 1 + 0.15 * (programmer.level - 1)
-	local pro = if agencyPro then 1.25 else 1
-	return rarity.work * levelMult * pro, rarity.bonus * levelMult * pro
+---------------------------------------------------------------------
+-- Trabajadores v3: cada programador tiene una ESPECIALIDAD (qué mejora) y
+-- un RASGO (su forma de ser). Además ganan experiencia trabajando y
+-- suben de nivel solos (o más rápido si los entrenas).
+--   work = cuánto programan (x su trabajo base de rareza)
+--   stat = qué mejoran (money, quality, visits, sale, rare); per = cuánto
+---------------------------------------------------------------------
+Career.Roles = {
+	{ id = "dev", emoji = "💻", name = "Programación", work = 1.0, stat = "money", per = 0.5,
+		desc = "Programa rápido y da un % extra de dinero." },
+	{ id = "design", emoji = "🎨", name = "Diseño", work = 0.4, stat = "quality", per = 0.4,
+		desc = "Más calidad en las webs nuevas." },
+	{ id = "marketing", emoji = "📣", name = "Marketing", work = 0.4, stat = "visits", per = 0.6,
+		desc = "Más visitas en todas tus webs." },
+	{ id = "sales", emoji = "🤝", name = "Ventas", work = 0.4, stat = "sale", per = 0.6,
+		desc = "Más dinero al vender webs y en los encargos." },
+	{ id = "data", emoji = "📊", name = "Datos", work = 0.4, stat = "rare", per = 1.0,
+		desc = "Más probabilidad de webs raras." },
+}
+Career.Traits = {
+	{ id = "rapido", emoji = "⚡", name = "Rápido", desc = "+30 % de trabajo." },
+	{ id = "perfeccionista", emoji = "💎", name = "Perfeccionista", desc = "Su especialidad rinde un 25 % más." },
+	{ id = "noctambulo", emoji = "🌙", name = "Noctámbulo", desc = "Rinde x1.5 de noche y x0.8 de día." },
+	{ id = "carismatico", emoji = "😎", name = "Carismático", desc = "+10 % al vender webs." },
+	{ id = "suertudo", emoji = "🍀", name = "Suertudo", desc = "+5 % de probabilidad de webs raras." },
+	{ id = "mentor", emoji = "🎓", name = "Mentor", desc = "El resto del equipo gana experiencia un 25 % más rápido." },
+	{ id = "incansable", emoji = "💪", name = "Incansable", desc = "Gana experiencia el doble de rápido." },
+}
+Career.RoleById = {}
+for i, role in Career.Roles do
+	role.order = i
+	Career.RoleById[role.id] = role
+end
+Career.TraitById = {}
+for i, trait in Career.Traits do
+	trait.order = i
+	Career.TraitById[trait.id] = trait
 end
 
--- Trabajo/s y % extra de dinero de toda la agencia
-function Career.agencyTotals(career, projectNiche: string?, agencyPro: boolean?): (number, number)
-	local work, bonus = 0, 0
+-- Experiencia (segundos trabajando) para pasar del nivel L al L+1
+function Career.programmerXpNeeded(level: number): number
+	return 240 * level * level
+end
+
+-- Lo que aporta un programador: trabajo/s y una tabla de bonus
+-- { money, quality, visits, sale, rare } (0.1 = +10 %)
+function Career.programmerPower(programmer, agencyPro: boolean?, isNight: boolean?): (number, { [string]: number })
+	local rarity = Career.RarityById[programmer.rarity] or Career.Rarities[1]
+	local role = Career.RoleById[programmer.role or "dev"] or Career.Roles[1]
+	local trait = programmer.trait
+	local levelMult = 1 + 0.15 * (programmer.level - 1)
+	local pro = if agencyPro then 1.25 else 1
+	local shift = if trait == "noctambulo" then (if isNight then 1.5 else 0.8) else 1
+	local power = rarity.bonus * levelMult * pro * shift
+	local work = rarity.work * levelMult * pro * role.work * shift * (if trait == "rapido" then 1.3 else 1)
+	local stats = { money = power * 0.25, quality = 0, visits = 0, sale = 0, rare = 0 }
+	stats[role.stat] += power * role.per * (if trait == "perfeccionista" then 1.25 else 1)
+	if trait == "carismatico" then
+		stats.sale += 0.10
+	elseif trait == "suertudo" then
+		stats.rare += 0.05
+	end
+	return work, stats
+end
+
+-- Totales de toda la agencia: trabajo/s y bonus sumados
+function Career.agencyTotals(career, projectNiche: string?, agencyPro: boolean?, isNight: boolean?): (number, { [string]: number })
+	local totals = { money = 0, quality = 0, visits = 0, sale = 0, rare = 0 }
+	local work = 0
 	if not career.agency then
-		return 0, 0
+		return 0, totals
 	end
 	for _, programmer in career.programmers do
-		local w, b = Career.programmerPower(programmer, agencyPro)
+		local w, stats = Career.programmerPower(programmer, agencyPro, isNight)
 		if projectNiche and programmer.niche == projectNiche then
 			w *= 1.5
 		end
 		work += w
-		bonus += b
+		for key, value in stats do
+			totals[key] += value
+		end
 	end
-	return work, bonus
+	return work, totals
 end
 
 function Career.recruitCost(income: number): number

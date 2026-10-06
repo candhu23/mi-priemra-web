@@ -1,9 +1,11 @@
 --[[
 	CareerService (ModuleScript en ServerScriptService)
 
-	Lógica de servidor de la carrera: XP por nicho, trabajos en las 500
-	empresas, ascensos, tareas, tu agencia, fichajes de programadores y
-	tickets comprados con Robux. La carrera NO se reinicia al salir a bolsa.
+	Lógica de servidor de la carrera (v3): XP por nicho, ENCARGOS de las
+	500 empresas (te piden una web concreta con un plazo y pagan mucho más
+	que vendiéndola), rangos de Junior a CTO, tu agencia, fichajes de
+	programadores (con especialidad y rasgo) y tickets comprados con Robux.
+	La carrera NO se reinicia al salir a bolsa.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,6 +21,14 @@ type Ctx = {
 	popup: (player: Player, title: string, body: string) -> (),
 	income: (session: any) -> number,
 	random: Random,
+	-- Lo que pagaría un cliente normal por una web nueva de ese tipo
+	saleValue: (session: any, typeId: string) -> number,
+	-- Trabajo por segundo aproximado del jugador (para calcular plazos)
+	workRate: (session: any) -> number,
+	isNight: () -> boolean,
+	progress: (session: any, stat: string, amount: number) -> (),
+	-- Empieza a programar la web de un encargo (devuelve ok, mensaje)
+	startContract: (session: any, typeId: string, contractId: number) -> (boolean, string?),
 }
 local ctx: Ctx
 
@@ -29,18 +39,40 @@ end
 function CareerService.newData()
 	return {
 		xp = {},
-		job = nil,
+		contracts = {}, -- encargos aceptados
+		nextContractId = 1,
 		agency = nil,
 		programmers = {},
 		nextProgrammerId = 1,
 		pity = 0,
 		tickets = { premium = 0, legendary = 0 },
-		stats = { jobs = 0, bestRank = 0, devLevel = 1, agency = 0, bestRarity = 0, team = 0, recruits = 0, tasks = 0 },
+		stats = { contracts = 0, rank = 1, bestRank = 0, devLevel = 1, agency = 0, bestRarity = 0, team = 0, recruits = 0, expired = 0 },
 	}
 end
 
 local function nicheValid(nicheId: any): boolean
 	return type(nicheId) == "string" and Career.NicheById[nicheId] ~= nil
+end
+
+local function randomRange(range: { number }): number
+	return range[1] + ctx.random:NextNumber() * (range[2] - range[1])
+end
+
+-- Partidas de antes de la v3: sin trabajo, y los programadores reciben
+-- especialidad y rasgo
+function CareerService.migrate(career)
+	career.job = nil
+	career.contracts = career.contracts or {}
+	for _, programmer in career.programmers do
+		if not programmer.role then
+			programmer.role = Career.Roles[ctx.random:NextInteger(1, #Career.Roles)].id
+		end
+		if not programmer.trait then
+			programmer.trait = Career.Traits[ctx.random:NextInteger(1, #Career.Traits)].id
+		end
+		programmer.xp = programmer.xp or 0
+	end
+	career.stats.rank = Career.rankOf(career)
 end
 
 ---------------------------------------------------------------------
@@ -66,55 +98,52 @@ function CareerService.addXp(player: Player, session, nicheId: string, amount: n
 end
 
 ---------------------------------------------------------------------
--- Bonus de la agencia y sueldo
+-- Bonus de la agencia
 ---------------------------------------------------------------------
 function CareerService.refreshBonuses(session)
 	local data = session.data
 	local projectNiche = data.project and data.project.niche or nil
-	local work, bonus = Career.agencyTotals(data.career, projectNiche, session.bonuses.agencyPro)
+	local work, totals = Career.agencyTotals(data.career, projectNiche, session.bonuses.agencyPro, ctx.isNight())
 	session.bonuses.agencyWork = work
-	session.bonuses.agencyBonus = bonus
+	session.bonuses.agencyBonus = totals.money
+	session.bonuses.agencyQuality = totals.quality
+	session.bonuses.agencyVisits = totals.visits
+	session.bonuses.agencySale = totals.sale
+	session.bonuses.agencyRare = totals.rare
 end
 
--- Feria de Empleo (evento de fin de semana): sueldo y XP x1.5
-local function jobFairMult(session): number
-	return if session.bonuses.weekend == "jobs" then Config.WEEKEND_JOB_MULT else 1
-end
-
-function CareerService.salaryPerSec(session): number
+---------------------------------------------------------------------
+-- Rangos
+---------------------------------------------------------------------
+local function checkRank(player: Player, session)
 	local career = session.data.career
-	local job = career.job
-	if not job then
-		return 0
+	local rank = Career.rankOf(career)
+	if rank > (career.stats.rank or 1) then
+		career.stats.rank = rank
+		career.stats.bestRank = math.max(career.stats.bestRank, rank)
+		local def = Career.Ranks[rank]
+		ctx.popup(player, "🎉 ¡Ascenso a " .. def.name .. "!",
+			string.format("Ahora puedes tener %d encargos a la vez y te pagan x%.2f por cada uno.", def.slots, def.payMult))
+	else
+		career.stats.rank = math.max(career.stats.rank or 1, rank)
 	end
-	local company = Career.company(job.companyId)
-	if not company then
-		return 0
-	end
-	return Career.salary(company, job.rank, Career.nicheLevel(career, company.niche), Config.moneyMult(session.data, session.bonuses), job.salaryMult) * jobFairMult(session)
 end
 
-local function jobXpRate(session): number
-	local job = session.data.career.job
-	local company = job and Career.company(job.companyId)
-	if not company then
-		return 0
-	end
-	return Career.jobXpRate(company, job.rank, job.xpMult or 1) * jobFairMult(session)
+local function rankDef(career)
+	return Career.Ranks[Career.rankOf(career)]
 end
 
 ---------------------------------------------------------------------
--- Ofertas de empleo (llegan solas, cada una con condiciones aleatorias)
+-- Encargos: tablón (de la sesión) y aceptados (se guardan)
 ---------------------------------------------------------------------
-local function randomRange(range: { number }): number
-	return range[1] + ctx.random:NextNumber() * (range[2] - range[1])
+local function fairMult(session): number
+	return if session.bonuses.weekend == "contracts" then Config.WEEKEND_CONTRACT_MULT else 1
 end
 
--- Segundos hasta la próxima oferta de empleo (la mitad en la Feria de Empleo)
-local function nextOfferDelay(session): number
-	local delay = randomRange(Career.JOB_OFFER_INTERVAL)
-	if session.bonuses.weekend == "jobs" then
-		delay /= Config.WEEKEND_JOB_OFFER_SPEED
+local function nextBoardDelay(session): number
+	local delay = randomRange(Career.CONTRACT_INTERVAL)
+	if session.bonuses.weekend == "contracts" then
+		delay /= Config.WEEKEND_CONTRACT_SPEED
 	end
 	return delay
 end
@@ -130,126 +159,188 @@ local function bestNiche(career): string
 	return best
 end
 
-local function makeJobOffer(session)
+-- Tipos de web que ya puedes programar (los mejores al final)
+local function unlockedTypes(data)
+	local list = {}
+	for _, def in Config.WebTypes do
+		if data.reputation >= def.rep then
+			table.insert(list, def)
+		end
+	end
+	return list
+end
+
+-- Plazo: lo que tardarías a tu ritmo actual × 3 (mínimo 3 minutos)
+local function contractDuration(session, def): number
+	local rate = math.max(ctx.workRate(session), 0.5)
+	local seconds = def.work / rate * Career.CONTRACT_DEADLINE_FACTOR
+	return math.clamp(math.ceil(seconds / 10) * 10, Career.CONTRACT_MIN_DEADLINE, 1800)
+end
+
+local function makeContract(session)
 	local data = session.data
 	local career = data.career
-	local taken = {}
-	for _, offer in session.jobOffers do
-		taken[offer.companyId] = true
-	end
-	if career.job then
-		taken[career.job.companyId] = true
-	end
-
-	-- Nicho: casi siempre uno en el que destacas o el que tienes elegido.
-	-- Si ahí no hay empresas a tu alcance, se prueba con otros.
-	local eligible, level = {}, 1
-	for attempt = 1, 4 do
-		local roll = ctx.random:NextNumber()
-		local nicheId = if attempt == 1 and roll < 0.5 then bestNiche(career)
-			elseif attempt == 1 and roll < 0.75 then (data.selectedNiche or Career.DEFAULT_NICHE)
-			else Career.Niches[ctx.random:NextInteger(1, #Career.Niches)].id
-		level = Career.nicheLevel(career, nicheId)
-		eligible = {}
-		for _, company in Career.CompaniesByNiche[nicheId] do
-			if company.reqLevel <= level and not taken[company.id] then
-				table.insert(eligible, company)
-			end
-		end
-		if #eligible > 0 then
-			break
-		end
-	end
-	if #eligible == 0 then
+	local types = unlockedTypes(data)
+	if #types == 0 then
 		return nil
 	end
-	-- Más probable que te escriban las mejores empresas a tu alcance
-	local first = math.max(1, #eligible - 9)
-	local company = eligible[ctx.random:NextInteger(first, #eligible)]
-
-	-- Si te sobra nivel, a veces te ofrecen directamente un puesto mejor
-	local rank = 1
-	if level >= company.reqLevel + Career.Ranks[2].extraLevel + 2 and ctx.random:NextNumber() < 0.35 then
-		rank = 2
+	-- Casi siempre de los 3 mejores tipos que ya sabes hacer
+	local def = types[ctx.random:NextInteger(math.max(1, #types - 2), #types)]
+	-- Nicho: el que tienes elegido, en el que destacas o uno al azar
+	local roll = ctx.random:NextNumber()
+	local nicheId = if roll < 0.4 then (data.selectedNiche or Career.DEFAULT_NICHE)
+		elseif roll < 0.65 then bestNiche(career)
+		else Career.Niches[ctx.random:NextInteger(1, #Career.Niches)].id
+	-- Las mejores empresas solo te escriben si tienes nivel en su nicho
+	local level = Career.nicheLevel(career, nicheId)
+	local eligible = {}
+	for _, company in Career.CompaniesByNiche[nicheId] do
+		if company.reqLevel <= level then
+			table.insert(eligible, company)
+		end
 	end
-
-	session.nextJobOfferId += 1
+	local company = eligible[ctx.random:NextInteger(math.max(1, #eligible - 9), #eligible)]
+	local pay = ctx.saleValue(session, def.id) * Career.CONTRACT_PAY * rankDef(career).payMult * company.payScale * fairMult(session)
+	local id = career.nextContractId
+	career.nextContractId += 1
 	return {
-		id = session.nextJobOfferId,
+		id = id,
 		companyId = company.id,
-		rank = rank,
-		salaryMult = math.floor(randomRange(Career.OFFER_SALARY_RANGE) * 100) / 100,
-		xpMult = math.floor(randomRange(Career.OFFER_XP_RANGE) * 100) / 100,
-		expiresAt = os.clock() + randomRange(Career.JOB_OFFER_LIFETIME),
+		type = def.id,
+		niche = nicheId,
+		pay = math.floor(pay),
+		rep = math.floor(def.repReward * Career.CONTRACT_REP),
+		xp = def.work / 5 * Career.CONTRACT_XP,
+		duration = contractDuration(session, def),
+		expiresAt = os.clock() + randomRange(Career.CONTRACT_LIFETIME),
 	}
 end
 
-local function addJobOffer(player: Player?, session): any
-	if #session.jobOffers >= Career.JOB_OFFER_MAX then
-		-- Se cae la que menos tiempo le queda
-		table.sort(session.jobOffers, function(a, b)
+local function addToBoard(player: Player?, session): any
+	local board = session.contractBoard
+	if #board >= Career.CONTRACT_BOARD then
+		-- Se cae el que menos tiempo le queda
+		table.sort(board, function(a, b)
 			return a.expiresAt > b.expiresAt
 		end)
-		table.remove(session.jobOffers)
+		table.remove(board)
 	end
-	local offer = makeJobOffer(session)
-	if offer then
-		table.insert(session.jobOffers, offer)
+	local contract = makeContract(session)
+	if contract then
+		table.insert(board, contract)
 		if player and Config.isUnlocked(session.data, "career") then
-			local company = Career.company(offer.companyId)
-			ctx.notify(player, "📨 Oferta de trabajo de " .. company.name .. " (x" .. string.format("%.2f", offer.salaryMult) .. " sueldo) · pestaña Carrera", "info")
+			local company = Career.company(contract.companyId)
+			local def = Config.WebTypeById[contract.type]
+			ctx.notify(player, string.format("📨 Nuevo encargo de %s: %s %s por %s · pestaña Carrera", company.name, def.emoji, def.name, Config.formatMoney(contract.pay)), "info")
 		end
 	end
-	return offer
+	return contract
 end
 
 -- Llamar al crear la sesión del jugador
 function CareerService.initSession(session)
-	session.jobOffers = {}
-	session.nextJobOfferId = 0
-	session.nextJobOfferAt = os.clock() + nextOfferDelay(session)
-	session.cvReadyAt = 0
-	-- Dos ofertas para empezar
-	addJobOffer(nil, session)
-	addJobOffer(nil, session)
+	session.contractBoard = {}
+	session.nextContractAt = os.clock() + nextBoardDelay(session)
+	session.askReadyAt = 0
+	addToBoard(nil, session)
+	addToBoard(nil, session)
+end
+
+-- Encargo aceptado que encaja con la web terminada (tipo y nicho)
+local function matchingContract(career, project)
+	local now = os.time()
+	local fallback = nil
+	for i, contract in career.contracts do
+		if contract.deadline > now and contract.type == project.type and contract.niche == (project.niche or Career.DEFAULT_NICHE) then
+			if contract.id == project.contractId then
+				return contract, i
+			end
+			fallback = fallback or i
+		end
+	end
+	if fallback then
+		return career.contracts[fallback], fallback
+	end
+	return nil, nil
+end
+
+-- Al terminar una web: si es de un encargo, se entrega (y no ocupa hueco).
+-- Devuelve true si se ha entregado.
+function CareerService.tryDeliver(player: Player, session, project, variant): boolean
+	local data = session.data
+	local career = data.career
+	local contract, index = matchingContract(career, project)
+	if not contract or not index then
+		return false
+	end
+	table.remove(career.contracts, index)
+	local company = Career.company(contract.companyId)
+	local def = Config.WebTypeById[contract.type]
+	-- Una web rara encanta al cliente: paga el doble
+	local pay = contract.pay * (if variant then 2 else 1)
+	ctx.gain(data, pay)
+	data.reputation += contract.rep
+	CareerService.addXp(player, session, contract.niche, contract.xp)
+	career.stats.contracts += 1
+	ctx.progress(session, "contracts", 1)
+	ctx.notify(player, string.format("🧾 ¡Encargo entregado a %s! %s %s · +%s y +%s de reputación", company.name, def.emoji, def.name,
+		Config.formatMoney(pay), Config.formatNumber(contract.rep)), "money")
+	checkRank(player, session)
+	return true
 end
 
 ---------------------------------------------------------------------
 -- Cada segundo
 ---------------------------------------------------------------------
 function CareerService.tick(player: Player, session, dt: number)
-	local career = session.data.career
-	local job = career.job
-	if job then
-		local company = Career.company(job.companyId)
-		if company then
-			CareerService.addXp(player, session, company.niche, jobXpRate(session) * dt)
-			-- Ascenso automático
-			local can = Career.canPromote(job, Career.nicheLevel(career, company.niche), os.time())
-			if can then
-				job.rank += 1
-				job.rankSince = os.time()
-				career.stats.bestRank = math.max(career.stats.bestRank, job.rank)
-				ctx.popup(player, "🎉 ¡Ascenso!", string.format("En %s ahora eres %s.\n\nTu sueldo sube a %s/s.",
-					company.name, Career.Ranks[job.rank].name, Config.formatMoney(CareerService.salaryPerSec(session))))
-			end
-			-- Aviso de tarea disponible (una vez)
-			if os.clock() >= session.taskReadyAt and not session.taskNotified then
-				session.taskNotified = true
-				ctx.notify(player, "💼 Tienes una tarea nueva en " .. company.name .. " (pestaña Carrera)", "event")
-			end
-		end
-	end
-	-- Ofertas de empleo
+	local data = session.data
+	local career = data.career
 	local now = os.clock()
-	for i = #session.jobOffers, 1, -1 do
-		if session.jobOffers[i].expiresAt <= now then
-			table.remove(session.jobOffers, i)
+	-- Tablón de encargos
+	local board = session.contractBoard
+	for i = #board, 1, -1 do
+		if board[i].expiresAt <= now then
+			table.remove(board, i)
 		end
 	end
-	if now >= session.nextJobOfferAt then
-		session.nextJobOfferAt = now + nextOfferDelay(session)
-		addJobOffer(player, session)
+	if now >= session.nextContractAt then
+		session.nextContractAt = now + nextBoardDelay(session)
+		addToBoard(player, session)
+	end
+	-- Encargos aceptados que se pasan de plazo
+	local unix = os.time()
+	for i = #career.contracts, 1, -1 do
+		local contract = career.contracts[i]
+		if contract.deadline <= unix then
+			table.remove(career.contracts, i)
+			career.stats.expired += 1
+			local company = Career.company(contract.companyId)
+			ctx.notify(player, "⌛ Se acabó el plazo del encargo de " .. (if company then company.name else "?") .. ". ¡Otra vez será!", "error")
+		end
+	end
+	checkRank(player, session)
+
+	-- Los programadores ganan experiencia trabajando y suben de nivel solos
+	if career.agency then
+		local mentors = 0
+		for _, programmer in career.programmers do
+			if programmer.trait == "mentor" then
+				mentors += 1
+			end
+		end
+		for _, programmer in career.programmers do
+			if programmer.level < Career.PROGRAMMER_MAX_LEVEL then
+				local others = mentors - (if programmer.trait == "mentor" then 1 else 0)
+				local rate = (if programmer.trait == "incansable" then 2 else 1) * (1 + 0.25 * others)
+				programmer.xp = (programmer.xp or 0) + dt * rate
+				local needed = Career.programmerXpNeeded(programmer.level)
+				if programmer.xp >= needed then
+					programmer.xp -= needed
+					programmer.level += 1
+					ctx.notify(player, string.format("⭐ %s ha subido a nivel %d trabajando", programmer.name, programmer.level), "success")
+				end
+			end
+		end
 	end
 
 	career.stats.team = #career.programmers
@@ -297,6 +388,9 @@ local function hire(player: Player, session, rarity, nicheId: string?)
 		rarity = rarity.id,
 		niche = niche,
 		level = 1,
+		xp = 0,
+		role = Career.Roles[ctx.random:NextInteger(1, #Career.Roles)].id,
+		trait = Career.Traits[ctx.random:NextInteger(1, #Career.Traits)].id,
 	}
 	career.nextProgrammerId += 1
 	table.insert(career.programmers, programmer)
@@ -315,68 +409,77 @@ end
 ---------------------------------------------------------------------
 local Actions = {}
 
-function Actions.acceptJobOffer(_player: Player, session, offerId: any)
-	local career = session.data.career
-	for i, offer in session.jobOffers do
-		if offer.id == offerId then
-			local company = Career.company(offer.companyId)
-			table.remove(session.jobOffers, i)
-			career.job = {
-				companyId = company.id,
-				rank = offer.rank,
-				rankSince = os.time(),
-				salaryMult = offer.salaryMult,
-				xpMult = offer.xpMult,
-			}
-			career.stats.jobs += 1
-			career.stats.bestRank = math.max(career.stats.bestRank, offer.rank)
-			session.taskReadyAt = os.clock() + Career.TASK_INTERVAL
-			session.taskNotified = false
-			return true, "💼 ¡Contratado en " .. company.name .. " como " .. Career.Ranks[offer.rank].name .. "!"
+local function findContract(list, id: any)
+	for i, contract in list do
+		if contract.id == id then
+			return contract, i
 		end
 	end
-	return false, "Esa oferta ya no está disponible."
+	return nil, nil
 end
 
-function Actions.sendCV(_player: Player, session)
-	local now = os.clock()
-	if now < session.cvReadyAt then
-		return false, "Espera " .. math.ceil(session.cvReadyAt - now) .. " s para enviar otro currículum."
-	end
-	session.cvReadyAt = now + Career.CV_COOLDOWN
-	local offer = addJobOffer(nil, session)
-	if not offer then
-		return false, "Ninguna empresa nueva te ha contestado. Sube de nivel e inténtalo otra vez."
-	end
-	return true, "📨 " .. Career.company(offer.companyId).name .. " te ha hecho una oferta"
-end
-
-function Actions.quitJob(_player: Player, session)
+function Actions.acceptContract(_player: Player, session, contractId: any)
 	local career = session.data.career
-	if not career.job then
+	local contract, index = findContract(session.contractBoard, contractId)
+	if not contract or not index then
+		return false, "Ese encargo ya no está disponible."
+	end
+	local slots = rankDef(career).slots
+	if #career.contracts >= slots then
+		return false, string.format("Como %s solo puedes tener %d encargo(s) a la vez. Sube de rango para tener más.", rankDef(career).name, slots)
+	end
+	table.remove(session.contractBoard, index)
+	table.insert(career.contracts, {
+		id = contract.id,
+		companyId = contract.companyId,
+		type = contract.type,
+		niche = contract.niche,
+		pay = contract.pay,
+		rep = contract.rep,
+		xp = contract.xp,
+		duration = contract.duration,
+		deadline = os.time() + contract.duration,
+	})
+	local company = Career.company(contract.companyId)
+	return true, "🤝 Encargo aceptado: " .. company.name .. ". Pulsa «Programar ahora» para empezar."
+end
+
+function Actions.abandonContract(_player: Player, session, contractId: any)
+	local career = session.data.career
+	local contract, index = findContract(career.contracts, contractId)
+	if not contract or not index then
 		return false, nil
 	end
-	career.job = nil
-	return true, "Has dejado tu trabajo."
+	table.remove(career.contracts, index)
+	if session.data.project and session.data.project.contractId == contract.id then
+		session.data.project.contractId = nil
+	end
+	return true, "Has dejado el encargo."
 end
 
-function Actions.solveTask(player: Player, session)
-	local career = session.data.career
-	local job = career.job
-	if not job then
-		return false, "No tienes trabajo."
+-- Elige el nicho del encargo y empieza a programar la web que piden
+function Actions.workOnContract(_player: Player, session, contractId: any)
+	local data = session.data
+	local contract = findContract(data.career.contracts, contractId)
+	if not contract then
+		return false, nil
 	end
-	if os.clock() < session.taskReadyAt then
-		return false, "Aún no hay tareas nuevas."
+	data.selectedNiche = contract.niche
+	return ctx.startContract(session, contract.type, contract.id)
+end
+
+-- Pedir un encargo nuevo (cada 60 s)
+function Actions.askContract(_player: Player, session)
+	local now = os.clock()
+	if now < session.askReadyAt then
+		return false, "Espera " .. math.ceil(session.askReadyAt - now) .. " s para pedir otro encargo."
 	end
-	local company = Career.company(job.companyId)
-	local pay = CareerService.salaryPerSec(session) * Career.TASK_SALARY_SECONDS
-	ctx.gain(session.data, pay)
-	CareerService.addXp(player, session, company.niche, jobXpRate(session) * Career.TASK_XP_SECONDS)
-	career.stats.tasks += 1
-	session.taskReadyAt = os.clock() + Career.TASK_INTERVAL
-	session.taskNotified = false
-	return true, "✅ Tarea resuelta: +" .. Config.formatMoney(pay), { money = true }
+	session.askReadyAt = now + Career.ASK_COOLDOWN
+	local contract = addToBoard(nil, session)
+	if not contract then
+		return false, "Ninguna empresa te ha contestado. Inténtalo otra vez."
+	end
+	return true, "📨 " .. Career.company(contract.companyId).name .. " te ha hecho un encargo"
 end
 
 function Actions.foundAgency(player: Player, session)
@@ -394,7 +497,7 @@ function Actions.foundAgency(player: Player, session)
 	data.money -= Career.AGENCY_COST
 	career.agency = { name = player.DisplayName .. " Dev Studio", officeLevel = 1, founded = os.time() }
 	career.stats.agency = 1
-	ctx.popup(player, "🏢 ¡Has fundado tu agencia!", "Ahora puedes fichar programadores.\n\nCada uno programa por ti y te da un % extra de TODO tu dinero. Cuanto más raro, mejor.\n\n¡Ve a la pestaña 👥 Agencia!")
+	ctx.popup(player, "🏢 ¡Has fundado tu agencia!", "Ahora puedes fichar programadores.\n\nCada uno tiene una especialidad (programación, diseño, marketing, ventas o datos) y un rasgo. Cuanto más raro, más aporta, y suben de nivel solos trabajando.\n\n¡Ve a la pestaña 👥 Agencia!")
 	return true, nil
 end
 
@@ -515,44 +618,60 @@ end
 ---------------------------------------------------------------------
 -- Estado para el cliente
 ---------------------------------------------------------------------
+local function contractRow(contract, clockNow: number, unixNow: number)
+	return {
+		id = contract.id,
+		companyId = contract.companyId,
+		type = contract.type,
+		niche = contract.niche,
+		pay = contract.pay,
+		rep = contract.rep,
+		xp = contract.xp,
+		duration = contract.duration,
+		timeLeft = if contract.deadline then math.max(0, contract.deadline - unixNow) else math.max(0, contract.expiresAt - clockNow),
+	}
+end
+
 function CareerService.buildState(session)
 	local data = session.data
 	local career = data.career
 	local income = ctx.income(session)
+	local clockNow, unixNow = os.clock(), os.time()
 
 	local nicheLevels = {}
 	for _, niche in Career.Niches do
 		nicheLevels[niche.id] = Career.nicheLevel(career, niche.id)
 	end
 
-	local job = nil
-	if career.job then
-		local company = Career.company(career.job.companyId)
-		if company then
-			local _, reason = Career.canPromote(career.job, nicheLevels[company.niche], os.time())
-			job = {
-				companyId = company.id,
-				salaryMult = career.job.salaryMult or 1,
-				rank = career.job.rank,
-				salary = CareerService.salaryPerSec(session),
-				xpRate = jobXpRate(session) * (if session.bonuses.xpPass then 2 else 1),
-				promotion = reason,
-				taskLeft = math.max(0, session.taskReadyAt - os.clock()),
-			}
-		end
+	local board, contracts = {}, {}
+	for _, contract in session.contractBoard do
+		table.insert(board, contractRow(contract, clockNow, unixNow))
+	end
+	table.sort(board, function(a, b)
+		return a.pay > b.pay
+	end)
+	for _, contract in career.contracts do
+		local row = contractRow(contract, clockNow, unixNow)
+		row.working = data.project ~= nil and data.project.type == contract.type and (data.project.niche or Career.DEFAULT_NICHE) == contract.niche
+		table.insert(contracts, row)
 	end
 
+	local isNight = ctx.isNight()
 	local programmers = {}
 	for _, programmer in career.programmers do
-		local work, bonus = Career.programmerPower(programmer, session.bonuses.agencyPro)
+		local work, stats = Career.programmerPower(programmer, session.bonuses.agencyPro, isNight)
 		table.insert(programmers, {
 			id = programmer.id,
 			name = programmer.name,
 			rarity = programmer.rarity,
 			niche = programmer.niche,
 			level = programmer.level,
+			role = programmer.role or "dev",
+			trait = programmer.trait,
+			xp = programmer.xp or 0,
+			xpNeeded = Career.programmerXpNeeded(programmer.level),
 			work = work,
-			bonus = bonus,
+			stats = stats,
 			trainCost = Career.trainCost(programmer, income),
 		})
 	end
@@ -572,35 +691,29 @@ function CareerService.buildState(session)
 			officeLevel = career.agency.officeLevel,
 			capacity = capacity(session),
 			upgradeCost = if career.agency.officeLevel < Career.MAX_OFFICE_LEVEL then Career.officeUpgradeCost(career.agency.officeLevel + 1) else nil,
+			totals = {
+				work = session.bonuses.agencyWork,
+				money = session.bonuses.agencyBonus,
+				quality = session.bonuses.agencyQuality,
+				visits = session.bonuses.agencyVisits,
+				sale = session.bonuses.agencySale,
+				rare = session.bonuses.agencyRare,
+			},
 		}
 	end
 
-	local moneyMult = Config.moneyMult(data, session.bonuses)
-	local jobOffers = {}
-	for _, offer in session.jobOffers do
-		local company = Career.company(offer.companyId)
-		table.insert(jobOffers, {
-			id = offer.id,
-			companyId = offer.companyId,
-			rank = offer.rank,
-			salaryMult = offer.salaryMult,
-			xpMult = offer.xpMult,
-			salary = Career.salary(company, offer.rank, nicheLevels[company.niche], moneyMult, offer.salaryMult) * jobFairMult(session),
-			xpRate = Career.jobXpRate(company, offer.rank, offer.xpMult) * (if session.bonuses.xpPass then 2 else 1) * jobFairMult(session),
-			timeLeft = math.max(0, offer.expiresAt - os.clock()),
-		})
-	end
-	table.sort(jobOffers, function(a, b)
-		return a.salary > b.salary
-	end)
-
+	local rank = Career.rankOf(career)
 	return {
-		jobOffers = jobOffers,
-		cvLeft = math.max(0, session.cvReadyAt - os.clock()),
+		rank = rank,
+		slots = Career.Ranks[rank].slots,
+		board = board,
+		contracts = contracts,
+		nextContractIn = math.max(0, session.nextContractAt - clockNow),
+		askLeft = math.max(0, session.askReadyAt - clockNow),
+		fair = session.bonuses.weekend == "contracts",
 		xp = career.xp,
 		nicheLevels = nicheLevels,
 		devLevel = Career.devLevel(career),
-		job = job,
 		agency = agency,
 		programmers = programmers,
 		pity = career.pity,
