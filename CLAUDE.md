@@ -254,8 +254,11 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    (`tools/out/state.json`, `visit.json`) y **pulsa todos los botones** + recorre el tutorial.
    Luego cambia a inglés con el botón 🌐, vuelve a pulsarlo todo y falla si queda algún texto
    en español o si el cliente pide una clave que no está en LocaleEN. Debe dar `CLIENTE OK`.
-6. `sim.luau`: bot de economía 6 h (ritmo actual: $1M ≈ 11 min, Metaverso ≈ 56 min
-   para un bot perfecto; un humano va bastante más lento).
+6. `sim.luau`: bot de economía 6 h (ritmo actual, v2.0 ralentizada a petición del usuario:
+   $1M ≈ 15,5 min, $100M ≈ 30 min, Metaverso ≈ 80 min para un bot perfecto; un humano va
+   bastante más lento). Ajuste hecho: rpv de las apps ×0,8, ingresos de empresas ×0,8,
+   reputación para desbloquear webs ×1,4, trabajo de cada web ×1,2. El bot no cuenta las webs
+   raras (≈ +20 % de dinero de media).
 7. `rojo build` → regenera `ImperioWeb.rbxl` (solo si todo lo anterior pasa). **Súbelo en el commit.**
 
 Limitaciones de Lune a recordar (el harness ya las simula): no tiene eventos (`Activated`,

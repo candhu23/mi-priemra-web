@@ -117,14 +117,14 @@ Config.Sounds = {
 --   repReward = reputación que ganas al terminarla
 ---------------------------------------------------------------------
 Config.WebTypes = {
-	{ id = "landing", name = "Landing Page", emoji = "📄", work = 15, cost = 0, visits = 4, rep = 0, repReward = 1 },
-	{ id = "blog", name = "Blog", emoji = "✍️", work = 60, cost = 40, visits = 12, rep = 3, repReward = 3 },
-	{ id = "tienda", name = "Tienda Online", emoji = "🛒", work = 250, cost = 300, visits = 36, rep = 30, repReward = 8 },
-	{ id = "noticias", name = "Periódico Digital", emoji = "📰", work = 1000, cost = 1500, visits = 110, rep = 200, repReward = 20 },
-	{ id = "red_social", name = "Red Social", emoji = "💬", work = 4000, cost = 20000, visits = 330, rep = 1000, repReward = 50 },
-	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 16000, cost = 250000, visits = 1000, rep = 4000, repReward = 120 },
-	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 65000, cost = 3000000, visits = 3000, rep = 15000, repReward = 300 },
-	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 260000, cost = 50000000, visits = 9000, rep = 50000, repReward = 800 },
+	{ id = "landing", name = "Landing Page", emoji = "📄", work = 18, cost = 0, visits = 4, rep = 0, repReward = 1 },
+	{ id = "blog", name = "Blog", emoji = "✍️", work = 72, cost = 40, visits = 12, rep = 4, repReward = 3 },
+	{ id = "tienda", name = "Tienda Online", emoji = "🛒", work = 300, cost = 300, visits = 36, rep = 42, repReward = 8 },
+	{ id = "noticias", name = "Periódico Digital", emoji = "📰", work = 1200, cost = 1500, visits = 110, rep = 280, repReward = 20 },
+	{ id = "red_social", name = "Red Social", emoji = "💬", work = 4800, cost = 20000, visits = 330, rep = 1400, repReward = 50 },
+	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 19200, cost = 250000, visits = 1000, rep = 5600, repReward = 120 },
+	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 78000, cost = 3000000, visits = 3000, rep = 21000, repReward = 300 },
+	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 312000, cost = 50000000, visits = 9000, rep = 70000, repReward = 800 },
 }
 
 ---------------------------------------------------------------------
@@ -133,13 +133,13 @@ Config.WebTypes = {
 --   penalty = % de visitas que se pierden porque molestan
 ---------------------------------------------------------------------
 Config.AdNetworks = {
-	{ id = "adsimple", name = "AdSimple", emoji = "🟢", rpv = 0.25, penalty = 0.00, cost = 0, rep = 0 },
-	{ id = "clickboom", name = "ClickBoom", emoji = "💥", rpv = 0.45, penalty = 0.08, cost = 2500, rep = 10 },
-	{ id = "bannerpro", name = "BannerPro", emoji = "🖼️", rpv = 0.8, penalty = 0.12, cost = 50000, rep = 80 },
-	{ id = "videomax", name = "VideoMax", emoji = "📺", rpv = 1.5, penalty = 0.20, cost = 1200000, rep = 600 },
-	{ id = "influads", name = "InfluAds", emoji = "🤳", rpv = 2.4, penalty = 0.10, cost = 25000000, rep = 2500 },
-	{ id = "premium", name = "PremiumAds Global", emoji = "💎", rpv = 4.0, penalty = 0.06, cost = 600000000, rep = 10000 },
-	{ id = "neuroads", name = "NeuroAds IA", emoji = "🧠", rpv = 7.0, penalty = 0.03, cost = 20000000000, rep = 35000 },
+	{ id = "adsimple", name = "AdSimple", emoji = "🟢", rpv = 0.2, penalty = 0.00, cost = 0, rep = 0 },
+	{ id = "clickboom", name = "ClickBoom", emoji = "💥", rpv = 0.36, penalty = 0.08, cost = 2500, rep = 10 },
+	{ id = "bannerpro", name = "BannerPro", emoji = "🖼️", rpv = 0.64, penalty = 0.12, cost = 50000, rep = 80 },
+	{ id = "videomax", name = "VideoMax", emoji = "📺", rpv = 1.2, penalty = 0.20, cost = 1200000, rep = 600 },
+	{ id = "influads", name = "InfluAds", emoji = "🤳", rpv = 1.92, penalty = 0.10, cost = 25000000, rep = 2500 },
+	{ id = "premium", name = "PremiumAds Global", emoji = "💎", rpv = 3.2, penalty = 0.06, cost = 600000000, rep = 10000 },
+	{ id = "neuroads", name = "NeuroAds IA", emoji = "🧠", rpv = 5.6, penalty = 0.03, cost = 20000000000, rep = 35000 },
 }
 
 -- Cuántos anuncios pones en cada web: más anuncios = más dinero por visita,
@@ -158,19 +158,19 @@ Config.AdLevels = {
 Config.Companies = {
 	{ id = "devs", name = "Equipo de Programadores", emoji = "👩‍💻", baseCost = 50, growth = 1.15, income = 0, maxLevel = 200,
 		desc = "+1.5 de trabajo por segundo por nivel: programan por ti." },
-	{ id = "hosting", name = "Hosting Nube", emoji = "☁️", baseCost = 300, growth = 1.75, income = 2, maxLevel = 40,
+	{ id = "hosting", name = "Hosting Nube", emoji = "☁️", baseCost = 300, growth = 1.75, income = 1.6, maxLevel = 40,
 		desc = "+1 hueco para tener más webs a la vez." },
-	{ id = "marketing", name = "Agencia de Marketing", emoji = "📣", baseCost = 1000, growth = 1.32, income = 5, maxLevel = 200,
+	{ id = "marketing", name = "Agencia de Marketing", emoji = "📣", baseCost = 1000, growth = 1.32, income = 4, maxLevel = 200,
 		desc = "+10 % de visitas en todas tus webs." },
-	{ id = "design", name = "Estudio de Diseño", emoji = "🎨", baseCost = 4000, growth = 1.33, income = 15, maxLevel = 200,
+	{ id = "design", name = "Estudio de Diseño", emoji = "🎨", baseCost = 4000, growth = 1.33, income = 12, maxLevel = 200,
 		desc = "+8 % de calidad en las webs nuevas." },
-	{ id = "comercial", name = "Agencia Comercial", emoji = "🤝", baseCost = 10000, growth = 1.38, income = 40, maxLevel = 200,
+	{ id = "comercial", name = "Agencia Comercial", emoji = "🤝", baseCost = 10000, growth = 1.38, income = 32, maxLevel = 200,
 		desc = "+12 % al vender webs y clientes que pagan más." },
-	{ id = "ia_lab", name = "Laboratorio de IA", emoji = "🧪", baseCost = 75000, growth = 1.45, income = 150, maxLevel = 200,
+	{ id = "ia_lab", name = "Laboratorio de IA", emoji = "🧪", baseCost = 75000, growth = 1.45, income = 120, maxLevel = 200,
 		desc = "+25 % de velocidad programando. Nivel 1 activa el modo automático." },
-	{ id = "adnet", name = "Red de Anuncios Propia", emoji = "📡", baseCost = 1000000, growth = 1.45, income = 1000, maxLevel = 200,
+	{ id = "adnet", name = "Red de Anuncios Propia", emoji = "📡", baseCost = 1000000, growth = 1.45, income = 800, maxLevel = 200,
 		desc = "+15 % de dinero por anuncios." },
-	{ id = "datacenter", name = "Centro de Datos", emoji = "🏭", baseCost = 25000000, growth = 1.5, income = 20000, maxLevel = 200,
+	{ id = "datacenter", name = "Centro de Datos", emoji = "🏭", baseCost = 25000000, growth = 1.5, income = 16000, maxLevel = 200,
 		desc = "+5 % a todo el dinero y tus webs no se caen." },
 }
 

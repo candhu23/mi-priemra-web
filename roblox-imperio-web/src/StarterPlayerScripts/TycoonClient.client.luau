@@ -739,11 +739,11 @@ end
 local HINTS = {
 	first_site = "Pulsa ➕ Nueva web abajo y luego ⌨️ PROGRAMAR",
 	earn_1k = "Ten varias webs y deja que ganen dinero",
-	blog = "Consigue ⭐ 3 de reputación y crea un Blog",
+	blog = "Consigue ⭐ 4 de reputación y crea un Blog",
 	sell_1 = "Abre 🤝 Clientes y vende una web",
 	company_1 = "Abre 🏢 Empresas y funda el Equipo de Programadores",
 	network_2 = "Abre 📢 Anuncios y desbloquea ClickBoom",
-	tienda = "Llega a ⭐ 30 vendiendo y creando webs",
+	tienda = "Llega a ⭐ 42 vendiendo y creando webs",
 	sites_5 = "Compra ☁️ Hosting para tener más huecos",
 	seo_5 = "En 🌐 Webs mejora el SEO de tu mejor web",
 	ipo_1 = "Abre 📈 Bolsa cuando ganes $1M",
