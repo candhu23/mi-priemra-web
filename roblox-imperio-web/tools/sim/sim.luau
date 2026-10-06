@@ -35,12 +35,30 @@ local function bestType()
 	for _, t in Config.WebTypes do if d.reputation >= t.rep and d.money >= t.cost then best = t end end
 	return best
 end
-local function sell(i, mult)
+-- Las ventas a clientes tardan (negociación) y hay un máximo a la vez
+local now = 0
+local function dealsActive()
+	local n = 0
+	for _, s in d.sites do if s.dealAt then n += 1 end end
+	return n
+end
+local function finishSale(i, price)
 	local s = d.sites[i]
-	local price = Config.saleBase(d, s, Config.moneyMult(d, bonuses)) * mult
 	table.remove(d.sites, i)
 	gain(price); d.maintenance += price * Config.MAINTENANCE_RATE
 	d.reputation += Config.WebTypeById[s.type].repReward; d.stats.sold += 1
+end
+local function sell(i, mult)
+	local s = d.sites[i]
+	if s.dealAt or dealsActive() >= Config.maxDeals(d) then return end
+	s.dealPrice = Config.saleBase(d, s, Config.moneyMult(d, bonuses)) * mult
+	s.dealAt = now + Config.dealSeconds(d, s.type)
+end
+local function finishDeals()
+	for i = #d.sites, 1, -1 do
+		local s = d.sites[i]
+		if s.dealAt and now >= s.dealAt then finishSale(i, s.dealPrice) end
+	end
 end
 
 local milestones = { 1e3, 1e4, 1e5, 1e6, 1e7, 1e8 }
@@ -48,6 +66,8 @@ local mi = 1
 local typeSeen = {}
 local offerTimer = 0
 for t = 1, 6 * 3600 do
+	now = t
+	finishDeals()
 	-- trabajo
 	if not d.project then
 		local def = bestType()
@@ -58,7 +78,7 @@ for t = 1, 6 * 3600 do
 			local def2 = nil
 			for _, ty in Config.WebTypes do if d.reputation >= ty.rep then def2 = ty end end
 			local worst, wi = math.huge, nil
-			for i, s in d.sites do local v = Config.WebTypeById[s.type].order; if v < worst then worst, wi = v, i end end
+			for i, s in d.sites do local v = Config.WebTypeById[s.type].order; if not s.dealAt and v < worst then worst, wi = v, i end end
 			if wi and def2 and def2.order > worst then sell(wi, 1.3) end -- vende a un cliente medio
 		end
 	end
@@ -81,7 +101,7 @@ for t = 1, 6 * 3600 do
 		local mult = 0.9 + math.random() * 0.9 + math.min(Config.level(d, "comercial") * 0.03, 0.9)
 		if mult >= 1.3 then
 			local worst, wi = math.huge, nil
-			for i, s in d.sites do if s.type == ty and s.quality < worst then worst, wi = s.quality, i end end
+			for i, s in d.sites do if not s.dealAt and s.type == ty and s.quality < worst then worst, wi = s.quality, i end end
 			if wi then sell(wi, mult) end
 		end
 	end

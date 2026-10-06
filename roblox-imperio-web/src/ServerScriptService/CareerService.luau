@@ -195,7 +195,7 @@ local function addJobOffer(player: Player?, session): any
 	local offer = makeJobOffer(session)
 	if offer then
 		table.insert(session.jobOffers, offer)
-		if player then
+		if player and Config.isUnlocked(session.data, "career") then
 			local company = Career.company(offer.companyId)
 			ctx.notify(player, "📨 Oferta de trabajo de " .. company.name .. " (x" .. string.format("%.2f", offer.salaryMult) .. " sueldo) · pestaña Carrera", "info")
 		end

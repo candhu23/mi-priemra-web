@@ -616,16 +616,42 @@ end
 
 local onTabChanged: () -> () = function() end
 
+-- Parte del juego que tiene que estar desbloqueada para abrir cada pestaña
+local TAB_FEATURES = {
+	clients = "clients", ads = "ads", ranking = "ranking", companies = "companies", season = "season",
+	career = "career", collection = "collection", agency = "agency", market = "market",
+}
+
+local function tabLocked(id: string): boolean
+	local feature = TAB_FEATURES[id]
+	return feature ~= nil and state ~= nil and not Config.isUnlocked(state, feature)
+end
+
+-- Texto y color de los botones de pestaña (🔒 si aún no se ha desbloqueado)
+local function refreshTabButtons()
+	for _, tab in TABS do
+		if tabLocked(tab.id) then
+			setButton(tabButtons[tab.id], "🔒 " .. T(tab.name), true, THEME.disabled)
+		else
+			setButton(tabButtons[tab.id], tab.emoji .. " " .. T(tab.name), true, if tab.id == currentTab then tab.color else THEME.card)
+		end
+	end
+end
+
 local function selectTab(id: string)
+	if tabLocked(id) then
+		showToast(T("🔒 Se desbloquea en la planta %d de tu rascacielos.", Config.unlockFloor(TAB_FEATURES[id])), "error")
+		return
+	end
 	currentTab = id
 	onTabChanged()
 	for _, tab in TABS do
 		pages[tab.id].Visible = tab.id == id
-		setButton(tabButtons[tab.id], tab.emoji .. " " .. T(tab.name), true, if tab.id == id then tab.color else THEME.card)
 		if tab.id == id then
 			windowTitle.Text = tab.emoji .. " " .. T(tab.name)
 		end
 	end
+	refreshTabButtons()
 	if state and renderers[id] then
 		renderers[id](state)
 	end
@@ -721,6 +747,9 @@ local function setBadge(id: string, value: (number | boolean)?)
 		return
 	end
 	local count = if type(value) == "number" then value elseif value == true then 1 else 0
+	if tabLocked(id) then
+		count, value = 0, 0
+	end
 	badgeValues[id] = count
 	badge.Visible = count > 0
 	badge.Text = if type(value) == "number" then (if value > 9 then "9+" else tostring(value)) else "!"
@@ -794,6 +823,14 @@ local function currentGoal(s)
 	return nil
 end
 
+-- Objetivos que necesitan una parte del juego desbloqueada
+local GOAL_FEATURES = {
+	sell_1 = "clients", network_2 = "ads", company_1 = "companies", job_1 = "career", dev_8 = "career",
+	agency = "agency", senior = "career", epic = "agency", companies_25 = "companies", ipo_1 = "market",
+	research_1 = "market", team_10 = "agency", cto = "career", sell_100 = "clients", sell_10 = "clients",
+	collection_20 = "collection", ipo_5 = "market",
+}
+
 local function renderMission(s)
 	local goal = currentGoal(s)
 	if not goal then
@@ -814,6 +851,11 @@ local function renderMission(s)
 	else
 		missionReward.Text = if goal.reward > 0 then T("🎁 Premio: %s", fmt(goal.reward)) else T("🎁 Premio: ¡acciones!")
 		missionHint.Text = T(HINTS[goal.id] or "Toca aquí para ver todas las misiones")
+		-- Si la pestaña que hace falta aún está cerrada, se dice cuándo se abre
+		local feature = GOAL_FEATURES[goal.id]
+		if feature and not Config.isUnlocked(s, feature) then
+			missionHint.Text = T("🔒 Se desbloquea en la planta %d de tu rascacielos.", Config.unlockFloor(feature))
+		end
 	end
 end
 
@@ -1363,7 +1405,11 @@ renderers.sites = function(s)
 		local multiple = #unlockedNetworkList(s) > 1
 		setButton(row.network, network.emoji .. " " .. T(network.name) .. (if multiple then " ▸" else ""), multiple)
 		setButton(row.level, T("Anuncios: %s ▸", T(Config.AdLevels[site.adLevel].name)), true)
-		setButton(row.sell, T("Vender %s", fmt(site.saleBase * Config.QUICK_SALE_MULT)), true)
+		if site.deal then
+			setButton(row.sell, T("🤝 Vendiendo · %s", Config.formatTime(site.deal.endsIn)), false, THEME.yellow)
+		else
+			setButton(row.sell, T("Vender %s", fmt(site.saleBase * Config.QUICK_SALE_MULT)), true)
+		end
 	end)
 end
 
@@ -1646,6 +1692,13 @@ function renderDetail(s)
 	-- Venta
 	local offer, offerValue = bestOfferFor(s, site)
 	detailOfferId = offer and offer.id
+	if site.deal then
+		detailOfferId = nil
+		sellInfo.Text = T("🤝 En negociación con %s por %s", site.deal.buyer, fmt(site.deal.price))
+		setButton(detailOfferButton, T("🤝 Cerrando la venta · %s", Config.formatTime(site.deal.endsIn)), false, THEME.yellow)
+		setButton(detailQuickButton, T("🤝 Vendiendo"), false)
+		return
+	end
 	if offer then
 		local match = offer.niche == site.niche
 		sellInfo.Text = T("Mejor oferta: %s %s (x%.2f%s)", nicheLabel(offer.niche), offer.company, offer.mult, if match then T(" · ⭐ mismo nicho x1.5") else "")
@@ -1675,16 +1728,17 @@ do
 local clientsPage = pages.clients
 local clientsHeader = makeCard(clientsPage, 84, 1, Color3.fromRGB(66, 52, 12))
 makeLabel(clientsHeader, "🤝 Empresas que quieren comprar webs", 0, 22, 17, THEME.text, true)
-makeLabel(clientsHeader, "Pagan según las visitas. Si la web es de SU nicho pagan x1.5. Cada venta da reputación y mantenimiento.", 22, 18, 13, THEME.muted)
+makeLabel(clientsHeader, "Pagan según las visitas (x1.5 si es de SU nicho). Cerrar la venta lleva tiempo: más cuanto mayor es la web.", 22, 18, 13, THEME.muted)
 local maintenanceLabel = makeLabel(clientsHeader, "", 42, 18, 14, THEME.green, true)
 
 local offerRows = {}
 
--- La web que más te pagarían en esa oferta (teniendo en cuenta el nicho)
+-- La web que más te pagarían en esa oferta (teniendo en cuenta el nicho).
+-- Las que ya están en negociación no cuentan.
 function bestSiteFor(s, offer)
 	local best, bestValue = nil, 0
 	for _, site in s.sites do
-		if site.type == offer.type then
+		if site.type == offer.type and not site.deal then
 			local value = site.saleBase * offer.mult * (if offer.niche == site.niche then Career.NICHE_MATCH_SALE_BONUS else 1)
 			if value > bestValue then
 				best, bestValue = site, value
@@ -1695,7 +1749,14 @@ function bestSiteFor(s, offer)
 end
 
 renderers.clients = function(s)
-	maintenanceLabel.Text = T("🔧 Contratos de mantenimiento: +%s/s para siempre", fmt(s.maintenance))
+	local deals = 0
+	for _, site in s.sites do
+		if site.deal then
+			deals += 1
+		end
+	end
+	maintenanceLabel.Text = T("🔧 Mantenimiento: +%s/s · 🤝 Negociaciones: %d/%d", fmt(s.maintenance), deals, s.maxDeals)
+	local full = deals >= s.maxDeals
 
 	syncRows(clientsPage, offerRows, s.offers, function(offer)
 		return offer.id
@@ -1723,9 +1784,12 @@ renderers.clients = function(s)
 		row.info.Text = T("%s · paga x%.2f del valor · ⏱ %s", nicheLabel(offer.niche), offer.mult, Config.formatTime(offer.timeLeft))
 		local site, value = bestSiteFor(s, offer)
 		row.siteId = site and site.id
-		if site then
+		if site and full then
+			setButton(row.sell, T("🤝 Máximo de negociaciones: espera a que acabe una"), false)
+		elseif site then
 			local match = site.niche == offer.niche
-			setButton(row.sell, T("💰 Vender %s por %s", site.name, fmt(value)) .. (if match then "  ⭐ x1.5" else ""), true, if vip or match then THEME.yellow else THEME.green)
+			setButton(row.sell, T("🤝 Negociar %s por %s (%s)", site.name, fmt(value), Config.formatTime(Config.dealSeconds(s, site.type)))
+				.. (if match then "  ⭐ x1.5" else ""), true, if vip or match then THEME.yellow else THEME.green)
 		else
 			setButton(row.sell, T("No tienes ninguna %s", T(def.name)), false)
 		end
@@ -2251,7 +2315,43 @@ for i = 1, Config.DAILY_MISSION_COUNT do
 	dailyCards[i] = { card = card, title = title, fill = fill, text = text, button = button }
 end
 
-local goalsHeader = makeCard(missionsPage, 82, 10, Color3.fromRGB(30, 58, 138))
+-- Misiones semanales
+local weeklyHeader = makeCard(missionsPage, 66, 5, Color3.fromRGB(76, 29, 149))
+local weeklyTitle = makeLabel(weeklyHeader, "", 0, 22, 18, THEME.text, true)
+local weeklyBonus = makeLabel(weeklyHeader, "", 24, 18, 14, THEME.yellow, true)
+local weeklyCards = {}
+for i = 1, Config.WEEKLY_MISSION_COUNT do
+	local card = makeCard(missionsPage, 96, 5 + i)
+	local title = makeLabel(card, "", 0, 20, 16, THEME.text, true)
+	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 18), THEME.purple)
+	local button = makeButton(card, "", THEME.green, UDim2.new(1, 0, 0, 30), function()
+		sendAction("claimWeeklyMission", i, nil, function(ok)
+			if ok then
+				pulseMoney()
+			end
+		end)
+	end)
+	button.Position = UDim2.fromOffset(0, 46)
+	weeklyCards[i] = { card = card, title = title, fill = fill, text = text, button = button }
+end
+
+-- Logros (bonus permanentes por niveles)
+local achievementsHeader = makeCard(missionsPage, 66, 20, Color3.fromRGB(120, 53, 15))
+local achievementsTitle = makeLabel(achievementsHeader, "", 0, 22, 18, THEME.text, true)
+local achievementsInfo = makeLabel(achievementsHeader, "", 24, 30, 13, THEME.yellow, true)
+achievementsInfo.TextWrapped = true
+achievementsInfo.TextTruncate = Enum.TextTruncate.None
+local BONUS_NAMES = { money = "dinero", click = "clic", visits = "visitas", sale = "ventas", work = "trabajo", rare = "webs raras" }
+local achievementCards = {}
+for i, achievement in Config.Achievements do
+	local card = makeCard(missionsPage, 70, 20 + i)
+	local title = makeLabel(card, "", 0, 20, 15, THEME.text, true)
+	local _back, fill, text = makeProgressBar(card, UDim2.fromOffset(0, 24), UDim2.new(1, 0, 0, 16), THEME.orange)
+	local info = makeLabel(card, "", 44, 16, 12, THEME.muted)
+	achievementCards[achievement.id] = { title = title, fill = fill, text = text, info = info }
+end
+
+local goalsHeader = makeCard(missionsPage, 82, 50, Color3.fromRGB(30, 58, 138))
 local goalsTitle = makeLabel(goalsHeader, "🏆 Objetivos", 0, 22, 18, THEME.text, true)
 local tutorialButton = makeButton(goalsHeader, "📖 Ver el tutorial otra vez", THEME.card, UDim2.new(1, 0, 0, 30), function()
 	window.Visible = false
@@ -2300,6 +2400,67 @@ renderers.missions = function(s)
 			end
 		end
 	end
+
+	-- Semanales
+	local weekly = s.weeklyMissions
+	weeklyTitle.Text = T("🗓️ Misiones semanales · nuevas en %s", Config.formatTime(weekly.resetIn))
+	weeklyBonus.Text = if weekly.bonusGiven then T("🏆 ¡Bonus de la semana conseguido!")
+		else T("🎁 Completa las %d: +%d 💡 patentes y 🚀 Boost x2 %d min", Config.WEEKLY_MISSION_COUNT, Config.WEEKLY_ALL_PATENTS, Config.WEEKLY_ALL_BOOST_MINUTES)
+	for i, slot in weeklyCards do
+		local mission = weekly.list[i]
+		slot.card.Visible = mission ~= nil
+		if mission then
+			local def = Config.WeeklyMissionById[mission.id]
+			slot.title.Text = T(def.text, mission.target)
+			slot.fill.Size = UDim2.fromScale(math.clamp(mission.progress / mission.target, 0, 1), 1)
+			slot.text.Text = num(mission.progress) .. " / " .. num(mission.target)
+			if mission.claimed then
+				setButton(slot.button, T("✓ Reclamada"), false, THEME.green)
+				slot.button:SetAttribute("PaintColor", THEME.green)
+			elseif mission.progress >= mission.target then
+				setButton(slot.button, T("🎁 Reclamar %s", fmt(weekly.reward)), true, THEME.green)
+			else
+				setButton(slot.button, T("Premio: %s + %d ⭐", fmt(weekly.reward), Config.WeeklyMissionReward.seasonXp), false)
+			end
+		end
+	end
+
+	-- Logros
+	local tiersDone, tiersTotal = 0, 0
+	local totals = {}
+	for _, achievement in Config.Achievements do
+		local slot = achievementCards[achievement.id]
+		local tier = Config.achievementTier(s, achievement)
+		local value = achievement.value(s)
+		tiersDone += tier
+		tiersTotal += #achievement.tiers
+		totals[achievement.bonus] = (totals[achievement.bonus] or 0) + tier * achievement.per
+		local medal = if tier > 0 then Config.ACHIEVEMENT_TIER_EMOJIS[tier] .. " " else ""
+		slot.title.Text = string.format("%s%s %s · %d/%d", medal, achievement.emoji, T(achievement.name), tier, #achievement.tiers)
+		slot.title.TextColor3 = if tier >= #achievement.tiers then THEME.yellow else THEME.text
+		local nextTarget = achievement.tiers[tier + 1]
+		local bonusName = T(BONUS_NAMES[achievement.bonus])
+		if nextTarget then
+			local previous = if tier > 0 then achievement.tiers[tier] else 0
+			slot.fill.Size = UDim2.fromScale(math.clamp((value - previous) / math.max(nextTarget - previous, 1), 0, 1), 1)
+			slot.text.Text = (if nextTarget >= 1e5 then fmt(value) .. " / " .. fmt(nextTarget) else num(value) .. " / " .. num(nextTarget))
+			slot.info.Text = T("%s · siguiente nivel: +%d%% %s (ahora +%d%%)", T(achievement.text), math.floor(achievement.per * 100 + 0.5), bonusName,
+				math.floor(tier * achievement.per * 100 + 0.5))
+		else
+			slot.fill.Size = UDim2.fromScale(1, 1)
+			slot.text.Text = T("MÁX")
+			slot.info.Text = T("%s · ¡completo! +%d%% %s para siempre", T(achievement.text), math.floor(tier * achievement.per * 100 + 0.5), bonusName)
+		end
+	end
+	achievementsTitle.Text = T("🏅 Logros · %d/%d niveles", tiersDone, tiersTotal)
+	local bonusParts = {}
+	for _, kind in { "money", "click", "visits", "sale", "work", "rare" } do
+		if (totals[kind] or 0) > 0 then
+			table.insert(bonusParts, string.format("+%d%% %s", math.floor(totals[kind] * 100 + 0.5), T(BONUS_NAMES[kind])))
+		end
+	end
+	achievementsInfo.Text = if #bonusParts > 0 then T("Bonus permanentes: %s", table.concat(bonusParts, " · "))
+		else T("Cada nivel de logro da un bonus PERMANENTE que no se pierde nunca.")
 
 	local claimable, done = 0, 0
 	for i, goal in Config.Goals do
@@ -3410,9 +3571,11 @@ local function renderAlways(s)
 			claimable += 1
 		end
 	end
-	for _, mission in s.dailyMissions.list do
-		if not mission.claimed and mission.progress >= mission.target then
-			claimable += 1
+	for _, list in { s.dailyMissions.list, s.weeklyMissions.list } do
+		for _, mission in list do
+			if not mission.claimed and mission.progress >= mission.target then
+				claimable += 1
+			end
 		end
 	end
 	setBadge("missions", claimable)
@@ -3460,6 +3623,7 @@ local function renderAlways(s)
 
 	renderMission(s)
 	renderHudExtras(s)
+	refreshTabButtons()
 	if not myPlotPart then
 		findMyPlot()
 	end
@@ -3641,8 +3805,8 @@ applyLanguage = function(newLang: string)
 		applyWorldText(obj)
 	end
 	-- Pestañas y todo lo que se pinta con el estado
+	refreshTabButtons()
 	for _, tab in TABS do
-		setButton(tabButtons[tab.id], tab.emoji .. " " .. T(tab.name), true, if tab.id == currentTab then tab.color else THEME.card)
 		if tab.id == currentTab then
 			windowTitle.Text = tab.emoji .. " " .. T(tab.name)
 		end

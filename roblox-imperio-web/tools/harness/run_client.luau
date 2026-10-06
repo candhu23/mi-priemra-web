@@ -351,6 +351,25 @@ s2.starterLeft = 3600
 s2.collection = { landing = { normal = true, brillante = true, arcoiris = true, diamante = true, cosmica = true }, blog = { normal = true } }
 s2.sites[1].variant = "diamante"
 fireState(s2)
+-- v2.1: una semanal lista para reclamar
+for _, mission in s2.weeklyMissions.list do
+	mission.claimed = false
+	mission.progress = mission.target
+end
+-- Jugador nuevo: casi todas las pestañas con candado
+local sNew = serde.decode("json", serde.encode("json", s2))
+sNew.lifetimeEarned = 0
+fireState(sNew)
+local locked = 0
+for _, d in playerGui:GetDescendants() do
+	if d:IsA("TextButton") and string.sub(d.Text, 1, #"🔒") == "🔒" then
+		locked += 1
+		signalFor(idOf(d), "Activated"):Fire()
+	end
+end
+print("Pestañas con candado para un jugador nuevo:", locked)
+assert(locked >= 9, "un jugador nuevo debería ver las pestañas bloqueadas")
+fireState(s2)
 -- Sin evento de fin de semana (muestra el próximo)
 local s3 = serde.decode("json", serde.encode("json", s2))
 s3.weekend = { endsIn = 0, nextId = "viral", startsIn = 100000 }

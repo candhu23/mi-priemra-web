@@ -10,7 +10,7 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, trabaja en
   empresas ficticias, funda su agencia de programadores y sale a bolsa.
-- **Versión actual del código: 2.0** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
+- **Versión actual del código: 2.1** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
   cada versión nueva).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
   - Experience (universe) ID: `10769603072`
@@ -91,7 +91,10 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   setNiche, claimGoal, claimDailyMission, finishTutorial, setMuted, claimDaily, claimGift,
   saveNow, acceptJobOffer, sendCV, quitJob, solveTask, foundAgency, upgradeOffice,
   recruit, redeemTicket, trainProgrammer, fireProgrammer, setLanguage, visitPlot, likePlot,
-  buyResearch, claimSeason(tier, premium), claimPlaytime(i), redeemCode(texto)`. `buyCompany(id, 1|10|"max")`.
+  buyResearch, claimSeason(tier, premium), claimPlaytime(i), redeemCode(texto), claimWeeklyMission(i)`.
+  `buyCompany(id, 1|10|"max")`. **`sellToOffer` ya no vende al momento**: crea `site.deal
+  {endsAt, price, buyer, specialist}` y `finishDeals` (tick) cobra al acabar (también offline).
+  `ACTION_FEATURES` bloquea acciones de partes no desbloqueadas (`Config.Unlocks`).
   `click` devuelve también `combo` y `comboMult`. Notify tipo `rare` = aviso grande de web rara.
   `ACTION_STATS` en el servidor mapea acciones → contadores de misiones diarias.
 - Bucle del servidor (1 s): eventos aleatorios, boost, carrera (`CareerService.tick`:
@@ -127,7 +130,8 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   weekly{week,earned,prevWeek,prevEarned,rewardedWeek}, goldUntil, likes, likesGiven{day,ids{"u<id>"=true}},
   collection{tipo={normal|brillante|…=true}}, research{id=nivel}, patents, season{id,xp,free{"n"},
   premiumClaimed{"n"},premium}, playtime{day,seconds,claimed{"i"}}, codes{CÓDIGO=true}, firstJoin,
-  starterBought, bestCombo`. Cada web: `variant` (nil o id de `Config.Variants`).
+  starterBought, bestCombo, weeklyMissions{week,list,bonusGiven}`; `stats.missions` (misiones
+  completadas). Cada web: `variant` (nil o id de `Config.Variants`) y `deal` (venta en curso).
 - **Salir a bolsa** también da `patents` y respeta I+D (`capital` = dinero inicial, `autolab` = Lab IA 1).
   **No** se pierden colección, I+D, patentes ni pase.
 - `career`: `xp{nicho=xp}, job{companyId,rank,rankSince,salaryMult,xpMult}, agency{name,officeLevel},
@@ -217,6 +221,22 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
     `serverEventIs`, tinte con `PlotManager.setEventTint`). **Meta común** `community` (objetivo =
     7 min de ingresos de todos; recompensa 8 min de ingresos + ⭐).
   - **Pack de inicio** producto `starter` (72 h desde `firstJoin`, una vez).
+- **v2.1 (más difícil, a petición del usuario)**:
+  - **Desbloqueo progresivo** `Config.Unlocks` por planta del rascacielos (clientes 2, anuncios y
+    ranking 3, empresas y pase 4, carrera 5, colección 6, agencia 7, bolsa/I+D 9). Cliente:
+    `TAB_FEATURES`, `tabLocked`, `refreshTabButtons`; servidor: `ACTION_FEATURES` + aviso
+    "🔓 Desbloqueado" al subir de planta (`UNLOCK_NAMES`).
+  - **Negociaciones**: `Config.DealSeconds` por tipo (20 s → 180 s; -3 %/nivel de Agencia Comercial,
+    tope -50 %), `Config.maxDeals` (2 + 1 cada 10 niveles de Comercial, máx. 5). Venta rápida sigue
+    siendo instantánea (x0,6).
+  - **Misiones semanales** `Config.WeeklyMissionPool` (4 por semana, cuentan las mismas
+    estadísticas que las diarias en `progressDaily`); completar las 4 = 2 patentes + boost 30 min.
+    Diarias más difíciles (cantidades ~x1,7).
+  - **Logros** `Config.Achievements` (10 logros × 5 niveles, bonus permanente por nivel:
+    money/click/visits/sale/work/rare vía `Config.achievementBonus`).
+  - **Recompensas gratis rebajadas**: `Config.REWARD_SCALE = 0.6` en `incomeReward` (las compras
+    con Robux usan `paidReward`, sin rebaja). Objetivos ×0,35, offline 35 %, regalo 2 min,
+    `SALE_SECONDS` 130.
 
 ## 7. Monetización
 
@@ -254,8 +274,9 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    (`tools/out/state.json`, `visit.json`) y **pulsa todos los botones** + recorre el tutorial.
    Luego cambia a inglés con el botón 🌐, vuelve a pulsarlo todo y falla si queda algún texto
    en español o si el cliente pide una clave que no está en LocaleEN. Debe dar `CLIENTE OK`.
-6. `sim.luau`: bot de economía 6 h (ritmo actual, v2.0 ralentizada a petición del usuario:
-   $1M ≈ 15,5 min, $100M ≈ 30 min, Metaverso ≈ 80 min para un bot perfecto; un humano va
+6. `sim.luau`: bot de economía 6 h (ritmo actual, v2.1 ralentizada a petición del usuario y con
+   negociaciones de venta: $1M ≈ 20 min, $100M ≈ 39 min, Metaverso ≈ 1 h 40 min para un bot
+   perfecto; un humano va
    bastante más lento). Ajuste hecho: rpv de las apps ×0,8, ingresos de empresas ×0,8,
    reputación para desbloquear webs ×1,4, trabajo de cada web ×1,2. El bot no cuenta las webs
    raras (≈ +20 % de dinero de media).
@@ -324,7 +345,11 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
       semana (v1.3). **Sin probar en Studio** todavía: revisar con el usuario cómo se ven.
 - [x] v2.0: webs raras, colección, I+D, pase, premios por tiempo, eventos del servidor, meta
       común, combo, hitos y compra en bloque, códigos, pack de inicio. **Sin probar en Studio.**
-- [ ] Publicar la v2.0. Poner en la descripción (en inglés) las novedades y los códigos.
+- [x] v2.1: desbloqueo por plantas, negociaciones de venta, misiones semanales, logros, recompensas
+      rebajadas. **Sin probar en Studio.**
+- [ ] **Rehacer la Bolsa al estilo de *Fleet Empire*** (juego de Roblox que le gusta al usuario).
+      No se encontró cómo es su bolsa: pedir al usuario capturas/explicación antes de diseñarlo.
+- [ ] Publicar la v2.1. Poner en la descripción (en inglés) las novedades y los códigos.
 - [ ] Crear los productos `starter` (pack de inicio, ~99–199 R$) y `seasonPremium` (~199–399 R$).
 - [ ] Conseguir los 250 jugadores 16+ (TikTok/Discord) para abrir a todas las edades.
 - [ ] Ajustar precios de pases (x2 Money a 99 parece barato; 199–299 es lo habitual).

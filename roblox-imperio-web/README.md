@@ -1,6 +1,13 @@
-# 🌐 Imperio Web Tycoon · v2.0 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v2.1 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v2.1 (más reto)
+- **Todo se desbloquea poco a poco** según la planta de tu rascacielos: 🤝 Clientes (2), 📢 Anuncios y 🏆 Ranking (3), 🏢 Empresas y 🎫 Pase (4), 💼 Carrera (5), 📖 Colección (6), 👥 Agencia (7), 📈 Bolsa e I+D (9). Las pestañas cerradas salen con 🔒.
+- **Los clientes ya no compran al instante**: se negocia la venta (de 20 s a 3 min según la web) y cobras al terminar. Máximo 2 negociaciones a la vez (más con la Agencia Comercial). La venta rápida sigue siendo inmediata, pero paga menos.
+- **Misiones**: siguen siendo 3 diarias, pero más difíciles, y ahora hay **4 semanales** (completarlas todas da 💡 patentes y un boost).
+- **🏅 Logros** con 5 niveles (🥉🥈🥇🏆💎) y **bonus permanentes** (dinero, clics, visitas, ventas, trabajo, webs raras).
+- **Recompensas gratis rebajadas** (×0,6) y progreso más lento. Lo que se compra con Robux no cambia.
 
 ## Novedades de la v2.0
 Ideas sacadas de los juegos que mejor funcionan (Grow a Garden, Pet Simulator 99, AdVenture Capitalist, Egg Inc. y las guías oficiales de Roblox):

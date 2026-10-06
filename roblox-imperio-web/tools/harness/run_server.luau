@@ -707,6 +707,16 @@ for _, site in s.sites do if site.variant then rares += 1 end end
 print("  colección:", entries, "casillas · bonus", Config.collectionBonus(s), "· mejor combo", s.bestCombo, "· webs raras ahora", rares)
 print("  evento del servidor:", s.serverEvent and s.serverEvent.id, "· meta común:", s.community and Config.formatMoney(s.community.target))
 assert(s.bestCombo >= 3, "el combo debería subir con clics seguidos")
+-- v2.1: misiones semanales y logros
+fakeTime += 2
+print("  semanales:", #s.weeklyMissions.list, "· recompensa", Config.formatMoney(s.weeklyMissions.reward))
+assert(#s.weeklyMissions.list == Config.WEEKLY_MISSION_COUNT, "deberían salir 4 misiones semanales")
+act("claimWeeklyMission", 1)
+act("claimWeeklyMission", 99)
+for _, achievement in Config.Achievements do
+	print(string.format("    logro %s: nivel %d (%s)", achievement.id, Config.achievementTier(s, achievement), tostring(achievement.value(s))))
+end
+print("  bonus de logros: dinero", Config.achievementBonus(s, "money"), "· clic", Config.achievementBonus(s, "click"))
 
 fs.writeFile("state.json", serde.encode("json", lastState()))
 

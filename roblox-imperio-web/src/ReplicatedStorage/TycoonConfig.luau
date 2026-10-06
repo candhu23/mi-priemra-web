@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "2.0"
+Config.VERSION = "2.1"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -23,11 +23,15 @@ Config.LEADERBOARD_REFRESH = 120 -- segundos
 Config.STARTING_MONEY = 25
 Config.BASE_SLOTS = 3 -- webs que puedes tener a la vez sin Hosting
 Config.OFFLINE_MAX_HOURS = 8
-Config.OFFLINE_RATE = 0.5 -- % de los ingresos que ganas estando desconectado
+Config.OFFLINE_RATE = 0.35 -- % de los ingresos que ganas estando desconectado
 Config.OFFER_COUNT = 4 -- ofertas de clientes visibles a la vez
 Config.OFFER_LIFETIME = 90 -- segundos que dura una oferta
 Config.QUICK_SALE_MULT = 0.6 -- vender sin cliente paga menos
-Config.SALE_SECONDS = 150 -- una empresa paga ~150 s de lo que puede ganar la web
+Config.SALE_SECONDS = 130 -- una empresa paga ~130 s de lo que puede ganar la web
+-- Las ventas a clientes no son instantáneas: hay que negociar. Segundos por
+-- tipo de web (la Agencia Comercial lo acorta un 3 % por nivel, hasta la mitad)
+Config.DealSeconds = { landing = 20, blog = 30, tienda = 45, noticias = 60, red_social = 90, streaming = 120, app_ia = 150, metaverso = 180 }
+Config.MAX_DEALS = 2 -- negociaciones a la vez (+1 cada 10 niveles de Agencia Comercial, máx. 5)
 Config.MAINTENANCE_RATE = 0.0002 -- contrato de mantenimiento: % del precio de venta por segundo
 Config.MAX_SEO = 10
 Config.MAX_DESIGN = 5
@@ -40,10 +44,12 @@ Config.EVENT_MAX_DELAY = 180
 Config.CLICK_RATE_LIMIT = 15 -- clics por segundo como máximo
 Config.CRIT_CHANCE = 0.06 -- probabilidad de clic crítico
 Config.CRIT_MULT = 5
-Config.GOAL_REWARD_SCALE = 0.5 -- premios de los objetivos (1 = como antes)
+Config.GOAL_REWARD_SCALE = 0.35 -- premios de los objetivos (1 = como antes)
+Config.REWARD_SCALE = 0.6 -- TODAS las recompensas gratis en minutos de ingresos (diaria, regalo,
+-- misiones, tiempo jugado, me gusta, meta común, pase, códigos, ranking...). Las compras con Robux no.
 Config.TUTORIAL_REWARD = 100 -- premio por terminar el tutorial
 Config.GIFT_INTERVAL = 600 -- un regalo cada 10 minutos jugando
-Config.GIFT_MINUTES = 3 -- el regalo vale 3 minutos de ingresos...
+Config.GIFT_MINUTES = 2 -- el regalo vale 2 minutos de ingresos...
 Config.GIFT_MIN = 200 -- ...o como mínimo esto
 Config.DAY_LENGTH_MINUTES = 16 -- duración de un día completo en el juego
 Config.WALK_SPEED = 22
@@ -188,17 +194,17 @@ Config.Companies = {
 Config.DAILY_MISSION_COUNT = 3
 Config.DAILY_ALL_BONUS_BOOST_MINUTES = 10
 Config.DailyMissionPool = {
-	{ id = "built", text = "Programa %d webs", amounts = { 3, 6, 10 } },
-	{ id = "sold", text = "Vende %d webs a empresas", amounts = { 2, 4, 7 } },
-	{ id = "clicks", text = "Haz %d clics programando", amounts = { 100, 300, 600 } },
-	{ id = "seo", text = "Mejora el SEO %d veces", amounts = { 2, 4, 8 } },
-	{ id = "companies", text = "Mejora tus empresas %d veces", amounts = { 3, 6, 12 } },
-	{ id = "gifts", text = "Recoge %d regalos gratis", amounts = { 1, 2, 3 } },
-	{ id = "tasks", text = "Resuelve %d tareas del trabajo", amounts = { 2, 4, 7 }, needs = "job" },
-	{ id = "recruits", text = "Entrevista a %d programadores", amounts = { 1, 3, 5 }, needs = "agency" },
-	{ id = "rares", text = "Consigue %d webs raras", amounts = { 1, 2, 4 } },
-	{ id = "playtime", text = "Juega %d minutos", amounts = { 10, 20, 40 } },
-	{ id = "combo", text = "Haz un combo de %d clics", amounts = { 15, 30, 50 } },
+	{ id = "built", text = "Programa %d webs", amounts = { 5, 10, 18 } },
+	{ id = "sold", text = "Vende %d webs a empresas", amounts = { 3, 6, 10 } },
+	{ id = "clicks", text = "Haz %d clics programando", amounts = { 250, 600, 1200 } },
+	{ id = "seo", text = "Mejora el SEO %d veces", amounts = { 3, 6, 12 } },
+	{ id = "companies", text = "Mejora tus empresas %d veces", amounts = { 5, 12, 25 } },
+	{ id = "gifts", text = "Recoge %d regalos gratis", amounts = { 2, 3, 5 } },
+	{ id = "tasks", text = "Resuelve %d tareas del trabajo", amounts = { 3, 6, 10 }, needs = "job" },
+	{ id = "recruits", text = "Entrevista a %d programadores", amounts = { 2, 4, 8 }, needs = "agency" },
+	{ id = "rares", text = "Consigue %d webs raras", amounts = { 1, 3, 5 } },
+	{ id = "playtime", text = "Juega %d minutos", amounts = { 15, 30, 60 } },
+	{ id = "combo", text = "Haz un combo de %d clics", amounts = { 20, 35, 50 } },
 }
 Config.DailyMissionRewards = {
 	{ name = "Fácil", minutes = 4, min = 300 },
@@ -208,6 +214,119 @@ Config.DailyMissionRewards = {
 Config.DailyMissionById = {}
 for _, mission in Config.DailyMissionPool do
 	Config.DailyMissionById[mission.id] = mission
+end
+
+---------------------------------------------------------------------
+-- Misiones semanales: 4 por semana (se renuevan el lunes 00:00 UTC),
+-- mucho más largas. Cuentan lo mismo que las diarias. Completar las 4
+-- da patentes y un boost.
+---------------------------------------------------------------------
+Config.WEEKLY_MISSION_COUNT = 4
+Config.WeeklyMissionPool = {
+	{ id = "built", text = "Programa %d webs esta semana", amount = 60 },
+	{ id = "sold", text = "Vende %d webs a empresas esta semana", amount = 35 },
+	{ id = "clicks", text = "Haz %d clics programando esta semana", amount = 6000 },
+	{ id = "seo", text = "Mejora el SEO %d veces esta semana", amount = 40 },
+	{ id = "companies", text = "Mejora tus empresas %d veces esta semana", amount = 120 },
+	{ id = "rares", text = "Consigue %d webs raras esta semana", amount = 12 },
+	{ id = "playtime", text = "Juega %d minutos esta semana", amount = 240 },
+	{ id = "missions", text = "Completa %d misiones diarias esta semana", amount = 12 },
+	{ id = "tasks", text = "Resuelve %d tareas del trabajo esta semana", amount = 30, needs = "job" },
+	{ id = "recruits", text = "Entrevista a %d programadores esta semana", amount = 20, needs = "agency" },
+}
+Config.WeeklyMissionReward = { minutes = 45, min = 15000, seasonXp = 150 }
+Config.WEEKLY_ALL_PATENTS = 2
+Config.WEEKLY_ALL_BOOST_MINUTES = 30
+Config.WeeklyMissionById = {}
+for _, mission in Config.WeeklyMissionPool do
+	Config.WeeklyMissionById[mission.id] = mission
+end
+
+---------------------------------------------------------------------
+-- Logros: tienen varios niveles (🥉 → 💎) y cada nivel da un bonus
+-- PERMANENTE. No se pierden nunca. value(d) = progreso actual.
+--   bonus = qué mejora: money (todo el dinero), click (trabajo por clic),
+--           visits, sale (precio de venta), work (trabajo/s), rare
+--           (probabilidad de webs raras). per = cuánto por nivel.
+---------------------------------------------------------------------
+Config.ACHIEVEMENT_TIER_EMOJIS = { "🥉", "🥈", "🥇", "🏆", "💎" }
+Config.Achievements = {
+	{ id = "builder", emoji = "⌨️", name = "Programador incansable", text = "Webs programadas", tiers = { 25, 150, 600, 2500, 10000 },
+		bonus = "click", per = 0.05, value = function(d) return d.stats.built or 0 end },
+	{ id = "seller", emoji = "🤝", name = "Gran vendedor", text = "Webs vendidas", tiers = { 10, 75, 300, 1200, 5000 },
+		bonus = "sale", per = 0.05, value = function(d) return d.stats.sold or 0 end },
+	{ id = "clicker", emoji = "🖱️", name = "Dedos de acero", text = "Clics programando", tiers = { 2000, 20000, 100000, 500000, 2000000 },
+		bonus = "click", per = 0.04, value = function(d) return d.stats.clicks or 0 end },
+	{ id = "tycoon", emoji = "💰", name = "Magnate", text = "Dinero ganado en total", tiers = { 1e6, 1e9, 1e12, 1e15, 1e18 },
+		bonus = "money", per = 0.04, value = function(d) return d.lifetimeEarned or 0 end },
+	{ id = "investor", emoji = "📈", name = "Inversor", text = "Salidas a bolsa", tiers = { 1, 3, 8, 20, 50 },
+		bonus = "money", per = 0.03, value = function(d) return d.ipoCount or 0 end },
+	{ id = "collector", emoji = "📖", name = "Coleccionista", text = "Casillas de la colección", tiers = { 5, 12, 20, 30, 40 },
+		bonus = "rare", per = 0.08, value = function(d)
+			local n = 0
+			for _, row in d.collection or {} do
+				for _ in row do
+					n += 1
+				end
+			end
+			return n
+		end },
+	{ id = "boss", emoji = "👥", name = "Jefe de equipo", text = "Entrevistas en tu agencia", tiers = { 10, 50, 200, 800, 3000 },
+		bonus = "work", per = 0.05, value = function(d) return (d.career and d.career.stats and d.career.stats.recruits) or 0 end },
+	{ id = "dedicated", emoji = "📅", name = "Constante", text = "Misiones completadas", tiers = { 10, 50, 150, 400, 1000 },
+		bonus = "money", per = 0.03, value = function(d) return d.stats.missions or 0 end },
+	{ id = "popular", emoji = "👍", name = "Famoso", text = "Me gusta recibidos", tiers = { 5, 25, 100, 400, 1500 },
+		bonus = "visits", per = 0.04, value = function(d) return d.likes or 0 end },
+	{ id = "combo", emoji = "🔥", name = "Imparable", text = "Mejor combo", tiers = { 10, 20, 30, 40, 50 },
+		bonus = "click", per = 0.03, value = function(d) return d.bestCombo or 0 end },
+}
+
+-- Niveles conseguidos de un logro (0..5)
+function Config.achievementTier(data, achievement): number
+	local value = achievement.value(data)
+	local tier = 0
+	for i, target in achievement.tiers do
+		if value >= target then
+			tier = i
+		end
+	end
+	return tier
+end
+
+-- Bonus total de los logros de un tipo (0.15 = +15 %)
+function Config.achievementBonus(data, kind: string): number
+	local total = 0
+	for _, achievement in Config.Achievements do
+		if achievement.bonus == kind then
+			total += Config.achievementTier(data, achievement) * achievement.per
+		end
+	end
+	return total
+end
+
+---------------------------------------------------------------------
+-- Desbloqueo progresivo: cada parte del juego se abre al llegar a una
+-- planta de tu rascacielos (que crece con todo lo que has ganado, así que
+-- nunca se vuelve a cerrar). Lo comprueba también el servidor.
+---------------------------------------------------------------------
+Config.Unlocks = {
+	clients = 2, -- vender a empresas
+	ads = 3, -- más apps de anuncios
+	ranking = 3,
+	companies = 4,
+	season = 4, -- pase de temporada
+	career = 5,
+	collection = 6,
+	agency = 7,
+	market = 9, -- bolsa e I+D
+}
+
+function Config.unlockFloor(feature: string): number
+	return Config.Unlocks[feature] or 1
+end
+
+function Config.isUnlocked(data, feature: string): boolean
+	return Config.buildingFloors(data.lifetimeEarned) >= Config.unlockFloor(feature)
 end
 
 Config.DailyRewards = {
@@ -300,9 +419,9 @@ Config.Goals = {
 	goal("earn_1k", "Gana $1K", 200, 1e3, function(d) return d.totalEarned end),
 	goal("blog", "Programa un Blog", 300, 1, built("blog")),
 	goal("sell_1", "Vende una web a una empresa", 400, 1, function(d) return d.stats.sold end),
-	goal("job_1", "Consigue un trabajo en una empresa", 300, 1, careerStat("jobs")),
-	goal("company_1", "Funda tu primera empresa", 500, 1, companyLevels),
 	goal("network_2", "Desbloquea una segunda app de anuncios", 1500, 2, networksUnlocked),
+	goal("company_1", "Funda tu primera empresa", 500, 1, companyLevels),
+	goal("job_1", "Consigue un trabajo en una empresa", 300, 1, careerStat("jobs")),
 	goal("tienda", "Programa una Tienda Online", 2000, 1, built("tienda")),
 	goal("sites_5", "Ten 5 webs a la vez", 3000, 5, function(d) return #d.sites end),
 	goal("dev_8", "Llega a nivel de programador 8", 4000, 8, careerStat("devLevel")),
@@ -751,12 +870,23 @@ end
 
 -- Multiplicador de probabilidad de webs raras (I+D y evento del servidor)
 function Config.variantChanceMult(data, eventMult: number?): number
-	return math.min(Config.MAX_VARIANT_CHANCE_MULT, (1 + Config.researchValue(data, "luck")) * (eventMult or 1))
+	return math.min(Config.MAX_VARIANT_CHANCE_MULT, (1 + Config.researchValue(data, "luck") + Config.achievementBonus(data, "rare")) * (eventMult or 1))
 end
 
 -- Multiplicador del combo de clics
 function Config.comboMult(combo: number): number
 	return 1 + (Config.COMBO_MAX_MULT - 1) * math.clamp(combo, 0, Config.COMBO_MAX) / Config.COMBO_MAX
+end
+
+-- Segundos que tarda un cliente en comprar una web de ese tipo
+function Config.dealSeconds(data, typeId: string): number
+	local base = Config.DealSeconds[typeId] or 60
+	return math.floor(base * math.max(0.5, 1 - 0.03 * Config.level(data, "comercial")))
+end
+
+-- Negociaciones de venta que puedes tener a la vez
+function Config.maxDeals(data): number
+	return math.min(5, Config.MAX_DEALS + Config.level(data, "comercial") // 10)
 end
 
 -- Contratos de mantenimiento (con la mejora de I+D)
@@ -779,12 +909,12 @@ function Config.workPerSec(data, bonuses): number
 	local turbo = if bonuses and bonuses.turbo then 2 else 1
 	local agency = if bonuses and bonuses.agencyWork then bonuses.agencyWork else 0
 	local devs = Config.level(data, "devs") * 1.5 * Config.companyMult(data, "devs")
-	return (devs + agency) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo
+	return (devs + agency) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo * (1 + Config.achievementBonus(data, "work"))
 end
 
 function Config.clickPower(data, bonuses): number
 	local turbo = if bonuses and bonuses.turbo then 2 else 1
-	local fingers = 1 + Config.researchValue(data, "fingers")
+	local fingers = 1 + Config.researchValue(data, "fingers") + Config.achievementBonus(data, "click")
 	return (1 + Config.workPerSec(data, nil) * 0.15) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo * fingers
 end
 
@@ -809,6 +939,7 @@ function Config.moneyMult(data, bonuses): number
 	local mult = 1 + data.shares * Config.SHARE_BONUS
 	mult *= 1 + 0.05 * Config.level(data, "datacenter")
 	mult *= 1 + Config.collectionBonus(data)
+	mult *= 1 + Config.achievementBonus(data, "money")
 	if bonuses then
 		if bonuses.pass then
 			mult *= 2
@@ -834,7 +965,7 @@ function Config.siteVisits(data, site, eventMult: number?): number
 	visits *= Config.SEO_VISIT_BONUS ^ site.seo
 	visits *= 1 + 0.10 * Config.level(data, "marketing")
 	visits *= adLevel.visits * (1 - network.penalty)
-	visits *= 1 + Config.researchValue(data, "viral")
+	visits *= 1 + Config.researchValue(data, "viral") + Config.achievementBonus(data, "visits")
 	local variant = site.variant and Config.VariantById[site.variant]
 	if variant then
 		visits *= variant.mult
@@ -866,7 +997,7 @@ end
 function Config.saleBase(data, site, moneyMult: number): number
 	local visits = Config.siteVisits(data, site, 1)
 	local commercial = 1 + 0.12 * Config.level(data, "comercial")
-	local negotiator = 1 + Config.researchValue(data, "negotiator")
+	local negotiator = 1 + Config.researchValue(data, "negotiator") + Config.achievementBonus(data, "sale")
 	return visits * Config.SALE_SECONDS * Config.bestRpv(data) * commercial * negotiator * moneyMult
 end
 
