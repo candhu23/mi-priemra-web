@@ -1,4 +1,4 @@
-# CLAUDE.md — «Dungeon Ascend» (juego de mazmorras de Roblox)
+# CLAUDE.md — «Dungeon Ascend» (juego de hordas estilo "survivors" de Roblox)
 
 Segundo juego del usuario en este repo (el primero es Web Empire Tycoon, en
 `roblox-imperio-web/`, con su propio contexto en el `CLAUDE.md` de la raíz). Lee también
@@ -7,12 +7,16 @@ qué te falta; no quiere tocar código; pasos de clic en clic; usa Windows y Rob
 
 ## 1. Estado
 
-- **Versión 0.1** (`Config.VERSION` en `GameConfig.luau`; súbelo en cada versión).
+- **Versión 0.2** (`Config.VERSION` en `GameConfig.luau`; súbelo en cada versión).
+  v0.1 era un RPG de zonas con habilidades; el usuario pidió **parecerse lo más posible a
+  Survive the Swarm y Final Swarm** → en v0.2 se reconvirtió en "survivors" (armas
+  automáticas, hordas, mejoras 1 de 3, jefe y portal, mejoras permanentes).
+  Decisiones del usuario: **solo o en grupo de hasta 4**; al elegir mejora, **cámara lenta**
+  para los enemigos que te persiguen (no pausa).
 - **Sin publicar todavía.** Cuando se publique, apunta aquí el universe ID y el place ID.
-- Rama de trabajo: **`claude/dungeon-ascend`**. Descarga del lugar:
+- Rama: **`claude/dungeon-ascend`**. Descarga:
   `https://github.com/candhu23/mi-priemra-web/raw/claude/dungeon-ascend/roblox-dungeon/DungeonAscend.rbxl`
-- Decisiones del usuario: combate de **acción con habilidades**, **cooperativo en zonas
-  compartidas**, nombre **Dungeon Ascend**.
+- **No copiar** nombres, logos, arte ni la interfaz exacta de esos juegos (solo la mecánica).
 
 ## 2. Archivos
 
@@ -21,91 +25,111 @@ roblox-dungeon/
 ├── default.project.json   # Rojo. Lighting.Technology = Future (no se puede por script)
 ├── DungeonAscend.rbxl     # generado por tools/check.sh (súbelo en cada commit)
 ├── README.md              # guía para el usuario
-├── docs/                  # render_*.png (mapas y enemigos dibujados por las pruebas)
-├── tools/                 # setup.sh, check.sh, harness/, sim/ (bin/ y out/ en .gitignore)
+├── docs/                  # render_*.png (lobby, arenas y enemigos dibujados por las pruebas)
+├── tools/                 # setup.sh, check.sh, harness/ (bin/ y out/ en .gitignore)
 └── src/
-    ├── ReplicatedStorage/GameConfig.luau        # TODOS los datos y fórmulas
+    ├── ReplicatedStorage/
+    │   ├── GameConfig.luau     # TODOS los datos: armas, pasivas, clases, mapas, enemigos, economía, tienda
+    │   └── EnemyModels.luau    # modelos de enemigos con piezas (los usa el CLIENTE)
     ├── ServerScriptService/
-    │   ├── GameServer.server.luau  # datos, sesiones, acciones, botín, XP, compras, guardado
-    │   ├── CombatService.luau      # IA de enemigos, jefes (golpe con aviso), habilidades, daño
-    │   ├── EnemyModels.luau        # modelos de enemigos hechos con piezas
-    │   └── World.luau              # Ciudad, portales, forja, tienda, clasificación, 3 zonas
-    └── StarterPlayerScripts/GameClient.client.luau  # toda la interfaz y efectos
+    │   ├── GameServer.server.luau  # datos, acciones, grupos, recompensas, compras, guardado
+    │   ├── RunManager.luau         # LAS PARTIDAS: oleadas, enemigos, armas, cristales, mejoras, jefe, portal
+    │   └── World.luau              # lobby y arenas (una por partida, se crean y se borran)
+    └── StarterPlayerScripts/
+        ├── GameClient.client.luau  # interfaz del lobby y de la partida
+        └── SwarmView.luau          # dibuja la horda, cristales y efectos (ModuleScript)
 ```
 
 ## 3. Arquitectura
 
 - **El servidor manda.** Remotes en `ReplicatedStorage.DungeonRemotes`:
   - `Action` (RemoteFunction) `(action, a, b) → (ok, mensaje?, extra?)`. Acciones:
-    `teleport, equip, sell, sellJunk, upgrade, buyChest, claimDaily, finishTutorial,
-    setMuted, setAutoSell, saveNow`. Máx. 10/s.
-  - `Combat` (RemoteEvent). Cliente→servidor: `("skill", id)` (máx. 20/s; el servidor
-    comprueba nivel y recarga con 0,15 s de margen). Servidor→cliente: `hits {p,d,c}`,
-    `hurt`, `reward (pos, xp, oro)`, `loot (item, esMejor)`, `levelup`, `died (zona, s)`,
-    `fx (tipo, pos, extra, userIdOrigen)` a todos.
-  - `State` (estado completo; al cambiar algo, máx. 4/s, y cada 2 s), `Notify`
-    (`popup|success|error|info|loot|boss`), `OpenMenu (pestaña)` desde los carteles.
-- **Enemigos = piezas ancladas** movidas por el servidor (`CombatService.step`, 15 Hz con
-  `Heartbeat`), sin Humanoid ni física. Solo piensan si hay alguien en su zona. Botín
-  **personal**: todos los que dañan a un enemigo reciben XP, oro y su propia tirada de botín.
-- Zonas en `z = -1000·índice`, 240×320. `World.zoneAt(pos)` dice en qué zona estás.
-- La Embestida mueve al personaje en el **cliente** (LinearVelocity 0,22 s); el servidor
-  calcula el daño en línea desde la posición del personaje.
-- Arma visible soldada a la mano (`ArmaEquipada`), color del objeto, brilla si es épica o más.
+    `playSolo, createGroup, joinGroup, leaveGroup, startGroup, choose, reroll, leaveRun,
+    buyUpgrade, buyClass, equip, sell, sellJunk, upgrade, buyChest, claimDaily,
+    finishTutorial, setMuted, setAutoSell, saveNow`. Máx. 10/s.
+  - `Swarm` (RemoteEvent). Servidor→cliente 10 veces/s: `(buffer, gemAdds, gemRemoves, fx)`.
+    Buffer: `u16 n` + por enemigo 9 bytes `u16 id, u8 tipo (índice en Config.EnemyList),
+    u8 vida 0-255, u8 flags (1 élite, 2 jefe, 4 cargando golpe), i16 x·4, i16 z·4`
+    (relativo al centro de la arena). `gemAdds` = `[id, tipo, x·4, z·4]…` (1 XP, 2 corazón,
+    3 cofre); `gemRemoves` = `[id, userIdQueLoRecoge]…`; `fx` = `{tipo, …}` (slash, bolt,
+    dagger, lightning, slamwarn, slam, death, levelup, revive, evolve, portal).
+    Cliente→servidor: `("dash")`.
+  - `State` (estado completo; si hay partida incluye `run` con reloj, XP, armas, oferta de
+    mejoras, jefe, portal…; cada 0,5 s en partida, 2 s en el lobby, o al cambiar algo),
+    `Notify` (`popup|success|error|info|loot|boss`, más `loot_item` y `summary` con tabla),
+    `OpenMenu (pestaña, mapa?)` desde los portales y carteles.
+- **Enemigos = datos en el servidor** (`RunManager`, 15 Hz con `Heartbeat`): persiguen al
+  jugador vivo más cercano, se separan con una rejilla de 4 studs, golpean al tocar
+  (1/s). Tope 200 por partida. El **cliente** los dibuja con `EnemyModels`, los interpola y los
+  mueve con `Workspace:BulkMoveTo`. Sin sombras (rendimiento) salvo jefes.
+- Armas en `RunManager.fireWeapon`. Los orbes golpean cada 0,5 s por enemigo; el aura cada
+  `cooldown`. El aura y los orbes se DIBUJAN en el cliente a partir de `run.team[].weapons`.
+- XP **compartida por el equipo**; cada uno elige su mejora. Oro: cada enemigo da oro a
+  **todos** los del equipo. La mitad de los enemigos aparece **por delante** de hacia donde
+  corre el jugador (si no, los más lentos nunca te alcanzan y la espada no mata).
+- Arenas en `x = 2000 + 600·(hueco-1)`, 8 huecos (`Config.ARENA_SLOTS`). Cámara alejada en partida.
+- Fin de partida por jugador (`finishMember`): `win` (portal) = oro ×1,5 + objeto del jefe +
+  siguiente mapa; `dead`/`left` = oro ×0,5. Caído: 20 s para revivir (producto) antes de salir.
+  Salir del juego a mitad = `left` (se cobra antes de guardar).
 
 ## 4. Datos guardados
 
-DataStore `DungeonAscend_v1`, clave `player_<UserId>`; clasificación OrderedDataStore
-`DungeonAscendTop_v1` = `nivel·1e9 + xp`. Mismo sistema que el tycoon: guarda cada 60 s,
-al salir, en `BindToClose`, tras cada compra y a mano; si la carga falla no se guarda.
-`reconcile()` rellena campos nuevos salvo dentro de `inventory, equipped, bossKills, receipts`.
+DataStore `DungeonAscend_v2` (v0.1 usaba `_v1`; nunca se publicó), clave `player_<UserId>`;
+clasificación OrderedDataStore `DungeonAscendKills_v2` = enemigos derrotados.
+Guarda cada 60 s, al salir, en `BindToClose`, tras cada compra y a mano; si la carga falla no
+se guarda. `reconcile()` no entra en `inventory, equipped, upgrades, classes, mapWins,
+bestTime, receipts`.
 
-Campos: `level, xp, gold, lifetimeGold, inventory[{id,def,rarity,up}], equipped{slot=id},
-nextItemId, unlockedZone, bossKills{zona=n}, stats{kills,bossKills,deaths,itemsFound,upgrades,chests},
+Campos: `gold, lifetimeGold, inventory[{id,def,rarity,up}], equipped{slot=id}, nextItemId,
+upgrades{id=nivel}, classes{id=true}, selectedClass, unlockedMap, mapWins{mapa=n},
+bestTime{mapa=s}, stats{runs,wins,kills,bossKills,deaths,itemsFound,upgrades,chests},
 daily{lastDay,streak}, boostUntil, receipts, tutorialDone, settings{muted,autoSell}, lastOnline`.
 
-## 5. Equilibrio (`tools/sim/run.sh`)
+## 5. Equilibrio (`run_server.luau <src> bot`, lo ejecuta check.sh)
 
-Bot «humano razonable» (70 % de eficiencia): jefe 1 ≈ 23 min, jefe 2 ≈ 62 min,
-jefe 3 ≈ 105 min, nivel ≈ 78 a las 5 h. Un jugador real irá más lento (×1,5–3).
-Al final sobra oro (no hay en qué gastarlo tras +10): las zonas nuevas lo arreglarán.
+Bots que juegan partidas completas con el código real, esquivando en círculos (cambian de
+sentido cada 15 s y se apartan de enemigos a <12 studs). Resultado actual: escapan del
+Bosque hacia el minuto 9 (nivel ~20, ~2.000 enemigos, ~1.700 oro); el Castillo sin equipo
+no se supera. El bot esquiva MEJOR que un humano novato: es un límite optimista.
+**Hay que ajustar con pruebas reales** (pedir al usuario cuánto aguanta y a qué minuto cae).
 
 ## 6. Monetización
 
-`Config.Monetization`: `id = 0` → el artículo no aparece. **Todos a 0 (pendientes).**
-Pases: `goldPass` 149, `xpPass` 149, `autoPass` 99, `bagPass` 49.
-Productos: `gold_small` 25, `gold_big` 99, `boost` 39, `revive` 15 (botón en la pantalla de muerte).
-Sin artículos aleatorios de pago (los cofres se pagan con oro del juego).
+`Config.Monetization`: `id = 0` → no aparece. **Todos a 0 (pendientes).**
+Pases: `goldPass` 149, `choicePass` 199 (4 opciones), `rerollPass` 99 (+3 rerolls), `bagPass` 49.
+Productos: `gold_small` 25, `gold_big` 99, `boost` 39, `revive` 15 (en la pantalla al caer).
+Sin artículos aleatorios de pago (los cofres se pagan con oro).
 
 ## 7. Verificación (OBLIGATORIO antes de cada commit)
 
 ```bash
 cd roblox-dungeon && tools/check.sh   # la 1ª vez descarga las herramientas
 ```
-1. `luau-compile` (sintaxis y 200 locales). 2. `luau-lsp analyze` → **0 avisos**.
-3. `run_server.luau`: mundo + enemigos reales, jugador falso con personaje que viaja, lucha,
-   sube de nivel, equipa, vende, forja, vence al jefe, desbloquea la Cueva, compra, muere,
-   revive, guarda, sale y vuelve → `TODO OK`. Vuelca `world.json`.
-4. `run_client.luau`: crea la interfaz, simula eventos de combate, pulsa todos los botones,
-   teclas, auto-ataque y tutorial → `CLIENTE OK`.
-5. Simulador de equilibrio. 6. `render.py` (si hay matplotlib) y `rojo build`.
+1. `luau-compile`. 2. `luau-lsp analyze` → **0 avisos**. 3. `run_server.luau`: lobby,
+partida solo completa (oleadas, mejoras, reroll, esquivar, todas las armas, élites, jefe con
+golpe avisado, portal, victoria y recompensas), grupo de 2 (unirse, revivir con producto,
+abandonar, caer sin revivir), mejoras, clases, mochila, compras, salir a mitad de partida y
+volver → `TODO OK`; vuelca `world.json`, `state.json`, `state_run.json`.
+4. `run_client.luau`: lobby y partida, foto de horda con todos los enemigos, cristales y
+efectos, todos los botones, teclas, muerte, resumen y tutorial → `CLIENTE OK`.
+5. Bots de equilibrio. 6. `render.py` (si hay matplotlib) y `rojo build`.
 
-Trampas de Lune (ya resueltas en el harness): `Position` no se calcula desde `CFrame`;
-`Model:PivotTo` no existe (lo simula el harness); **`CFrame.lookAt` de Lune gira al revés**
-(usa `CFrame.Angles(0, atan2(-dx, -dz), 0)`); `Humanoid.Health` no tiene valor por defecto.
-Las del tycoon también aplican (ver `CLAUDE.md` de la raíz, §8–§9).
+Trampas de Lune (resueltas en los harness): `Position` no se calcula desde `CFrame`;
+`Model:PivotTo` y `Workspace:BulkMoveTo` no existen (los simulan); **`CFrame.lookAt` de
+Lune gira al revés** (usa `CFrame.Angles(0, atan2(-dx, -dz), 0)`); `Humanoid.Health` no tiene
+valor por defecto y `TakeDamage`/`Died` hay que simularlos; Vector3 no cabe en JSON.
 
 ## 8. Lo que NO se puede verificar aquí (pedir capturas al usuario)
 
-- La sensación del combate: que los enemigos se vean fluidos a 15 Hz y que la Embestida
-  no atraviese paredes de forma rara.
-- Que la Cueva (con techo) no quede demasiado oscura.
-- Cómo queda el arma en la mano (R15 y R6).
+- Rendimiento real con 200 enemigos (sobre todo en móvil) y lo suave que se ve la horda.
+- Que la cámara alejada sea cómoda y que el esquive (LinearVelocity) no atraviese muros.
+- Dificultad real para una persona (ver §5).
 
 ## 9. Ideas siguientes
 
 - [ ] Publicar y poner los IDs de pases y productos.
-- [ ] Más zonas (cada una: 3 enemigos, jefe, 3 objetos; el sistema es por datos en `GameConfig`).
-- [ ] Más habilidades o clases, mascotas que ayudan, misiones diarias, renacer (rebirth).
-- [ ] Movimiento de enemigos más suave (interpolar en el cliente).
+- [ ] Más mapas (Survive the Swarm tiene 20): cada uno es un bloque en `Config.Maps` + tema en `World`.
+- [ ] Más armas y evoluciones, más clases, árbol de habilidades, "bancar o arriesgar" el oro.
+- [ ] Revivir a compañeros caídos quedándose cerca; modo infinito; clasificación semanal.
+- [ ] Modelos de enemigos más bonitos (Toolbox/IA → `.rbxm` en GitHub; ver conversación).
 - [ ] Idiomas ES/EN.

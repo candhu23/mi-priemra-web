@@ -1,10 +1,11 @@
 --[[
 	GameServer (Script en ServerScriptService)
 
-	El servidor manda: guarda la partida, reparte XP, oro y botín,
-	comprueba cada acción del jugador (equipar, vender, forjar, viajar…),
-	aplica la vida y el arma al personaje y gestiona las compras con Robux
-	y la clasificación global. El combate está en CombatService.
+	El servidor manda: guarda la partida, comprueba cada acción del jugador
+	(clases, mejoras permanentes, mochila, forja, cofres, grupos, elegir
+	mejora en partida…), reparte las recompensas al acabar cada partida y
+	gestiona las compras con Robux y la clasificación global.
+	Las partidas en sí están en RunManager.
 ]]
 
 local Players = game:GetService("Players")
@@ -16,7 +17,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local World = require(ServerScriptService:WaitForChild("World"))
-local CombatService = require(ServerScriptService:WaitForChild("CombatService"))
+local RunManager = require(ServerScriptService:WaitForChild("RunManager"))
 
 local random = Random.new()
 local Monetization = Config.Monetization
@@ -41,10 +42,11 @@ local notifyEvent = Instance.new("RemoteEvent")
 notifyEvent.Name = "Notify"
 notifyEvent.Parent = remotes
 
--- Combate: cliente → servidor ("skill", id) · servidor → cliente ("hits", "hurt", "reward", "fx"…)
-local combatEvent = Instance.new("RemoteEvent")
-combatEvent.Name = "Combat"
-combatEvent.Parent = remotes
+-- Partida: servidor → cliente (enemigos en un buffer, cristales y efectos) ·
+-- cliente → servidor ("dash")
+local swarmEvent = Instance.new("RemoteEvent")
+swarmEvent.Name = "Swarm"
+swarmEvent.Parent = remotes
 
 local openMenuEvent = Instance.new("RemoteEvent")
 openMenuEvent.Name = "OpenMenu"
@@ -76,16 +78,18 @@ end
 
 local function newData()
 	return {
-		level = 1,
-		xp = 0,
 		gold = 0,
 		lifetimeGold = 0,
 		inventory = { { id = 1, def = Config.STARTER_WEAPON, rarity = "comun", up = 0 } },
 		equipped = { weapon = 1 },
 		nextItemId = 2,
-		unlockedZone = 1,
-		bossKills = {},
-		stats = { kills = 0, bossKills = 0, deaths = 0, itemsFound = 0, upgrades = 0, chests = 0 },
+		upgrades = {},
+		classes = { guerrero = true },
+		selectedClass = "guerrero",
+		unlockedMap = 1,
+		mapWins = {},
+		bestTime = {},
+		stats = { runs = 0, wins = 0, kills = 0, bossKills = 0, deaths = 0, itemsFound = 0, upgrades = 0, chests = 0 },
 		daily = { lastDay = -1, streak = 0 },
 		boostUntil = 0,
 		receipts = {},
@@ -96,7 +100,7 @@ local function newData()
 end
 
 -- Campos que son listas o mapas del jugador: no se rellenan por dentro
-local NO_DEEP_RECONCILE = { inventory = true, equipped = true, bossKills = true, receipts = true }
+local NO_DEEP_RECONCILE = { inventory = true, equipped = true, upgrades = true, classes = true, mapWins = true, bestTime = true, receipts = true }
 
 -- Rellena campos que falten en partidas guardadas con versiones antiguas
 local function reconcile(data, template)
@@ -119,8 +123,8 @@ end
 ---------------------------------------------------------------------
 type Bonuses = {
 	goldPass: boolean,
-	xpPass: boolean,
-	autoPass: boolean,
+	choicePass: boolean,
+	rerollPass: boolean,
 	bagPass: boolean,
 	boost: boolean,
 	friends: number,
@@ -134,27 +138,18 @@ type Session = {
 	lastStateAt: number,
 	actionWindowStart: number,
 	actionCount: number,
-	skillWindowStart: number,
-	skillCount: number,
-	lastSkillError: number,
 	lastManualSave: number,
 	lastSaveOk: boolean?,
 	lastSaveAt: number,
 	friendIds: { [number]: boolean },
-	deathZone: string?,
-	deathAt: number,
-	leaderLevel: IntValue,
-	leaderZone: IntValue,
+	leaderKills: IntValue,
+	leaderWins: IntValue,
 }
 
 local sessions: { [Player]: Session } = {}
 
 local function notify(player: Player, text: string, kind: string?)
 	notifyEvent:FireClient(player, text, kind or "info")
-end
-
-local function popup(player: Player, title: string, body: string)
-	notifyEvent:FireClient(player, title, "popup", body)
 end
 
 local function notifyAll(text: string, kind: string)
@@ -206,7 +201,7 @@ local function refreshBoost(session: Session)
 	session.bonuses.boost = session.data.boostUntil > os.time()
 end
 
--- Arma visible en la mano del personaje (cambia de color con el objeto)
+-- Arma de la mochila visible en la mano del personaje (para presumir en el lobby)
 local function attachWeapon(character: Model, item: Config.Item?)
 	local old = character:FindFirstChild("ArmaEquipada")
 	if old then
@@ -255,18 +250,20 @@ local function attachWeapon(character: Model, item: Config.Item?)
 	model.Parent = character
 end
 
--- Recalcula daño y vida y los aplica al personaje
-local function applyStats(player: Player, session: Session, fullHeal: boolean?)
+-- Recalcula las estadísticas permanentes y, si está en el lobby, las aplica al personaje
+local function applyStats(player: Player, session: Session)
 	local data = session.data
-	local equipped = equippedItems(data)
-	session.stats = Config.playerStats(data.level, equipped)
+	session.stats = Config.baseStats(data.selectedClass, data.upgrades, equippedItems(data))
 	session.dirty = true
+	if RunManager.runOf(player) then
+		return
+	end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid and humanoid.Health > 0 then
-		local ratio = humanoid.Health / math.max(1, humanoid.MaxHealth)
-		humanoid.MaxHealth = session.stats.maxHealth
-		humanoid.Health = if fullHeal then session.stats.maxHealth else math.max(1, ratio * session.stats.maxHealth)
+		humanoid.MaxHealth = session.stats.health
+		humanoid.Health = session.stats.health
+		humanoid.WalkSpeed = Config.WALK_SPEED * session.stats.speed
 	end
 end
 
@@ -278,11 +275,11 @@ local function rollRarity(field: string): string
 	local roll = random:NextNumber() * total
 	for _, rarity in Config.Rarities do
 		roll -= rarity[field]
-		if roll <= 0 then
+		if roll <= 0 and rarity[field] > 0 then
 			return rarity.id
 		end
 	end
-	return Config.Rarities[1].id
+	return Config.Rarities[#Config.Rarities].id
 end
 
 local function addGold(data, amount: number)
@@ -291,8 +288,8 @@ local function addGold(data, amount: number)
 	data.lifetimeGold += amount
 end
 
--- Añade un objeto a la mochila (o lo vende si no cabe / venta automática)
-local function addItem(player: Player, session: Session, defId: string, rarityId: string, source: string)
+-- Añade un objeto a la mochila (o lo vende si no cabe / venta automática). Devuelve el objeto.
+local function addItem(player: Player, session: Session, defId: string, rarityId: string, source: string): any
 	local data = session.data
 	local item = { id = data.nextItemId, def = defId, rarity = rarityId, up = 0 }
 	data.nextItemId += 1
@@ -307,85 +304,62 @@ local function addItem(player: Player, session: Session, defId: string, rarityId
 		addGold(data, price)
 		local why = if full then "🎒 Mochila llena: " else "♻️ Venta automática: "
 		notify(player, why .. def.name .. " (" .. rarity.name .. ") vendido por 🪙" .. Config.formatNumber(price), "info")
-		return
+		return item
 	end
 	table.insert(data.inventory, item)
-	combatEvent:FireClient(player, "loot", item, better)
+	notifyEvent:FireClient(player, "", "loot_item", { item = item, better = better })
 	if rarity.index >= 5 then
 		notifyAll("🌟 ¡" .. player.DisplayName .. " ha conseguido " .. def.name .. " LEGENDARIO " .. source .. "!", "loot")
 	end
 	session.dirty = true
+	return item
 end
 
 ---------------------------------------------------------------------
--- XP, oro y muertes de enemigos
+-- Grupos del lobby (hasta 4 jugadores juegan juntos)
 ---------------------------------------------------------------------
-local function gainXp(player: Player, session: Session, amount: number)
-	local data = session.data
-	if data.level >= Config.MAX_LEVEL then
+type Group = { id: number, leader: Player, mapIndex: number, members: { Player } }
+local groups: { [number]: Group } = {}
+local groupOf: { [Player]: Group } = {}
+local nextGroupId = 0
+
+local function leaveGroup(player: Player)
+	local group = groupOf[player]
+	if not group then
 		return
 	end
-	data.xp += amount
-	local leveled = false
-	while data.level < Config.MAX_LEVEL and data.xp >= Config.xpToNext(data.level) do
-		data.xp -= Config.xpToNext(data.level)
-		data.level += 1
-		leveled = true
-		for _, skill in Config.Skills do
-			if skill.level == data.level then
-				popup(player, skill.emoji .. " ¡Nueva habilidad: " .. skill.name .. "!", "Pulsa " .. skill.key .. " o su botón de abajo para usarla.")
-			end
-		end
+	groupOf[player] = nil
+	local index = table.find(group.members, player)
+	if index then
+		table.remove(group.members, index)
 	end
-	if data.level >= Config.MAX_LEVEL then
-		data.xp = 0
+	if #group.members == 0 then
+		groups[group.id] = nil
+	elseif group.leader == player then
+		group.leader = group.members[1]
+		notify(group.leader, "👑 Ahora eres el líder del grupo", "info")
 	end
-	if leveled then
-		applyStats(player, session, true)
-		session.leaderLevel.Value = data.level
-		combatEvent:FireClient(player, "levelup", data.level)
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if root then
-			combatEvent:FireAllClients("fx", "levelup", root.Position, nil, player.UserId)
+	for _, other in group.members do
+		local s = sessions[other]
+		if s then
+			s.dirty = true
 		end
 	end
 end
 
-local function onKill(player: Player, info)
-	local session = sessions[player]
-	if not session then
-		return
-	end
-	local data = session.data
-	local goldMult, xpMult = Config.rewardMults(session.stats, session.bonuses)
-	local xp = math.floor(info.stats.xp * xpMult)
-	local gold = math.floor(info.stats.gold * goldMult)
-	addGold(data, gold)
-	data.stats.kills += 1
-	combatEvent:FireClient(player, "reward", info.position, xp, gold)
-	gainXp(player, session, xp)
-
-	local zone = Config.Zones[info.zoneIndex]
-	if info.isBoss then
-		data.stats.bossKills += 1
-		local first = not data.bossKills[zone.id]
-		data.bossKills[zone.id] = (data.bossKills[zone.id] or 0) + 1
-		addItem(player, session, zone.drops[random:NextInteger(1, #zone.drops)], rollRarity("bossWeight"), "del jefe")
-		local nextZone = Config.Zones[info.zoneIndex + 1]
-		if first and nextZone and data.unlockedZone < nextZone.index then
-			data.unlockedZone = nextZone.index
-			session.leaderZone.Value = nextZone.index
-			popup(player, "🏆 ¡Has vencido a " .. Config.Enemies[zone.boss].name .. "!", "Se ha desbloqueado una zona nueva:\n" .. nextZone.emoji .. " " .. nextZone.name .. "\n\nVe al portal de la Ciudad o usa 🗺️ Zonas.")
-		elseif first then
-			popup(player, "🏆 ¡Has vencido al último jefe!", "Eres de los mejores aventureros. Pronto llegarán zonas nuevas: ¡sigue mejorando tu equipo!")
-		else
-			notify(player, "👑 ¡Jefe derrotado! +" .. Config.formatNumber(xp) .. " XP", "success")
+local function groupsSummary(): { any }
+	local list = {}
+	for _, group in groups do
+		local names = {}
+		for _, member in group.members do
+			table.insert(names, member.DisplayName)
 		end
-	elseif random:NextNumber() < Config.DROP_CHANCE then
-		addItem(player, session, zone.drops[random:NextInteger(1, #zone.drops)], rollRarity("weight"), "")
+		table.insert(list, { id = group.id, leader = group.leader.DisplayName, map = group.mapIndex, members = names })
 	end
-	session.dirty = true
+	table.sort(list, function(a, b)
+		return a.id < b.id
+	end)
+	return list
 end
 
 ---------------------------------------------------------------------
@@ -400,32 +374,37 @@ local function dailyStatus(data): (boolean, number)
 	return true, streak
 end
 
-local function buildState(session: Session)
+local function buildState(player: Player, session: Session)
 	local data = session.data
 	refreshBoost(session)
 	local dailyAvailable, dailyDay = dailyStatus(data)
+	local group = groupOf[player]
 	return {
 		version = Config.VERSION,
-		level = data.level,
-		xp = data.xp,
-		xpNeeded = Config.xpToNext(data.level),
 		gold = data.gold,
 		stats = session.stats,
 		inventory = data.inventory,
 		equipped = data.equipped,
 		capacity = capacity(session),
-		unlockedZone = data.unlockedZone,
-		bossKills = data.bossKills,
+		upgrades = data.upgrades,
+		classes = data.classes,
+		selectedClass = data.selectedClass,
+		unlockedMap = data.unlockedMap,
+		mapWins = data.mapWins,
+		bestTime = data.bestTime,
 		bonuses = session.bonuses,
 		boostLeft = math.max(0, data.boostUntil - os.time()),
 		dailyAvailable = dailyAvailable,
 		dailyDay = dailyDay,
-		dailyReward = Config.goldPerMinute(data.unlockedZone) * Config.DAILY_MINUTES[dailyDay],
+		dailyReward = Config.goldPerMinute(data.unlockedMap) * Config.DAILY_MINUTES[dailyDay],
 		tutorialDone = data.tutorialDone,
 		settings = data.settings,
-		kills = data.stats.kills,
+		totals = data.stats,
 		canSave = session.canSave,
 		saveOk = session.lastSaveOk,
+		groups = groupsSummary(),
+		myGroup = if group then { id = group.id, leader = group.leader == player, map = group.mapIndex } else nil,
+		run = RunManager.stateFor(player),
 	}
 end
 
@@ -434,8 +413,58 @@ local function sendState(player: Player)
 	if session then
 		session.dirty = false
 		session.lastStateAt = os.clock()
-		stateEvent:FireClient(player, buildState(session))
+		stateEvent:FireClient(player, buildState(player, session))
 	end
+end
+
+local function markAllDirty()
+	for _, session in sessions do
+		session.dirty = true
+	end
+end
+
+---------------------------------------------------------------------
+-- Fin de partida: recompensas
+---------------------------------------------------------------------
+local function onFinish(player: Player, result)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	local data = session.data
+	local map = Config.Maps[result.mapIndex]
+	addGold(data, result.gold)
+	data.stats.runs += 1
+	data.stats.kills += result.kills
+	session.leaderKills.Value = data.stats.kills
+	local summary = {
+		result = result.result,
+		map = map.id,
+		time = result.time,
+		kills = result.kills,
+		level = result.level,
+		gold = result.gold,
+		item = nil,
+		unlocked = nil,
+	}
+	if result.result == "win" then
+		data.stats.wins += 1
+		data.stats.bossKills += 1
+		session.leaderWins.Value = data.stats.wins
+		data.mapWins[map.id] = (data.mapWins[map.id] or 0) + 1
+		data.bestTime[map.id] = math.max(data.bestTime[map.id] or 0, math.floor(result.time))
+		summary.item = addItem(player, session, map.drops[random:NextInteger(1, #map.drops)], rollRarity("bossWeight"), "del jefe")
+		local nextMap = Config.Maps[result.mapIndex + 1]
+		if nextMap and data.unlockedMap < nextMap.index then
+			data.unlockedMap = nextMap.index
+			summary.unlocked = nextMap.id
+		end
+	elseif result.result == "dead" then
+		data.stats.deaths += 1
+	end
+	notifyEvent:FireClient(player, "", "summary", summary)
+	applyStats(player, session)
+	session.dirty = true
 end
 
 ---------------------------------------------------------------------
@@ -450,24 +479,172 @@ local function teleportTo(player: Player, cframe: CFrame)
 	end
 end
 
-function Actions.teleport(player: Player, session: Session, zoneId: any)
-	if zoneId == "lobby" then
-		teleportTo(player, World.lobbySpawn())
-		return true, "🏙️ De vuelta en la Ciudad"
+local function canPlayMap(session: Session, mapIndex: any): (any, string?)
+	local map = type(mapIndex) == "number" and Config.Maps[mapIndex]
+	if not map then
+		return nil, "Mapa desconocido"
 	end
-	local zone = type(zoneId) == "string" and Config.ZoneById[zoneId]
-	if not zone then
-		return false, "Zona desconocida"
+	if session.data.unlockedMap < map.index then
+		return nil, "🔒 Escapa antes de " .. Config.Maps[map.index - 1].name
 	end
-	if session.data.unlockedZone < zone.index then
-		local previous = Config.Zones[zone.index - 1]
-		return false, "🔒 Vence a " .. Config.Enemies[previous.boss].name .. " (" .. previous.name .. ") para entrar"
+	return map, nil
+end
+
+local function startRunFor(players: { Player }, mapIndex: number): (boolean, string?)
+	for _, player in players do
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return false, player.DisplayName .. " todavía no ha reaparecido"
+		end
 	end
-	local entry = World.zoneEntry(zone.id)
-	if entry then
-		teleportTo(player, entry)
+	local ok, reason = RunManager.startRun(players, mapIndex)
+	if ok then
+		for _, player in players do
+			leaveGroup(player)
+		end
+		markAllDirty()
 	end
-	return true, zone.emoji .. " " .. zone.name
+	return ok, reason
+end
+
+function Actions.playSolo(player: Player, session: Session, mapIndex: any)
+	local map, reason = canPlayMap(session, mapIndex)
+	if not map then
+		return false, reason
+	end
+	if RunManager.runOf(player) then
+		return false, "Ya estás en una partida"
+	end
+	local ok, why = startRunFor({ player }, map.index)
+	return ok, if ok then map.emoji .. " ¡A sobrevivir!" else why
+end
+
+function Actions.createGroup(player: Player, session: Session, mapIndex: any)
+	local map, reason = canPlayMap(session, mapIndex)
+	if not map then
+		return false, reason
+	end
+	if RunManager.runOf(player) then
+		return false, "Ya estás en una partida"
+	end
+	leaveGroup(player)
+	nextGroupId += 1
+	local group: Group = { id = nextGroupId, leader = player, mapIndex = map.index, members = { player } }
+	groups[group.id] = group
+	groupOf[player] = group
+	markAllDirty()
+	return true, "👥 Grupo creado. Espera a tus amigos y pulsa Empezar"
+end
+
+function Actions.joinGroup(player: Player, _session: Session, groupId: any)
+	local group = type(groupId) == "number" and groups[groupId]
+	if not group then
+		return false, "Ese grupo ya no existe"
+	end
+	if groupOf[player] == group then
+		return true, nil
+	end
+	if #group.members >= Config.MAX_GROUP then
+		return false, "El grupo está lleno"
+	end
+	if RunManager.runOf(player) then
+		return false, "Ya estás en una partida"
+	end
+	leaveGroup(player)
+	table.insert(group.members, player)
+	groupOf[player] = group
+	for _, other in group.members do
+		if other ~= player then
+			notify(other, "👋 " .. player.DisplayName .. " se ha unido al grupo", "success")
+		end
+	end
+	markAllDirty()
+	return true, "👥 Te has unido al grupo de " .. group.leader.DisplayName
+end
+
+function Actions.leaveGroup(player: Player, _session: Session)
+	if not groupOf[player] then
+		return false, "No estás en ningún grupo"
+	end
+	leaveGroup(player)
+	markAllDirty()
+	return true, "Has salido del grupo"
+end
+
+function Actions.startGroup(player: Player, _session: Session)
+	local group = groupOf[player]
+	if not group then
+		return false, "No estás en ningún grupo"
+	end
+	if group.leader ~= player then
+		return false, "Solo el líder puede empezar"
+	end
+	-- El mapa tiene que estar desbloqueado para todos
+	for _, member in group.members do
+		local s = sessions[member]
+		if not s or s.data.unlockedMap < group.mapIndex then
+			return false, "🔒 " .. member.DisplayName .. " aún no tiene ese mapa"
+		end
+	end
+	local players = table.clone(group.members)
+	local ok, why = startRunFor(players, group.mapIndex)
+	return ok, if ok then "👥 ¡A sobrevivir juntos!" else why
+end
+
+function Actions.choose(player: Player, _session: Session, index: any)
+	return RunManager.choose(player, index)
+end
+
+function Actions.reroll(player: Player, _session: Session)
+	return RunManager.reroll(player)
+end
+
+function Actions.leaveRun(player: Player, _session: Session)
+	local ok, reason = RunManager.leave(player)
+	return ok, if ok then "🏳️ Has abandonado: te quedas la mitad del oro" else reason
+end
+
+function Actions.buyUpgrade(player: Player, session: Session, upgradeId: any)
+	local upgrade = type(upgradeId) == "string" and Config.MetaById[upgradeId]
+	if not upgrade then
+		return false, "Mejora desconocida"
+	end
+	local data = session.data
+	local level = data.upgrades[upgrade.id] or 0
+	if level >= upgrade.max then
+		return false, "Ya está al máximo"
+	end
+	local cost = Config.metaCost(upgrade.id, level)
+	if data.gold < cost then
+		return false, "Te faltan 🪙" .. Config.formatNumber(cost - data.gold)
+	end
+	data.gold -= cost
+	data.upgrades[upgrade.id] = level + 1
+	data.stats.upgrades += 1
+	applyStats(player, session)
+	return true, upgrade.emoji .. " " .. upgrade.name .. " nivel " .. (level + 1), { forge = true }
+end
+
+function Actions.buyClass(player: Player, session: Session, classId: any)
+	local class = type(classId) == "string" and Config.ClassById[classId]
+	if not class then
+		return false, "Clase desconocida"
+	end
+	local data = session.data
+	if data.classes[class.id] then
+		data.selectedClass = class.id
+		applyStats(player, session)
+		return true, class.emoji .. " Clase elegida: " .. class.name
+	end
+	if data.gold < class.price then
+		return false, "Te faltan 🪙" .. Config.formatNumber(class.price - data.gold)
+	end
+	data.gold -= class.price
+	data.classes[class.id] = true
+	data.selectedClass = class.id
+	applyStats(player, session)
+	return true, class.emoji .. " ¡Nueva clase: " .. class.name .. "!", { equip = true }
 end
 
 function Actions.equip(player: Player, session: Session, itemId: any)
@@ -478,7 +655,7 @@ function Actions.equip(player: Player, session: Session, itemId: any)
 	local slot = Config.Items[item.def].slot
 	session.data.equipped[slot] = item.id
 	applyStats(player, session)
-	if slot == "weapon" and player.Character then
+	if slot == "weapon" and player.Character and not RunManager.runOf(player) then
 		attachWeapon(player.Character, item)
 	end
 	return true, "✅ Equipado: " .. Config.Items[item.def].name, { equip = true }
@@ -539,23 +716,23 @@ function Actions.upgrade(player: Player, session: Session, itemId: any)
 	data.stats.upgrades += 1
 	if isEquipped(data, item) then
 		applyStats(player, session)
-		if Config.Items[item.def].slot == "weapon" and player.Character then
+		if Config.Items[item.def].slot == "weapon" and player.Character and not RunManager.runOf(player) then
 			attachWeapon(player.Character, item)
 		end
 	end
 	return true, "🔨 " .. Config.Items[item.def].name .. " +" .. item.up, { forge = true }
 end
 
-function Actions.buyChest(player: Player, session: Session, zoneIndex: any)
+function Actions.buyChest(player: Player, session: Session, mapIndex: any)
 	local data = session.data
-	local zone = type(zoneIndex) == "number" and Config.Zones[zoneIndex]
-	if not zone then
+	local map = type(mapIndex) == "number" and Config.Maps[mapIndex]
+	if not map then
 		return false, "Cofre desconocido"
 	end
-	if data.unlockedZone < zone.index then
-		return false, "🔒 Desbloquea antes " .. zone.name
+	if data.unlockedMap < map.index then
+		return false, "🔒 Desbloquea antes " .. map.name
 	end
-	local price = Config.chestPrice(zone.index)
+	local price = Config.chestPrice(map.index)
 	if data.gold < price then
 		return false, "Te faltan 🪙" .. Config.formatNumber(price - data.gold)
 	end
@@ -564,17 +741,17 @@ function Actions.buyChest(player: Player, session: Session, zoneIndex: any)
 	end
 	data.gold -= price
 	data.stats.chests += 1
-	addItem(player, session, zone.drops[random:NextInteger(1, #zone.drops)], rollRarity("chestWeight"), "en un cofre")
+	addItem(player, session, map.drops[random:NextInteger(1, #map.drops)], rollRarity("chestWeight"), "en un cofre")
 	return true, nil, { chest = true }
 end
 
-function Actions.claimDaily(player: Player, session: Session)
+function Actions.claimDaily(_player: Player, session: Session)
 	local data = session.data
 	local available, day = dailyStatus(data)
 	if not available then
 		return false, "Ya la has recogido hoy. ¡Vuelve mañana!"
 	end
-	local gold = Config.goldPerMinute(data.unlockedZone) * Config.DAILY_MINUTES[day]
+	local gold = Config.goldPerMinute(data.unlockedMap) * Config.DAILY_MINUTES[day]
 	addGold(data, gold)
 	data.daily.lastDay = os.time() // 86400
 	data.daily.streak = day
@@ -631,25 +808,10 @@ actionFunction.OnServerInvoke = function(player: Player, action: any, a: any, b:
 	return ok, message, extra
 end
 
--- Habilidades (van por un RemoteEvent: son muy frecuentes)
-combatEvent.OnServerEvent:Connect(function(player: Player, kind: any, skillId: any)
-	local session = sessions[player]
-	if not session or kind ~= "skill" then
-		return
-	end
-	local now = os.clock()
-	if now - session.skillWindowStart > 1 then
-		session.skillWindowStart = now
-		session.skillCount = 0
-	end
-	session.skillCount += 1
-	if session.skillCount > 20 then
-		return
-	end
-	local ok, reason = CombatService.useSkill(player, skillId)
-	if not ok and reason and now - session.lastSkillError > 2 then
-		session.lastSkillError = now
-		notify(player, reason, "error")
+-- Esquivar (va por el RemoteEvent de la partida: es frecuente)
+swarmEvent.OnServerEvent:Connect(function(player: Player, kind: any)
+	if kind == "dash" and sessions[player] then
+		RunManager.dash(player)
 	end
 end)
 
@@ -673,36 +835,20 @@ end
 local function grantProduct(player: Player, session: Session, product)
 	local data = session.data
 	if product.kind == "gold" then
-		local amount = Config.goldPerMinute(data.unlockedZone) * product.minutes
+		local amount = Config.goldPerMinute(data.unlockedMap) * product.minutes
 		addGold(data, amount)
 		notify(player, product.emoji .. " ¡" .. product.name .. "! +🪙" .. Config.formatNumber(amount), "loot")
 	elseif product.kind == "boost" then
 		data.boostUntil = math.max(data.boostUntil, os.time()) + product.minutes * 60
 		refreshBoost(session)
-		notify(player, "🚀 ¡Boost x2 de oro y XP durante " .. product.minutes .. " minutos!", "loot")
+		notify(player, "🚀 ¡Boost x2 de oro durante " .. product.minutes .. " minutos!", "loot")
 	elseif product.kind == "revive" then
-		-- La ventana de pago tarda: si ya reapareciste en la Ciudad, te llevamos igualmente
-		local zoneId = session.deathZone
-		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local dead = not humanoid or humanoid.Health <= 0
-		if zoneId and os.clock() - session.deathAt < 60 then
-			session.deathZone = nil
-			task.spawn(function()
-				if dead then
-					player:LoadCharacterAsync()
-					task.wait(0.2)
-				end
-				local entry = World.zoneEntry(zoneId)
-				if entry then
-					teleportTo(player, entry)
-				end
-			end)
-			notify(player, "💖 ¡De vuelta a la acción!", "success")
+		if RunManager.revive(player) then
+			notify(player, "💖 ¡De vuelta a la partida!", "success")
 		else
-			local amount = Config.goldPerMinute(data.unlockedZone) * 10
+			local amount = Config.goldPerMinute(data.unlockedMap) * 10
 			addGold(data, amount)
-			notify(player, "💖 Ya estabas vivo: te damos +🪙" .. Config.formatNumber(amount), "loot")
+			notify(player, "💖 No había nada que revivir: te damos +🪙" .. Config.formatNumber(amount), "loot")
 		end
 	end
 	session.dirty = true
@@ -756,7 +902,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 end)
 
 ---------------------------------------------------------------------
--- Amigos en el servidor (+10 % de oro y XP por cada uno)
+-- Amigos en el servidor (+10 % de oro por cada uno)
 ---------------------------------------------------------------------
 local function updateFriendBonus(session: Session)
 	local count = 0
@@ -785,7 +931,7 @@ local function registerFriends(player: Player, session: Session)
 		if ok and isFriend and otherSession and sessions[player] then
 			session.friendIds[other.UserId] = true
 			otherSession.friendIds[player.UserId] = true
-			notify(other, "👫 ¡" .. player.DisplayName .. " ha entrado! +10 % de oro y XP por jugar con amigos", "success")
+			notify(other, "👫 ¡" .. player.DisplayName .. " ha entrado! +10 % de oro por jugar con amigos", "success")
 		end
 	end
 	for _, s in sessions do
@@ -818,11 +964,6 @@ end
 
 local pendingSaves = 0
 
--- Puntuación de la clasificación: nivel y, para desempatar, la XP
-local function leaderboardScore(data): number
-	return data.level * 1e9 + math.min(math.floor(data.xp), 1e9 - 1)
-end
-
 function saveData(player: Player, session: Session): boolean
 	if not session.canSave or not store then
 		return false
@@ -836,7 +977,7 @@ function saveData(player: Player, session: Session): boolean
 	end)
 	if leaderboardStore then
 		pcall(function()
-			leaderboardStore:SetAsync("u_" .. player.UserId, leaderboardScore(session.data))
+			leaderboardStore:SetAsync("u_" .. player.UserId, math.floor(session.data.stats.kills))
 		end)
 	end
 	pendingSaves -= 1
@@ -884,19 +1025,12 @@ local function onCharacterAdded(player: Player, character: Model)
 	end
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	character:WaitForChild("HumanoidRootPart")
-	humanoid.WalkSpeed = Config.WALK_SPEED
-	applyStats(player, session, true)
-	attachWeapon(character, equippedItems(session.data).weapon)
+	if not RunManager.onCharacter(player) then
+		applyStats(player, session)
+		attachWeapon(character, equippedItems(session.data).weapon)
+	end
 	humanoid.Died:Connect(function()
-		local s = sessions[player]
-		if not s then
-			return
-		end
-		local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		s.data.stats.deaths += 1
-		s.deathZone = if root then World.zoneAt(root.Position) else nil
-		s.deathAt = os.clock()
-		combatEvent:FireClient(player, "died", s.deathZone, Config.RESPAWN_TIME)
+		RunManager.onDied(player)
 	end)
 end
 
@@ -908,53 +1042,51 @@ local function onPlayerAdded(player: Player)
 
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
-	local leaderLevel = Instance.new("IntValue")
-	leaderLevel.Name = "⭐ Nivel"
-	leaderLevel.Value = data.level
-	leaderLevel.Parent = leaderstats
-	local leaderZone = Instance.new("IntValue")
-	leaderZone.Name = "🗺️ Zona"
-	leaderZone.Value = data.unlockedZone
-	leaderZone.Parent = leaderstats
+	local leaderKills = Instance.new("IntValue")
+	leaderKills.Name = "💀 Bajas"
+	leaderKills.Value = data.stats.kills
+	leaderKills.Parent = leaderstats
+	local leaderWins = Instance.new("IntValue")
+	leaderWins.Name = "🏆 Victorias"
+	leaderWins.Value = data.stats.wins
+	leaderWins.Parent = leaderstats
 	leaderstats.Parent = player
 
 	local bonuses: Bonuses = {
 		goldPass = false,
-		xpPass = false,
-		autoPass = false,
+		choicePass = false,
+		rerollPass = false,
 		bagPass = false,
 		boost = false,
 		friends = 0,
 	}
 	checkPasses(player, bonuses)
 
-	-- Lo equipado tiene que existir en la mochila
+	-- Lo equipado tiene que existir en la mochila, y la clase elegida tiene que ser tuya
 	for slot, id in data.equipped do
 		if not findItem(data, id) then
 			data.equipped[slot] = nil
 		end
+	end
+	if not data.classes[data.selectedClass] or not Config.ClassById[data.selectedClass] then
+		data.selectedClass = "guerrero"
 	end
 
 	local session: Session = {
 		data = data,
 		canSave = canSave,
 		bonuses = bonuses,
-		stats = Config.playerStats(data.level, equippedItems(data)),
+		stats = Config.baseStats(data.selectedClass, data.upgrades, equippedItems(data)),
 		dirty = true,
 		lastStateAt = 0,
 		actionWindowStart = 0,
 		actionCount = 0,
-		skillWindowStart = 0,
-		skillCount = 0,
-		lastSkillError = -math.huge,
 		lastManualSave = -math.huge,
 		lastSaveOk = nil,
 		lastSaveAt = 0,
 		friendIds = {},
-		deathZone = nil,
-		deathAt = -math.huge,
-		leaderLevel = leaderLevel,
-		leaderZone = leaderZone,
+		leaderKills = leaderKills,
+		leaderWins = leaderWins,
 	}
 	sessions[player] = session
 	refreshBoost(session)
@@ -979,18 +1111,21 @@ local function onPlayerAdded(player: Player)
 	end
 
 	task.spawn(registerFriends, player, session)
+	markAllDirty()
 	sendState(player)
 end
 
 local function onPlayerRemoving(player: Player)
+	-- Primero se cierra su partida (recibe su oro) y luego se guarda
+	RunManager.playerRemoving(player)
+	leaveGroup(player)
 	local session = sessions[player]
-	-- Se quita primero para que los bucles dejen de tocarlo
 	sessions[player] = nil
-	CombatService.removePlayer(player)
 	for _, s in sessions do
 		s.friendIds[player.UserId] = nil
 		updateFriendBonus(s)
 	end
+	markAllDirty()
 	if session then
 		saveData(player, session)
 	end
@@ -1026,7 +1161,7 @@ local function refreshLeaderboard()
 			end
 			name = nameCache[userId]
 		end
-		table.insert(rows, { name = name, level = entry.value // 1e9 })
+		table.insert(rows, { name = name, value = entry.value })
 	end
 	World.setLeaderboard(rows, nil)
 end
@@ -1034,46 +1169,39 @@ end
 ---------------------------------------------------------------------
 -- Arranque
 ---------------------------------------------------------------------
-local zones = World.build({
-	onPortal = function(player: Player, zoneId: string)
-		local session = sessions[player]
-		if session then
-			local ok, message = Actions.teleport(player, session, zoneId)
-			notify(player, message or "", if ok then "info" else "error")
-		end
-	end,
-	onReturn = function(player: Player)
-		teleportTo(player, World.lobbySpawn())
-	end,
-	onOpen = function(player: Player, tab: string)
-		openMenuEvent:FireClient(player, tab)
+World.build({
+	onOpen = function(player: Player, tab: string, mapId: string?)
+		openMenuEvent:FireClient(player, tab, mapId)
 	end,
 })
 
-CombatService.init(zones, World.zoneAt, {
-	level = function(player: Player): number?
+RunManager.init({
+	buildArena = World.buildArena,
+	destroyArena = World.destroyArena,
+	baseStats = function(player: Player)
 		local session = sessions[player]
-		return session and session.data.level
+		return if session then session.stats else Config.baseStats("guerrero", {}, {})
 	end,
-	stats = function(player: Player)
+	classWeapon = function(player: Player): string
 		local session = sessions[player]
-		return if session then session.stats else Config.playerStats(1, {})
+		local class = session and Config.ClassById[session.data.selectedClass]
+		return if class then class.weapon else "espada"
 	end,
-	onKill = onKill,
-	send = function(player: Player, kind: string, a: any, b: any?)
-		combatEvent:FireClient(player, kind, a, b)
+	bonuses = function(player: Player)
+		local session = sessions[player]
+		return if session then session.bonuses else {}
 	end,
-	fx = function(source: Player?, kind: string, position: Vector3, extra: any?)
-		combatEvent:FireAllClients("fx", kind, position, extra, if source then source.UserId else 0)
-	end,
-	zoneMessage = function(zoneId: string, text: string)
-		for player in sessions do
-			local character = player.Character
-			local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if root and World.zoneAt(root.Position) == zoneId then
-				notify(player, text, "boss")
-			end
+	teleport = teleportTo,
+	onFinish = onFinish,
+	notify = notify,
+	markDirty = function(player: Player)
+		local session = sessions[player]
+		if session then
+			session.dirty = true
 		end
+	end,
+	sendSwarm = function(player: Player, enemies: buffer, gemAdds: { number }, gemRemoves: { number }, fx: { any })
+		swarmEvent:FireClient(player, enemies, gemAdds, gemRemoves, fx)
 	end,
 })
 
@@ -1085,6 +1213,7 @@ end
 
 game:BindToClose(function()
 	for player, session in sessions do
+		RunManager.playerRemoving(player)
 		task.spawn(saveData, player, session)
 	end
 	-- Espera también a los guardados que ya estaban en marcha
@@ -1095,13 +1224,13 @@ game:BindToClose(function()
 	end
 end)
 
--- Combate: los enemigos se mueven unas 15 veces por segundo
-local combatClock = 0
+-- Partidas: 15 pasos de simulación por segundo
+local runClock = 0
 RunService.Heartbeat:Connect(function(dt: number)
-	combatClock += dt
-	if combatClock >= CombatService.TICK then
-		CombatService.step(math.min(combatClock, 0.25))
-		combatClock = 0
+	runClock += dt
+	if runClock >= RunManager.TICK then
+		RunManager.step(math.min(runClock, 0.25))
+		runClock = 0
 	end
 end)
 
@@ -1124,7 +1253,8 @@ task.spawn(function()
 	end
 end)
 
--- Estado: se envía cuando cambia algo (como mucho 4 veces por segundo) y cada 2 s
+-- Estado: se envía cuando cambia algo (como mucho 4 veces por segundo) y cada segundo
+-- durante una partida (reloj y XP), o cada 2 s en el lobby
 while true do
 	task.wait(0.25)
 	local now = os.clock()
@@ -1135,7 +1265,8 @@ while true do
 			notify(player, "🚀 Tu boost x2 ha terminado", "info")
 			session.dirty = true
 		end
-		if session.dirty or now - session.lastStateAt >= 2 then
+		local interval = if RunManager.runOf(player) then 0.5 else 2
+		if session.dirty or now - session.lastStateAt >= interval then
 			sendState(player)
 		end
 	end

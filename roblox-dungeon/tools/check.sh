@@ -21,7 +21,7 @@ analysis=$(cd "$ROOT" && "$BIN/luau-lsp" analyze --sourcemap="$OUT/sourcemap.jso
 if [ -n "$analysis" ]; then echo "$analysis"; status=1; else echo "0 avisos"; fi
 
 cd "$OUT"
-echo "== 3/6 Servidor: mundo + jugador simulado que lo recorre todo (Lune)"
+echo "== 3/6 Servidor: lobby, partidas solo y en grupo, tienda y guardado (Lune)"
 if "$BIN/lune" run "$ROOT/tools/harness/run_server.luau" "$SRC" > "$OUT/server.txt" 2>&1 && grep -q "TODO OK" "$OUT/server.txt"; then
 	head -1 "$OUT/server.txt"
 	echo "OK (detalle en tools/out/server.txt)"
@@ -29,15 +29,15 @@ else
 	tail -20 "$OUT/server.txt"; status=1
 fi
 
-echo "== 4/6 Interfaz: se crea entera y se pulsan todos los botones (Lune)"
+echo "== 4/6 Interfaz: lobby, partida y horda; se pulsan todos los botones (Lune)"
 if "$BIN/lune" run "$ROOT/tools/harness/run_client.luau" "$SRC" > "$OUT/client.txt" 2>&1 && grep -q "CLIENTE OK" "$OUT/client.txt"; then
-	tail -2 "$OUT/client.txt"
+	grep -E "Horda dibujada|CLIENTE OK" "$OUT/client.txt"
 else
 	tail -20 "$OUT/client.txt"; status=1
 fi
 
-echo "== 5/6 Equilibrio: bot de 5 horas (luau)"
-"$ROOT/tools/sim/run.sh" 5 || status=1
+echo "== 5/6 Equilibrio: bots que juegan partidas completas con el código real (~1 min)"
+"$BIN/lune" run "$ROOT/tools/harness/run_server.luau" "$SRC" bot 2>&1 | grep -E "^  [A-Z]" || status=1
 
 if command -v python3 > /dev/null && python3 -c "import matplotlib" 2> /dev/null; then
 	python3 "$ROOT/tools/harness/render.py" "$OUT/world.json" "$OUT/render" > /dev/null && echo "Dibujos: tools/out/render_ciudad.png, render_zonas.png y render_enemigos.png"

@@ -1,14 +1,14 @@
 --[[
 	GameClient (LocalScript en StarterPlayer > StarterPlayerScripts)
 
-	Toda la interfaz y los efectos de Dungeon Ascend:
-	  · HUD: nivel, barra de XP, barra de vida y oro
-	  · barra de habilidades (clic, Q, E, R) con tiempos de recarga
-	  · menú lateral y ventana con pestañas: Mochila, Forja, Zonas,
-	    Tienda, Diario y Ajustes
-	  · números de daño, recompensas flotantes, efectos de habilidades,
-	    aviso al subir de nivel, pantalla al caer y tutorial
-	El cliente solo muestra cosas y pide acciones: el servidor decide.
+	Toda la interfaz de Dungeon Ascend:
+	  · lobby: oro, botón JUGAR, menú lateral y ventana con pestañas
+	    (Jugar, Clases, Mejoras, Mochila, Forja, Tienda, Diario, Ajustes)
+	  · partida: reloj, nivel y XP del equipo, vida, oro, armas y mejoras,
+	    barra del jefe, aviso del portal, botón de esquivar, cartas para
+	    elegir mejora (con cambio/reroll), pantalla al caer y resumen final
+	  · tutorial, avisos y ventanas emergentes
+	La horda y los efectos los dibuja SwarmView. El servidor decide todo.
 ]]
 
 local Players = game:GetService("Players")
@@ -22,18 +22,18 @@ local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local SwarmView = require(script.Parent:WaitForChild("SwarmView"))
 local remotes = ReplicatedStorage:WaitForChild("DungeonRemotes")
 local actionFunction = remotes:WaitForChild("Action") :: RemoteFunction
 local stateEvent = remotes:WaitForChild("State") :: RemoteEvent
 local notifyEvent = remotes:WaitForChild("Notify") :: RemoteEvent
-local combatEvent = remotes:WaitForChild("Combat") :: RemoteEvent
+local swarmEvent = remotes:WaitForChild("Swarm") :: RemoteEvent
 local openMenuEvent = remotes:WaitForChild("OpenMenu") :: RemoteEvent
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Sin herramientas en este juego: ocultamos la barra de la mochila de Roblox
--- (así las teclas 1-4 son solo para las habilidades)
 pcall(function()
 	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 end)
@@ -57,7 +57,6 @@ local THEME = {
 local SLOT_EMOJI = { weapon = "⚔️", armor = "🛡️", amulet = "📿" }
 local num = Config.formatNumber
 
----------------------------------------------------------------------
 -- Sonidos
 ---------------------------------------------------------------------
 local soundFolder = Instance.new("Folder")
@@ -314,20 +313,17 @@ local toastGui = create("ScreenGui", { Name = "DungeonToasts", ResetOnSpawn = fa
 local modalGui = create("ScreenGui", { Name = "DungeonModal", ResetOnSpawn = false, DisplayOrder = 10, IgnoreGuiInset = true, Enabled = false, Parent = playerGui })
 local flashGui = create("ScreenGui", { Name = "DungeonFlash", ResetOnSpawn = false, DisplayOrder = 0, IgnoreGuiInset = true, Parent = playerGui })
 
-local fxFolder = Instance.new("Folder")
-fxFolder.Name = "EfectosLocales"
-fxFolder.Parent = Workspace
-
 local state: any = nil
-local skillReadyAt: { [string]: number } = {}
-local autoAttack = true
+local selectedMap = 1
+local lastHealth = 0
+local dashReadyAt = 0
 
 -- Variables compartidas entre bloques (se asignan más abajo)
 local showToast: (text: string, kind: string?) -> ()
 local showPopup: (title: string, body: string) -> ()
 local openWindow: (tab: string) -> ()
 local refreshWindow: () -> ()
-local useSkill: (skillId: string) -> ()
+local dash: () -> ()
 
 local function sendAction(action: string, a: any?, b: any?, onResult: ((boolean, string?, any) -> ())?)
 	task.spawn(function()
@@ -347,7 +343,7 @@ local function sendAction(action: string, a: any?, b: any?, onResult: ((boolean,
 			elseif extra.equip then
 				playSound("equip")
 			elseif extra.forge then
-				playSound("crit")
+				playSound("skill")
 			end
 		elseif not success then
 			playSound("error")
@@ -356,6 +352,14 @@ local function sendAction(action: string, a: any?, b: any?, onResult: ((boolean,
 			onResult(success, message, extra)
 		end
 	end)
+end
+
+local function weaponName(id: string, level: number): string
+	local weapon = Config.Weapons[id]
+	if level > Config.MAX_ITEM_LEVEL then
+		return weapon.evolution.emoji .. " " .. weapon.evolution.name
+	end
+	return weapon.emoji .. " " .. weapon.name
 end
 
 ---------------------------------------------------------------------
@@ -458,163 +462,35 @@ do
 end
 
 ---------------------------------------------------------------------
--- Efectos en el mundo (solo los ve este jugador)
+-- HUD del lobby: oro, clase y botón JUGAR
 ---------------------------------------------------------------------
-local fx: { [string]: any } = {}
-do
-	local random = Random.new()
-
-	local function effectPart(shape: Enum.PartType, size: Vector3, cframe: CFrame, color: Color3, transparency: number): Part
-		return create("Part", {
-			Parent = fxFolder,
-			Anchored = true,
-			CanCollide = false,
-			CanTouch = false,
-			CanQuery = false,
-			CastShadow = false,
-			Shape = shape,
-			Size = size,
-			CFrame = cframe,
-			Color = color,
-			Material = Enum.Material.Neon,
-			Transparency = transparency,
-		})
-	end
-
-	local function fadeOut(part: BasePart, duration: number, goal: { [string]: any }?)
-		local props = goal or {}
-		props.Transparency = 1
-		TweenService:Create(part, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
-		task.delay(duration + 0.05, function()
-			part:Destroy()
-		end)
-	end
-
-	-- Disco plano (los cilindros van a lo largo de X: se giran 90° en Z)
-	local function disc(position: Vector3, diameter: number, color: Color3, transparency: number): Part
-		return effectPart(Enum.PartType.Cylinder, Vector3.new(0.2, diameter, diameter), CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90)), color, transparency)
-	end
-
-	function fx.floatingText(position: Vector3, text: string, color: Color3, size: number, duration: number)
-		local anchor = effectPart(Enum.PartType.Block, Vector3.new(0.2, 0.2, 0.2), CFrame.new(position + Vector3.new(random:NextNumber(-1, 1), 0, random:NextNumber(-1, 1))), color, 1)
-		local gui = create("BillboardGui", {
-			Parent = anchor,
-			Size = UDim2.fromOffset(size * 6, size * 1.6),
-			AlwaysOnTop = true,
-			LightInfluence = 0,
-			MaxDistance = 140,
-		})
-		local textLabel = create("TextLabel", {
-			Parent = gui,
-			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
-			Text = text,
-			TextColor3 = color,
-			TextStrokeTransparency = 0.2,
-			Font = Enum.Font.FredokaOne,
-			TextScaled = true,
-		})
-		TweenService:Create(gui, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { StudsOffset = Vector3.new(0, 4, 0) }):Play()
-		TweenService:Create(textLabel, TweenInfo.new(duration * 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, duration * 0.5), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-		task.delay(duration + 0.05, function()
-			anchor:Destroy()
-		end)
-	end
-
-	function fx.attack(position: Vector3, look: Vector3?)
-		local direction = look or Vector3.new(0, 0, -1)
-		local center = position + direction * 4 + Vector3.new(0, -1.5, 0)
-		fadeOut(disc(center, 11, Color3.fromRGB(226, 232, 240), 0.5), 0.2, { Size = Vector3.new(0.2, 14, 14) })
-	end
-
-	function fx.spin(position: Vector3)
-		local skill = Config.SkillById.spin
-		fadeOut(disc(position + Vector3.new(0, -2.4, 0), 4, Color3.fromRGB(167, 139, 250), 0.3), 0.35, { Size = Vector3.new(0.2, skill.radius * 2, skill.radius * 2) })
-	end
-
-	function fx.dash(position: Vector3, look: Vector3?)
-		local direction = look or Vector3.new(0, 0, -1)
-		local length = Config.SkillById.dash.length
-		local center = position + direction * (length / 2)
-		local part = effectPart(Enum.PartType.Block, Vector3.new(3, 0.4, length), CFrame.lookAt(center, center + direction), Color3.fromRGB(125, 211, 252), 0.35)
-		fadeOut(part, 0.35, { Size = Vector3.new(0.2, 0.2, length) })
-	end
-
-	function fx.heal(position: Vector3)
-		fadeOut(effectPart(Enum.PartType.Ball, Vector3.new(4, 4, 4), CFrame.new(position), THEME.green, 0.4), 0.5, { Size = Vector3.new(11, 11, 11) })
-	end
-
-	function fx.levelup(position: Vector3)
-		local column = effectPart(Enum.PartType.Cylinder, Vector3.new(16, 6, 6), CFrame.new(position + Vector3.new(0, 4, 0)) * CFrame.Angles(0, 0, math.rad(90)), THEME.gold, 0.35)
-		fadeOut(column, 1, { Size = Vector3.new(30, 1, 1) })
-	end
-
-	function fx.slam(position: Vector3, radius: number?)
-		local r = radius or 12
-		fadeOut(disc(position + Vector3.new(0, 0.4, 0), 2, Color3.fromRGB(251, 146, 60), 0.2), 0.4, { Size = Vector3.new(0.2, r * 2.2, r * 2.2) })
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if root and humanoid and (root.Position - position).Magnitude < r + 14 then
-			task.spawn(function()
-				for i = 1, 8 do
-					humanoid.CameraOffset = Vector3.new(random:NextNumber(-0.5, 0.5), random:NextNumber(-0.5, 0.5), 0) * (1 - i / 9)
-					task.wait(0.03)
-				end
-				humanoid.CameraOffset = Vector3.new()
-			end)
-		end
-	end
-
-	function fx.death(position: Vector3, color: Color3?)
-		for _ = 1, 6 do
-			local cube = effectPart(Enum.PartType.Block, Vector3.new(0.8, 0.8, 0.8), CFrame.new(position), color or THEME.muted, 0.1)
-			cube.Material = Enum.Material.SmoothPlastic
-			local offset = Vector3.new(random:NextNumber(-5, 5), random:NextNumber(1, 5), random:NextNumber(-5, 5))
-			fadeOut(cube, 0.6, { CFrame = CFrame.new(position + offset) * CFrame.Angles(random:NextNumber(0, 3), random:NextNumber(0, 3), 0), Size = Vector3.new(0.2, 0.2, 0.2) })
-		end
-	end
-end
-
----------------------------------------------------------------------
--- HUD: nivel, XP, vida y oro
----------------------------------------------------------------------
-local hud: { [string]: any } = {}
+local lobbyHud: { [string]: any } = {}
 do
 	local panel = create("Frame", {
 		Parent = mainGui,
 		Position = UDim2.fromOffset(12, 12),
-		Size = UDim2.fromOffset(330, 104),
+		Size = UDim2.fromOffset(300, 70),
 		BackgroundColor3 = THEME.panel,
 		BackgroundTransparency = 0.1,
-	}, { corner(14), stroke(THEME.stroke, 2) })
+	}, { corner(14), stroke(THEME.stroke, 2), padding(10) })
 	autoScale(panel)
-	local badge = create("TextLabel", {
-		Parent = panel,
-		Position = UDim2.fromOffset(10, 10),
-		Size = UDim2.fromOffset(62, 62),
-		BackgroundColor3 = THEME.accent,
-		Text = "1",
-		TextColor3 = THEME.text,
-		Font = Enum.Font.FredokaOne,
-		TextScaled = true,
-	}, { corner(31), stroke(THEME.gold, 3), padding(10), shade() })
-	label(panel, "NIVEL", UDim2.fromOffset(10, 74), UDim2.fromOffset(62, 20), 12, THEME.muted, true).TextXAlignment = Enum.TextXAlignment.Center
-	local _, hpFill, hpText = makeBar(panel, UDim2.fromOffset(82, 12), UDim2.fromOffset(236, 24), THEME.red)
-	local _, xpFill, xpText = makeBar(panel, UDim2.fromOffset(82, 42), UDim2.fromOffset(236, 18), THEME.accent)
-	local gold = label(panel, "🪙 0", UDim2.fromOffset(82, 66), UDim2.fromOffset(140, 28), 20, THEME.gold, true)
-	local boost = label(panel, "", UDim2.fromOffset(200, 66), UDim2.fromOffset(120, 28), 13, THEME.orange, true)
-	boost.TextXAlignment = Enum.TextXAlignment.Right
-	hud.badge = badge
-	hud.hpFill = hpFill
-	hud.hpText = hpText
-	hud.xpFill = xpFill
-	hud.xpText = xpText
-	hud.gold = gold
-	hud.boost = boost
-
-	-- Aviso de guardado desactivado (Studio sin publicar)
-	hud.saveWarning = create("TextLabel", {
+	lobbyHud.panel = panel
+	lobbyHud.gold = label(panel, "🪙 0", UDim2.new(), UDim2.new(1, 0, 0, 28), 22, THEME.gold, true)
+	lobbyHud.info = label(panel, "", UDim2.fromOffset(0, 28), UDim2.new(1, 0, 0, 22), 14, THEME.muted)
+	local holder = create("Frame", {
+		Parent = mainGui,
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -20),
+		Size = UDim2.fromOffset(240, 64),
+		BackgroundTransparency = 1,
+	})
+	autoScale(holder)
+	lobbyHud.play = holder
+	local play = makeButton(holder, "▶ JUGAR", THEME.green, UDim2.fromScale(1, 1), function()
+		openWindow("jugar")
+	end)
+	play:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize = 30
+	lobbyHud.saveWarning = create("TextLabel", {
 		Parent = mainGui,
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
@@ -626,104 +502,125 @@ do
 		TextScaled = true,
 		Visible = false,
 	}, { corner(8), maxText(14), padding(4) })
+end
+
+---------------------------------------------------------------------
+-- HUD de partida
+---------------------------------------------------------------------
+local runHud: { [string]: any } = {}
+do
+	local top = create("Frame", {
+		Parent = mainGui,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.fromOffset(620, 92),
+		BackgroundTransparency = 1,
+		Visible = false,
+	})
+	autoScale(top)
+	runHud.top = top
+	runHud.clock = create("TextLabel", {
+		Parent = top,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0),
+		Size = UDim2.fromOffset(200, 40),
+		BackgroundTransparency = 1,
+		Text = "00:00",
+		TextColor3 = THEME.text,
+		TextStrokeTransparency = 0.3,
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+	})
+	runHud.kills = label(top, "", UDim2.fromOffset(0, 6), UDim2.fromOffset(190, 28), 18, THEME.text, true)
+	runHud.gold = label(top, "", UDim2.new(1, -190, 0, 6), UDim2.fromOffset(190, 28), 18, THEME.gold, true)
+	runHud.gold.TextXAlignment = Enum.TextXAlignment.Right
+	local _, xpFill, xpText = makeBar(top, UDim2.fromOffset(0, 44), UDim2.new(1, 0, 0, 20), THEME.accent)
+	runHud.xpFill = xpFill
+	runHud.xpText = xpText
+	runHud.info = label(top, "", UDim2.fromOffset(0, 68), UDim2.new(1, 0, 0, 22), 14, THEME.muted, true)
+	runHud.info.TextXAlignment = Enum.TextXAlignment.Center
+
+	-- Jefe
+	local bossFrame = create("Frame", {
+		Parent = mainGui,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 104),
+		Size = UDim2.fromOffset(460, 34),
+		BackgroundTransparency = 1,
+		Visible = false,
+	})
+	autoScale(bossFrame)
+	runHud.boss = bossFrame
+	local _, bossFill, bossText = makeBar(bossFrame, UDim2.new(), UDim2.fromScale(1, 1), THEME.red)
+	runHud.bossFill = bossFill
+	runHud.bossText = bossText
+
+	-- Vida y armas (abajo a la izquierda)
+	local bottom = create("Frame", {
+		Parent = mainGui,
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 12, 1, -12),
+		Size = UDim2.fromOffset(340, 124),
+		BackgroundColor3 = THEME.panel,
+		BackgroundTransparency = 0.2,
+		Visible = false,
+	}, { corner(12), stroke(THEME.stroke, 2), padding(8) })
+	autoScale(bottom)
+	runHud.bottom = bottom
+	local _, hpFill, hpText = makeBar(bottom, UDim2.new(), UDim2.new(1, 0, 0, 24), THEME.red)
+	runHud.hpFill = hpFill
+	runHud.hpText = hpText
+	runHud.weapons = label(bottom, "", UDim2.fromOffset(0, 30), UDim2.new(1, 0, 0, 40), 13, THEME.text)
+	runHud.passives = label(bottom, "", UDim2.fromOffset(0, 72), UDim2.new(1, 0, 0, 36), 13, THEME.muted)
+
+	-- Esquivar y abandonar
+	local dashHolder = create("Frame", {
+		Parent = mainGui,
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -150, 1, -30),
+		Size = UDim2.fromOffset(96, 96),
+		BackgroundTransparency = 1,
+		Visible = false,
+	})
+	autoScale(dashHolder)
+	runHud.dash = dashHolder
+	local dashButton = makeButton(dashHolder, "💨", THEME.blue, UDim2.fromScale(1, 1), function()
+		dash()
+	end)
+	dashButton:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize = 40
+	runHud.dashButton = dashButton
+	runHud.dashCooldown = create("Frame", {
+		Parent = dashButton,
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.fromScale(1, 0),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.45,
+		ZIndex = 2,
+	}, { corner(10) })
+	label(dashButton, "Q / Shift", UDim2.new(0, 0, 1, -18), UDim2.new(1, 0, 0, 16), 11, THEME.text, true).TextXAlignment = Enum.TextXAlignment.Center
+
+	local leaveHolder = create("Frame", {
+		Parent = mainGui,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 12),
+		Size = UDim2.fromOffset(120, 36),
+		BackgroundTransparency = 1,
+		Visible = false,
+	})
+	autoScale(leaveHolder)
+	runHud.leave = leaveHolder
+	makeButton(leaveHolder, "🏳️ Abandonar", THEME.card, UDim2.fromScale(1, 1), function()
+		sendAction("leaveRun")
+	end)
 
 	-- Destello rojo al recibir daño
-	hud.flash = create("Frame", {
+	runHud.flash = create("Frame", {
 		Parent = flashGui,
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = THEME.red,
 		BackgroundTransparency = 1,
 	})
-
-	-- Cartel grande al subir de nivel
-	hud.banner = create("TextLabel", {
-		Parent = toastGui,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.3),
-		Size = UDim2.fromOffset(520, 90),
-		BackgroundTransparency = 1,
-		Text = "",
-		TextColor3 = THEME.gold,
-		TextStrokeTransparency = 0,
-		Font = Enum.Font.FredokaOne,
-		TextScaled = true,
-		Visible = false,
-	})
-end
-
----------------------------------------------------------------------
--- Barra de habilidades
----------------------------------------------------------------------
-local skillButtons: { [string]: any } = {}
-local autoButton: TextButton
-do
-	local bar = create("Frame", {
-		Parent = mainGui,
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.fromOffset(4 * 84 + 3 * 10, 96),
-		BackgroundTransparency = 1,
-	}, {
-		create("UIListLayout", {
-			FillDirection = Enum.FillDirection.Horizontal,
-			Padding = UDim.new(0, 10),
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			VerticalAlignment = Enum.VerticalAlignment.Bottom,
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-	})
-	autoScale(bar)
-	for i, skill in Config.Skills do
-		local holder = create("Frame", {
-			Parent = bar,
-			Size = UDim2.fromOffset(84, if i == 1 then 96 else 84),
-			BackgroundTransparency = 1,
-			LayoutOrder = i,
-		})
-		local button = makeButton(holder, skill.emoji, if i == 1 then THEME.red else THEME.accent, UDim2.fromScale(1, 1), function()
-			useSkill(skill.id)
-		end)
-		button:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize = 40
-		local key = create("TextLabel", {
-			Parent = button,
-			Position = UDim2.new(0, 2, 1, -20),
-			Size = UDim2.new(1, -4, 0, 18),
-			BackgroundTransparency = 1,
-			Text = skill.key,
-			TextColor3 = THEME.text,
-			TextStrokeTransparency = 0.4,
-			Font = Enum.Font.GothamBold,
-			TextScaled = true,
-			ZIndex = 3,
-		})
-		local cooldown = create("Frame", {
-			Parent = button,
-			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.fromScale(0, 1),
-			Size = UDim2.fromScale(1, 0),
-			BackgroundColor3 = Color3.new(0, 0, 0),
-			BackgroundTransparency = 0.45,
-			ZIndex = 2,
-		}, { corner(10) })
-		local timer = create("TextLabel", {
-			Parent = button,
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			Text = "",
-			TextColor3 = THEME.text,
-			TextStrokeTransparency = 0.2,
-			Font = Enum.Font.FredokaOne,
-			TextScaled = true,
-			ZIndex = 4,
-		}, { padding(16) })
-		skillButtons[skill.id] = { button = button, key = key, cooldown = cooldown, timer = timer }
-	end
-	autoButton = makeButton(mainGui, "🤖 AUTO: SÍ", THEME.green, UDim2.fromOffset(130, 36), function()
-		autoAttack = not autoAttack
-	end)
-	autoButton.AnchorPoint = Vector2.new(0.5, 1)
-	autoButton.Position = UDim2.new(0.5, 0, 1, -118)
-	autoButton.Visible = false
 end
 
 ---------------------------------------------------------------------
@@ -732,11 +629,13 @@ end
 local window: Frame
 local pages: { [string]: Frame } = {}
 local tabButtons: { [string]: TextButton } = {}
-local currentTab = "mochila"
+local currentTab = "jugar"
 local TABS = {
+	{ id = "jugar", name = "▶️ Jugar" },
+	{ id = "clases", name = "🧙 Clases" },
+	{ id = "mejoras", name = "⭐ Mejoras" },
 	{ id = "mochila", name = "🎒 Mochila" },
 	{ id = "forja", name = "🔨 Forja" },
-	{ id = "zonas", name = "🗺️ Zonas" },
 	{ id = "tienda", name = "🛒 Tienda" },
 	{ id = "diario", name = "🎁 Diario" },
 	{ id = "ajustes", name = "⚙️ Ajustes" },
@@ -746,7 +645,7 @@ do
 		Parent = mainGui,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(760, 500),
+		Size = UDim2.fromOffset(860, 520),
 		BackgroundColor3 = THEME.panel,
 		Visible = false,
 	}, { corner(16), stroke(THEME.accent, 2) })
@@ -756,9 +655,9 @@ do
 		Position = UDim2.fromOffset(12, 10),
 		Size = UDim2.new(1, -70, 0, 40),
 		BackgroundTransparency = 1,
-	}, { create("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
+	}, { create("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for i, tab in TABS do
-		local button = makeButton(tabBar, tab.name, THEME.card, UDim2.fromOffset(108, 38), function()
+		local button = makeButton(tabBar, tab.name, THEME.card, UDim2.fromOffset(93, 38), function()
 			openWindow(tab.id)
 		end)
 		button.LayoutOrder = i
@@ -778,6 +677,9 @@ do
 	close.Position = UDim2.new(1, -10, 0, 10)
 
 	function openWindow(tab: string)
+		if state and state.run then
+			return -- en partida no se abren menús
+		end
 		currentTab = tab
 		window.Visible = true
 		for id, page in pages do
@@ -789,19 +691,20 @@ do
 end
 
 -- Menú lateral
+local menu: Frame
 local menuDots: { [string]: Frame } = {}
 do
-	local menu = create("Frame", {
+	menu = create("Frame", {
 		Parent = mainGui,
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 12, 0.5, 20),
-		Size = UDim2.fromOffset(74, 6 * 62),
+		Position = UDim2.new(0, 12, 0.5, 30),
+		Size = UDim2.fromOffset(64, #TABS * 56),
 		BackgroundTransparency = 1,
-	}, { create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+	}, { create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	autoScale(menu)
 	for i, tab in TABS do
 		local emoji = string.split(tab.name, " ")[1]
-		local button = makeButton(menu, emoji, THEME.card, UDim2.fromOffset(62, 54), function()
+		local button = makeButton(menu, emoji, THEME.card, UDim2.fromOffset(56, 50), function()
 			if window.Visible and currentTab == tab.id then
 				window.Visible = false
 			else
@@ -809,7 +712,7 @@ do
 			end
 		end)
 		button.LayoutOrder = i
-		button:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize = 30
+		button:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize = 28
 		menuDots[tab.id] = create("Frame", {
 			Parent = button,
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -822,6 +725,191 @@ do
 	end
 end
 
+---------------------------------------------------------------------
+-- Pestaña: Jugar (mapas, solo o en grupo)
+---------------------------------------------------------------------
+local refreshJugar: () -> ()
+do
+	local page = pages.jugar
+	-- Mapas (izquierda)
+	local mapList = scrollList(page, UDim2.new(), UDim2.new(0.5, -6, 1, 0))
+	local mapCards = {}
+	for i, map in Config.Maps do
+		local card = makeCard(mapList, 108, i, darken(map.color, 0.72))
+		local title = label(card, map.emoji .. " <b>" .. map.name .. "</b>", UDim2.new(), UDim2.new(1, 0, 0, 24), 17, lighten(map.color, 0.3))
+		local names = {}
+		for _, entry in map.timeline do
+			local enemyName = Config.Enemies[entry.enemy].name
+			if not table.find(names, enemyName) then
+				table.insert(names, enemyName)
+			end
+		end
+		label(card, "Enemigos: " .. table.concat(names, ", ") .. "\n👑 Jefe a los " .. math.floor(map.bossAt / 60) .. " min: " .. Config.Enemies[map.boss].name, UDim2.fromOffset(0, 26), UDim2.new(1, 0, 0, 38), 12, THEME.text)
+		local status = label(card, "", UDim2.fromOffset(0, 66), UDim2.new(1, -110, 0, 20), 12, THEME.muted)
+		local button = makeButton(card, "Elegir", THEME.blue, UDim2.fromOffset(100, 32), function()
+			selectedMap = i
+			refreshJugar()
+		end)
+		button.AnchorPoint = Vector2.new(1, 1)
+		button.Position = UDim2.fromScale(1, 1)
+		mapCards[i] = { card = card, status = status, button = button, title = title }
+	end
+
+	-- Jugar y grupos (derecha)
+	local right = create("Frame", { Parent = page, Position = UDim2.new(0.5, 6, 0, 0), Size = UDim2.new(0.5, -6, 1, 0), BackgroundTransparency = 1 })
+	local selectedLabel = label(right, "", UDim2.new(), UDim2.new(1, 0, 0, 26), 17, THEME.gold, true)
+	local soloButton = makeButton(right, "▶ Jugar solo", THEME.green, UDim2.new(0.5, -4, 0, 48), function()
+		sendAction("playSolo", selectedMap, nil, function(ok)
+			if ok then
+				window.Visible = false
+			end
+		end)
+	end)
+	soloButton.Position = UDim2.fromOffset(0, 32)
+	local groupButton = makeButton(right, "👥 Crear grupo", THEME.accent, UDim2.new(0.5, -4, 0, 48), function()
+		sendAction("createGroup", selectedMap)
+	end)
+	groupButton.Position = UDim2.new(0.5, 4, 0, 32)
+	local myGroupCard = makeCard(right, 110, 1, THEME.bg)
+	myGroupCard.Position = UDim2.fromOffset(0, 90)
+	myGroupCard.Size = UDim2.new(1, 0, 0, 110)
+	local myGroupText = label(myGroupCard, "", UDim2.new(), UDim2.new(1, 0, 0, 52), 14, THEME.text)
+	local startButton = makeButton(myGroupCard, "▶ Empezar", THEME.green, UDim2.new(0.5, -4, 0, 38), function()
+		sendAction("startGroup", nil, nil, function(ok)
+			if ok then
+				window.Visible = false
+			end
+		end)
+	end)
+	startButton.Position = UDim2.new(0, 0, 1, -38)
+	local leaveButton = makeButton(myGroupCard, "Salir del grupo", THEME.card, UDim2.new(0.5, -4, 0, 38), function()
+		sendAction("leaveGroup")
+	end)
+	leaveButton.Position = UDim2.new(0.5, 4, 1, -38)
+	label(right, "<b>Grupos abiertos</b> (hasta " .. Config.MAX_GROUP .. " jugadores)", UDim2.fromOffset(0, 208), UDim2.new(1, 0, 0, 22), 14, THEME.muted)
+	local groupList = scrollList(right, UDim2.fromOffset(0, 234), UDim2.new(1, 0, 1, -234))
+	local lastGroups = ""
+
+	function refreshJugar()
+		selectedMap = math.clamp(selectedMap, 1, state.unlockedMap)
+		for i, map in Config.Maps do
+			local c = mapCards[i]
+			local unlocked = state.unlockedMap >= i
+			local wins = state.mapWins[map.id] or 0
+			c.status.Text = if not unlocked then "🔒 Escapa de " .. Config.Maps[i - 1].name .. " para abrirlo" elseif wins > 0 then "✅ Escapaste " .. wins .. " veces" else "⚔️ Aún no has escapado"
+			setButton(c.button, if selectedMap == i then "✓ Elegido" else "Elegir", unlocked and selectedMap ~= i, THEME.blue)
+		end
+		local map = Config.Maps[selectedMap]
+		selectedLabel.Text = map.emoji .. " " .. map.name
+		local group = state.myGroup
+		setButton(soloButton, "▶ Jugar solo", group == nil, THEME.green)
+		setButton(groupButton, "👥 Crear grupo", group == nil, THEME.accent)
+		myGroupCard.Visible = group ~= nil
+		if group then
+			local members = {}
+			for _, g in state.groups do
+				if g.id == group.id then
+					members = g.members
+				end
+			end
+			myGroupText.Text = string.format("<b>Tu grupo</b> · %s %s\n%s", Config.Maps[group.map].emoji, Config.Maps[group.map].name, table.concat(members, ", "))
+			setButton(startButton, if group.leader then "▶ Empezar" else "Espera al líder", group.leader, THEME.green)
+		end
+		-- Lista de grupos (solo se rehace si cambia)
+		local parts = { tostring(group and group.id) }
+		for _, g in state.groups do
+			table.insert(parts, g.id .. ":" .. #g.members)
+		end
+		local signature = table.concat(parts, ",")
+		if signature ~= lastGroups then
+			lastGroups = signature
+			clearChildren(groupList, "UIListLayout")
+			if #state.groups == 0 then
+				label(groupList, "No hay grupos. ¡Crea uno e invita a tus amigos!", UDim2.new(), UDim2.new(1, -8, 0, 40), 13, THEME.muted).LayoutOrder = 1
+			end
+			for i, g in state.groups do
+				local card = makeCard(groupList, 52, i)
+				label(card, string.format("%s <b>%s</b> · %d/%d", Config.Maps[g.map].emoji, g.leader, #g.members, Config.MAX_GROUP), UDim2.new(), UDim2.new(1, -110, 1, 0), 14, THEME.text)
+				local join = makeButton(card, "Unirse", THEME.blue, UDim2.fromOffset(100, 32), function()
+					sendAction("joinGroup", g.id)
+				end)
+				join.AnchorPoint = Vector2.new(1, 0.5)
+				join.Position = UDim2.fromScale(1, 0.5)
+				local mine = group and group.id == g.id
+				setButton(join, if mine then "Tu grupo" else "Unirse", not mine and #g.members < Config.MAX_GROUP and state.unlockedMap >= g.map, THEME.blue)
+			end
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Pestaña: Clases
+---------------------------------------------------------------------
+local refreshClases: () -> ()
+do
+	local page = pages.clases
+	local list = scrollList(page, UDim2.new(), UDim2.fromScale(1, 1))
+	local rows = {}
+	for i, class in Config.Classes do
+		local card = makeCard(list, 74, i)
+		local weapon = Config.Weapons[class.weapon]
+		label(card, class.emoji .. " <b>" .. class.name .. "</b>\n" .. class.desc .. "\nArma inicial: " .. weapon.emoji .. " " .. weapon.name .. " — " .. weapon.desc, UDim2.new(), UDim2.new(1, -190, 1, 0), 13, THEME.text)
+		local button = makeButton(card, "", THEME.gold, UDim2.fromOffset(170, 40), function()
+			sendAction("buyClass", class.id)
+		end)
+		button.AnchorPoint = Vector2.new(1, 0.5)
+		button.Position = UDim2.fromScale(1, 0.5)
+		rows[class.id] = button
+	end
+
+	function refreshClases()
+		for _, class in Config.Classes do
+			local button = rows[class.id]
+			if state.selectedClass == class.id then
+				setButton(button, "✓ Elegida", false)
+			elseif state.classes[class.id] then
+				setButton(button, "Elegir", true, THEME.green)
+			else
+				setButton(button, "Comprar 🪙" .. num(class.price), state.gold >= class.price, THEME.gold)
+			end
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Pestaña: Mejoras permanentes
+---------------------------------------------------------------------
+local refreshMejoras: () -> ()
+do
+	local page = pages.mejoras
+	local list = scrollList(page, UDim2.new(), UDim2.fromScale(1, 1))
+	label(list, "<b>⭐ Mejoras permanentes</b> · se notan en todas las partidas", UDim2.new(), UDim2.new(1, -8, 0, 24), 16, THEME.gold).LayoutOrder = 0
+	local rows = {}
+	for i, upgrade in Config.MetaUpgrades do
+		local card = makeCard(list, 56, i)
+		local text = label(card, "", UDim2.new(), UDim2.new(1, -190, 1, 0), 14, THEME.text)
+		local button = makeButton(card, "", THEME.orange, UDim2.fromOffset(170, 38), function()
+			sendAction("buyUpgrade", upgrade.id)
+		end)
+		button.AnchorPoint = Vector2.new(1, 0.5)
+		button.Position = UDim2.fromScale(1, 0.5)
+		rows[upgrade.id] = { text = text, button = button }
+	end
+
+	function refreshMejoras()
+		for _, upgrade in Config.MetaUpgrades do
+			local row = rows[upgrade.id]
+			local level = state.upgrades[upgrade.id] or 0
+			row.text.Text = string.format("%s <b>%s</b>  ·  nivel %d/%d\n%s", upgrade.emoji, upgrade.name, level, upgrade.max, upgrade.desc)
+			if level >= upgrade.max then
+				setButton(row.button, "✓ Máximo", false)
+			else
+				local cost = Config.metaCost(upgrade.id, level)
+				setButton(row.button, "Mejorar 🪙" .. num(cost), state.gold >= cost, THEME.orange)
+			end
+		end
+	end
+end
 ---------------------------------------------------------------------
 -- Pestaña: Mochila
 ---------------------------------------------------------------------
@@ -1026,11 +1114,11 @@ do
 				local rarity = rarityOf(item)
 				slotLabels[slot.id].Text = string.format("%s <font color=\"#%s\"><b>%s</b></font>\n%s · %s", slot.emoji, rarity.color:ToHex(), itemName(item), rarity.name, Config.powerText(item))
 			else
-				slotLabels[slot.id].Text = slot.emoji .. " <b>" .. slot.name .. "</b>\n<font color=\"#a1a1be\">Vacío: consíguelo en las zonas</font>"
+				slotLabels[slot.id].Text = slot.emoji .. " <b>" .. slot.name .. "</b>\n<font color=\"#a1a1be\">Vacío: consíguelo en el cofre del jefe</font>"
 			end
 		end
 		local stats = state.stats
-		statsLabel.Text = string.format("⚔️ Daño: <b>%s</b>\n❤️ Vida: <b>%s</b>\n📿 Oro y XP: <b>+%s %%</b>", num(stats.damage), num(stats.maxHealth), tostring(stats.bonusPct))
+		statsLabel.Text = string.format("⚔️ Daño: <b>x%.2f</b>\n❤️ Vida: <b>%s</b>\n👟 Velocidad: <b>x%.2f</b>  ·  🪙 Oro: <b>x%.2f</b>", stats.damage, num(stats.health), stats.speed, stats.gold)
 		countLabel.Text = string.format("Mochila %d/%d", #state.inventory, state.capacity)
 		local parts = { tostring(selectedId) }
 		for _, item in state.inventory do
@@ -1077,7 +1165,7 @@ do
 	end
 	label(list, "Probabilidades: " .. table.concat(odds, " · "), UDim2.new(), UDim2.new(1, -8, 0, 36), 13, THEME.muted).LayoutOrder = 11
 	local chestButtons: { TextButton } = {}
-	for i, zone in Config.Zones do
+	for i, zone in Config.Maps do
 		local card = makeCard(list, 56, 11 + i)
 		label(card, zone.emoji .. " <b>Cofre: " .. zone.name .. "</b>", UDim2.fromOffset(0, 0), UDim2.new(1, -190, 1, 0), 15, THEME.text)
 		local button = makeButton(card, "", THEME.gold, UDim2.fromOffset(180, 38), function()
@@ -1114,64 +1202,10 @@ do
 		end
 		for i, button in chestButtons do
 			local price = Config.chestPrice(i)
-			if state.unlockedZone < i then
+			if state.unlockedMap < i then
 				setButton(button, "🔒 Bloqueado", false)
 			else
 				setButton(button, "Comprar 🪙" .. num(price), state.gold >= price, THEME.gold)
-			end
-		end
-	end
-end
-
----------------------------------------------------------------------
--- Pestaña: Zonas
----------------------------------------------------------------------
-local refreshZonas: () -> ()
-do
-	local page = pages.zonas
-	local list = scrollList(page, UDim2.fromOffset(0, 0), UDim2.fromScale(1, 1))
-	local lobbyCard = makeCard(list, 52, 0)
-	label(lobbyCard, "🏙️ <b>Ciudad</b>  ·  forja, tienda y portales", UDim2.new(), UDim2.new(1, -170, 1, 0), 15, THEME.text)
-	local lobbyButton = makeButton(lobbyCard, "Volver", THEME.blue, UDim2.fromOffset(150, 34), function()
-		sendAction("teleport", "lobby")
-		window.Visible = false
-	end)
-	lobbyButton.AnchorPoint = Vector2.new(1, 0.5)
-	lobbyButton.Position = UDim2.fromScale(1, 0.5)
-	local rows = {}
-	for i, zone in Config.Zones do
-		local card = makeCard(list, 104, i, darken(zone.color, 0.72))
-		local names = {}
-		for _, enemyId in zone.enemies do
-			table.insert(names, Config.Enemies[enemyId].name)
-		end
-		label(card, string.format("%s <b>%s</b>  ·  nivel recomendado %d", zone.emoji, zone.name, zone.level), UDim2.new(), UDim2.new(1, -170, 0, 24), 17, lighten(zone.color, 0.3))
-		label(card, "Enemigos: " .. table.concat(names, ", ") .. "\n👑 Jefe: " .. Config.Enemies[zone.boss].name, UDim2.fromOffset(0, 26), UDim2.new(1, -170, 0, 40), 13, THEME.text)
-		local status = label(card, "", UDim2.fromOffset(0, 66), UDim2.new(1, -170, 0, 18), 13, THEME.muted)
-		local button = makeButton(card, "Viajar", THEME.green, UDim2.fromOffset(150, 44), function()
-			sendAction("teleport", zone.id, nil, function(ok)
-				if ok then
-					window.Visible = false
-				end
-			end)
-		end)
-		button.AnchorPoint = Vector2.new(1, 0.5)
-		button.Position = UDim2.fromScale(1, 0.5)
-		rows[i] = { status = status, button = button }
-	end
-
-	function refreshZonas()
-		for i, zone in Config.Zones do
-			local row = rows[i]
-			local unlocked = state.unlockedZone >= i
-			local kills = state.bossKills[zone.id] or 0
-			if unlocked then
-				row.status.Text = if kills > 0 then "✅ Jefe vencido " .. kills .. " veces" else "⚔️ Vence al jefe para abrir la siguiente zona"
-				setButton(row.button, "Viajar", true, THEME.green)
-			else
-				local previous = Config.Zones[i - 1]
-				row.status.Text = "🔒 Vence a " .. Config.Enemies[previous.boss].name .. " para desbloquearla"
-				setButton(row.button, "🔒 Bloqueada", false)
 			end
 		end
 	end
@@ -1263,7 +1297,7 @@ do
 	note.TextXAlignment = Enum.TextXAlignment.Center
 
 	function refreshDiario()
-		local perMinute = Config.goldPerMinute(state.unlockedZone)
+		local perMinute = Config.goldPerMinute(state.unlockedMap)
 		for i, card in dayCards do
 			card.amount.Text = "🪙" .. num(perMinute * Config.DAILY_MINUTES[i])
 			local isToday = i == state.dailyDay
@@ -1272,7 +1306,7 @@ do
 		end
 		if state.dailyAvailable then
 			setButton(claimButton, "Recoger 🪙" .. num(state.dailyReward), true, THEME.green)
-			note.Text = "La recompensa crece con tu mejor zona desbloqueada."
+			note.Text = "La recompensa crece con tu mejor mapa desbloqueado."
 		else
 			setButton(claimButton, "✓ Recogida hoy", false)
 			note.Text = "Vuelve mañana para el día " .. (state.dailyDay % #Config.DAILY_MINUTES + 1) .. "."
@@ -1317,20 +1351,25 @@ do
 		setButton(soundButton, if muted then "🔇 Apagado" else "🔊 Encendido", true, if muted then THEME.card else THEME.blue)
 		setButton(autoSellButton, if state.settings.autoSell then "✓ Activado" else "Desactivado", true, if state.settings.autoSell then THEME.green else THEME.card)
 		saveText.Text = "💾 <b>Guardar partida</b>\n" .. (if not state.canSave then "<font color=\"#f87171\">Desactivado en esta prueba</font>" elseif state.saveOk == false then "<font color=\"#f87171\">Último guardado falló</font>" else "Se guarda sola cada minuto")
-		info.Text = string.format("Enemigos derrotados: %s · Versión %s", num(state.kills), state.version)
+		info.Text = string.format("Partidas: %s · Victorias: %s · Enemigos derrotados: %s · Versión %s", num(state.totals.runs), num(state.totals.wins), num(state.totals.kills), state.version)
 	end
 end
+
 
 function refreshWindow()
 	if not state or not window.Visible then
 		return
 	end
-	if currentTab == "mochila" then
+	if currentTab == "jugar" then
+		refreshJugar()
+	elseif currentTab == "clases" then
+		refreshClases()
+	elseif currentTab == "mejoras" then
+		refreshMejoras()
+	elseif currentTab == "mochila" then
 		refreshMochila()
 	elseif currentTab == "forja" then
 		refreshForja()
-	elseif currentTab == "zonas" then
-		refreshZonas()
 	elseif currentTab == "tienda" then
 		refreshTienda()
 	elseif currentTab == "diario" then
@@ -1345,12 +1384,12 @@ end
 ---------------------------------------------------------------------
 do
 	local STEPS = {
-		{ "⚔️ ¡Bienvenido a Dungeon Ascend!", "Sube de nivel, consigue botín y vence a los jefes para abrir zonas nuevas." },
-		{ "🌀 Los portales", "Camina hasta el portal del Bosque Encantado (al fondo de la plaza) o pulsa 🗺️ Zonas para viajar." },
-		{ "⚔️ El combate", "Haz clic o pulsa el botón rojo para atacar. Q, E y R son habilidades que se desbloquean al subir de nivel." },
-		{ "🎒 El botín", "Los enemigos sueltan armas, armaduras y amuletos. Equipa los que tengan la flecha verde ⬆ en la Mochila." },
-		{ "🔨 La forja", "Mejora tu equipo con oro hasta +10. Es la clave para vencer a cada jefe." },
-		{ "👑 Los jefes", "Esperan al fondo de cada zona. ¡Apártate de los círculos rojos del suelo! Con amigos es más fácil." },
+		{ "⚔️ ¡Bienvenido a Dungeon Ascend!", "Sobrevive a la horda, vence al jefe y escapa por el portal con el oro." },
+		{ "▶ Jugar", "Pulsa ▶ JUGAR (o acércate a un portal) para empezar. Puedes jugar solo o crear un grupo con amigos." },
+		{ "🗡️ Las armas atacan solas", "Tú solo te mueves y esquivas con Q, Shift o el botón 💨. ¡No te dejes rodear!" },
+		{ "💎 Sube de nivel", "Recoge los cristales morados. Al subir de nivel eliges 1 de 3 mejoras. Arma al nivel 5 + su mejora pareja = ¡EVOLUCIÓN!" },
+		{ "👑 Jefe y portal", "A los pocos minutos llega el jefe. Al vencerlo se abre un portal: entra antes de que se cierre para ganar todo el oro." },
+		{ "⭐ Hazte más fuerte", "Con el oro compra mejoras permanentes, clases nuevas y objetos para la mochila." },
 	}
 	local tutorialGui = create("ScreenGui", { Name = "DungeonTutorial", ResetOnSpawn = false, DisplayOrder = 8, Enabled = false, Parent = playerGui })
 	local card = create("Frame", {
@@ -1391,7 +1430,189 @@ do
 end
 
 ---------------------------------------------------------------------
--- Habilidades
+-- Cartas de mejora al subir de nivel
+---------------------------------------------------------------------
+local refreshOffer: () -> ()
+do
+	local offerGui = create("ScreenGui", { Name = "DungeonOffer", ResetOnSpawn = false, DisplayOrder = 7, Enabled = false, Parent = playerGui })
+	local holder = create("Frame", {
+		Parent = offerGui,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.fromOffset(4 * 200 + 3 * 12, 330),
+		BackgroundTransparency = 1,
+	})
+	autoScale(holder)
+	local title = label(holder, "⭐ ¡NIVEL!", UDim2.new(), UDim2.new(1, 0, 0, 40), 30, THEME.gold, true)
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.Font = Enum.Font.FredokaOne
+	local cardsFrame = create("Frame", {
+		Parent = holder,
+		Position = UDim2.fromOffset(0, 48),
+		Size = UDim2.new(1, 0, 0, 220),
+		BackgroundTransparency = 1,
+	}, { create("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 12), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }) })
+	local rerollButton = makeButton(holder, "🎲 Cambiar", THEME.card, UDim2.fromOffset(200, 44), function()
+		sendAction("reroll")
+	end)
+	rerollButton.AnchorPoint = Vector2.new(0.5, 1)
+	rerollButton.Position = UDim2.fromScale(0.5, 1)
+	local lastSignature = ""
+
+	local function describe(option: any): (string, string, Color3)
+		if option.kind == "weapon" then
+			local weapon = Config.Weapons[option.id]
+			local head = weapon.emoji .. " " .. weapon.name
+			if option.level == 1 then
+				return head, "¡NUEVA ARMA!\n" .. weapon.desc, THEME.blue
+			end
+			return head, "Nivel " .. option.level .. "\nMás daño y alcance", THEME.blue
+		elseif option.kind == "evolve" then
+			local evolution = Config.Weapons[option.id].evolution
+			return evolution.emoji .. " " .. evolution.name, "¡EVOLUCIÓN!\nTu " .. Config.Weapons[option.id].name .. " se transforma", THEME.gold
+		elseif option.kind == "passive" then
+			local passive = Config.Passives[option.id]
+			return passive.emoji .. " " .. passive.name, (if option.level == 1 then "¡NUEVA!\n" else "Nivel " .. option.level .. "\n") .. passive.desc, THEME.green
+		elseif option.kind == "gold" then
+			return "🪙 Oro", "Un puñado de oro extra", THEME.orange
+		end
+		return "❤️ Curación", "Recuperas toda la vida", THEME.red
+	end
+
+	function refreshOffer()
+		local run = state and state.run
+		local offer = run and run.offer
+		offerGui.Enabled = offer ~= nil
+		if not offer then
+			lastSignature = ""
+			return
+		end
+		local parts = {}
+		for _, option in offer do
+			table.insert(parts, option.kind .. tostring(option.id) .. tostring(option.level))
+		end
+		local signature = table.concat(parts, ",")
+		setButton(rerollButton, "🎲 Cambiar (" .. run.rerolls .. ")", run.rerolls > 0, THEME.card)
+		title.Text = if run.pending > 1 then "⭐ ¡NIVEL! (" .. run.pending .. " mejoras)" else "⭐ ¡NIVEL!"
+		if signature == lastSignature then
+			return
+		end
+		lastSignature = signature
+		playSound("levelup")
+		clearChildren(cardsFrame, "UIListLayout")
+		for i, option in offer do
+			local head, body, color = describe(option)
+			local cardButton = makeButton(cardsFrame, "", darken(color, 0.55), UDim2.fromOffset(200, 220), function()
+				sendAction("choose", i)
+			end)
+			cardButton.LayoutOrder = i
+			local headLabel = label(cardButton, "<b>" .. head .. "</b>", UDim2.fromOffset(0, 8), UDim2.new(1, 0, 0, 60), 18, THEME.text)
+			headLabel.TextXAlignment = Enum.TextXAlignment.Center
+			local bodyLabel = label(cardButton, body, UDim2.fromOffset(0, 74), UDim2.new(1, 0, 0, 110), 14, THEME.text)
+			bodyLabel.TextXAlignment = Enum.TextXAlignment.Center
+			bodyLabel.TextYAlignment = Enum.TextYAlignment.Top
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Pantalla al caer en partida y resumen final
+---------------------------------------------------------------------
+local refreshDeath: () -> ()
+local showSummary: (summary: any) -> ()
+do
+	local deathGui = create("ScreenGui", { Name = "DungeonDeath", ResetOnSpawn = false, DisplayOrder = 9, IgnoreGuiInset = true, Enabled = false, Parent = playerGui })
+	local shadow = create("Frame", { Parent = deathGui, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5 })
+	local box = create("Frame", {
+		Parent = shadow,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.fromOffset(440, 220),
+		BackgroundColor3 = THEME.panel,
+	}, { corner(16), stroke(THEME.red, 3), padding(16) })
+	autoScale(box)
+	local title = label(box, "💀 Has caído", UDim2.new(), UDim2.new(1, 0, 0, 40), 28, THEME.red, true)
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	local info = label(box, "", UDim2.fromOffset(0, 46), UDim2.new(1, 0, 0, 70), 15, THEME.text)
+	info.TextXAlignment = Enum.TextXAlignment.Center
+	local revive = Config.ProductByKey.revive
+	local reviveButton = makeButton(box, revive.emoji .. " Revivir", THEME.green, UDim2.new(0.5, -4, 0, 46), function()
+		MarketplaceService:PromptProductPurchase(player, revive.id)
+	end)
+	reviveButton.Position = UDim2.new(0, 0, 1, -46)
+	local leaveButton = makeButton(box, "Volver al lobby", THEME.card, UDim2.new(0.5, -4, 0, 46), function()
+		sendAction("leaveRun")
+	end)
+	leaveButton.Position = UDim2.new(0.5, 4, 1, -46)
+	local deadSince = 0
+
+	function refreshDeath()
+		local run = state and state.run
+		local dead = run ~= nil and not run.alive
+		if dead and not deathGui.Enabled then
+			deadSince = os.clock()
+		end
+		deathGui.Enabled = dead
+		if dead then
+			reviveButton.Visible = revive.id ~= 0
+			if revive.id == 0 then
+				leaveButton.Position = UDim2.new(0.25, 0, 1, -46)
+			end
+			local left = math.max(0, 20 - (os.clock() - deadSince))
+			info.Text = string.format("Tu equipo sigue luchando.\nSi no revives en %d s, vuelves al lobby con la mitad del oro (🪙%s).", math.ceil(left), num(run.gold * Config.LOSS_GOLD_RATE))
+		end
+	end
+
+	-- Resumen al terminar la partida
+	local summaryGui = create("ScreenGui", { Name = "DungeonSummary", ResetOnSpawn = false, DisplayOrder = 11, IgnoreGuiInset = true, Enabled = false, Parent = playerGui })
+	local back = create("Frame", { Parent = summaryGui, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.4 })
+	local panel = create("Frame", {
+		Parent = back,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(480, 330),
+		BackgroundColor3 = THEME.panel,
+	}, { corner(16), stroke(THEME.gold, 3), padding(16) })
+	autoScale(panel)
+	local summaryTitle = label(panel, "", UDim2.new(), UDim2.new(1, 0, 0, 44), 30, THEME.gold, true)
+	summaryTitle.TextXAlignment = Enum.TextXAlignment.Center
+	summaryTitle.Font = Enum.Font.FredokaOne
+	local summaryBody = label(panel, "", UDim2.fromOffset(0, 52), UDim2.new(1, 0, 1, -110), 16, THEME.text)
+	summaryBody.TextXAlignment = Enum.TextXAlignment.Center
+	summaryBody.TextYAlignment = Enum.TextYAlignment.Top
+	local okButton = makeButton(panel, "Continuar", THEME.green, UDim2.fromOffset(200, 46), function()
+		summaryGui.Enabled = false
+	end)
+	okButton.AnchorPoint = Vector2.new(0.5, 1)
+	okButton.Position = UDim2.fromScale(0.5, 1)
+
+	function showSummary(summary: any)
+		local map = Config.MapById[summary.map]
+		local titles = { win = "🏆 ¡HAS ESCAPADO!", dead = "💀 Has caído", left = "🏳️ Partida abandonada" }
+		summaryTitle.Text = titles[summary.result] or "Fin de la partida"
+		summaryTitle.TextColor3 = if summary.result == "win" then THEME.gold else THEME.red
+		local lines = {
+			map.emoji .. " " .. map.name,
+			"⏱️ Tiempo: " .. Config.formatClock(summary.time) .. "   ·   ⭐ Nivel " .. summary.level,
+			"💀 Enemigos derrotados: " .. num(summary.kills),
+			"🪙 Oro ganado: <b>" .. num(summary.gold) .. "</b>" .. (if summary.result == "win" then " (+" .. math.floor(Config.WIN_BONUS * 100) .. " % por escapar)" else " (la mitad)"),
+		}
+		if summary.item then
+			local rarity = Config.RarityById[summary.item.rarity]
+			table.insert(lines, string.format("🎁 Cofre del jefe: <font color=\"#%s\"><b>%s</b> (%s)</font>", rarity.color:ToHex(), Config.Items[summary.item.def].name, rarity.name))
+		end
+		if summary.unlocked then
+			local unlocked = Config.MapById[summary.unlocked]
+			table.insert(lines, "🔓 ¡Nuevo mapa: " .. unlocked.emoji .. " " .. unlocked.name .. "!")
+		end
+		summaryBody.Text = table.concat(lines, "\n")
+		summaryGui.Enabled = true
+		playSound(if summary.result == "win" then "levelup" else "error")
+	end
+end
+
+---------------------------------------------------------------------
+-- Esquivar
 ---------------------------------------------------------------------
 local function myCharacter(): (BasePart?, Humanoid?)
 	local character = player.Character
@@ -1403,162 +1624,148 @@ local function myCharacter(): (BasePart?, Humanoid?)
 	return root, humanoid
 end
 
-function useSkill(skillId: string)
-	local skill = Config.SkillById[skillId]
-	if not skill or not state then
-		return
-	end
-	if state.level < skill.level then
-		showToast(skill.emoji .. " " .. skill.name .. " se desbloquea en el nivel " .. skill.level, "error")
-		playSound("error")
+function dash()
+	if not state or not state.run or not state.run.alive then
 		return
 	end
 	local now = os.clock()
-	if now < (skillReadyAt[skill.id] or 0) then
+	if now < dashReadyAt then
 		return
 	end
-	local root = myCharacter()
-	if not root then
+	local root, humanoid = myCharacter()
+	if not root or not humanoid then
 		return
 	end
-	skillReadyAt[skill.id] = now + skill.cooldown
-	combatEvent:FireServer("skill", skill.id)
-	local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	look = if look.Magnitude > 0.01 then look.Unit else Vector3.new(0, 0, -1)
-	if skill.kind == "dash" then
-		-- Impulso hacia delante (el personaje lo mueve este cliente)
-		local attachment = Instance.new("Attachment")
-		attachment.Parent = root
-		local velocity = Instance.new("LinearVelocity")
-		velocity.Attachment0 = attachment
-		velocity.MaxForce = 1e6
-		velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-		velocity.RelativeTo = Enum.ActuatorRelativeTo.World
-		velocity.VectorVelocity = look * 90
-		velocity.Parent = root
-		task.delay(0.22, function()
-			velocity:Destroy()
-			attachment:Destroy()
-		end)
+	dashReadyAt = now + Config.DASH_COOLDOWN
+	swarmEvent:FireServer("dash")
+	local direction = humanoid.MoveDirection
+	if direction.Magnitude < 0.1 then
+		direction = root.CFrame.LookVector
 	end
-	local effect = fx[skill.id]
-	if effect then
-		effect(root.Position, look)
-	end
-	playSound(if skill.kind == "melee" then "hit" else "skill")
+	direction = Vector3.new(direction.X, 0, direction.Z)
+	direction = if direction.Magnitude > 0.01 then direction.Unit else Vector3.new(0, 0, -1)
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = root
+	local velocity = Instance.new("LinearVelocity")
+	velocity.Attachment0 = attachment
+	velocity.MaxForce = 1e6
+	velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	velocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	velocity.VectorVelocity = direction * 85
+	velocity.Parent = root
+	task.delay(0.2, function()
+		velocity:Destroy()
+		attachment:Destroy()
+	end)
+	playSound("skill")
 end
-
--- Ataque más cercano para el pase de auto-ataque
-local function enemyNearby(radius: number): boolean
-	local root = myCharacter()
-	local folder = Workspace:FindFirstChild("Enemigos")
-	if not root or not folder then
-		return false
-	end
-	for _, model in folder:GetChildren() do
-		local enemyRoot = model:IsA("Model") and model.PrimaryPart
-		if enemyRoot then
-			local offset = enemyRoot.Position - root.Position
-			if Vector3.new(offset.X, 0, offset.Z).Magnitude <= radius then
-				return true
-			end
-		end
-	end
-	return false
-end
-
-local KEY_SKILLS: { [Enum.KeyCode]: string } = {
-	[Enum.KeyCode.Q] = "spin",
-	[Enum.KeyCode.E] = "dash",
-	[Enum.KeyCode.R] = "heal",
-	[Enum.KeyCode.One] = "attack",
-	[Enum.KeyCode.Two] = "spin",
-	[Enum.KeyCode.Three] = "dash",
-	[Enum.KeyCode.Four] = "heal",
-	[Enum.KeyCode.ButtonX] = "attack",
-	[Enum.KeyCode.ButtonY] = "spin",
-	[Enum.KeyCode.ButtonB] = "dash",
-}
 
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 	if processed then
 		return
 	end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		useSkill("attack")
-		return
-	end
-	local skillId = KEY_SKILLS[input.KeyCode]
-	if skillId then
-		useSkill(skillId)
+	local key = input.KeyCode
+	if key == Enum.KeyCode.Q or key == Enum.KeyCode.LeftShift or key == Enum.KeyCode.RightShift or key == Enum.KeyCode.ButtonB then
+		dash()
+	elseif state and state.run and state.run.offer then
+		-- Elegir mejora con 1-4
+		local choices = { [Enum.KeyCode.One] = 1, [Enum.KeyCode.Two] = 2, [Enum.KeyCode.Three] = 3, [Enum.KeyCode.Four] = 4 }
+		local index = choices[key]
+		if index and state.run.offer[index] then
+			sendAction("choose", index)
+		end
 	end
 end)
 
 ---------------------------------------------------------------------
--- Pantalla al caer
+-- Cámara: en partida se aleja para ver la horda
 ---------------------------------------------------------------------
-local showDeath: (zoneId: string?, seconds: number) -> ()
-do
-	local deathGui = create("ScreenGui", { Name = "DungeonDeath", ResetOnSpawn = false, DisplayOrder = 9, IgnoreGuiInset = true, Enabled = false, Parent = playerGui })
-	local shadow = create("Frame", { Parent = deathGui, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5 })
-	local box = create("Frame", {
-		Parent = shadow,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(420, 200),
-		BackgroundColor3 = THEME.panel,
-	}, { corner(16), stroke(THEME.red, 3), padding(16) })
-	autoScale(box)
-	local title = label(box, "💀 Has caído", UDim2.new(), UDim2.new(1, 0, 0, 40), 28, THEME.red, true)
-	title.TextXAlignment = Enum.TextXAlignment.Center
-	local info = label(box, "", UDim2.fromOffset(0, 46), UDim2.new(1, 0, 0, 50), 16, THEME.text)
-	info.TextXAlignment = Enum.TextXAlignment.Center
-	local revive = Config.ProductByKey.revive
-	local reviveButton = makeButton(box, revive.emoji .. " Revivir aquí", THEME.green, UDim2.fromOffset(220, 46), function()
-		MarketplaceService:PromptProductPurchase(player, revive.id)
-	end)
-	reviveButton.AnchorPoint = Vector2.new(0.5, 1)
-	reviveButton.Position = UDim2.fromScale(0.5, 1)
-	local token = 0
-	function showDeath(zoneId: string?, seconds: number)
-		token += 1
-		local myToken = token
-		reviveButton.Visible = revive.id ~= 0 and zoneId ~= nil
-		deathGui.Enabled = true
-		task.spawn(function()
-			for left = math.ceil(seconds), 1, -1 do
-				if token ~= myToken then
-					return
-				end
-				info.Text = "Vuelves a la Ciudad en " .. left .. " s.\nTu equipo y tu nivel están a salvo."
-				task.wait(1)
-			end
-			if token == myToken then
-				deathGui.Enabled = false
-			end
-		end)
+local defaultZoom = { player.CameraMinZoomDistance, player.CameraMaxZoomDistance }
+local inRunCamera = false
+local function updateCamera(inRun: boolean)
+	if inRun == inRunCamera then
+		return
 	end
-	player.CharacterAdded:Connect(function()
-		token += 1
-		deathGui.Enabled = false
-	end)
+	inRunCamera = inRun
+	if inRun then
+		player.CameraMaxZoomDistance = 75
+		player.CameraMinZoomDistance = 32
+	else
+		player.CameraMinZoomDistance = defaultZoom[1]
+		player.CameraMaxZoomDistance = defaultZoom[2]
+	end
 end
 
 ---------------------------------------------------------------------
 -- Eventos del servidor
 ---------------------------------------------------------------------
 local firstState = true
+local function refreshHud()
+	local inRun = state.run ~= nil
+	lobbyHud.panel.Visible = not inRun
+	lobbyHud.play.Visible = not inRun
+	menu.Visible = not inRun
+	if inRun then
+		window.Visible = false
+	end
+	lobbyHud.saveWarning.Visible = not state.canSave and not inRun
+	for _, key in { "top", "bottom", "dash", "leave" } do
+		runHud[key].Visible = inRun
+	end
+	updateCamera(inRun)
+	if not inRun then
+		local class = Config.ClassById[state.selectedClass]
+		lobbyHud.gold.Text = "🪙 " .. num(state.gold)
+		lobbyHud.info.Text = class.emoji .. " " .. class.name .. (if state.boostLeft > 0 then "   ·   🚀 x2 " .. Config.formatTime(state.boostLeft) else "")
+		runHud.boss.Visible = false
+		return
+	end
+	local run = state.run
+	runHud.clock.Text = Config.formatClock(run.time)
+	runHud.kills.Text = "💀 " .. num(run.kills)
+	runHud.gold.Text = "🪙 " .. num(run.gold)
+	runHud.xpFill.Size = UDim2.fromScale(math.clamp(run.xp / math.max(1, run.xpNeeded), 0, 1), 1)
+	runHud.xpText.Text = "⭐ Nivel " .. run.level
+	local map = Config.Maps[run.mapIndex]
+	if run.portal then
+		runHud.info.Text = "🌀 ¡ENTRA EN EL PORTAL! Quedan " .. math.max(0, math.ceil(run.portal.left)) .. " s"
+		runHud.info.TextColor3 = THEME.blue
+	elseif run.time < run.bossAt then
+		runHud.info.Text = map.emoji .. " " .. map.name .. "  ·  jefe en " .. Config.formatClock(run.bossAt - run.time) .. (if run.lives > 0 then "  ·  💖 x" .. run.lives else "")
+		runHud.info.TextColor3 = THEME.muted
+	else
+		runHud.info.Text = "👑 ¡Derrota al jefe para abrir el portal!"
+		runHud.info.TextColor3 = THEME.orange
+	end
+	runHud.boss.Visible = run.boss ~= nil
+	if run.boss then
+		runHud.bossFill.Size = UDim2.fromScale(math.clamp(run.boss.hp, 0, 1), 1)
+		runHud.bossText.Text = "👑 " .. run.boss.name
+	end
+	local weaponLines = {}
+	for _, id in run.weaponOrder do
+		local level = run.weapons[id]
+		table.insert(weaponLines, weaponName(id, level) .. (if level > Config.MAX_ITEM_LEVEL then "" else " " .. level))
+	end
+	runHud.weapons.Text = table.concat(weaponLines, "   ")
+	local passiveLines = {}
+	for _, id in run.passiveOrder do
+		table.insert(passiveLines, Config.Passives[id].emoji .. " " .. run.passives[id])
+	end
+	runHud.passives.Text = if #passiveLines > 0 then table.concat(passiveLines, "   ") else "Sube de nivel para conseguir mejoras"
+end
+
 stateEvent.OnClientEvent:Connect(function(newState: any)
-	local previous = state
+	local wasInRun = state and state.run ~= nil
 	state = newState
 	muted = newState.settings.muted == true
-	hud.badge.Text = tostring(newState.level)
-	hud.xpFill.Size = UDim2.fromScale(math.clamp(newState.xp / math.max(1, newState.xpNeeded), 0, 1), 1)
-	hud.xpText.Text = if newState.level >= Config.MAX_LEVEL then "NIVEL MÁXIMO" else string.format("XP %s / %s", num(newState.xp), num(newState.xpNeeded))
-	hud.gold.Text = "🪙 " .. num(newState.gold)
-	hud.boost.Text = if newState.boostLeft > 0 then "🚀 x2 " .. Config.formatTime(newState.boostLeft) else ""
-	hud.saveWarning.Visible = not newState.canSave
-	autoButton.Visible = newState.bonuses.autoPass == true
+	SwarmView.setRun(newState.run)
+	refreshHud()
+	refreshOffer()
+	refreshDeath()
+	if newState.run and not wasInRun then
+		dashReadyAt = 0
+	end
 	-- Puntos rojos del menú
 	menuDots.diario.Visible = newState.dailyAvailable
 	local better = false
@@ -1577,10 +1784,14 @@ stateEvent.OnClientEvent:Connect(function(newState: any)
 		end
 	end
 	menuDots.mochila.Visible = better
-	if previous and newState.gold > previous.gold and newState.gold - previous.gold >= 1 then
-		hud.gold.TextColor3 = THEME.text
-		TweenService:Create(hud.gold, TweenInfo.new(0.4), { TextColor3 = THEME.gold }):Play()
+	local canUpgrade = false
+	for _, upgrade in Config.MetaUpgrades do
+		local level = newState.upgrades[upgrade.id] or 0
+		if level < upgrade.max and newState.gold >= Config.metaCost(upgrade.id, level) then
+			canUpgrade = true
+		end
 	end
+	menuDots.mejoras.Visible = canUpgrade
 	if firstState then
 		firstState = false
 		if not newState.tutorialDone then
@@ -1590,13 +1801,20 @@ stateEvent.OnClientEvent:Connect(function(newState: any)
 	refreshWindow()
 end)
 
-notifyEvent.OnClientEvent:Connect(function(text: string, kind: string, body: string?)
+notifyEvent.OnClientEvent:Connect(function(text: string, kind: string, body: any)
 	if kind == "popup" then
 		showPopup(text, body or "")
 		playSound("loot")
+	elseif kind == "summary" then
+		showSummary(body)
+	elseif kind == "loot_item" then
+		local item = body.item
+		local rarity = Config.RarityById[item.rarity]
+		showToast("🎁 Nuevo: " .. Config.Items[item.def].name .. " (" .. rarity.name .. ")" .. (if body.better then " ⬆ ¡mejor que el tuyo!" else ""), "loot")
+		playSound("loot")
 	else
 		showToast(text, kind)
-		if kind == "loot" then
+		if kind == "loot" or kind == "boss" then
 			playSound("loot")
 		elseif kind == "error" then
 			playSound("error")
@@ -1604,91 +1822,47 @@ notifyEvent.OnClientEvent:Connect(function(text: string, kind: string, body: str
 	end
 end)
 
-openMenuEvent.OnClientEvent:Connect(function(tab: string)
+openMenuEvent.OnClientEvent:Connect(function(tab: string, mapId: string?)
+	if mapId and Config.MapById[mapId] then
+		local map = Config.MapById[mapId]
+		if state and state.unlockedMap >= map.index then
+			selectedMap = map.index
+		else
+			showToast("🔒 " .. map.name .. ": escapa antes del mapa anterior", "error")
+		end
+	end
 	openWindow(tab)
 end)
 
-combatEvent.OnClientEvent:Connect(function(kind: string, a: any, b: any, c: any, d: any)
-	if kind == "hits" then
-		local crit = false
-		for _, hit in a do
-			fx.floatingText(hit.p, (if hit.c then "💥" else "") .. num(hit.d), if hit.c then THEME.orange else THEME.text, if hit.c then 34 else 26, 0.8)
-			crit = crit or hit.c
-		end
-		if crit then
-			playSound("crit")
-		end
-	elseif kind == "hurt" then
-		hud.flash.BackgroundTransparency = 0.75
-		TweenService:Create(hud.flash, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
-	elseif kind == "reward" then
-		fx.floatingText(a + Vector3.new(0, 2, 0), "+" .. num(b) .. " XP  +🪙" .. num(c), THEME.gold, 22, 1.2)
-		playSound("coin")
-	elseif kind == "loot" then
-		local item = a
-		local rarity = rarityOf(item)
-		showToast("🎁 Nuevo: " .. Config.Items[item.def].name .. " (" .. rarity.name .. ")" .. (if b then " ⬆ ¡mejor que el tuyo!" else ""), "loot")
-		playSound("loot")
-		if rarity.index >= 4 then
-			showPopup("🌟 ¡Objeto " .. rarity.name .. "!", Config.Items[item.def].name .. "\n" .. Config.powerText(item) .. "\n\nEquípalo en 🎒 Mochila.")
-		end
-	elseif kind == "levelup" then
-		hud.banner.Text = "⭐ ¡NIVEL " .. tostring(a) .. "! ⭐"
-		hud.banner.Visible = true
-		hud.banner.TextTransparency = 0
-		hud.banner.TextStrokeTransparency = 0
-		playSound("levelup")
-		task.delay(1.6, function()
-			TweenService:Create(hud.banner, TweenInfo.new(0.5), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-		end)
-	elseif kind == "died" then
-		showDeath(a, b or Config.RESPAWN_TIME)
-	elseif kind == "fx" then
-		local source = d
-		local skill = Config.SkillById[a]
-		if skill and source == player.UserId then
-			return -- ya lo dibujamos al pulsar
-		end
-		local effect = fx[a]
-		if effect then
-			effect(b, c)
-		end
-	end
+swarmEvent.OnClientEvent:Connect(function(enemies: buffer, gemAdds: { number }, gemRemoves: { number }, fx: { any })
+	SwarmView.onSnapshot(enemies, gemAdds, gemRemoves, fx)
 end)
 
 ---------------------------------------------------------------------
--- Cada fotograma: vida, recargas y auto-ataque
+-- Cada fotograma: vida, recarga del esquive y la horda
 ---------------------------------------------------------------------
-local lastAutoCheck = 0
-RunService.RenderStepped:Connect(function()
-	local _, humanoid = myCharacter()
-	if humanoid then
-		hud.hpFill.Size = UDim2.fromScale(math.clamp(humanoid.Health / math.max(1, humanoid.MaxHealth), 0, 1), 1)
-		hud.hpText.Text = "❤️ " .. num(math.ceil(humanoid.Health)) .. " / " .. num(humanoid.MaxHealth)
-	else
-		hud.hpFill.Size = UDim2.fromScale(0, 1)
-		hud.hpText.Text = "❤️ 0"
-	end
-	if not state then
+SwarmView.init(playSound)
+RunService.RenderStepped:Connect(function(dt: number)
+	SwarmView.update(dt)
+	if not state or not state.run then
 		return
 	end
-	local now = os.clock()
-	for _, skill in Config.Skills do
-		local widgets = skillButtons[skill.id]
-		local locked = state.level < skill.level
-		local left = math.max(0, (skillReadyAt[skill.id] or 0) - now)
-		widgets.cooldown.Size = UDim2.fromScale(1, if locked then 1 else left / skill.cooldown)
-		widgets.timer.Text = if locked then "🔒" .. skill.level elseif left > 0.95 then tostring(math.ceil(left)) else ""
-	end
-	if state.bonuses.autoPass then
-		setButton(autoButton, if autoAttack then "🤖 AUTO: SÍ" else "🤖 AUTO: NO", true, if autoAttack then THEME.green else THEME.card)
-		if autoAttack and now - lastAutoCheck > 0.1 then
-			lastAutoCheck = now
-			if now >= (skillReadyAt.attack or 0) and enemyNearby(Config.SkillById.attack.radius) then
-				useSkill("attack")
-			end
+	local _, humanoid = myCharacter()
+	if humanoid then
+		runHud.hpFill.Size = UDim2.fromScale(math.clamp(humanoid.Health / math.max(1, humanoid.MaxHealth), 0, 1), 1)
+		runHud.hpText.Text = "❤️ " .. num(math.ceil(humanoid.Health)) .. " / " .. num(humanoid.MaxHealth)
+		if humanoid.Health < lastHealth - 0.5 then
+			runHud.flash.BackgroundTransparency = 0.78
+			TweenService:Create(runHud.flash, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
 		end
+		lastHealth = humanoid.Health
+	else
+		runHud.hpFill.Size = UDim2.fromScale(0, 1)
+		runHud.hpText.Text = "❤️ 0"
 	end
+	local left = math.max(0, dashReadyAt - os.clock())
+	runHud.dashCooldown.Size = UDim2.fromScale(1, left / Config.DASH_COOLDOWN)
+	refreshDeath()
 end)
 
 local camera = Workspace.CurrentCamera

@@ -4,7 +4,7 @@ Este documento es el punto de partida para cualquier sesión nueva de Claude Cod
 repositorio. Léelo entero antes de tocar nada.
 
 > **Hay dos juegos en el repo.** Este archivo describe *Web Empire Tycoon*
-> (`roblox-imperio-web/`). El segundo, **Dungeon Ascend** (mazmorras, rama
+> (`roblox-imperio-web/`). El segundo, **Dungeon Ascend** (hordas estilo "survivors", rama
 > `claude/dungeon-ascend`), vive en `roblox-dungeon/` y tiene su propio contexto en
 > `roblox-dungeon/CLAUDE.md`. Las preferencias del usuario (§2) valen para los dos.
 

@@ -1,10 +1,11 @@
 --[[
-	EnemyModels (ModuleScript en ServerScriptService)
+	EnemyModels (ModuleScript en ReplicatedStorage)
 
 	Construye el aspecto de cada enemigo con piezas sencillas (slime,
-	bestia de 4 patas, humanoide, araña y volador). El modelo tiene una
-	pieza invisible "Root" a ras de suelo: moverla mueve todo el enemigo.
-	El frente del enemigo mira hacia -Z (como CFrame.lookAt).
+	bestia de 4 patas, humanoide, araña y volador). Lo usa el CLIENTE para
+	dibujar la horda (el servidor solo calcula posiciones y vida).
+	El modelo tiene una pieza invisible "Root" a ras de suelo: moverla mueve
+	todo el enemigo. El frente del enemigo mira hacia -Z.
 ]]
 
 local EnemyModels = {}
@@ -16,7 +17,8 @@ local function piece(model: Model, size: Vector3, offset: CFrame, color: Color3,
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanTouch = false
-	part.CastShadow = true
+	part.CanQuery = false
+	part.CastShadow = false -- cientos de enemigos: sin sombras por rendimiento
 	part.Size = size
 	part.CFrame = offset
 	part.Color = color
@@ -138,8 +140,9 @@ BUILDERS.flyer = function(model, def, s)
 	return 6.4 * s
 end
 
--- Crea el modelo en el origen (Root a ras de suelo) y lo devuelve con su altura
-function EnemyModels.build(def: any): (Model, number)
+-- Crea el modelo en el origen (Root a ras de suelo) y lo devuelve con su altura.
+-- elite = más grande y con un brillo rojo
+function EnemyModels.build(def: any, elite: boolean?): (Model, number)
 	local model = Instance.new("Model")
 	model.Name = def.name
 	local root = Instance.new("Part")
@@ -147,13 +150,29 @@ function EnemyModels.build(def: any): (Model, number)
 	root.Anchored = true
 	root.CanCollide = false
 	root.CanTouch = false
+	root.CanQuery = false
 	root.Transparency = 1
 	root.Size = Vector3.new(1, 1, 1)
 	root.CFrame = CFrame.new()
 	root.Parent = model
 	model.PrimaryPart = root
 	local builder = BUILDERS[def.model] or BUILDERS.humanoid
-	local height = builder(model, def, def.size)
+	local size = def.size * (if elite then 1.7 else 1)
+	local height = builder(model, def, size)
+	if elite then
+		local glow = Instance.new("PointLight")
+		glow.Color = Color3.fromRGB(239, 68, 68)
+		glow.Range = 12
+		glow.Brightness = 2
+		glow.Parent = root
+	end
+	if def.boss then
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part ~= root then
+				part.CastShadow = true
+			end
+		end
+	end
 	return model, height
 end
 

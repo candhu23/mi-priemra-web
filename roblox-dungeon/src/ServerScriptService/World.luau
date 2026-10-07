@@ -2,12 +2,11 @@
 	World (ModuleScript en ServerScriptService)
 
 	Construye el mundo de Dungeon Ascend:
-	  · la Ciudad (inicio): plaza, zona de aparición, portales a las zonas,
+	  · el lobby (la Ciudad): plaza, zona de aparición, portales de partida,
 	    forja, tienda y panel de clasificación
-	  · las zonas de combate (Bosque, Cueva, Castillo), cada una con su
-	    decoración, puntos de aparición de enemigos, arena del jefe y
-	    portal de vuelta
-	Devuelve dónde aparece cada enemigo para que CombatService los cree.
+	  · las arenas de las partidas: una por partida en marcha, con la
+	    decoración de su mapa (Bosque, Cueva, Castillo) y muros alrededor.
+	    Se crean al empezar la partida y se borran al terminar.
 ]]
 
 local Lighting = game:GetService("Lighting")
@@ -17,25 +16,15 @@ local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("GameCo
 
 local World = {}
 
-World.ZONE_SPACING = 1000 -- las zonas están lejos de la ciudad (en -Z)
-World.ZONE_WIDTH = 240
-World.ZONE_LENGTH = 320
-
-export type SpawnPoint = { enemy: string, position: Vector3 }
-export type ZoneInfo = {
-	id: string,
-	index: number,
-	origin: Vector3,
-	entry: CFrame,
-	spawns: { SpawnPoint },
-	boss: SpawnPoint,
-}
+World.ARENA_SPACING = 600 -- las arenas están lejos del lobby (en +X)
+World.ARENA_START = 2000
 
 local random = Random.new(1234)
-local zonesInfo: { [string]: ZoneInfo } = {}
 local leaderboardRows: { TextLabel } = {}
 local leaderboardStatus: TextLabel? = nil
 local callbacks: any = nil
+local mundo: Folder = nil :: any
+local arenas: { [number]: Folder } = {}
 
 ---------------------------------------------------------------------
 -- Ayudas
@@ -263,14 +252,14 @@ local function buildLobby(root: Instance)
 	newPart(lobby, Vector3.new(6, 1, 1.2), CFrame.new(0.6, 4.6, -12) * CFrame.Angles(0, 0, math.rad(8)), Color3.fromRGB(202, 138, 4), Enum.Material.Metal)
 	local title = billboard(base, UDim2.fromOffset(420, 110), Vector3.new(0, 22, 0), 200)
 	textLabel(title, "⚔️ DUNGEON ASCEND", UDim2.fromScale(1, 0.65), UDim2.fromScale(0, 0), Color3.fromRGB(251, 191, 36))
-	textLabel(title, "Sube de nivel · consigue botín · vence a los jefes", UDim2.fromScale(1, 0.35), UDim2.fromScale(0, 0.65), Color3.new(1, 1, 1))
+	textLabel(title, "Sobrevive a la horda · vence al jefe · escapa por el portal", UDim2.fromScale(1, 0.35), UDim2.fromScale(0, 0.65), Color3.new(1, 1, 1))
 
-	-- Portales a las zonas
-	for i, zone in Config.Zones do
-		local x = (i - (#Config.Zones + 1) / 2) * 34
-		local disc = portal(lobby, CFrame.new(x, 0.4, -80), zone.color, zone.emoji .. " " .. zone.name, "Nivel recomendado " .. zone.level)
-		prompt(disc, "Entrar", zone.name, function(player)
-			callbacks.onPortal(player, zone.id)
+	-- Portales de partida: abren la pestaña Jugar con ese mapa elegido
+	for i, map in Config.Maps do
+		local x = (i - (#Config.Maps + 1) / 2) * 34
+		local disc = portal(lobby, CFrame.new(x, 0.4, -80), map.color, map.emoji .. " " .. map.name, "Partida de " .. math.floor(map.bossAt / 60) .. " min + jefe")
+		prompt(disc, "Jugar", map.name, function(player)
+			callbacks.onOpen(player, "jugar", map.id)
 		end)
 	end
 
@@ -292,7 +281,7 @@ local function buildLobby(root: Instance)
 	local sign = billboard(anvil, UDim2.fromOffset(220, 60), Vector3.new(0, 7, 0), 90)
 	textLabel(sign, "🔨 Forja", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), Color3.fromRGB(251, 146, 60))
 	prompt(anvil, "Mejorar equipo", "Forja", function(player)
-		callbacks.onOpen(player, "forja")
+		callbacks.onOpen(player, "forja", nil)
 	end)
 	forge.Parent = lobby
 
@@ -315,7 +304,7 @@ local function buildLobby(root: Instance)
 	local shopSign = billboard(counter, UDim2.fromOffset(220, 60), Vector3.new(0, 10, 0), 90)
 	textLabel(shopSign, "🛒 Tienda", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), Color3.fromRGB(251, 191, 36))
 	prompt(counter, "Ver tienda", "Tienda", function(player)
-		callbacks.onOpen(player, "tienda")
+		callbacks.onOpen(player, "tienda", nil)
 	end)
 	shop.Parent = lobby
 
@@ -331,7 +320,7 @@ local function buildLobby(root: Instance)
 	gui.PixelsPerStud = 25
 	gui.LightInfluence = 0
 	gui.Parent = board
-	textLabel(gui, "🏆 MEJORES AVENTUREROS", UDim2.fromScale(1, 0.13), UDim2.fromScale(0, 0.02), Color3.fromRGB(251, 191, 36))
+	textLabel(gui, "🏆 MÁS ENEMIGOS DERROTADOS", UDim2.fromScale(1, 0.13), UDim2.fromScale(0, 0.02), Color3.fromRGB(251, 191, 36))
 	for i = 1, 10 do
 		local row = textLabel(gui, "", UDim2.fromScale(0.9, 0.075), UDim2.fromScale(0.05, 0.15 + (i - 1) * 0.08), Color3.new(1, 1, 1))
 		row.TextXAlignment = Enum.TextXAlignment.Left
@@ -357,7 +346,7 @@ local function buildLobby(root: Instance)
 end
 
 ---------------------------------------------------------------------
--- Zonas de combate
+-- Arenas de partida
 ---------------------------------------------------------------------
 type Theme = { floor: Color3, floorMaterial: Enum.Material, wall: Color3, wallMaterial: Enum.Material, accent: Color3 }
 local THEMES: { [string]: Theme } = {
@@ -366,194 +355,135 @@ local THEMES: { [string]: Theme } = {
 	castillo = { floor = Color3.fromRGB(68, 64, 60), floorMaterial = Enum.Material.Cobblestone, wall = Color3.fromRGB(41, 37, 36), wallMaterial = Enum.Material.Brick, accent = Color3.fromRGB(168, 85, 247) },
 }
 
-local function decorateZone(zoneFolder: Instance, zone: any, origin: Vector3, theme: Theme)
-	local halfW, halfL = World.ZONE_WIDTH / 2, World.ZONE_LENGTH / 2
-	local deco = folder("Decoracion", zoneFolder)
-	-- Muros del borde
-	for _, side in { -1, 1 } do
-		newPart(deco, Vector3.new(6, 24, World.ZONE_LENGTH + 12), CFrame.new(origin + Vector3.new(side * (halfW + 3), 12, 0)), theme.wall, theme.wallMaterial)
-		newPart(deco, Vector3.new(World.ZONE_WIDTH + 12, 24, 6), CFrame.new(origin + Vector3.new(0, 12, side * (halfL + 3))), theme.wall, theme.wallMaterial)
-	end
-	-- Objetos repartidos (evitando el camino central y la arena del jefe)
-	local function randomSpot(): Vector3
-		for _ = 1, 20 do
-			local x = random:NextNumber(-halfW + 8, halfW - 8)
-			local z = random:NextNumber(-halfL + 8, halfL - 8)
-			local nearBoss = (Vector3.new(x, 0, z) - Vector3.new(0, 0, -halfL + 50)).Magnitude < 44
-			if math.abs(x) > 14 and not nearBoss then
-				return origin + Vector3.new(x, 0, z)
-			end
-		end
-		return origin + Vector3.new(halfW - 10, 0, 0)
-	end
-	if zone.id == "bosque" then
-		for _ = 1, 26 do
-			tree(deco, randomSpot(), random:NextNumber(0.9, 1.6), Color3.fromRGB(22, 101, 52):Lerp(Color3.fromRGB(77, 124, 15), random:NextNumber()))
-		end
-		for _ = 1, 14 do
-			rock(deco, randomSpot(), random:NextNumber(2, 5), Color3.fromRGB(120, 113, 108))
-		end
-		for _ = 1, 12 do
-			local pos = randomSpot()
-			verticalCylinder(deco, 1.6, 0.6, pos + Vector3.new(0, 0.8, 0), Color3.fromRGB(245, 245, 244), Enum.Material.SmoothPlastic)
-			ball(deco, 2.2, pos + Vector3.new(0, 1.8, 0), Color3.fromRGB(220, 38, 38), Enum.Material.SmoothPlastic).Name = "Seta"
-		end
-	elseif zone.id == "cueva" then
-		local ceiling = newPart(deco, Vector3.new(World.ZONE_WIDTH + 12, 4, World.ZONE_LENGTH + 12), CFrame.new(origin + Vector3.new(0, 26, 0)), theme.wall, theme.wallMaterial)
-		ceiling.Name = "Techo"
-		for _ = 1, 30 do
-			crystal(deco, randomSpot(), random:NextNumber(4, 11), if random:NextNumber() < 0.6 then Color3.fromRGB(56, 189, 248) else Color3.fromRGB(167, 139, 250))
-		end
-		for _ = 1, 18 do
-			rock(deco, randomSpot(), random:NextNumber(3, 8), Color3.fromRGB(71, 85, 105))
-		end
-		-- Luz suave en el camino
-		for z = -halfL + 20, halfL - 20, 40 do
-			crystal(deco, origin + Vector3.new(-9, 0, z), 4, Color3.fromRGB(125, 211, 252))
-			crystal(deco, origin + Vector3.new(9, 0, z + 20), 4, Color3.fromRGB(125, 211, 252))
-		end
-	else
-		-- Torres en las esquinas y antorchas a lo largo del camino
-		for _, corner in { Vector3.new(-1, 0, -1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, 1) } do
-			local pos = origin + Vector3.new(corner.X * (halfW - 4), 0, corner.Z * (halfL - 4))
-			verticalCylinder(deco, 40, 16, pos + Vector3.new(0, 20, 0), theme.wall, Enum.Material.Brick)
-			newPart(deco, Vector3.new(18, 2, 18), CFrame.new(pos + Vector3.new(0, 41, 0)), Color3.fromRGB(28, 25, 23), Enum.Material.Slate)
-		end
-		for z = -halfL + 20, halfL - 20, 30 do
-			torch(deco, origin + Vector3.new(-12, 0, z))
-			torch(deco, origin + Vector3.new(12, 0, z))
-		end
-		for _ = 1, 14 do
-			local pos = randomSpot()
-			newPart(deco, Vector3.new(4, random:NextNumber(4, 10), 4), CFrame.new(pos + Vector3.new(0, 3, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), random:NextNumber(-0.2, 0.2)), Color3.fromRGB(87, 83, 78), Enum.Material.Cobblestone).Name = "Ruina"
-		end
-		for _ = 1, 8 do
-			local pos = randomSpot()
-			newPart(deco, Vector3.new(3, 4, 1), CFrame.new(pos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), 0), Color3.fromRGB(120, 113, 108), Enum.Material.Slate).Name = "Lapida"
-		end
-		-- Muros derruidos con almenas y estandartes morados
-		for _ = 1, 10 do
-			local pos = randomSpot()
-			local length = random:NextNumber(14, 26)
-			local wall = CFrame.new(pos + Vector3.new(0, 4, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), 0)
-			newPart(deco, Vector3.new(length, 8, 2.5), wall, theme.wall, Enum.Material.Brick).Name = "Muro"
-			for k = -1, 1, 2 do
-				newPart(deco, Vector3.new(2.5, 2, 2.5), wall * CFrame.new(k * (length / 2 - 1.5), 5, 0), theme.wall, Enum.Material.Brick)
-			end
-			local banner = newPart(deco, Vector3.new(3, 5, 0.2), wall * CFrame.new(0, 0.5, -1.4), theme.accent, Enum.Material.Fabric)
-			banner.Name = "Estandarte"
-		end
-		for _ = 1, 6 do
-			local pos = randomSpot()
-			newPart(deco, Vector3.new(3, 9, 3), CFrame.new(pos + Vector3.new(0, 4.5, 0)), Color3.fromRGB(87, 83, 78), Enum.Material.Cobblestone).Name = "Pilar"
-			local gem = newPart(deco, Vector3.new(1.6, 1.6, 1.6), CFrame.new(pos + Vector3.new(0, 10, 0)) * CFrame.Angles(0, 0.7, 0.7), theme.accent, Enum.Material.Neon)
-			pointLight(gem, theme.accent, 16, 1.5)
-		end
-	end
+-- Detalles que no estorban (no chocan) repartidos por el suelo
+local function noCollide(part: BasePart)
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
 end
 
-local function buildZone(root: Instance, zone: any): ZoneInfo
-	local origin = Vector3.new(0, 0, -World.ZONE_SPACING * zone.index)
-	local theme = THEMES[zone.id]
-	local zoneFolder = folder("Zona_" .. zone.id, root)
-	local halfL = World.ZONE_LENGTH / 2
+local function decorateArena(arena: Instance, map: any, origin: Vector3, theme: Theme)
+	local half = Config.ARENA_HALF
+	local deco = folder("Decoracion", arena)
+	-- Muros del borde
+	for _, side in { -1, 1 } do
+		newPart(deco, Vector3.new(6, 18, half * 2 + 12), CFrame.new(origin + Vector3.new(side * (half + 3), 9, 0)), theme.wall, theme.wallMaterial)
+		newPart(deco, Vector3.new(half * 2 + 12, 18, 6), CFrame.new(origin + Vector3.new(0, 9, side * (half + 3))), theme.wall, theme.wallMaterial)
+	end
+	local function edgeSpot(): Vector3
+		-- Una franja de 14 studs junto a los muros
+		local along = random:NextNumber(-half + 4, half - 4)
+		local depth = half - random:NextNumber(3, 14)
+		local side = random:NextInteger(1, 4)
+		local p = if side == 1 then Vector3.new(along, 0, depth) elseif side == 2 then Vector3.new(along, 0, -depth) elseif side == 3 then Vector3.new(depth, 0, along) else Vector3.new(-depth, 0, along)
+		return origin + p
+	end
+	local function fieldSpot(): Vector3
+		return origin + Vector3.new(random:NextNumber(-half + 16, half - 16), 0, random:NextNumber(-half + 16, half - 16))
+	end
+	if map.id == "bosque" then
+		for _ = 1, 40 do
+			tree(deco, edgeSpot(), random:NextNumber(1, 1.7), Color3.fromRGB(22, 101, 52):Lerp(Color3.fromRGB(77, 124, 15), random:NextNumber()))
+		end
+		for _ = 1, 40 do
+			local tuft = newPart(deco, Vector3.new(2, 0.3, 2), CFrame.new(fieldSpot() + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), 0), Color3.fromRGB(101, 163, 13), Enum.Material.Grass)
+			tuft.Name = "Hierba"
+			noCollide(tuft)
+		end
+		for _ = 1, 14 do
+			local pos = fieldSpot()
+			local stem = verticalCylinder(deco, 1.4, 0.5, pos + Vector3.new(0, 0.7, 0), Color3.fromRGB(245, 245, 244), Enum.Material.SmoothPlastic)
+			local cap = ball(deco, 1.8, pos + Vector3.new(0, 1.5, 0), Color3.fromRGB(220, 38, 38), Enum.Material.SmoothPlastic)
+			cap.Name = "Seta"
+			noCollide(stem)
+			noCollide(cap)
+		end
+	elseif map.id == "cueva" then
+		for _ = 1, 36 do
+			crystal(deco, edgeSpot(), random:NextNumber(5, 13), if random:NextNumber() < 0.6 then Color3.fromRGB(56, 189, 248) else Color3.fromRGB(167, 139, 250))
+		end
+		for _ = 1, 24 do
+			local c = newPart(deco, Vector3.new(0.8, 1.6, 0.8), CFrame.new(fieldSpot() + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0.3, random:NextNumber(0, 6.28), 0.2), Color3.fromRGB(125, 211, 252), Enum.Material.Neon)
+			c.Name = "CristalPequeno"
+			noCollide(c)
+		end
+		for _ = 1, 16 do
+			rock(deco, edgeSpot(), random:NextNumber(4, 9), Color3.fromRGB(71, 85, 105))
+		end
+	else
+		for _, corner in { Vector3.new(-1, 0, -1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, 1) } do
+			local pos = origin + Vector3.new(corner.X * (half - 4), 0, corner.Z * (half - 4))
+			verticalCylinder(deco, 36, 16, pos + Vector3.new(0, 18, 0), theme.wall, Enum.Material.Brick)
+			newPart(deco, Vector3.new(18, 2, 18), CFrame.new(pos + Vector3.new(0, 37, 0)), Color3.fromRGB(28, 25, 23), Enum.Material.Slate)
+		end
+		for i = 0, 15 do
+			local angle = i / 16 * math.pi * 2
+			torch(deco, origin + Vector3.new(math.cos(angle) * (half - 8), 0, math.sin(angle) * (half - 8)))
+		end
+		for _ = 1, 18 do
+			local lapida = newPart(deco, Vector3.new(2.4, 3, 0.8), CFrame.new(fieldSpot() + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), random:NextNumber(-0.15, 0.15)), Color3.fromRGB(120, 113, 108), Enum.Material.Slate)
+			lapida.Name = "Lapida"
+			noCollide(lapida)
+		end
+		for _ = 1, 10 do
+			local banner = newPart(deco, Vector3.new(4, 7, 0.3), CFrame.new(edgeSpot() + Vector3.new(0, 6, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), 0), theme.accent, Enum.Material.Fabric)
+			banner.Name = "Estandarte"
+		end
+	end
+	-- Círculo central donde empieza la partida
+	local ring = verticalCylinder(deco, 0.2, 24, origin + Vector3.new(0, 0.1, 0), theme.accent, Enum.Material.Neon)
+	ring.Name = "Inicio"
+	ring.Transparency = 0.6
+	noCollide(ring)
+end
 
-	local floor = newPart(zoneFolder, Vector3.new(World.ZONE_WIDTH, 2, World.ZONE_LENGTH), CFrame.new(origin + Vector3.new(0, -1, 0)), theme.floor, theme.floorMaterial)
+-- Centro de la arena de un hueco (1..ARENA_SLOTS)
+function World.arenaOrigin(slot: number): Vector3
+	return Vector3.new(World.ARENA_START + (slot - 1) * World.ARENA_SPACING, 0, 0)
+end
+
+-- Crea la arena de un mapa en un hueco y devuelve su centro
+function World.buildArena(slot: number, mapIndex: number): Vector3
+	World.destroyArena(slot)
+	local map = Config.Maps[mapIndex]
+	local theme = THEMES[map.id]
+	local origin = World.arenaOrigin(slot)
+	local arena = folder("Arena_" .. slot, mundo)
+	local size = Config.ARENA_HALF * 2
+	local floor = newPart(arena, Vector3.new(size + 12, 2, size + 12), CFrame.new(origin + Vector3.new(0, -1, 0)), theme.floor, theme.floorMaterial)
 	floor.Name = "Suelo"
-	-- Camino central
-	newPart(zoneFolder, Vector3.new(16, 0.3, World.ZONE_LENGTH - 20), CFrame.new(origin + Vector3.new(0, 0.15, 0)), theme.floor:Lerp(Color3.new(0, 0, 0), 0.25), Enum.Material.Cobblestone).Name = "Camino"
-	decorateZone(zoneFolder, zone, origin, theme)
-	boundary(zoneFolder, origin, World.ZONE_WIDTH, World.ZONE_LENGTH)
+	decorateArena(arena, map, origin, theme)
+	boundary(arena, origin, size, size)
+	arenas[slot] = arena
+	return origin
+end
 
-	-- Entrada con portal de vuelta
-	local entryPos = origin + Vector3.new(0, 0, halfL - 22)
-	local back = portal(zoneFolder, CFrame.new(origin + Vector3.new(0, 0.3, halfL - 8)), Color3.fromRGB(56, 189, 248), "🏙️ Volver a la Ciudad", zone.emoji .. " " .. zone.name)
-	prompt(back, "Volver", "Ciudad", function(player)
-		callbacks.onReturn(player)
-	end)
-	local entry = CFrame.lookAt(entryPos + Vector3.new(0, 3, 0), entryPos + Vector3.new(0, 3, -10))
-
-	-- Arena del jefe al fondo
-	local bossCenter = origin + Vector3.new(0, 0, -halfL + 50)
-	local arena = verticalCylinder(zoneFolder, 0.4, 76, bossCenter + Vector3.new(0, 0.2, 0), theme.floor:Lerp(Color3.new(0, 0, 0), 0.35), Enum.Material.Slate)
-	arena.Name = "ArenaJefe"
-	local ring = verticalCylinder(zoneFolder, 0.3, 80, bossCenter + Vector3.new(0, 0.1, 0), theme.accent, Enum.Material.Neon)
-	ring.Name = "AnilloArena"
-	for i = 0, 7 do
-		local angle = i / 8 * math.pi * 2
-		local pos = bossCenter + Vector3.new(math.cos(angle) * 42, 0, math.sin(angle) * 42)
-		if math.abs(math.cos(angle) * 42) > 8 or math.sin(angle) < 0 then
-			newPart(zoneFolder, Vector3.new(4, 16, 4), CFrame.new(pos + Vector3.new(0, 8, 0)), theme.wall, theme.wallMaterial).Name = "Columna"
-			local top = newPart(zoneFolder, Vector3.new(2, 2, 2), CFrame.new(pos + Vector3.new(0, 17, 0)), theme.accent, Enum.Material.Neon)
-			pointLight(top, theme.accent, 18, 1.5)
-		end
+function World.destroyArena(slot: number)
+	local arena = arenas[slot]
+	if arena then
+		arena:Destroy()
+		arenas[slot] = nil
 	end
-	local bossSign = newPart(zoneFolder, Vector3.new(1, 1, 1), CFrame.new(bossCenter + Vector3.new(0, 0, 44)), theme.accent)
-	bossSign.Transparency = 1
-	bossSign.CanCollide = false
-	bossSign.Name = "CartelJefe"
-	local bossGui = billboard(bossSign, UDim2.fromOffset(300, 70), Vector3.new(0, 14, 0), 120)
-	textLabel(bossGui, "⚠️ Guarida del jefe", UDim2.fromScale(1, 0.55), UDim2.fromScale(0, 0), Color3.fromRGB(248, 113, 113))
-	textLabel(bossGui, Config.Enemies[zone.boss].name, UDim2.fromScale(1, 0.45), UDim2.fromScale(0, 0.55), Color3.new(1, 1, 1))
-
-	-- Puntos de aparición: los enemigos flojos cerca de la entrada, los fuertes al fondo
-	local spawns: { SpawnPoint } = {}
-	local rows = { halfL - 70, halfL - 135, halfL - 200 }
-	for i, enemyId in zone.enemies do
-		for k, x in { -72, -28, 28, 72 } do
-			local z = rows[i] + (if k % 2 == 0 then 10 else -10)
-			table.insert(spawns, { enemy = enemyId, position = origin + Vector3.new(x + random:NextNumber(-6, 6), 0, z) })
-		end
-	end
-	local info: ZoneInfo = {
-		id = zone.id,
-		index = zone.index,
-		origin = origin,
-		entry = entry,
-		spawns = spawns,
-		boss = { enemy = zone.boss, position = bossCenter },
-	}
-	return info
 end
 
 ---------------------------------------------------------------------
 -- API
 ---------------------------------------------------------------------
-function World.build(handlers: { onPortal: (Player, string) -> (), onReturn: (Player) -> (), onOpen: (Player, string) -> () }): { [string]: ZoneInfo }
+function World.build(handlers: { onOpen: (Player, string, string?) -> () })
 	callbacks = handlers
 	setupLighting()
-	local root = Workspace:FindFirstChild("Mundo") or folder("Mundo", Workspace)
-	buildLobby(root)
-	for _, zone in Config.Zones do
-		zonesInfo[zone.id] = buildZone(root, zone)
-	end
-	return zonesInfo
-end
-
--- Zona en la que está una posición (nil = la ciudad)
-function World.zoneAt(position: Vector3): string?
-	for id, info in zonesInfo do
-		local rel = position - info.origin
-		if math.abs(rel.X) <= World.ZONE_WIDTH / 2 + 10 and math.abs(rel.Z) <= World.ZONE_LENGTH / 2 + 10 then
-			return id
-		end
-	end
-	return nil
-end
-
-function World.zoneEntry(zoneId: string): CFrame?
-	local info = zonesInfo[zoneId]
-	return info and info.entry
+	mundo = Workspace:FindFirstChild("Mundo") or folder("Mundo", Workspace)
+	buildLobby(mundo)
 end
 
 function World.lobbySpawn(): CFrame
 	return CFrame.new(0, 4, 18)
 end
 
-function World.setLeaderboard(rows: { { name: string, level: number } }?, message: string?)
+function World.setLeaderboard(rows: { { name: string, value: number } }?, message: string?)
 	for i, label in leaderboardRows do
 		local row = rows and rows[i]
-		label.Text = if row then string.format("%d. %s — Nivel %d", i, row.name, row.level) else ""
+		label.Text = if row then string.format("%d. %s — %s", i, row.name, Config.formatNumber(row.value)) else ""
 	end
 	if leaderboardStatus then
 		leaderboardStatus.Text = message or (if rows and #rows == 0 then "¡Sé el primero!" else "")

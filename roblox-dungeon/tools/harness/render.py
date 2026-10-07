@@ -1,6 +1,6 @@
 """Dibuja, a partir del volcado de tools/out/world.json:
   · render_ciudad.png   vista cenital de la Ciudad
-  · render_zonas.png    vista cenital de las 3 zonas (con los enemigos)
+  · render_zonas.png    vista cenital de las arenas de los 3 mapas
   · render_enemigos.png alzado frontal de cada enemigo (galería)
 Proyección ortográfica con orden del pintor: no es Roblox, pero sirve para
 comprobar que todo está en su sitio y tiene buena pinta."""
@@ -68,7 +68,6 @@ def draw(ax, parts, project, depth, skip=lambda p: False):
     ax.set_aspect("equal")
 
 top = (lambda c: (c[0], -c[2]), lambda c: c[1])
-roofs = {"Techo"}  # el techo de la cueva taparía todo desde arriba
 
 def group(name):
     return [p for p in data if p["g"] == name]
@@ -80,18 +79,12 @@ ax.set_xlim(-112, 112); ax.set_ylim(-112, 112); ax.axis("off")
 ax.set_title("Ciudad (vista desde arriba; el norte, con los portales, arriba)")
 plt.tight_layout(); plt.savefig(out + "_ciudad.png", dpi=80); plt.close()
 
-# Zonas
-zones = [g for g in ("bosque", "cueva", "castillo")]
-fig, axes = plt.subplots(1, 3, figsize=(18, 9))
-enemies = group("enemigos")
-for ax, z in zip(axes, zones):
-    parts = group(z)
-    floor = [p for p in parts if p["n"] == "Suelo"][0]
-    cz = floor["p"][2]
-    near = [e for e in enemies if abs(e["p"][2] - cz) < 200]
-    draw(ax, parts + near, *top, skip=lambda p: p["n"] in roofs)
-    ax.set_xlim(-128, 128); ax.set_ylim(-cz - 168, -cz + 168); ax.axis("off")
-    ax.set_title(z.capitalize() + " (entrada abajo, jefe arriba)")
+# Arenas de partida (una por mapa)
+fig, axes = plt.subplots(1, 3, figsize=(18, 6.6))
+for ax, z in zip(axes, ("bosque", "cueva", "castillo")):
+    draw(ax, group(z), *top)
+    ax.set_xlim(-150, 150); ax.set_ylim(-150, 150); ax.axis("off")
+    ax.set_title("Arena: " + z.capitalize())
 plt.tight_layout(); plt.savefig(out + "_zonas.png", dpi=70); plt.close()
 
 # Galería de enemigos (alzado frontal: miran hacia -Z, la cámara está en -Z mirando a +Z)
@@ -99,7 +92,7 @@ fig, ax = plt.subplots(figsize=(22, 6))
 gallery = group("galeria")
 draw(ax, gallery, lambda c: (-c[0], c[1]), lambda c: c[2])
 xs = [p["p"][0] for p in gallery]
-ax.set_xlim(-max(xs) - 12, -min(xs) + 12); ax.set_ylim(-1, 24); ax.axis("off")
+ax.set_xlim(-max(xs) - 12, -min(xs) + 12); ax.set_ylim(-1, 26); ax.axis("off")
 ax.set_facecolor((0.85, 0.9, 0.95))
 plt.tight_layout(); plt.savefig(out + "_enemigos.png", dpi=80); plt.close()
 print("ok")

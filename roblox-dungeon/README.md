@@ -1,78 +1,81 @@
-# ⚔️ Dungeon Ascend (v0.1)
+# ⚔️ Dungeon Ascend (v0.2) — juego de hordas estilo "survivors"
 
-Juego de Roblox de mazmorras: subes de nivel, consigues botín, lo mejoras en la forja
-y vences al jefe de cada zona para desbloquear la siguiente, con enemigos más fuertes.
-Cooperativo: todos los jugadores del servidor comparten las zonas.
+Juego de Roblox inspirado en el género de **Survive the Swarm** y **Final Swarm** (y Vampire
+Survivors). Copia la mecánica, no los nombres, dibujos ni la interfaz de esos juegos:
+**tú solo te mueves y esquivas; tus armas atacan solas** contra oleadas de cientos de
+enemigos. Subes de nivel, eliges mejoras, vences al jefe y **escapas por el portal**.
+Con el oro te haces más fuerte para la siguiente partida.
 
-## Qué incluye esta versión
+## Cómo es una partida (8–10 minutos)
 
-| Sistema | Detalle |
+1. En el lobby pulsas **▶ JUGAR** (o te acercas a un portal), eliges mapa y juegas **solo** o
+   creas un **grupo de hasta 4** con amigos.
+2. Apareces en una arena. Cada vez llegan **más enemigos**, y a ratos un **élite** que suelta un cofre.
+3. Los enemigos sueltan **cristales morados**. Al subir de nivel eliges **1 de 3 mejoras**
+   (4 con el pase) mientras tus enemigos van en **cámara lenta**:
+   - **Armas nuevas** (máx. 4): ⚔️ Espada · 🪄 Varita mágica · 🗡️ Dagas · ✨ Aura sagrada · 🔵 Orbes · ⚡ Relámpago
+   - **Mejoras pasivas** (máx. 4): Fuerza, Rapidez, Área, Vida, Botas, Imán, Armadura, Regeneración
+   - **Evoluciones**: arma al nivel 5 + su pasiva pareja → arma legendaria (Hoja del Rey, Galaxia, Tormenta Eterna…)
+4. A los 8–10 minutos llega el **jefe**. Pinta un **círculo rojo** antes de su golpe: ¡apártate!
+5. Al vencerlo se abre un **portal**: entra en menos de 60 s para **escapar con todo el oro +50 %**.
+   Si caes o abandonas te quedas **la mitad**.
+
+## Fuera de la partida (lobby)
+
+| Pestaña | Qué hay |
 |---|---|
-| **Ciudad** | Plaza con zona de aparición, 3 portales, forja, tienda y clasificación de los mejores aventureros |
-| **3 zonas** | 🌲 Bosque Encantado (nivel 1) → 💎 Cueva de Cristal (nivel 15) → 🏰 Castillo Maldito (nivel 30) |
-| **Enemigos** | 3 tipos por zona (12 en total por zona) que te persiguen, atacan, vuelven a su sitio y reaparecen |
-| **Jefes** | Rey Goblin, Gólem de Cristal y Señor Lich. Dan un golpe de área con **aviso rojo en el suelo**: ¡apártate! |
-| **Habilidades** | ⚔️ Atacar (clic) · 🌀 Torbellino (Q, nivel 3) · 💨 Embestida (E, nivel 6) · 💚 Curación (R, nivel 10) |
-| **Nivel** | Del 1 al 100. Cada nivel da más vida y daño |
-| **Equipo** | Arma, armadura y amuleto. 5 rarezas (Común → Legendario) con **probabilidades a la vista** |
-| **Forja** | Mejoras de +1 a +10 con oro (sin probabilidad de fallo) y cofres que se pagan con oro |
-| **Otros** | Tutorial, recompensa diaria (racha de 7 días), +10 % por cada amigo en el servidor, venta automática de objetos comunes |
+| ▶️ Jugar | Mapas (Bosque → Cueva → Castillo, se desbloquean escapando), jugar solo, grupos |
+| 🧙 Clases | Guerrero (gratis), Mago (2.000 oro), Pícaro (5.000 oro), cada una con su arma inicial |
+| ⭐ Mejoras | 8 mejoras permanentes con oro: fuerza, vida, velocidad, imán, recarga, regeneración, oro, segunda vida |
+| 🎒 Mochila | Objetos que dan % de daño, vida o % de oro (salen del cofre del jefe y de los cofres de la forja) |
+| 🔨 Forja | Mejorar objetos hasta +10 y cofres que se pagan con **oro** (probabilidades a la vista) |
+| 🛒 Tienda | Pases y productos con Robux (ver abajo) |
+| 🎁 Diario | Recompensa diaria con racha de 7 días |
 
-**Controles en PC:** clic = atacar · Q, E, R = habilidades (también 1-4) · F = usar portales y carteles.
-**En móvil o tablet:** botones de abajo.
+**Controles:** moverse (WASD o joystick) · **Q / Shift / botón 💨** = esquivar (te hace invulnerable un instante) ·
+**1-4** = elegir mejora · **F** = usar portales y carteles del lobby.
 
 ## Cómo probarlo en Roblox Studio
 
 1. Descarga el lugar:
    **https://github.com/candhu23/mi-priemra-web/raw/claude/dungeon-ascend/roblox-dungeon/DungeonAscend.rbxl**
 2. Ábrelo con doble clic (se abre en Roblox Studio).
-3. Pulsa **▶ Play** (arriba) para probarlo.
+3. Pulsa **▶ Play**.
+   - Para probar el **grupo** sin amigos: pestaña **Test** → **Clients and Servers** → 2 jugadores → **Start**.
 
-> ⚠️ En Studio, sin publicar, saldrá un aviso rojo: «Guardado desactivado». Es normal.
-> El progreso solo se guarda cuando el juego está publicado y tiene activado *Enable Studio Access to API Services*.
+> ⚠️ En Studio sin publicar saldrá un aviso rojo: «Guardado desactivado». Es normal.
 
 ## Cómo publicarlo como juego NUEVO
 
-> ❗ **No lo publiques encima de Web Empire Tycoon.** Este es otro juego.
+> ❗ **No lo publiques encima de Web Empire Tycoon.** Es otro juego.
 
-1. Con el archivo abierto en Studio: **File → Publish to Roblox As…**
-2. Elige **Create new experience**, no un juego que ya exista.
-3. Nombre: **Dungeon Ascend**. Descripción en inglés, por ejemplo:
-   *"Fight monsters, level up, collect epic loot and defeat the bosses to unlock new dungeons! Play with friends!"*
-4. Luego, en el **Creator Hub** (create.roblox.com → tu experiencia):
-   - **Places → Max Players: 12** (las zonas son compartidas y caben bien 12).
+1. En Studio: **File → Publish to Roblox As… → Create new experience**. Nombre: **Dungeon Ascend**.
+2. Descripción en inglés, por ejemplo:
+   *"Survive the endless horde! Your weapons attack automatically — dodge, level up, pick upgrades,
+   evolve your weapons, beat the boss and escape through the portal. Play solo or with up to 4 friends!"*
+3. En el **Creator Hub** (create.roblox.com → tu experiencia):
+   - **Places → Max Players: 8.**
    - **Settings → Security → Enable Studio Access to API Services** (para guardar al probar en Studio).
-   - Rellena el cuestionario de contenido. Aquí, a diferencia del tycoon, **sí hay combate**:
-     en **violencia** marca la opción **leve / no realista** (espadas contra monstruos de bloques
-     que desaparecen, sin sangre). Si dudas entre dos opciones, elige la más prudente.
-     El resto (sangre, miedo, humor grosero, palabrotas…): **"No"**.
-     En "artículos aleatorios de pago" responde **"No"**: los cofres se pagan con oro del juego, no con Robux.
+   - Cuestionario de contenido: en **violencia** marca **leve / no realista** (armas mágicas contra
+     monstruos de bloques que desaparecen, sin sangre). El resto (sangre, miedo, palabrotas…): **"No"**.
+     En "artículos aleatorios de pago": **"No"** (los cofres se pagan con oro del juego, no con Robux).
 
 ## Tienda (Robux): pendiente de que crees los artículos
 
-Ahora mismo la tienda dice «abrirá pronto», porque los artículos no existen todavía en Roblox.
-Cuando quieras activarla:
+Ahora la tienda dice «abrirá pronto». Para activarla, en el Creator Hub → **Monetization**:
 
-1. En el Creator Hub → tu experiencia → **Monetization**:
-   - **Passes**: crea estos 4 (puedes cambiar el precio):
+| Tipo | Artículo | Precio sugerido |
+|---|---|---|
+| Pase | 🪙 x2 Oro | 149 |
+| Pase | 🃏 4 opciones al subir de nivel | 199 |
+| Pase | 🎲 Rerolls +3 (cambiar las mejoras ofrecidas) | 99 |
+| Pase | 🎒 Mochila grande (+40 huecos) | 49 |
+| Producto | 💰 Bolsa de oro (20 min) | 25 |
+| Producto | 🏆 Cofre de oro (2 h) | 99 |
+| Producto | 🚀 Boost x2 oro (15 min) | 39 |
+| Producto | 💖 Revivir (vuelves a la partida) | 15 |
 
-     | Pase | Precio sugerido |
-     |---|---|
-     | 🪙 x2 Oro | 149 |
-     | ⭐ x2 XP | 149 |
-     | 🤖 Auto-ataque | 99 |
-     | 🎒 Mochila grande (+40 huecos) | 49 |
-
-   - **Developer Products**: crea estos 4:
-
-     | Producto | Precio sugerido |
-     |---|---|
-     | 💰 Bolsa de oro (oro de 20 min) | 25 |
-     | 🏆 Cofre de oro (oro de 2 h) | 99 |
-     | 🚀 Boost x2 de oro y XP (15 min) | 39 |
-     | 💖 Revivir aquí | 15 |
-
-2. Mándame los **números de ID** de cada uno (salen en la página de cada artículo) y yo los pongo en el juego.
+Mándame los **números de ID** de cada uno y los pongo en el juego.
 
 ## Para Claude (verificación)
 
@@ -81,4 +84,5 @@ cd roblox-dungeon && tools/check.sh
 ```
 
 Compila, analiza tipos con la API de Roblox, ejecuta el servidor y la interfaz reales con Lune,
-simula la economía y genera `DungeonAscend.rbxl`. Ver `CLAUDE.md`.
+juega partidas completas con bots para medir el equilibrio y genera `DungeonAscend.rbxl`.
+Ver `CLAUDE.md`.
