@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "0.2"
+Config.VERSION = "0.2.1"
 Config.DATASTORE_NAME = "DungeonAscend_v2"
 Config.LEADERBOARD_NAME = "DungeonAscendKills_v2"
 Config.AUTOSAVE_INTERVAL = 60

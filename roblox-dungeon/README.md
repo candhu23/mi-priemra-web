@@ -20,6 +20,20 @@ Con el oro te haces más fuerte para la siguiente partida.
 5. Al vencerlo se abre un **portal**: entra en menos de 60 s para **escapar con todo el oro +50 %**.
    Si caes o abandonas te quedas **la mitad**.
 
+## El mundo (v0.2.1: mapa rehecho con terreno)
+
+- **Lobby en una isla**: hierba animada, playa, lago con olas y montañas nevadas alrededor.
+  Plaza con fuente y estatua del héroe, **terraza con los 3 portales** en arcos de piedra,
+  **forja** con tejado, chimenea y horno encendido, **mercado** con toldos de colores,
+  campo de entrenamiento, campamento con hoguera, estanque con muelle, bosquecillos y farolas.
+- **Arenas** con bordes naturales y luz propia (solo cambia en tu pantalla):
+  🌲 Bosque soleado rodeado de colinas y árboles · 💎 Cueva de noche entre acantilados con
+  cristales gigantes que brillan · 🏰 Castillo al atardecer con murallas, torres, braseros
+  morados, cementerio y grietas de lava.
+
+> Si en Studio no ves la hierba "con pelitos": pestaña **Terrain** (Editor de terreno) → ⚙️ y
+> activa **Decoration**. El juego intenta activarla solo, pero Roblox a veces no lo permite por script.
+
 ## Fuera de la partida (lobby)
 
 | Pestaña | Qué hay |

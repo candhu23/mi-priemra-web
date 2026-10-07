@@ -1177,7 +1177,7 @@ World.build({
 
 RunManager.init({
 	buildArena = World.buildArena,
-	destroyArena = World.destroyArena,
+	arenaMapOf = World.arenaMapOf,
 	baseStats = function(player: Player)
 		local session = sessions[player]
 		return if session then session.stats else Config.baseStats("guerrero", {}, {})

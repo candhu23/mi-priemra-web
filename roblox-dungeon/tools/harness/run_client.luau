@@ -11,6 +11,7 @@ local process = require("@lune/process")
 local SRC = process.args[1]
 local configSource = fs.readFile(SRC .. "/ReplicatedStorage/GameConfig.luau")
 local modelsSource = fs.readFile(SRC .. "/ReplicatedStorage/EnemyModels.luau")
+local ambienceSource = fs.readFile(SRC .. "/ReplicatedStorage/Ambience.luau")
 local swarmSource = fs.readFile(SRC .. "/StarterPlayerScripts/SwarmView.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/GameClient.client.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
@@ -183,7 +184,7 @@ end
 -- Servicios
 local dataModel = roblox.Instance.new("DataModel")
 local services = {}
-for _, name in { "Workspace", "ReplicatedStorage", "SoundService" } do
+for _, name in { "Workspace", "ReplicatedStorage", "SoundService", "Lighting" } do
 	services[name] = dataModel:GetService(name)
 end
 local remotes = roblox.Instance.new("Folder")
@@ -200,7 +201,7 @@ local stateRemote = remote("RemoteEvent", "State")
 local notifyRemote = remote("RemoteEvent", "Notify")
 local swarmRemote = remote("RemoteEvent", "Swarm")
 local openRemote = remote("RemoteEvent", "OpenMenu")
-for _, name in { "GameConfig", "EnemyModels" } do
+for _, name in { "GameConfig", "EnemyModels", "Ambience" } do
 	local m = roblox.Instance.new("ModuleScript")
 	m.Name = name
 	m.Parent = services.ReplicatedStorage
@@ -236,7 +237,14 @@ playerGui.Parent = playerFolder
 local player = wrap(playerFolder)
 overrides[player] = { UserId = 42, Character = wrap(character), CameraMinZoomDistance = 0.5, CameraMaxZoomDistance = 128 }
 
+local terrainFolder = roblox.Instance.new("Folder")
+terrainFolder.Name = "Terrain"
+terrainFolder.Parent = services.Workspace
 overrides[wrap(services.Workspace)] = {
+	FindFirstChildOfClass = function(_, className)
+		if className == "Terrain" then return wrap(terrainFolder) end
+		return wrap(services.Workspace:FindFirstChildOfClass(className))
+	end,
 	CurrentCamera = {
 		ViewportSize = roblox.Vector2.new(1280, 720),
 		GetPropertyChangedSignal = function() return newSignal() end,
@@ -303,6 +311,7 @@ local function requireByName(m)
 	local name = realOf[m] and realOf[m].Name
 	return assert(modulesByName[name], "módulo no cargado: " .. tostring(name))
 end
+modulesByName.Ambience = luau.load(ambienceSource, { debugName = "Ambience", environment = env(nil) })()
 local modelsEnv = env(nil)
 modelsEnv.require = requireByName
 modulesByName.EnemyModels = luau.load(modelsSource, { debugName = "EnemyModels", environment = modelsEnv })()
@@ -434,6 +443,9 @@ inRun.run.passives = { fuerza = 2 }
 inRun.run.passiveOrder = { "fuerza" }
 inRun.run.team = { { userId = 42, name = "Jorge", alive = true, weapons = inRun.run.weapons, weaponOrder = inRun.run.weaponOrder } }
 fireState(inRun)
+local lighting = services.Lighting
+print(string.format("Luz en partida (%s): hora %.1f · niebla %.2f", inRun.run.map, lighting.ClockTime, lighting:FindFirstChildOfClass("Atmosphere").Density))
+assert(math.abs(lighting.ClockTime - modulesByName.Ambience.Presets[inRun.run.map].clock) < 0.01, "la luz no cambia al entrar en la partida")
 local offerGui = playerGui:FindFirstChild("DungeonOffer")
 assert(offerGui.Enabled, "no se muestran las cartas de mejora")
 assert(overrides[player].CameraMinZoomDistance >= 30, "la cámara no se aleja en partida")
@@ -535,6 +547,7 @@ fireState(lobby)
 enemyCount, gemCount = SwarmView.debugCounts()
 assert(enemyCount == 0 and gemCount == 0, "al volver al lobby queda la horda dibujada")
 assert(overrides[player].CameraMinZoomDistance == 0.5, "la cámara no vuelve a la normalidad")
+assert(math.abs(lighting.ClockTime - modulesByName.Ambience.Presets.lobby.clock) < 0.01, "la luz no vuelve a la del lobby")
 
 -- Ejecutar los task.delay pendientes (avisos que desaparecen, efectos…)
 for _, item in delayed do

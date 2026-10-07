@@ -21,6 +21,7 @@ local function readSource(path)
 end
 local FILES = {
 	GameConfig = "/ReplicatedStorage/GameConfig.luau",
+	Ambience = "/ReplicatedStorage/Ambience.luau",
 	EnemyModels = "/ReplicatedStorage/EnemyModels.luau",
 	World = "/ServerScriptService/World.luau",
 	RunManager = "/ServerScriptService/RunManager.luau",
@@ -184,6 +185,11 @@ proxyMeta.__index = function(p, key)
 	return wrap(value)
 end
 proxyMeta.__newindex = function(p, key, value)
+	local o = overrides[p]
+	if o and o[key] ~= nil then
+		o[key] = value
+		return
+	end
 	if key == "OnServerInvoke" or key == "OnClientInvoke" then
 		callbacks[realOf[p].Name] = value
 		return
@@ -286,6 +292,7 @@ local function addModule(parent, className, name)
 end
 addModule(services.ReplicatedStorage, "ModuleScript", "GameConfig")
 addModule(services.ReplicatedStorage, "ModuleScript", "EnemyModels")
+addModule(services.ReplicatedStorage, "ModuleScript", "Ambience")
 addModule(services.ServerScriptService, "ModuleScript", "World")
 addModule(services.ServerScriptService, "ModuleScript", "RunManager")
 local serverScript = addModule(services.ServerScriptService, "Script", "GameServer")
@@ -360,6 +367,49 @@ Config.ProductByKey.boost.id = 222
 Config.ProductByKey.revive.id = 333
 Config.PassByKey.choicePass.id = 555 -- UserOwnsGamePassAsync devuelve true solo para este
 
+-- Terreno simulado (Lune no tiene Terrain): se apuntan los rellenos para dibujarlos
+local terrainFills = {}
+local terrainGroup = "ciudad"
+do
+	local terrainFolder = roblox.Instance.new("Folder")
+	terrainFolder.Name = "Terrain"
+	terrainFolder.Parent = services.Workspace
+	local terrainProxy = wrap(terrainFolder)
+	local function record(kind, material, data)
+		assert(typeof(material) == "EnumItem", "material no válido")
+		if terrainGroup and material ~= roblox.Enum.Material.Air then
+			data.kind = kind
+			data.m = material.Name
+			data.g = terrainGroup
+			table.insert(terrainFills, data)
+		end
+	end
+	local function v(x) return { x.X, x.Y, x.Z } end
+	overrides[terrainProxy] = {
+		WaterColor = roblox.Color3.new(), WaterReflectance = 0, WaterTransparency = 0, WaterWaveSize = 0, WaterWaveSpeed = 0, Decoration = false,
+		FillBlock = function(_, cf, size, material)
+			record("block", material, { p = v(cf.Position), x = v(cf.XVector), y = v(cf.YVector), z = v(cf.ZVector), s = v(size) })
+		end,
+		FillBall = function(_, center, radius, material)
+			assert(radius > 0, "radio no válido")
+			record("ball", material, { p = v(center), r = radius })
+		end,
+		FillCylinder = function(_, cf, height, radius, material)
+			record("cylinder", material, { p = v(cf.Position), h = height, r = radius })
+		end,
+		FillWedge = function(_, cf, size, material)
+			record("block", material, { p = v(cf.Position), x = v(cf.XVector), y = v(cf.YVector), z = v(cf.ZVector), s = v(size) })
+		end,
+	}
+	overrides[wrap(services.Workspace)] = {
+		Terrain = terrainProxy,
+		FindFirstChildOfClass = function(_, className)
+			if className == "Terrain" then return terrainProxy end
+			return wrap(services.Workspace:FindFirstChildOfClass(className))
+		end,
+	}
+end
+
 -- Arrancar el script del servidor (se queda dormido en su bucle principal)
 do
 	local env = makeEnv(serverScript)
@@ -433,7 +483,15 @@ do
 	dump(mundo:FindFirstChild("Ciudad"), "ciudad", roblox.Vector3.new())
 	for i, map in Config.Maps do
 		local slot = Config.ARENA_SLOTS - i + 1
+		terrainGroup = map.id
 		local origin = World.buildArena(slot, i)
+		terrainGroup = nil
+		for _, fill in terrainFills do
+			if fill.g == map.id and not fill.relative then
+				fill.p = { fill.p[1] - origin.X, fill.p[2] - origin.Y, fill.p[3] - origin.Z }
+				fill.relative = true
+			end
+		end
 		dump(mundo:FindFirstChild("Arena_" .. slot), map.id, origin)
 		World.destroyArena(slot)
 	end
@@ -458,7 +516,14 @@ do
 		x += width / 2
 	end
 	dump(gallery, "galeria", roblox.Vector3.new())
+	for _, fill in terrainFills do
+		fill.terrain = true
+		table.insert(parts, fill)
+	end
 	fs.writeFile("world.json", serde.encode("json", parts))
+	local lobbyFills = 0
+	for _, fill in terrainFills do if fill.g == "ciudad" then lobbyFills += 1 end end
+	print(string.format("Terreno: %d rellenos en el lobby · %d en total con las arenas", lobbyFills, #terrainFills))
 end
 
 ---------------------------------------------------------------------
@@ -829,7 +894,7 @@ heartbeat:Fire(1 / 15)
 tick(0)
 s = lastState()
 assert(s.run == nil, "no salió de la partida al entrar en el portal")
-assert(run.ended and not workspace:FindFirstChild("Mundo"):FindFirstChild("Arena_1"), "la arena no se borró")
+assert(run.ended and workspace:FindFirstChild("Mundo"):FindFirstChild("Arena_1"), "la partida no terminó o la arena no se guardó para reutilizarla")
 assert(math.abs(jorge.root.Position.X) < 50, "no volvió al lobby")
 local summary
 for _, f in fired do if f[1] == "Notify" and f[4] == "summary" then summary = f[5] end end
@@ -925,7 +990,7 @@ fakeTime += RunManager.REVIVE_WINDOW + 1
 heartbeat:Fire(1 / 15)
 tick(0)
 assert(lastState(77).run == nil and run.ended, "la partida no terminó al caer el último jugador")
-print("  Ana cae sin revivir: partida terminada y arena borrada")
+print("  Ana cae sin revivir: partida terminada (la arena se reutiliza)")
 
 ---------------------------------------------------------------------
 -- Compras con Robux

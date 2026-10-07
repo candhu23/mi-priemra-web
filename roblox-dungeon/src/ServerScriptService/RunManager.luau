@@ -127,7 +127,7 @@ type Run = {
 
 type Deps = {
 	buildArena: (slot: number, mapIndex: number) -> Vector3,
-	destroyArena: (slot: number) -> (),
+	arenaMapOf: (slot: number) -> number?,
 	baseStats: (Player) -> Config.Stats,
 	classWeapon: (Player) -> string,
 	bonuses: (Player) -> any,
@@ -637,8 +637,7 @@ local function cleanupRun(run: Run)
 	end
 	run.ended = true
 	runs[run.id] = nil
-	slots[run.slot] = nil
-	deps.destroyArena(run.slot)
+	slots[run.slot] = nil -- la arena se queda construida para reutilizarla
 end
 
 -- result: "win" (escapó), "dead" (cayó) o "left" (abandonó o salió del juego)
@@ -991,11 +990,16 @@ end
 
 -- Empieza una partida con estos jugadores (1 a 4) en un mapa
 function RunManager.startRun(players: { Player }, mapIndex: number): (boolean, string?)
+	-- Hueco libre: mejor uno que ya tenga este mapa, luego uno vacío, luego cualquiera
 	local slot = nil
-	for i = 1, Config.ARENA_SLOTS do
-		if not slots[i] then
-			slot = i
-			break
+	for pass = 1, 3 do
+		for i = 1, Config.ARENA_SLOTS do
+			if not slots[i] and not slot then
+				local built = deps.arenaMapOf(i)
+				if (pass == 1 and built == mapIndex) or (pass == 2 and built == nil) or pass == 3 then
+					slot = i
+				end
+			end
 		end
 	end
 	if not slot then

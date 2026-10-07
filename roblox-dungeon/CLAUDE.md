@@ -30,11 +30,12 @@ roblox-dungeon/
 └── src/
     ├── ReplicatedStorage/
     │   ├── GameConfig.luau     # TODOS los datos: armas, pasivas, clases, mapas, enemigos, economía, tienda
+    │   ├── Ambience.luau       # luz de cada lugar (lobby, bosque, cueva, castillo): hora, niebla, bloom…
     │   └── EnemyModels.luau    # modelos de enemigos con piezas (los usa el CLIENTE)
     ├── ServerScriptService/
     │   ├── GameServer.server.luau  # datos, acciones, grupos, recompensas, compras, guardado
     │   ├── RunManager.luau         # LAS PARTIDAS: oleadas, enemigos, armas, cristales, mejoras, jefe, portal
-    │   └── World.luau              # lobby y arenas (una por partida, se crean y se borran)
+    │   └── World.luau              # lobby (isla) y arenas con TERRENO + piezas (ver §3b)
     └── StarterPlayerScripts/
         ├── GameClient.client.luau  # interfaz del lobby y de la partida
         └── SwarmView.luau          # dibuja la horda, cristales y efectos (ModuleScript)
@@ -71,6 +72,27 @@ roblox-dungeon/
 - Fin de partida por jugador (`finishMember`): `win` (portal) = oro ×1,5 + objeto del jefe +
   siguiente mapa; `dead`/`left` = oro ×0,5. Caído: 20 s para revivir (producto) antes de salir.
   Salir del juego a mitad = `left` (se cobra antes de guardar).
+
+## 3b. Mundo y gráficos (v0.2.1)
+
+- **Terreno de Roblox** (`Workspace.Terrain:FillBlock/FillBall/FillCylinder`) para suelo, agua,
+  montañas, colinas, acantilados y caminos; piezas para edificios, árboles y detalles.
+  El suelo jugable de las arenas queda **exactamente en y = 0** (los enemigos son datos en ese plano).
+  Ayudas: `tPatch` (cambia la capa de arriba), `tRound`, `tBlob` (mancha natural con círculos),
+  `tTrail` (camino serpenteante). Las rocas/colinas del borde se colocan a `half + radio`
+  para que **nunca invadan la zona jugable** (bloquearían al jugador pero no a los enemigos).
+- Lobby: isla radio 140 (playa hasta 156) en un lago (agua arriba en y = -4) con 16 montañas;
+  terraza de portales arriba en y = 8 al norte (z ≈ -104) con escalones de terreno;
+  forja (x = -78), mercado (x = 80), clasificación (z = 76), estanque (80, 90),
+  entrenamiento (92, -42), campamento (-94, -42).
+- **Ambience**: el servidor aplica `lobby` al arrancar; el CLIENTE aplica el del mapa al entrar
+  en partida y `lobby` al salir (cambios locales en Lighting). `Terrain.Decoration` se intenta
+  activar con `pcall` (puede no ser scriptable: en ese caso se activa en Studio).
+- Arenas: se **reutilizan** (no se borran al acabar); `RunManager` elige hueco libre que ya
+  tenga ese mapa, luego uno vacío. La del Bosque se construye al arrancar (hueco 1).
+- `render.py` dibuja terreno + piezas: `render_ciudad.png` (arriba e isla),
+  `render_ciudad_perspectiva.png` y `render_zonas.png` (línea = zona jugable). Úsalo para
+  revisar la composición: es la única forma de "ver" el mapa desde aquí.
 
 ## 4. Datos guardados
 
@@ -114,7 +136,8 @@ volver → `TODO OK`; vuelca `world.json`, `state.json`, `state_run.json`.
 efectos, todos los botones, teclas, muerte, resumen y tutorial → `CLIENTE OK`.
 5. Bots de equilibrio. 6. `render.py` (si hay matplotlib) y `rojo build`.
 
-Trampas de Lune (resueltas en los harness): `Position` no se calcula desde `CFrame`;
+Trampas de Lune (resueltas en los harness): no hay `Terrain` (el harness lo simula y apunta
+los rellenos para dibujarlos); `Position` no se calcula desde `CFrame`;
 `Model:PivotTo` y `Workspace:BulkMoveTo` no existen (los simulan); **`CFrame.lookAt` de
 Lune gira al revés** (usa `CFrame.Angles(0, atan2(-dx, -dz), 0)`); `Humanoid.Health` no tiene
 valor por defecto y `TakeDamage`/`Died` hay que simularlos; Vector3 no cabe en JSON.
@@ -123,6 +146,8 @@ valor por defecto y `TakeDamage`/`Died` hay que simularlos; Vector3 no cabe en J
 
 - Rendimiento real con 200 enemigos (sobre todo en móvil) y lo suave que se ve la horda.
 - Que la cámara alejada sea cómoda y que el esquive (LinearVelocity) no atraviese muros.
+- El aspecto real del terreno y la luz (la Cueva podría quedar demasiado oscura; ajustar
+  `Ambience.Presets`), y el tiempo que tarda en construirse una arena nueva (terreno).
 - Dificultad real para una persona (ver §5).
 
 ## 9. Ideas siguientes

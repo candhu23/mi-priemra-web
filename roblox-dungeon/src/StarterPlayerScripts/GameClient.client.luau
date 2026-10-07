@@ -22,6 +22,7 @@ local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local Ambience = require(ReplicatedStorage:WaitForChild("Ambience"))
 local SwarmView = require(script.Parent:WaitForChild("SwarmView"))
 local remotes = ReplicatedStorage:WaitForChild("DungeonRemotes")
 local actionFunction = remotes:WaitForChild("Action") :: RemoteFunction
@@ -1700,8 +1701,18 @@ end
 -- Eventos del servidor
 ---------------------------------------------------------------------
 local firstState = true
+-- Luz y ambiente del lugar donde está el jugador (solo lo ve él)
+local currentAmbience = ""
+local function updateAmbience(name: string)
+	if name ~= currentAmbience then
+		currentAmbience = name
+		Ambience.apply(name)
+	end
+end
+
 local function refreshHud()
 	local inRun = state.run ~= nil
+	updateAmbience(if inRun then Config.Maps[state.run.mapIndex].id else "lobby")
 	lobbyHud.panel.Visible = not inRun
 	lobbyHud.play.Visible = not inRun
 	menu.Visible = not inRun
