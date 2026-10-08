@@ -12,6 +12,7 @@ local SRC = process.args[1]
 local configSource = fs.readFile(SRC .. "/ReplicatedStorage/GameConfig.luau")
 local modelsSource = fs.readFile(SRC .. "/ReplicatedStorage/EnemyModels.luau")
 local ambienceSource = fs.readFile(SRC .. "/ReplicatedStorage/Ambience.luau")
+local iconsSource = fs.readFile(SRC .. "/ReplicatedStorage/Icons.luau")
 local swarmSource = fs.readFile(SRC .. "/StarterPlayerScripts/SwarmView.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/GameClient.client.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
@@ -201,7 +202,7 @@ local stateRemote = remote("RemoteEvent", "State")
 local notifyRemote = remote("RemoteEvent", "Notify")
 local swarmRemote = remote("RemoteEvent", "Swarm")
 local openRemote = remote("RemoteEvent", "OpenMenu")
-for _, name in { "GameConfig", "EnemyModels", "Ambience" } do
+for _, name in { "GameConfig", "EnemyModels", "Ambience", "Icons" } do
 	local m = roblox.Instance.new("ModuleScript")
 	m.Name = name
 	m.Parent = services.ReplicatedStorage
@@ -312,6 +313,47 @@ local function requireByName(m)
 	return assert(modulesByName[name], "módulo no cargado: " .. tostring(name))
 end
 modulesByName.Ambience = luau.load(ambienceSource, { debugName = "Ambience", environment = env(nil) })()
+modulesByName.Icons = luau.load(iconsSource, { debugName = "Icons", environment = env(nil) })()
+-- Todos los iconos se pueden dibujar (y se vuelcan para verlos en una imagen)
+do
+	local Icons = modulesByName.Icons
+	local dump = {}
+	local function walk(inst, depth)
+		local node = { class = inst.ClassName, children = {} }
+		if inst:IsA("GuiObject") then
+			node.pos = { inst.Position.X.Scale, inst.Position.X.Offset, inst.Position.Y.Scale, inst.Position.Y.Offset }
+			node.size = { inst.Size.X.Scale, inst.Size.X.Offset, inst.Size.Y.Scale, inst.Size.Y.Offset }
+			node.anchor = { inst.AnchorPoint.X, inst.AnchorPoint.Y }
+			node.rot = inst.Rotation
+			node.color = { inst.BackgroundColor3.R, inst.BackgroundColor3.G, inst.BackgroundColor3.B }
+			node.transparency = inst.BackgroundTransparency
+			node.z = inst.ZIndex
+			if inst:IsA("TextLabel") then
+				node.text = inst.Text
+				node.textColor = { inst.TextColor3.R, inst.TextColor3.G, inst.TextColor3.B }
+			end
+		elseif inst:IsA("UICorner") then
+			node.radius = { inst.CornerRadius.Scale, inst.CornerRadius.Offset }
+		elseif inst:IsA("UIStroke") then
+			node.strokeColor = { inst.Color.R, inst.Color.G, inst.Color.B }
+			node.thickness = inst.Thickness
+			node.strokeTransparency = inst.Transparency
+		end
+		for _, child in inst:GetChildren() do
+			table.insert(node.children, walk(child, depth + 1))
+		end
+		return node
+	end
+	for _, name in Icons.Names do
+		local frame = Icons.make(name, 64)
+		dump[name] = walk(realOf[frame] or frame, 0)
+	end
+	for _, id in Config.WeaponOrder do
+		dump["arma_" .. id .. "_6"] = walk(realOf[Icons.weapon(id, 6, 64)] or Icons.weapon(id, 6, 64), 0)
+	end
+	fs.writeFile("icons.json", serde.encode("json", dump))
+	print("Iconos dibujados:", #Icons.Names)
+end
 local modelsEnv = env(nil)
 modelsEnv.require = requireByName
 modulesByName.EnemyModels = luau.load(modelsSource, { debugName = "EnemyModels", environment = modelsEnv })()
@@ -380,8 +422,9 @@ lobby.canSave = false
 lobby.unlockedMap = 3
 lobby.gold = 1e6
 lobby.bonuses.goldPass = true
-lobby.groups = { { id = 5, leader = "Ana", map = 2, members = { "Ana", "Luis" } }, { id = 6, leader = "Jorge", map = 1, members = { "Jorge" } } }
-lobby.myGroup = { id = 6, leader = true, map = 1 }
+lobby.groups = { { id = 5, leader = "Ana", map = 2, difficulty = 2, members = { "Ana", "Luis" } }, { id = 6, leader = "Jorge", map = 1, difficulty = 1, members = { "Jorge" } } }
+lobby.myGroup = { id = 6, leader = true, map = 1, difficulty = 1 }
+lobby.mapWins = { bosque = { normal = 2, dificil = 1 }, cueva = { normal = 1 } }
 lobby.classes = { guerrero = true, mago = true }
 table.insert(lobby.inventory, { id = 900, def = "guadana_sombria", rarity = "legendario", up = 3 })
 table.insert(lobby.inventory, { id = 901, def = "amuleto_almas", rarity = "epico", up = 10 })
@@ -396,11 +439,23 @@ signalFor(idOf(openRemote), "OnClientEvent"):Fire("jugar", "cueva")
 signalFor(idOf(openRemote), "OnClientEvent"):Fire("forja", nil)
 
 local pressed = pressAll(lobby, 2)
-for _, tab in { "jugar", "clases", "mejoras", "mochila", "forja", "tienda", "diario", "ajustes" } do
+for _, tab in { "jugar", "clases", "mejoras", "armas", "mochila", "forja", "tienda", "diario", "ajustes" } do
 	signalFor(idOf(openRemote), "OnClientEvent"):Fire(tab, nil)
 	fireState(lobby)
 	pressed += pressAll(lobby, 1)
 end
+-- Árbol: con nada comprado, el primer nodo se puede comprar
+lobby.tree = {}
+signalFor(idOf(openRemote), "OnClientEvent"):Fire("mejoras", nil)
+fireState(lobby)
+local buyNode = findButton(function(b) return b.Text:find("Comprar ·") ~= nil end)
+assert(buyNode and buyNode:GetAttribute("Enabled"), "no se puede comprar el primer nodo del árbol")
+press(buyNode)
+-- Cofre de armas
+signalFor(idOf(openRemote), "OnClientEvent"):Fire("armas", nil)
+fireState(lobby)
+local openChest = findButton(function(b) return b.Text:find("Abrir ·") ~= nil end)
+assert(openChest and openChest:GetAttribute("Enabled"), "no se puede abrir el cofre de armas")
 -- Sin grupo: botones de jugar solo y crear grupo
 lobby.myGroup = nil
 signalFor(idOf(openRemote), "OnClientEvent"):Fire("jugar", nil)
@@ -441,6 +496,9 @@ inRun.run.weapons = { espada = 6, aura = 3, orbes = 4 }
 inRun.run.weaponOrder = { "espada", "aura", "orbes" }
 inRun.run.passives = { fuerza = 2 }
 inRun.run.passiveOrder = { "fuerza" }
+inRun.run.wave = 4
+inRun.run.waves = 10
+inRun.run.wavePhase = "fight"
 inRun.run.team = { { userId = 42, name = "Jorge", alive = true, weapons = inRun.run.weapons, weaponOrder = inRun.run.weaponOrder } }
 fireState(inRun)
 local lighting = services.Lighting
@@ -472,11 +530,20 @@ for i = 1, #Config.EnemyList do
 end
 table.insert(entries, { id = 500, type = 1, hp = 255, flags = 1, x = -10, z = -10 })
 local fxList = {
-	{ "slash", 42, 0, 0, 0.5, 9, false, true },
-	{ "slash", 7, 0, 0, 0.5, 9, true, true },
+	{ "slash", 42, 0, 0, 0.5, 9, false, true, 3 },
+	{ "slash", 7, 0, 0, 0.5, 9, true, true, 6 },
 	{ "bolt", 0, 0, 10, 10, false },
-	{ "dagger", 0, 0, 1, 0, 34 },
-	{ "lightning", 5, 5, 4 },
+	{ "bolt", 0, 0, -10, 10, true },
+	{ "dagger", 0, 0, 1, 0, 34, 2 },
+	{ "lightning", 5, 5, 4, 6 },
+	{ "axe", 42, 1, 0, 22, 1 },
+	{ "axe", 42, 0, 1, 30, 6 },
+	{ "bomb", 0, 0, 12, 8, 5, 1 },
+	{ "bomb", 0, 0, -12, 8, 9, 6 },
+	{ "quake", 0, 0, 12, 1 },
+	{ "quake", 0, 0, 22, 6 },
+	{ "wave", 4, 10 },
+	{ "wavedone", 4 },
 	{ "slamwarn", 0, 0, 13, 1.3 },
 	{ "slam", 0, 0, 13 },
 	{ "death", 3, 3, 2 },
@@ -491,6 +558,20 @@ for _ = 1, 5 do
 	fakeClock += 0.02
 	renderStepped:Fire(0.02)
 end
+-- Las animaciones de las armas terminan solas y no dejan piezas sueltas
+local function effectParts()
+	local n = 0
+	for _, d in services.Workspace:FindFirstChild("HordaLocal"):GetChildren() do
+		if d:IsA("BasePart") and d.Name ~= "Cristal" and d.Name ~= "Aura" and d.Name ~= "Orbe" then n += 1 end
+	end
+	return n
+end
+local midParts = effectParts()
+for _ = 1, 80 do
+	fakeClock += 0.02
+	renderStepped:Fire(0.02)
+end
+print(string.format("Efectos de armas: %d piezas durante la animación → %d al acabar (las que se desvanecen se borran con task.delay)", midParts, effectParts()))
 local enemyCount, gemCount = SwarmView.debugCounts()
 print(string.format("Horda dibujada: %d enemigos · %d cristales · %d piezas movidas con BulkMoveTo", enemyCount, gemCount, bulkMoves))
 assert(enemyCount == #entries and gemCount == 3 and bulkMoves > 0, "la horda no se dibuja")
@@ -539,7 +620,7 @@ press(findButton(function(b) return b.Text:find("Revivir") ~= nil end))
 press(findButton(function(b) return b.Text == "Volver al lobby" end))
 
 -- Resumen final y vuelta al lobby
-signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("", "summary", { result = "win", map = "bosque", time = 512, kills = 1234, level = 22, gold = 2400, item = { id = 903, def = "cota_cuero", rarity = "epico", up = 0 }, unlocked = "cueva" })
+signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("", "summary", { result = "win", map = "bosque", difficulty = "normal", wave = 10, time = 512, kills = 1234, level = 22, gold = 2400, item = { id = 903, def = "cota_cuero", rarity = "epico", up = 0 }, unlocked = "cueva", unlockedDifficulty = "dificil" })
 assert(playerGui:FindFirstChild("DungeonSummary").Enabled, "no sale el resumen")
 signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("", "summary", { result = "dead", map = "cueva", time = 100, kills = 12, level = 3, gold = 40 })
 press(findButton(function(b) return b.Text == "Continuar" end))
@@ -574,7 +655,7 @@ print("Botones pulsados:", pressed)
 print("Acciones enviadas:", table.concat(list, ", "))
 print("Al servidor por la partida:", table.concat(firedToServer, ", "))
 print("Compras abiertas:", table.concat(prompts, ", "))
-for _, needed in { "playSolo", "createGroup", "joinGroup", "leaveGroup", "startGroup", "buyClass", "buyUpgrade", "equip", "sell", "sellJunk", "upgrade", "buyChest", "claimDaily", "setMuted", "setAutoSell", "saveNow", "finishTutorial", "choose", "reroll", "leaveRun" } do
+for _, needed in { "playSolo", "createGroup", "joinGroup", "leaveGroup", "startGroup", "buyClass", "buyNode", "buyWeaponChest", "equip", "sell", "sellJunk", "upgrade", "buyChest", "claimDaily", "setMuted", "setAutoSell", "saveNow", "finishTutorial", "choose", "reroll", "leaveRun" } do
 	assert(counts[needed], "ningún botón envía la acción " .. needed)
 end
 assert(table.find(firedToServer, "dash:nil"), "no se envía el esquive")

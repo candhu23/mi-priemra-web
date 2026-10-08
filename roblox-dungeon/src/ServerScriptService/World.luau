@@ -392,6 +392,349 @@ local function stoneArch(parent: Instance, base: CFrame, width: number, pillarHe
 end
 
 ---------------------------------------------------------------------
+-- Construcciones medievales (cabañas, taberna, pozo, castillo)
+---------------------------------------------------------------------
+local PLASTER = Color3.fromRGB(232, 220, 196)
+local THATCH = Color3.fromRGB(196, 156, 84)
+local WINDOW_GLOW = Color3.fromRGB(255, 200, 120)
+
+local function wedge(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?): WedgePart
+	local part = Instance.new("WedgePart")
+	part.Anchored = true
+	part.Size = size
+	part.CFrame = cframe
+	part.Color = color
+	part.Material = material or M.SmoothPlastic
+	part.Parent = parent
+	return part
+end
+
+-- Tejado a dos aguas sobre una caja de L (a lo largo de X) × D (Z), con
+-- los triángulos de los lados. top = altura donde empieza el tejado.
+local function gableRoof(parent: Instance, base: CFrame, length: number, depth: number, top: number, rise: number, roofColor: Color3, roofMaterial: Enum.Material, gableColor: Color3)
+	local halfD = depth / 2
+	local angle = math.atan2(rise, halfD)
+	local slope = math.sqrt(halfD * halfD + rise * rise) + 1.4
+	for _, side in { -1, 1 } do
+		local cf = base * CFrame.new(0, top + rise / 2 + 0.35, side * halfD / 2) * CFrame.Angles(side * angle, 0, 0)
+		local slab = newPart(parent, Vector3.new(length + 2.2, 0.8, slope), cf, roofColor, roofMaterial)
+		slab.Name = "Tejado"
+		-- Triángulos de los extremos (dos cuñas cada uno)
+		for _, endX in { -1, 1 } do
+			local w = wedge(parent, Vector3.new(0.6, rise, halfD), base * CFrame.new(endX * (length / 2 - 0.3), top + rise / 2, side * halfD / 2) * CFrame.Angles(0, if side < 0 then 0 else math.pi, 0), gableColor, M.WoodPlanks)
+			w.Name = "Hastial"
+		end
+	end
+	-- Viga de la cumbrera
+	newPart(parent, Vector3.new(length + 2.6, 0.9, 0.9), base * CFrame.new(0, top + rise + 0.5, 0), DARK_WOOD, M.Wood).Name = "Cumbrera"
+end
+
+-- Ventana con marco de madera y luz cálida (en la cara +Z de "cf")
+local function window(parent: Instance, cf: CFrame, w: number, h: number)
+	local glass = decor(newPart(parent, Vector3.new(w, h, 0.3), cf, WINDOW_GLOW, M.Neon))
+	glass.Name = "Ventana"
+	glass.Transparency = 0.15
+	newPart(parent, Vector3.new(w + 0.6, 0.4, 0.5), cf * CFrame.new(0, h / 2 + 0.2, 0), DARK_WOOD, M.Wood)
+	newPart(parent, Vector3.new(w + 0.6, 0.4, 0.5), cf * CFrame.new(0, -h / 2 - 0.2, 0), DARK_WOOD, M.Wood)
+	newPart(parent, Vector3.new(0.3, h, 0.45), cf, DARK_WOOD, M.Wood)
+	newPart(parent, Vector3.new(w, 0.3, 0.45), cf, DARK_WOOD, M.Wood)
+end
+
+-- Humo de chimenea
+local function smoke(parent: Instance)
+	local particles = Instance.new("ParticleEmitter")
+	particles.Color = ColorSequence.new(Color3.fromRGB(200, 200, 200))
+	particles.LightInfluence = 1
+	particles.Size = NumberSequence.new(1.2, 4)
+	particles.Transparency = NumberSequence.new(0.4, 1)
+	particles.Lifetime = NumberRange.new(3, 5)
+	particles.Rate = 4
+	particles.Speed = NumberRange.new(2, 3.5)
+	particles.SpreadAngle = Vector2.new(12, 12)
+	particles.EmissionDirection = Enum.NormalId.Top
+	particles.Parent = parent
+end
+
+-- Cabaña de entramado con tejado de paja. base mira hacia +Z (puerta).
+local function cottage(parent: Instance, base: CFrame, length: number, depth: number, name: string): Model
+	local model = Instance.new("Model")
+	model.Name = name
+	local wallH = 9
+	-- Zócalo de piedra y paredes encaladas
+	newPart(model, Vector3.new(length + 0.6, 1.2, depth + 0.6), base * CFrame.new(0, 0.6, 0), DARK_STONE, M.Cobblestone)
+	newPart(model, Vector3.new(length, wallH, depth), base * CFrame.new(0, 1.2 + wallH / 2, 0), PLASTER, M.Plaster).Name = "Pared"
+	-- Vigas del entramado (esquinas, horizontal y diagonales)
+	for _, x in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			newPart(model, Vector3.new(0.9, wallH, 0.9), base * CFrame.new(x * length / 2, 1.2 + wallH / 2, z * depth / 2), DARK_WOOD, M.Wood)
+		end
+	end
+	for _, z in { -1, 1 } do
+		newPart(model, Vector3.new(length + 0.4, 0.7, 0.5), base * CFrame.new(0, 1.2 + wallH * 0.55, z * (depth / 2 + 0.1)), DARK_WOOD, M.Wood)
+		newPart(model, Vector3.new(length + 0.4, 0.7, 0.5), base * CFrame.new(0, 1.2 + wallH - 0.3, z * (depth / 2 + 0.1)), DARK_WOOD, M.Wood)
+		for _, x in { -0.3, 0.3 } do
+			local brace = newPart(model, Vector3.new(0.5, wallH * 0.62, 0.45), base * CFrame.new(x * length, 1.2 + wallH * 0.28, z * (depth / 2 + 0.12)) * CFrame.Angles(0, 0, x * 1.6), DARK_WOOD, M.Wood)
+			brace.Name = "Viga"
+		end
+	end
+	for _, x in { -1, 1 } do
+		newPart(model, Vector3.new(0.5, 0.7, depth + 0.4), base * CFrame.new(x * (length / 2 + 0.1), 1.2 + wallH * 0.55, 0), DARK_WOOD, M.Wood)
+	end
+	-- Puerta, ventanas y farolillo
+	newPart(model, Vector3.new(3.4, 6, 0.4), base * CFrame.new(0, 1.2 + 3, depth / 2 + 0.2), Color3.fromRGB(92, 58, 34), M.WoodPlanks).Name = "Puerta"
+	newPart(model, Vector3.new(4.2, 0.6, 0.6), base * CFrame.new(0, 1.2 + 6.2, depth / 2 + 0.3), DARK_WOOD, M.Wood)
+	for _, x in { -1, 1 } do
+		window(model, base * CFrame.new(x * length * 0.3, 1.2 + wallH * 0.7, depth / 2 + 0.25), 2.4, 2)
+		window(model, base * CFrame.new(x * length * 0.3, 1.2 + wallH * 0.7, -depth / 2 - 0.25) * CFrame.Angles(0, math.pi, 0), 2.4, 2)
+	end
+	local lantern = decor(newPart(model, Vector3.new(0.8, 1.2, 0.8), base * CFrame.new(2.6, 1.2 + 6.4, depth / 2 + 0.8), WINDOW_GLOW, M.Neon))
+	pointLight(lantern, WARM_LIGHT, 14, 1)
+	-- Tejado de paja y chimenea humeante
+	gableRoof(model, base, length, depth, 1.2 + wallH, depth * 0.45, THATCH, M.Grass, Color3.fromRGB(120, 82, 50))
+	local chimney = newPart(model, Vector3.new(2.2, 7, 2.2), base * CFrame.new(length * 0.3, 1.2 + wallH + depth * 0.32, -depth * 0.18), STONE, M.Cobblestone)
+	chimney.Name = "Chimenea"
+	smoke(chimney)
+	model.Parent = parent
+	return model
+end
+
+-- Taberna: planta baja de piedra, piso de entramado que vuela y cartel colgante
+local function tavern(parent: Instance, base: CFrame)
+	local model = Instance.new("Model")
+	model.Name = "Taberna"
+	local length, depth = 22, 14
+	newPart(model, Vector3.new(length, 8, depth), base * CFrame.new(0, 4, 0), STONE, M.Cobblestone).Name = "Pared"
+	newPart(model, Vector3.new(length + 2, 0.8, depth + 2), base * CFrame.new(0, 8.4, 0), DARK_WOOD, M.WoodPlanks)
+	newPart(model, Vector3.new(length + 1.6, 7.5, depth + 1.6), base * CFrame.new(0, 12.55, 0), PLASTER, M.Plaster).Name = "Pared"
+	for _, x in { -1, -0.33, 0.33, 1 } do
+		for _, z in { -1, 1 } do
+			newPart(model, Vector3.new(0.8, 7.5, 0.6), base * CFrame.new(x * (length / 2 + 0.8), 12.55, z * (depth / 2 + 0.85)), DARK_WOOD, M.Wood)
+		end
+	end
+	for k = 1, 3 do
+		window(model, base * CFrame.new(-length / 2 + k * length / 4, 12.6, depth / 2 + 1.05), 2.6, 2.4)
+	end
+	for _, x in { -6, 6 } do
+		window(model, base * CFrame.new(x, 4.5, depth / 2 + 0.2), 3, 2.6)
+	end
+	newPart(model, Vector3.new(4.4, 6.4, 0.5), base * CFrame.new(0, 3.2, depth / 2 + 0.25), Color3.fromRGB(92, 58, 34), M.WoodPlanks).Name = "Puerta"
+	gableRoof(model, base, length + 1.6, depth + 1.6, 16.3, 6.5, Color3.fromRGB(150, 70, 50), M.Slate, Color3.fromRGB(120, 82, 50))
+	local chimney = newPart(model, Vector3.new(2.6, 9, 2.6), base * CFrame.new(-length * 0.32, 21, -2), STONE, M.Cobblestone)
+	smoke(chimney)
+	-- Cartel colgante con una jarra
+	local arm = newPart(model, Vector3.new(0.5, 0.5, 4), base * CFrame.new(length / 2 - 2, 10, depth / 2 + 2.9), DARK_WOOD, M.Wood)
+	arm.Name = "Brazo"
+	local sign = decor(newPart(model, Vector3.new(4.4, 3, 0.3), base * CFrame.new(length / 2 - 2, 8, depth / 2 + 4.4) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(120, 82, 50), M.WoodPlanks))
+	sign.Name = "Cartel"
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 40
+		gui.LightInfluence = 0.3
+		gui.Parent = sign
+		local text = textLabel(gui, "🍺 Taberna", UDim2.fromScale(1, 0.8), UDim2.fromScale(0, 0.1), Color3.fromRGB(253, 224, 71))
+		text.Font = Enum.Font.GrenzeGotisch
+	end
+	-- Barriles, mesa y bancos en la puerta
+	for k = 0, 2 do
+		barrel(model, (base * CFrame.new(-length / 2 + 1.5 + k * 2.4, 0, depth / 2 + 2)).Position)
+	end
+	local tablePos = base * CFrame.new(5.5, 0, depth / 2 + 5)
+	newPart(model, Vector3.new(6, 0.5, 3), tablePos * CFrame.new(0, 3, 0), WOOD, M.WoodPlanks).Name = "Mesa"
+	for _, x in { -2.4, 2.4 } do
+		newPart(model, Vector3.new(0.6, 3, 0.6), tablePos * CFrame.new(x, 1.5, 0), DARK_WOOD, M.Wood)
+	end
+	for _, z in { -2.6, 2.6 } do
+		newPart(model, Vector3.new(6, 0.5, 1.2), tablePos * CFrame.new(0, 1.8, z), WOOD, M.WoodPlanks).Name = "Banco"
+	end
+	local mug = decor(column(model, 0.9, 0.7, (tablePos * CFrame.new(1, 3.7, 0)).Position, Color3.fromRGB(253, 224, 71), M.Glass))
+	mug.Name = "Jarra"
+	model.Parent = parent
+end
+
+-- Pozo de piedra con tejadillo, polea y cubo
+local function well(parent: Instance, position: Vector3)
+	local model = Instance.new("Model")
+	model.Name = "Pozo"
+	for k = 0, 9 do
+		local angle = k / 10 * math.pi * 2
+		newPart(model, Vector3.new(2.2, 3, 1.2), CFrame.new(position + Vector3.new(math.cos(angle) * 3.2, 1.5, math.sin(angle) * 3.2)) * CFrame.Angles(0, -angle + math.pi / 2, 0), STONE, M.Cobblestone)
+	end
+	decor(column(model, 0.2, 5.6, position + Vector3.new(0, 1.6, 0), Color3.fromRGB(40, 90, 130), M.Glass)).Name = "Agua"
+	for _, x in { -3.4, 3.4 } do
+		newPart(model, Vector3.new(0.7, 8, 0.7), CFrame.new(position + Vector3.new(x, 4, 0)), DARK_WOOD, M.Wood)
+	end
+	decor(column(model, 7.6, 0.6, position + Vector3.new(0, 7, 0), WOOD, M.Wood)).CFrame = CFrame.new(position + Vector3.new(0, 7, 0))
+	gableRoof(model, CFrame.new(position) * CFrame.Angles(0, math.rad(90), 0), 3, 8.4, 8, 2.6, THATCH, M.Grass, Color3.fromRGB(120, 82, 50))
+	decor(newPart(model, Vector3.new(0.1, 3.5, 0.1), CFrame.new(position + Vector3.new(0, 5.2, 0)), Color3.fromRGB(150, 130, 100), M.Fabric)).Name = "Cuerda"
+	decor(column(model, 1.2, 1.2, position + Vector3.new(0, 3.2, 0), WOOD, M.WoodPlanks)).Name = "Cubo"
+	model.Parent = parent
+end
+
+-- Torre redonda con almenas y tejado cónico (con bandera)
+local function castleTower(parent: Instance, position: Vector3, diameter: number, height: number, stone: Color3, roof: Color3, flag: Color3)
+	decor(column(parent, height, diameter, position + Vector3.new(0, height / 2, 0), stone, M.Cobblestone)).Name = "Torre"
+	decor(column(parent, 1.2, diameter + 1.4, position + Vector3.new(0, height + 0.6, 0), stone, M.Cobblestone))
+	local count = math.max(6, math.floor(diameter * 0.9))
+	for k = 0, count - 1 do
+		local angle = k / count * math.pi * 2
+		decor(newPart(parent, Vector3.new(1.6, 2.2, 1.6), CFrame.new(position + Vector3.new(math.cos(angle) * (diameter / 2 + 0.3), height + 2.3, math.sin(angle) * (diameter / 2 + 0.3))) * CFrame.Angles(0, -angle, 0), stone, M.Cobblestone))
+	end
+	local d = diameter * 1.05
+	local y = height + 2
+	for k = 1, 7 do
+		decor(column(parent, diameter * 0.22, d, position + Vector3.new(0, y + diameter * 0.11, 0), roof, M.Slate))
+		y += diameter * 0.2
+		d *= 0.74
+	end
+	decor(newPart(parent, Vector3.new(0.3, 6, 0.3), CFrame.new(position + Vector3.new(0, y + 3, 0)), DARK_WOOD, M.Wood))
+	decor(newPart(parent, Vector3.new(0.15, 2.4, 4), CFrame.new(position + Vector3.new(0, y + 4.6, 2)), flag, M.Fabric)).Name = "Bandera"
+	-- Ventanas encendidas
+	for k = 0, 2 do
+		local angle = k / 3 * math.pi * 2 + 0.4
+		local glow = decor(newPart(parent, Vector3.new(1, 2.4, 1), CFrame.new(position + Vector3.new(math.cos(angle) * diameter / 2, height * 0.65, math.sin(angle) * diameter / 2)), WINDOW_GLOW, M.Neon))
+		glow.Name = "Ventana"
+	end
+end
+
+-- Lienzo de muralla de "a" a "b" con almenas
+local function castleWall(parent: Instance, a: Vector3, b: Vector3, height: number, thickness: number, stone: Color3)
+	local mid = (a + b) / 2
+	local length = (b - a).Magnitude
+	local frame = CFrame.lookAt(mid, b)
+	decor(newPart(parent, Vector3.new(thickness, height, length), frame * CFrame.new(0, height / 2, 0), stone, M.Cobblestone)).Name = "Muralla"
+	local n = math.floor(length / 4)
+	for k = 0, n - 1 do
+		for _, side in { -1, 1 } do
+			decor(newPart(parent, Vector3.new(1, 2, 2), frame * CFrame.new(side * (thickness / 2 - 0.5), height + 1, -length / 2 + 2 + k * 4), stone, M.Cobblestone))
+		end
+	end
+end
+
+-- Castillo grande al norte, sobre una colina de roca en el lago, con puente
+local function buildCastle(lobby: Instance)
+	local model = Instance.new("Model")
+	model.Name = "Castillo"
+	local center = Vector3.new(0, 18, -236)
+	local stone = Color3.fromRGB(176, 170, 160)
+	local roofBlue = Color3.fromRGB(44, 72, 140)
+	local roofRed = Color3.fromRGB(150, 40, 40)
+	-- Colina rocosa con hierba arriba
+	tCylinder(Vector3.new(0, 1, -236), 34, 50, M.Rock)
+	tCylinder(Vector3.new(0, 17, -236), 2, 47, M.Grass)
+	for k = 0, 9 do
+		local angle = k / 10 * math.pi * 2
+		tBall(Vector3.new(math.cos(angle) * 48, random:NextNumber(-8, 6), -236 + math.sin(angle) * 48), random:NextNumber(14, 22), M.Rock)
+	end
+	-- Murallas y torres de las esquinas
+	local half = 30
+	local corners = {
+		center + Vector3.new(-half, 0, -half),
+		center + Vector3.new(half, 0, -half),
+		center + Vector3.new(half, 0, half),
+		center + Vector3.new(-half, 0, half),
+	}
+	for i = 1, 4 do
+		local a, b = corners[i], corners[i % 4 + 1]
+		if i == 3 then
+			-- Muralla sur (la que mira al lobby) con hueco para la puerta
+			castleWall(model, a, center + Vector3.new(7, 0, half), 16, 4, stone)
+			castleWall(model, center + Vector3.new(-7, 0, half), b, 16, 4, stone)
+		else
+			castleWall(model, a, b, 16, 4, stone)
+		end
+	end
+	for _, corner in corners do
+		castleTower(model, corner, 11, 26, stone, roofBlue, Color3.fromRGB(220, 38, 38))
+	end
+	-- Puerta: dos torrecillas, arco y rastrillo
+	local gate = center + Vector3.new(0, 0, half)
+	for _, x in { -8, 8 } do
+		castleTower(model, gate + Vector3.new(x, 0, 2), 7, 20, stone, roofRed, Color3.fromRGB(251, 191, 36))
+	end
+	local archTop = stoneArch(model, CFrame.new(gate + Vector3.new(0, 0, 2.5)), 10, 9, stone)
+	decor(newPart(model, Vector3.new(12, 16 - archTop + 2, 4), CFrame.new(gate + Vector3.new(0, archTop + (16 - archTop + 2) / 2 - 1, 0)), stone, M.Cobblestone))
+	for k = -2, 2 do
+		decor(newPart(model, Vector3.new(0.4, 10, 0.4), CFrame.new(gate + Vector3.new(k * 1.8, 6, 1)), Color3.fromRGB(40, 40, 44), M.Metal)).Name = "Rastrillo"
+	end
+	for k = 0, 3 do
+		decor(newPart(model, Vector3.new(9, 0.4, 0.4), CFrame.new(gate + Vector3.new(0, 2 + k * 2.6, 1)), Color3.fromRGB(40, 40, 44), M.Metal))
+	end
+	-- Torre del homenaje en el centro (la más alta)
+	local keep = center + Vector3.new(0, 0, -6)
+	decor(newPart(model, Vector3.new(22, 34, 22), CFrame.new(keep + Vector3.new(0, 17, 0)), stone, M.Cobblestone)).Name = "Homenaje"
+	for _, side in { Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1) } do
+		local along = Vector3.new(side.Z, 0, side.X)
+		for k = -2, 2 do
+			decor(newPart(model, Vector3.new(2, 2.4, 2), CFrame.new(keep + side * 10.5 + along * (k * 4.4) + Vector3.new(0, 35.2, 0)), stone, M.Cobblestone))
+			if math.abs(k) == 1 then
+				local glow = decor(newPart(model, Vector3.new(if side.X ~= 0 then 0.4 else 1.6, 3, if side.X ~= 0 then 1.6 else 0.4), CFrame.new(keep + side * 11.05 + along * (k * 5) + Vector3.new(0, 24, 0)), WINDOW_GLOW, M.Neon))
+				glow.Name = "Ventana"
+			end
+		end
+	end
+	for _, spot in { Vector3.new(-9, 0, -9), Vector3.new(9, 0, -9), Vector3.new(-9, 0, 9), Vector3.new(9, 0, 9) } do
+		castleTower(model, keep + spot + Vector3.new(0, 30, 0), 6, 12, stone, roofBlue, Color3.fromRGB(56, 189, 248))
+	end
+	castleTower(model, keep + Vector3.new(0, 34, 0), 9, 10, stone, roofRed, Color3.fromRGB(251, 191, 36))
+	local beacon = decor(newPart(model, Vector3.new(2, 2, 2), CFrame.new(keep + Vector3.new(0, 30, 11.6)), WINDOW_GLOW, M.Neon))
+	pointLight(beacon, WARM_LIGHT, 40, 2)
+	-- Estandartes grandes en la muralla sur
+	for _, x in { -20, 20 } do
+		banner(model, center + Vector3.new(x, 4, half + 2.3), Color3.fromRGB(150, 30, 40), 11, 0)
+	end
+	-- Puente de piedra desde la orilla hasta la puerta (con arcos)
+	local from = Vector3.new(0, 0.6, -134)
+	local to = gate + Vector3.new(0, 0.6, 5)
+	local mid = (from + to) / 2
+	local length = (to - from).Magnitude
+	local deck = CFrame.lookAt(mid, to)
+	newPart(model, Vector3.new(10, 1.2, length), deck, Color3.fromRGB(150, 142, 130), M.Cobblestone).Name = "Puente"
+	for _, side in { -1, 1 } do
+		newPart(model, Vector3.new(1, 2.2, length), deck * CFrame.new(side * 4.6, 1.6, 0), stone, M.Cobblestone).Name = "Pretil"
+	end
+	for k = 1, 4 do
+		local t = k / 5
+		local p = from:Lerp(to, t)
+		decor(newPart(model, Vector3.new(7, p.Y + 20, 4), CFrame.new(Vector3.new(p.X, (p.Y - 20) / 2 - 0.6, p.Z)), stone, M.Cobblestone)).Name = "Pilar"
+		lamppost(model, p + Vector3.new(4.6, 2.7, 0))
+	end
+	model.Parent = lobby
+end
+
+-- Aldea: taberna, cabañas y pozo
+local function buildVillage(lobby: Instance)
+	local village = Instance.new("Model")
+	village.Name = "Aldea"
+	tavern(village, CFrame.new(-50, 0, 52) * CFrame.Angles(0, math.rad(90), 0))
+	tBlob(Vector3.new(-40, 0, 52), 9, M.Ground)
+	cottage(village, CFrame.new(-34, 0, 90) * CFrame.Angles(0, math.rad(200), 0), 14, 10, "Cabaña")
+	cottage(village, CFrame.new(24, 0, 98) * CFrame.Angles(0, math.rad(160), 0), 12, 10, "Cabaña")
+	cottage(village, CFrame.new(48, 0, 34) * CFrame.Angles(0, math.rad(-120), 0), 12, 9, "Cabaña")
+	cottage(village, CFrame.new(116, 0, 22) * CFrame.Angles(0, math.rad(-100), 0), 12, 9, "Cabaña")
+	well(village, Vector3.new(-26, 0, 42))
+	tRound(Vector3.new(-26, 0, 42), 7, M.Cobblestone)
+	-- Huertos con vallas junto a las cabañas
+	for _, spot in { Vector3.new(-16, 0, 100), Vector3.new(41, 0, 95) } do
+		tPatch(spot, 10, 8, 0, M.Mud)
+		for k = -2, 2 do
+			decor(newPart(village, Vector3.new(0.4, 1.8, 0.4), CFrame.new(spot + Vector3.new(k * 2.4, 0.9, -4.2)), WOOD, M.Wood))
+			decor(newPart(village, Vector3.new(0.4, 1.8, 0.4), CFrame.new(spot + Vector3.new(k * 2.4, 0.9, 4.2)), WOOD, M.Wood))
+		end
+		for _, z in { -4.2, 4.2 } do
+			decor(newPart(village, Vector3.new(10, 0.3, 0.3), CFrame.new(spot + Vector3.new(0, 1.4, z)), WOOD, M.Wood))
+		end
+		for k = -1, 1 do
+			for j = -1, 1 do
+				decor(ball(village, 1.2, spot + Vector3.new(k * 3, 0.5, j * 2.4), Color3.fromRGB(74, 160, 60), M.Grass))
+			end
+		end
+	end
+	village.Parent = lobby
+end
+
+---------------------------------------------------------------------
 -- Lobby: la isla
 ---------------------------------------------------------------------
 local function buildIsland()
@@ -584,7 +927,7 @@ local function buildPortalTerrace(lobby: Instance)
 		gui.LightInfluence = 0
 		gui.Parent = plaque
 		textLabel(gui, map.emoji .. " " .. map.name, UDim2.fromScale(1, 0.62), UDim2.fromScale(0, 0.04), map.color:Lerp(Color3.new(1, 1, 1), 0.45))
-		textLabel(gui, "Jefe a los " .. math.floor(map.bossAt / 60) .. " min", UDim2.fromScale(1, 0.32), UDim2.fromScale(0, 0.64), Color3.fromRGB(226, 232, 240))
+		textLabel(gui, map.waves .. " oleadas · jefe final", UDim2.fromScale(1, 0.32), UDim2.fromScale(0, 0.64), Color3.fromRGB(226, 232, 240))
 		prompt(disc, "Jugar", map.name, function(player)
 			callbacks.onOpen(player, "jugar", map.id)
 		end)
@@ -932,6 +1275,8 @@ local function buildLobby(root: Instance)
 	buildPond(lobby)
 	buildTraining(lobby)
 	buildCamp(lobby)
+	buildVillage(lobby)
+	buildCastle(lobby)
 	buildGroves(lobby)
 	boundary(lobby, Vector3.new(0, 0, 0), 290, 290)
 end
@@ -999,14 +1344,33 @@ local function decorateBosque(arena: Instance, origin: Vector3)
 		log.CFrame = CFrame.new(spot + Vector3.new(0, 0.7, 0)) * CFrame.Angles(0, random:NextNumber(0, 6.28), 0)
 		log.Name = "Tronco"
 	end
-	-- Ruinas antiguas en dos esquinas del claro
-	for _, corner in { Vector3.new(-1, 0, -1), Vector3.new(1, 0, 1) } do
-		local pos = origin + corner * (half - 26)
-		for k = 0, 3 do
-			local angle = k / 4 * math.pi * 2
-			local h = random:NextNumber(4, 11)
-			column(arena, h, 3, pos + Vector3.new(math.cos(angle) * 7, h / 2, math.sin(angle) * 7), Color3.fromRGB(170, 164, 150), M.Limestone).Name = "Columna"
+	-- Campamento de leñadores: cabañas en el borde del claro, mirando al centro
+	for k = 0, 3 do
+		local angle = k / 4 * math.pi * 2 + 0.6
+		local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local scale = 1 / math.max(math.abs(dir.X), math.abs(dir.Z))
+		local pos = origin + dir * (half + 12) * scale
+		local facing = math.atan2(-dir.X, -dir.Z)
+		tRound(pos, 11, M.Ground)
+		cottage(arena, CFrame.new(pos) * CFrame.Angles(0, facing, 0), 12, 9, "CabañaLeñador")
+		-- Leña apilada y un tocón con hacha
+		local side = CFrame.new(pos) * CFrame.Angles(0, facing, 0) * CFrame.new(9, 0, 3)
+		for row = 0, 2 do
+			for j = 0, 2 - row do
+				decor(column(arena, 4, 1.2, (side * CFrame.new(0, 0.6 + row * 1.05, (j - (2 - row) / 2) * 1.2)).Position, WOOD, M.Wood)).CFrame = side * CFrame.new(0, 0.6 + row * 1.05, (j - (2 - row) / 2) * 1.2)
+			end
 		end
+		local stump = (CFrame.new(pos) * CFrame.Angles(0, facing, 0) * CFrame.new(-9, 0, 4)).Position
+		decor(column(arena, 1.4, 2.4, stump + Vector3.new(0, 0.7, 0), WOOD, M.Wood)).Name = "Tocón"
+		decor(newPart(arena, Vector3.new(0.3, 2.6, 0.3), CFrame.new(stump + Vector3.new(0, 2.4, 0)) * CFrame.Angles(0, 0, math.rad(20)), DARK_WOOD, M.Wood))
+		decor(newPart(arena, Vector3.new(0.2, 0.9, 1.1), CFrame.new(stump + Vector3.new(-0.3, 1.7, 0)) * CFrame.Angles(0, 0, math.rad(20)), Color3.fromRGB(200, 205, 215), M.Metal))
+	end
+	-- Ruinas de una torre vieja en una esquina (fuera del paso)
+	local ruin = origin + Vector3.new(-1, 0, -1) * (half + 8)
+	for k = 0, 5 do
+		local angle = k / 6 * math.pi * 2
+		local h = random:NextNumber(4, 13)
+		column(arena, h, 3, ruin + Vector3.new(math.cos(angle) * 7, h / 2, math.sin(angle) * 7), Color3.fromRGB(170, 164, 150), M.Limestone).Name = "Columna"
 	end
 end
 
@@ -1051,6 +1415,52 @@ local function decorateCueva(arena: Instance, origin: Vector3)
 		local pool = decor(column(arena, 0.15, random:NextNumber(8, 14), fieldSpot(origin, 30) + Vector3.new(0, 0.08, 0), Color3.fromRGB(56, 189, 248), M.Neon))
 		pool.Transparency = 0.7
 		pool.Name = "Charco"
+	end
+	-- Mina: entibados de madera con farolillos en el borde
+	for k = 0, 15 do
+		local t = k / 16
+		local angle = t * math.pi * 2
+		local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local scale = 1 / math.max(math.abs(dir.X), math.abs(dir.Z))
+		local pos = origin + dir * (half + 3) * scale
+		local frame = CFrame.new(pos) * CFrame.Angles(0, math.atan2(-dir.X, -dir.Z), 0)
+		for _, x in { -4, 4 } do
+			decor(newPart(arena, Vector3.new(1.4, 12, 1.4), frame * CFrame.new(x, 6, 0), WOOD, M.Wood)).Name = "Entibado"
+		end
+		decor(newPart(arena, Vector3.new(10.4, 1.4, 1.6), frame * CFrame.new(0, 12.4, 0), DARK_WOOD, M.Wood))
+		local lantern = decor(newPart(arena, Vector3.new(0.9, 1.3, 0.9), frame * CFrame.new(0, 10.8, -0.6), WINDOW_GLOW, M.Neon))
+		lantern.Name = "Farolillo"
+		if k % 2 == 0 then
+			pointLight(lantern, WARM_LIGHT, 18, 1.1)
+		end
+	end
+	-- Vías de vagoneta que cruzan la cueva (de adorno, no estorban)
+	for _, line in { { Vector3.new(-1, 0, -0.35), Vector3.new(1, 0, 0.2) }, { Vector3.new(-0.3, 0, 1), Vector3.new(0.25, 0, -1) } } do
+		local a = origin + line[1] * (half + 2)
+		local b = origin + line[2] * (half + 2)
+		local mid = (a + b) / 2
+		local length = (b - a).Magnitude
+		local frame = CFrame.lookAt(mid, b)
+		for _, x in { -1.3, 1.3 } do
+			decor(newPart(arena, Vector3.new(0.3, 0.3, length), frame * CFrame.new(x, 0.35, 0), Color3.fromRGB(110, 110, 118), M.Metal)).Name = "Raíl"
+		end
+		for k = 0, math.floor(length / 3) do
+			decor(newPart(arena, Vector3.new(4, 0.2, 0.8), frame * CFrame.new(0, 0.12, -length / 2 + k * 3), DARK_WOOD, M.Wood)).Name = "Traviesa"
+		end
+		-- Vagonetas con mineral brillante en los extremos
+		for _, endZ in { -length / 2 + 6, length / 2 - 6 } do
+			local cart = frame * CFrame.new(0, 0, endZ)
+			decor(newPart(arena, Vector3.new(3.6, 2.4, 4.6), cart * CFrame.new(0, 1.9, 0), Color3.fromRGB(90, 70, 50), M.WoodPlanks)).Name = "Vagoneta"
+			for _, x in { -1.9, 1.9 } do
+				for _, z in { -1.5, 1.5 } do
+					decor(column(arena, 0.3, 1.2, (cart * CFrame.new(x, 0.6, z)).Position, Color3.fromRGB(50, 50, 56), M.Metal)).CFrame = cart * CFrame.new(x, 0.6, z)
+				end
+			end
+			local oreColors = { Color3.fromRGB(56, 189, 248), Color3.fromRGB(167, 139, 250), Color3.fromRGB(251, 191, 36) }
+			for j = 1, 4 do
+				decor(newPart(arena, Vector3.new(1, 1, 1), cart * CFrame.new(random:NextNumber(-1, 1), 3.3, random:NextNumber(-1.5, 1.5)) * CFrame.Angles(0.6, j, 0.3), pick(oreColors), M.Neon)).Name = "Mineral"
+			end
+		end
 	end
 end
 

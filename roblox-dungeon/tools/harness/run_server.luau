@@ -622,15 +622,24 @@ end
 -- el equilibrio con el código real.
 ---------------------------------------------------------------------
 if process.args[2] == "bot" then
-	local function botRun(name, userId, mapIndex, classId, upgrades, minutes)
-		local data = nil
+	-- prefixes: ramas del árbol compradas hasta ese nivel, p. ej. { a = 4, d = 4 }
+	local ALL_WEAPONS = {}
+	for _, id in Config.WeaponOrder do ALL_WEAPONS[id] = true end
+	local function botRun(name, userId, mapIndex, classId, prefixes, minutes, difficulty, allWeapons)
+		local tree = {}
+		for prefix, upTo in prefixes do
+			for k = 1, upTo do tree[prefix .. k] = true end
+		end
+		local wins = {}
+		for m = 1, 3 do wins[Config.Maps[m].id] = { normal = 1, dificil = 1 } end
 		saved["player_" .. userId] = {
 			gold = 0, unlockedMap = 3, classes = { guerrero = true, mago = true, picaro = true },
-			selectedClass = classId, upgrades = upgrades, tutorialDone = true,
+			selectedClass = classId, tree = tree, tutorialDone = true, mapWins = wins,
+			weapons = if allWeapons then ALL_WEAPONS else {},
 			inventory = { { id = 1, def = "espada_madera", rarity = "comun", up = 0 } }, equipped = { weapon = 1 },
 		}
 		local bot = makePlayer(name, userId)
-		invoke(bot.player, "playSolo", mapIndex)
+		invoke(bot.player, "playSolo", mapIndex, difficulty or 1)
 		local run
 		for _, r in RunManager.debugRuns() do
 			if r.byPlayer[bot.player] then run = r end
@@ -717,8 +726,8 @@ if process.args[2] == "bot" then
 		local result = if deathAt then "CAE" elseif member.finished then "ESCAPA" else "vivo"
 		local weapons = {}
 		for _, id in member.weaponOrder do table.insert(weapons, id .. member.weapons[id]) end
-		print(string.format("  %-9s mapa %d %-8s %-7s t=%s nivel %2d · muertes %4d · oro %5d · máx enemigos %3d · vida %d/%d · %s",
-			name, mapIndex, classId, result, Config.formatClock(deathAt or run.time), run.level, member.kills, math.floor(member.gold), maxEnemies,
+		print(string.format("  %-9s mapa %d %-9s %-8s %-7s oleada %2d/%d t=%s nivel %2d · muertes %4d · Coronas %5d · máx enemigos %3d · vida %d/%d · %s",
+			name, mapIndex, Config.Difficulties[difficulty or 1].name, classId, result, run.wave, run.map.waves, Config.formatClock(deathAt or run.time), run.level, member.kills, math.floor(member.gold), maxEnemies,
 			math.floor(bot.humanoid.Health), math.floor(member.maxHealth), table.concat(weapons, " ")))
 		if not member.finished then
 			RunManager.leave(bot.player)
@@ -727,12 +736,15 @@ if process.args[2] == "bot" then
 		tick(0)
 	end
 	print("-- Bot de equilibrio (esquiva en círculos, sin trampas) --")
-	botRun("Novato", 101, 1, "guerrero", {}, if process.args[3] == "debug" then 0.6 else 9.5)
+	botRun("Novato", 101, 1, "guerrero", {}, if process.args[3] == "debug" then 6 else 12)
 	if process.args[3] == "debug" then process.exit(0) end
-	botRun("Novato2", 102, 1, "mago", {}, 9.5)
-	botRun("Medio", 103, 1, "guerrero", { fuerza = 4, vida = 4, regen = 3 }, 9.5)
-	botRun("Medio2", 104, 2, "guerrero", { fuerza = 5, vida = 5, regen = 4, velocidad = 3 }, 10.5)
-	botRun("Fuerte", 105, 3, "mago", { fuerza = 9, vida = 9, regen = 7, velocidad = 6, recarga = 6 }, 11.5)
+	botRun("Novato2", 102, 1, "mago", {}, 12)
+	botRun("NovatoCas", 108, 3, "guerrero", {}, 14)
+	botRun("Medio", 103, 1, "guerrero", { a = 4, d = 4 }, 12, 1, true)
+	botRun("Medio2", 104, 2, "guerrero", { a = 6, d = 6, f = 2 }, 13, 1, true)
+	botRun("Fuerte", 105, 3, "mago", { a = 8, d = 8, f = 4 }, 14, 1, true)
+	botRun("Difícil", 106, 1, "guerrero", { a = 8, d = 8, f = 4 }, 12, 2, true)
+	botRun("Pesadilla", 107, 1, "guerrero", { a = 8, d = 8, f = 8 }, 12, 3, true)
 	process.exit(0)
 end
 
@@ -771,7 +783,7 @@ end
 print(string.format("  arena: %d piezas · centro x=%d · jugador en x=%.0f", arenaParts, run.origin.X, jorge.root.Position.X))
 assert(math.abs(jorge.root.Position.X - run.origin.X) < 10, "el jugador no está en la arena")
 act(jorge, "playSolo", 1) -- ya está en partida
-act(jorge, "buyUpgrade", "fuerza") -- sin oro: falla
+act(jorge, "buyNode", "a1") -- sin Coronas: falla
 
 -- Correr en círculos (como un jugador que esquiva) con la vida rellenada
 local angle = 0
@@ -842,13 +854,32 @@ killsBefore = run.kills
 play(15, true)
 print(string.format("  aura + orbes: +%d muertes en 15 s", run.kills - killsBefore))
 assert(run.kills > killsBefore, "aura u orbes no hacen daño")
+-- Armas nuevas: hacha, bomba y martillo (las bombas explotan con retraso)
+for _, kind in { "hacha", "bomba", "martillo" } do
+	m.weapons = { [kind] = 6 }
+	m.weaponOrder = { kind }
+	killsBefore = run.kills
+	play(12, true)
+	print(string.format("  %s evolucionada: +%d muertes en 12 s", kind, run.kills - killsBefore))
+	assert(run.kills > killsBefore, kind .. " no hace daño")
+end
+print(string.format("  oleada %d/%d (%s) · quedan %d por salir", run.wave, run.map.waves, run.wavePhase, run.waveToSpawn))
+assert(run.wave >= 2, "las oleadas no avanzan")
 
--- Élites (cofre) y jefe
-run.time = run.map.bossAt - 1
+-- Élites (cofre) y jefe: saltamos a la última oleada
+run.wave = run.map.waves - 1
+run.wavePhase = "break"
+run.breakEnd = run.time
 m.weapons = { espada = 6, varita = 6, dagas = 6, rayo = 6 }
 m.weaponOrder = { "espada", "varita", "dagas", "rayo" }
-play(1.5, true)
-assert(run.bossSpawned and run.boss, "no aparece el jefe")
+for _ = 1, 20 do
+	fakeTime += 1 / 15
+	heartbeat:Fire(1 / 15)
+	if run.bossSpawned then break end
+end
+tick(0)
+assert(run.wave == run.map.waves and run.bossSpawned and run.boss, "no aparece el jefe en la última oleada")
+assert(lastState().run.wave == run.map.waves, "la oleada no llega al cliente")
 print(string.format("  jefe: %s con %d de vida", run.boss.type, run.boss.hp))
 local elites = 0
 for _, e in run.enemies do if e.elite then elites += 1 end end
@@ -901,7 +932,8 @@ for _, f in fired do if f[1] == "Notify" and f[4] == "summary" then summary = f[
 assert(summary and summary.result == "win" and summary.item and summary.unlocked == "cueva", "resumen de victoria incorrecto")
 print(string.format("  ¡VICTORIA! oro de la partida %d → cobrado %d · objeto %s (%s) · desbloqueado %s", runGold, summary.gold, summary.item.def, summary.item.rarity, summary.unlocked))
 assert(summary.gold == math.floor(runGold * (1 + Config.WIN_BONUS)), "el bonus de victoria no cuadra")
-assert(s.unlockedMap == 2 and s.gold >= summary.gold and s.mapWins.bosque == 1, "no se guardó la victoria")
+assert(s.unlockedMap == 2 and s.gold >= summary.gold and s.mapWins.bosque.normal == 1, "no se guardó la victoria")
+assert(summary.unlockedDifficulty == "dificil" and summary.difficulty == "normal", "no se desbloqueó la dificultad Difícil")
 assert(jorge.humanoid.MaxHealth == lastState().stats.health, "al volver al lobby no recupera su vida normal")
 
 ---------------------------------------------------------------------
@@ -909,9 +941,11 @@ assert(jorge.humanoid.MaxHealth == lastState().stats.health, "al volver al lobby
 ---------------------------------------------------------------------
 print("-- Lobby --")
 local dmgBefore = lastState().stats.damage
-act(jorge, "buyUpgrade", "fuerza")
-act(jorge, "buyUpgrade", "noexiste")
-assert(lastState().stats.damage > dmgBefore, "la mejora de fuerza no sube el daño")
+act(jorge, "buyNode", "a2") -- falta a1
+act(jorge, "buyNode", "a1")
+act(jorge, "buyNode", "a1") -- ya la tiene
+act(jorge, "buyNode", "noexiste")
+assert(lastState().stats.damage > dmgBefore and lastState().tree.a1, "el nodo de daño no sube el daño")
 act(jorge, "buyClass", "picaro") -- caro
 act(jorge, "buyClass", "mago")
 s = lastState()
@@ -954,13 +988,14 @@ act(ana, "createGroup", 2) -- Ana no tiene la Cueva
 act(jorge, "createGroup", 2)
 s = lastState(77)
 assert(#s.groups == 1 and s.groups[1].leader == "Jorge", "Ana no ve el grupo de Jorge")
-act(ana, "joinGroup", s.groups[1].id)
-act(ana, "startGroup") -- no es líder
-act(jorge, "startGroup") -- Ana no tiene el mapa
+act(ana, "joinGroup", s.groups[1].id) -- Ana no tiene la Cueva: falla
 act(jorge, "leaveGroup")
-act(ana, "leaveGroup")
+act(jorge, "createGroup", 1, 2) -- en Difícil
+act(ana, "joinGroup", lastState(77).groups[1].id) -- Ana no ha superado el Bosque en Normal
+act(jorge, "leaveGroup")
 act(jorge, "createGroup", 1)
 act(ana, "joinGroup", lastState(77).groups[1].id)
+act(ana, "startGroup") -- no es líder
 act(jorge, "startGroup")
 s = lastState()
 local s2 = lastState(77)
@@ -1006,6 +1041,58 @@ assert(lastState().bonuses.boost, "boost no activo")
 print("  receipt revivir (sin partida) ->", processReceipt({ PlayerId = 42, ProductId = 333, PurchaseId = "p3" }))
 print("  receipt desconocido ->", processReceipt({ PlayerId = 42, ProductId = 999, PurchaseId = "p4" }))
 act(jorge, "buyClass", "picaro")
+
+---------------------------------------------------------------------
+-- Árbol de mejoras y cofre de armas (con las Coronas compradas)
+---------------------------------------------------------------------
+print("-- Árbol y cofre de armas --")
+act(jorge, "buyNode", "a2")
+act(jorge, "buyNode", "d1")
+act(jorge, "buyNode", "d7") -- bloqueado
+act(jorge, "buyNode", "f1")
+act(jorge, "buyNode", "f2")
+s = lastState()
+assert(s.tree.a2 and s.tree.d1 and not s.tree.d7, "el árbol no respeta el orden")
+local weaponsBefore = 0
+for _ in s.weapons do weaponsBefore += 1 end
+local price1 = s.weaponChestPrice
+act(jorge, "buyWeaponChest")
+act(jorge, "buyWeaponChest")
+s = lastState()
+local weaponsAfter = 0
+for _ in s.weapons do weaponsAfter += 1 end
+print(string.format("  armas desbloqueadas: %d → %d · precio del cofre %d → %d", weaponsBefore, weaponsAfter, price1, s.weaponChestPrice))
+assert(weaponsAfter == weaponsBefore + 2 and s.weaponChestPrice > price1, "el cofre de armas no desbloquea armas")
+-- Dificultades: Pesadilla bloqueada hasta superar Difícil
+act(jorge, "playSolo", 1, 3)
+act(jorge, "playSolo", 1, 2)
+s = lastState()
+assert(s.run and s.run.difficulty == 2, "no empezó en Difícil")
+for _, r in RunManager.debugRuns() do run = r end
+local hard = run.enemies[1]
+play(4, true)
+hard = hard or run.enemies[1]
+print(string.format("  Difícil: oleada %d · enemigo %s con %d de vida · multiplicador de Coronas x%.1f", run.wave, hard and hard.type or "-", hard and hard.maxHp or 0, run.byPlayer[jorge.player].goldMult))
+-- Solo salen armas desbloqueadas al subir de nivel
+local member = run.byPlayer[jorge.player]
+for id in member.unlocked do assert(s.weapons[id] or id == Config.ClassById[s.selectedClass].weapon, "arma no desbloqueada en la partida") end
+local offered = 0
+for _ = 1, 40 do
+	member.pendingChoices += 1
+	fakeTime += 1 / 15
+	heartbeat:Fire(1 / 15)
+	if member.offer then
+		for _, o in member.offer do
+			if o.kind == "weapon" and o.level == 1 then
+				offered += 1
+				assert(member.unlocked[o.id], "se ofreció un arma bloqueada: " .. o.id)
+			end
+		end
+		RunManager.choose(jorge.player, 1)
+	end
+end
+print(string.format("  %d armas nuevas ofrecidas, todas desbloqueadas", offered))
+act(jorge, "leaveRun")
 
 ---------------------------------------------------------------------
 -- Salir a mitad de partida, cerrar y volver

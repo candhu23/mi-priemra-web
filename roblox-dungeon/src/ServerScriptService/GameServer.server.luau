@@ -83,7 +83,8 @@ local function newData()
 		inventory = { { id = 1, def = Config.STARTER_WEAPON, rarity = "comun", up = 0 } },
 		equipped = { weapon = 1 },
 		nextItemId = 2,
-		upgrades = {},
+		tree = {}, -- nodos comprados del árbol de mejoras
+		weapons = {}, -- armas desbloqueadas con el cofre de armas
 		classes = { guerrero = true },
 		selectedClass = "guerrero",
 		unlockedMap = 1,
@@ -100,7 +101,7 @@ local function newData()
 end
 
 -- Campos que son listas o mapas del jugador: no se rellenan por dentro
-local NO_DEEP_RECONCILE = { inventory = true, equipped = true, upgrades = true, classes = true, mapWins = true, bestTime = true, receipts = true }
+local NO_DEEP_RECONCILE = { inventory = true, equipped = true, tree = true, weapons = true, classes = true, mapWins = true, bestTime = true, receipts = true }
 
 -- Rellena campos que falten en partidas guardadas con versiones antiguas
 local function reconcile(data, template)
@@ -253,7 +254,7 @@ end
 -- Recalcula las estadísticas permanentes y, si está en el lobby, las aplica al personaje
 local function applyStats(player: Player, session: Session)
 	local data = session.data
-	session.stats = Config.baseStats(data.selectedClass, data.upgrades, equippedItems(data))
+	session.stats = Config.baseStats(data.selectedClass, data.tree, equippedItems(data))
 	session.dirty = true
 	if RunManager.runOf(player) then
 		return
@@ -267,19 +268,43 @@ local function applyStats(player: Player, session: Session)
 	end
 end
 
-local function rollRarity(field: string): string
+-- boost > 1 hace más probables las rarezas altas (dificultades difíciles)
+local function rollRarity(field: string, boost: number?): string
+	local b = boost or 1
+	local function weight(rarity): number
+		return rarity[field] * (if rarity.index >= 3 then b else 1)
+	end
 	local total = 0
 	for _, rarity in Config.Rarities do
-		total += rarity[field]
+		total += weight(rarity)
 	end
 	local roll = random:NextNumber() * total
 	for _, rarity in Config.Rarities do
-		roll -= rarity[field]
+		roll -= weight(rarity)
 		if roll <= 0 and rarity[field] > 0 then
 			return rarity.id
 		end
 	end
 	return Config.Rarities[#Config.Rarities].id
+end
+
+-- Armas que puede ofrecer una partida (las de inicio + las del cofre)
+local function unlockedWeapons(data): { [string]: boolean }
+	local list = table.clone(Config.STARTER_WEAPONS)
+	for id in data.weapons do
+		list[id] = true
+	end
+	return list
+end
+
+local function chestUnlockedCount(data): number
+	local n = 0
+	for id in data.weapons do
+		if not Config.STARTER_WEAPONS[id] then
+			n += 1
+		end
+	end
+	return n
 end
 
 local function addGold(data, amount: number)
@@ -303,7 +328,7 @@ local function addItem(player: Player, session: Session, defId: string, rarityId
 		local price = Config.sellPrice(item)
 		addGold(data, price)
 		local why = if full then "🎒 Mochila llena: " else "♻️ Venta automática: "
-		notify(player, why .. def.name .. " (" .. rarity.name .. ") vendido por 🪙" .. Config.formatNumber(price), "info")
+		notify(player, why .. def.name .. " (" .. rarity.name .. ") vendido por " .. Config.money(price), "info")
 		return item
 	end
 	table.insert(data.inventory, item)
@@ -318,7 +343,7 @@ end
 ---------------------------------------------------------------------
 -- Grupos del lobby (hasta 4 jugadores juegan juntos)
 ---------------------------------------------------------------------
-type Group = { id: number, leader: Player, mapIndex: number, members: { Player } }
+type Group = { id: number, leader: Player, mapIndex: number, difficulty: number, members: { Player } }
 local groups: { [number]: Group } = {}
 local groupOf: { [Player]: Group } = {}
 local nextGroupId = 0
@@ -354,7 +379,7 @@ local function groupsSummary(): { any }
 		for _, member in group.members do
 			table.insert(names, member.DisplayName)
 		end
-		table.insert(list, { id = group.id, leader = group.leader.DisplayName, map = group.mapIndex, members = names })
+		table.insert(list, { id = group.id, leader = group.leader.DisplayName, map = group.mapIndex, difficulty = group.difficulty, members = names })
 	end
 	table.sort(list, function(a, b)
 		return a.id < b.id
@@ -386,7 +411,9 @@ local function buildState(player: Player, session: Session)
 		inventory = data.inventory,
 		equipped = data.equipped,
 		capacity = capacity(session),
-		upgrades = data.upgrades,
+		tree = data.tree,
+		weapons = unlockedWeapons(data),
+		weaponChestPrice = Config.weaponChestPrice(chestUnlockedCount(data)),
 		classes = data.classes,
 		selectedClass = data.selectedClass,
 		unlockedMap = data.unlockedMap,
@@ -403,7 +430,7 @@ local function buildState(player: Player, session: Session)
 		canSave = session.canSave,
 		saveOk = session.lastSaveOk,
 		groups = groupsSummary(),
-		myGroup = if group then { id = group.id, leader = group.leader == player, map = group.mapIndex } else nil,
+		myGroup = if group then { id = group.id, leader = group.leader == player, map = group.mapIndex, difficulty = group.difficulty } else nil,
 		run = RunManager.stateFor(player),
 	}
 end
@@ -433,6 +460,7 @@ local function onFinish(player: Player, result)
 	end
 	local data = session.data
 	local map = Config.Maps[result.mapIndex]
+	local difficulty = Config.Difficulties[result.difficulty] or Config.Difficulties[1]
 	addGold(data, result.gold)
 	data.stats.runs += 1
 	data.stats.kills += result.kills
@@ -440,20 +468,32 @@ local function onFinish(player: Player, result)
 	local summary = {
 		result = result.result,
 		map = map.id,
+		difficulty = difficulty.id,
+		wave = result.wave,
 		time = result.time,
 		kills = result.kills,
 		level = result.level,
 		gold = result.gold,
 		item = nil,
 		unlocked = nil,
+		unlockedDifficulty = nil,
 	}
 	if result.result == "win" then
 		data.stats.wins += 1
 		data.stats.bossKills += 1
 		session.leaderWins.Value = data.stats.wins
-		data.mapWins[map.id] = (data.mapWins[map.id] or 0) + 1
+		local wins = data.mapWins[map.id]
+		if type(wins) ~= "table" then
+			wins = {}
+			data.mapWins[map.id] = wins
+		end
+		wins[difficulty.id] = (wins[difficulty.id] or 0) + 1
 		data.bestTime[map.id] = math.max(data.bestTime[map.id] or 0, math.floor(result.time))
-		summary.item = addItem(player, session, map.drops[random:NextInteger(1, #map.drops)], rollRarity("bossWeight"), "del jefe")
+		summary.item = addItem(player, session, map.drops[random:NextInteger(1, #map.drops)], rollRarity("bossWeight", difficulty.rarityBoost), "del jefe")
+		local nextDifficulty = Config.Difficulties[result.difficulty + 1]
+		if nextDifficulty and wins[difficulty.id] == 1 then
+			summary.unlockedDifficulty = nextDifficulty.id
+		end
 		local nextMap = Config.Maps[result.mapIndex + 1]
 		if nextMap and data.unlockedMap < nextMap.index then
 			data.unlockedMap = nextMap.index
@@ -479,7 +519,7 @@ local function teleportTo(player: Player, cframe: CFrame)
 	end
 end
 
-local function canPlayMap(session: Session, mapIndex: any): (any, string?)
+local function canPlayMap(session: Session, mapIndex: any, difficulty: any): (any, string?)
 	local map = type(mapIndex) == "number" and Config.Maps[mapIndex]
 	if not map then
 		return nil, "Mapa desconocido"
@@ -487,10 +527,17 @@ local function canPlayMap(session: Session, mapIndex: any): (any, string?)
 	if session.data.unlockedMap < map.index then
 		return nil, "🔒 Escapa antes de " .. Config.Maps[map.index - 1].name
 	end
+	local d = if type(difficulty) == "number" then difficulty else 1
+	if not Config.Difficulties[d] then
+		return nil, "Dificultad desconocida"
+	end
+	if not Config.difficultyUnlocked(session.data.unlockedMap, session.data.mapWins, map.index, d) then
+		return nil, "🔒 Escapa antes en " .. Config.Difficulties[d - 1].name
+	end
 	return map, nil
 end
 
-local function startRunFor(players: { Player }, mapIndex: number): (boolean, string?)
+local function startRunFor(players: { Player }, mapIndex: number, difficulty: number): (boolean, string?)
 	for _, player in players do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -498,7 +545,7 @@ local function startRunFor(players: { Player }, mapIndex: number): (boolean, str
 			return false, player.DisplayName .. " todavía no ha reaparecido"
 		end
 	end
-	local ok, reason = RunManager.startRun(players, mapIndex)
+	local ok, reason = RunManager.startRun(players, mapIndex, difficulty)
 	if ok then
 		for _, player in players do
 			leaveGroup(player)
@@ -508,20 +555,20 @@ local function startRunFor(players: { Player }, mapIndex: number): (boolean, str
 	return ok, reason
 end
 
-function Actions.playSolo(player: Player, session: Session, mapIndex: any)
-	local map, reason = canPlayMap(session, mapIndex)
+function Actions.playSolo(player: Player, session: Session, mapIndex: any, difficulty: any)
+	local map, reason = canPlayMap(session, mapIndex, difficulty)
 	if not map then
 		return false, reason
 	end
 	if RunManager.runOf(player) then
 		return false, "Ya estás en una partida"
 	end
-	local ok, why = startRunFor({ player }, map.index)
+	local ok, why = startRunFor({ player }, map.index, if type(difficulty) == "number" then difficulty else 1)
 	return ok, if ok then map.emoji .. " ¡A sobrevivir!" else why
 end
 
-function Actions.createGroup(player: Player, session: Session, mapIndex: any)
-	local map, reason = canPlayMap(session, mapIndex)
+function Actions.createGroup(player: Player, session: Session, mapIndex: any, difficulty: any)
+	local map, reason = canPlayMap(session, mapIndex, difficulty)
 	if not map then
 		return false, reason
 	end
@@ -530,17 +577,20 @@ function Actions.createGroup(player: Player, session: Session, mapIndex: any)
 	end
 	leaveGroup(player)
 	nextGroupId += 1
-	local group: Group = { id = nextGroupId, leader = player, mapIndex = map.index, members = { player } }
+	local group: Group = { id = nextGroupId, leader = player, mapIndex = map.index, difficulty = if type(difficulty) == "number" then difficulty else 1, members = { player } }
 	groups[group.id] = group
 	groupOf[player] = group
 	markAllDirty()
 	return true, "👥 Grupo creado. Espera a tus amigos y pulsa Empezar"
 end
 
-function Actions.joinGroup(player: Player, _session: Session, groupId: any)
+function Actions.joinGroup(player: Player, session: Session, groupId: any)
 	local group = type(groupId) == "number" and groups[groupId]
 	if not group then
 		return false, "Ese grupo ya no existe"
+	end
+	if not Config.difficultyUnlocked(session.data.unlockedMap, session.data.mapWins, group.mapIndex, group.difficulty) then
+		return false, "🔒 Aún no tienes ese mapa o esa dificultad"
 	end
 	if groupOf[player] == group then
 		return true, nil
@@ -583,12 +633,12 @@ function Actions.startGroup(player: Player, _session: Session)
 	-- El mapa tiene que estar desbloqueado para todos
 	for _, member in group.members do
 		local s = sessions[member]
-		if not s or s.data.unlockedMap < group.mapIndex then
-			return false, "🔒 " .. member.DisplayName .. " aún no tiene ese mapa"
+		if not s or not Config.difficultyUnlocked(s.data.unlockedMap, s.data.mapWins, group.mapIndex, group.difficulty) then
+			return false, "🔒 " .. member.DisplayName .. " aún no tiene ese mapa o esa dificultad"
 		end
 	end
 	local players = table.clone(group.members)
-	local ok, why = startRunFor(players, group.mapIndex)
+	local ok, why = startRunFor(players, group.mapIndex, group.difficulty)
 	return ok, if ok then "👥 ¡A sobrevivir juntos!" else why
 end
 
@@ -602,28 +652,57 @@ end
 
 function Actions.leaveRun(player: Player, _session: Session)
 	local ok, reason = RunManager.leave(player)
-	return ok, if ok then "🏳️ Has abandonado: te quedas la mitad del oro" else reason
+	return ok, if ok then "🏳️ Has abandonado: te quedas la mitad de las Coronas" else reason
 end
 
-function Actions.buyUpgrade(player: Player, session: Session, upgradeId: any)
-	local upgrade = type(upgradeId) == "string" and Config.MetaById[upgradeId]
-	if not upgrade then
+function Actions.buyNode(player: Player, session: Session, nodeId: any)
+	local node = type(nodeId) == "string" and Config.TreeById[nodeId]
+	if not node then
 		return false, "Mejora desconocida"
 	end
 	local data = session.data
-	local level = data.upgrades[upgrade.id] or 0
-	if level >= upgrade.max then
-		return false, "Ya está al máximo"
+	if data.tree[node.id] then
+		return false, "Ya la tienes"
 	end
-	local cost = Config.metaCost(upgrade.id, level)
-	if data.gold < cost then
-		return false, "Te faltan 🪙" .. Config.formatNumber(cost - data.gold)
+	if not Config.nodeAvailable(data.tree, node) then
+		return false, "🔒 Compra antes " .. Config.TreeById[node.parent].name
 	end
-	data.gold -= cost
-	data.upgrades[upgrade.id] = level + 1
+	if data.gold < node.cost then
+		return false, "Te faltan " .. Config.money(node.cost - data.gold)
+	end
+	data.gold -= node.cost
+	data.tree[node.id] = true
 	data.stats.upgrades += 1
 	applyStats(player, session)
-	return true, upgrade.emoji .. " " .. upgrade.name .. " nivel " .. (level + 1), { forge = true }
+	return true, "⭐ " .. node.name .. ": " .. Config.nodeEffect(node), { forge = true }
+end
+
+-- Cofre de armas: desbloquea un arma nueva al azar (probabilidades a la vista)
+function Actions.buyWeaponChest(_player: Player, session: Session)
+	local data = session.data
+	local unlocked = unlockedWeapons(data)
+	local odds = Config.weaponChestOdds(unlocked)
+	if #odds == 0 then
+		return false, "¡Ya tienes todas las armas!"
+	end
+	local price = Config.weaponChestPrice(chestUnlockedCount(data))
+	if data.gold < price then
+		return false, "Te faltan " .. Config.money(price - data.gold)
+	end
+	data.gold -= price
+	data.stats.chests += 1
+	local roll = random:NextNumber()
+	local weaponId = odds[#odds].id
+	for _, entry in odds do
+		roll -= entry.chance
+		if roll <= 0 then
+			weaponId = entry.id
+			break
+		end
+	end
+	data.weapons[weaponId] = true
+	local weapon = Config.Weapons[weaponId]
+	return true, weapon.emoji .. " ¡Nueva arma: " .. weapon.name .. "!", { weapon = weaponId }
 end
 
 function Actions.buyClass(player: Player, session: Session, classId: any)
@@ -638,7 +717,7 @@ function Actions.buyClass(player: Player, session: Session, classId: any)
 		return true, class.emoji .. " Clase elegida: " .. class.name
 	end
 	if data.gold < class.price then
-		return false, "Te faltan 🪙" .. Config.formatNumber(class.price - data.gold)
+		return false, "Te faltan " .. Config.money(class.price - data.gold)
 	end
 	data.gold -= class.price
 	data.classes[class.id] = true
@@ -673,7 +752,7 @@ function Actions.sell(_player: Player, session: Session, itemId: any)
 	local price = Config.sellPrice(item)
 	table.remove(data.inventory, index)
 	addGold(data, price)
-	return true, "💰 Vendido por 🪙" .. Config.formatNumber(price), { gold = true }
+	return true, "💰 Vendido por " .. Config.money(price), { gold = true }
 end
 
 -- Vende todo lo no equipado de rareza igual o menor que maxRarity (1 = Común)
@@ -695,7 +774,7 @@ function Actions.sellJunk(_player: Player, session: Session, maxRarity: any)
 		return false, "No hay nada que vender de esa rareza"
 	end
 	addGold(data, total)
-	return true, "💰 " .. count .. " objetos vendidos por 🪙" .. Config.formatNumber(total), { gold = true }
+	return true, "💰 " .. count .. " objetos vendidos por " .. Config.money(total), { gold = true }
 end
 
 function Actions.upgrade(player: Player, session: Session, itemId: any)
@@ -709,7 +788,7 @@ function Actions.upgrade(player: Player, session: Session, itemId: any)
 	end
 	local cost = Config.upgradeCost(item)
 	if data.gold < cost then
-		return false, "Te faltan 🪙" .. Config.formatNumber(cost - data.gold)
+		return false, "Te faltan " .. Config.money(cost - data.gold)
 	end
 	data.gold -= cost
 	item.up += 1
@@ -734,7 +813,7 @@ function Actions.buyChest(player: Player, session: Session, mapIndex: any)
 	end
 	local price = Config.chestPrice(map.index)
 	if data.gold < price then
-		return false, "Te faltan 🪙" .. Config.formatNumber(price - data.gold)
+		return false, "Te faltan " .. Config.money(price - data.gold)
 	end
 	if #data.inventory >= capacity(session) then
 		return false, "🎒 Mochila llena: vende algo primero"
@@ -755,11 +834,11 @@ function Actions.claimDaily(_player: Player, session: Session)
 	addGold(data, gold)
 	data.daily.lastDay = os.time() // 86400
 	data.daily.streak = day
-	local text = "🎁 Día " .. day .. ": +🪙" .. Config.formatNumber(gold)
+	local text = "🎁 Día " .. day .. ": +" .. Config.money(gold)
 	if day == #Config.DAILY_MINUTES then
 		data.boostUntil = math.max(data.boostUntil, os.time()) + Config.DAILY_BOOST_MINUTES * 60
 		refreshBoost(session)
-		text ..= " y 🚀 boost x2 de " .. Config.DAILY_BOOST_MINUTES .. " min"
+		text ..= " y 🚀 boost x2 de Coronas de " .. Config.DAILY_BOOST_MINUTES .. " min"
 	end
 	return true, text, { gold = true }
 end
@@ -770,7 +849,7 @@ function Actions.finishTutorial(_player: Player, session: Session)
 	end
 	session.data.tutorialDone = true
 	addGold(session.data, Config.TUTORIAL_REWARD)
-	return true, "🎓 ¡Tutorial completado! +🪙" .. Config.TUTORIAL_REWARD, { gold = true }
+	return true, "🎓 ¡Tutorial completado! +" .. Config.money(Config.TUTORIAL_REWARD), { gold = true }
 end
 
 function Actions.setMuted(_player: Player, session: Session, muted: any)
@@ -837,18 +916,18 @@ local function grantProduct(player: Player, session: Session, product)
 	if product.kind == "gold" then
 		local amount = Config.goldPerMinute(data.unlockedMap) * product.minutes
 		addGold(data, amount)
-		notify(player, product.emoji .. " ¡" .. product.name .. "! +🪙" .. Config.formatNumber(amount), "loot")
+		notify(player, product.emoji .. " ¡" .. product.name .. "! +" .. Config.money(amount), "loot")
 	elseif product.kind == "boost" then
 		data.boostUntil = math.max(data.boostUntil, os.time()) + product.minutes * 60
 		refreshBoost(session)
-		notify(player, "🚀 ¡Boost x2 de oro durante " .. product.minutes .. " minutos!", "loot")
+		notify(player, "🚀 ¡Boost x2 de Coronas durante " .. product.minutes .. " minutos!", "loot")
 	elseif product.kind == "revive" then
 		if RunManager.revive(player) then
 			notify(player, "💖 ¡De vuelta a la partida!", "success")
 		else
 			local amount = Config.goldPerMinute(data.unlockedMap) * 10
 			addGold(data, amount)
-			notify(player, "💖 No había nada que revivir: te damos +🪙" .. Config.formatNumber(amount), "loot")
+			notify(player, "💖 No había nada que revivir: te damos +" .. Config.money(amount), "loot")
 		end
 	end
 	session.dirty = true
@@ -902,7 +981,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 end)
 
 ---------------------------------------------------------------------
--- Amigos en el servidor (+10 % de oro por cada uno)
+-- Amigos en el servidor (+10 % de Coronas por cada uno)
 ---------------------------------------------------------------------
 local function updateFriendBonus(session: Session)
 	local count = 0
@@ -931,7 +1010,7 @@ local function registerFriends(player: Player, session: Session)
 		if ok and isFriend and otherSession and sessions[player] then
 			session.friendIds[other.UserId] = true
 			otherSession.friendIds[player.UserId] = true
-			notify(other, "👫 ¡" .. player.DisplayName .. " ha entrado! +10 % de oro por jugar con amigos", "success")
+			notify(other, "👫 ¡" .. player.DisplayName .. " ha entrado! +10 % de Coronas por jugar con amigos", "success")
 		end
 	end
 	for _, s in sessions do
@@ -1068,6 +1147,11 @@ local function onPlayerAdded(player: Player)
 			data.equipped[slot] = nil
 		end
 	end
+	for mapId, wins in data.mapWins do
+		if type(wins) == "number" then
+			data.mapWins[mapId] = { normal = wins }
+		end
+	end
 	if not data.classes[data.selectedClass] or not Config.ClassById[data.selectedClass] then
 		data.selectedClass = "guerrero"
 	end
@@ -1076,7 +1160,7 @@ local function onPlayerAdded(player: Player)
 		data = data,
 		canSave = canSave,
 		bonuses = bonuses,
-		stats = Config.baseStats(data.selectedClass, data.upgrades, equippedItems(data)),
+		stats = Config.baseStats(data.selectedClass, data.tree, equippedItems(data)),
 		dirty = true,
 		lastStateAt = 0,
 		actionWindowStart = 0,
@@ -1181,6 +1265,10 @@ RunManager.init({
 	baseStats = function(player: Player)
 		local session = sessions[player]
 		return if session then session.stats else Config.baseStats("guerrero", {}, {})
+	end,
+	unlockedWeapons = function(player: Player): { [string]: boolean }
+		local session = sessions[player]
+		return if session then unlockedWeapons(session.data) else table.clone(Config.STARTER_WEAPONS)
 	end,
 	classWeapon = function(player: Player): string
 		local session = sessions[player]

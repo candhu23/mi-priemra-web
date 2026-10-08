@@ -134,6 +134,15 @@ ax.set_facecolor((0.62, 0.78, 0.92))
 ax.set_title("Lobby en perspectiva (mirando al norte)")
 plt.tight_layout(); plt.savefig(out + "_ciudad_perspectiva.png", dpi=70); plt.close()
 
+# Castillo del lobby (al norte, sobre el lago) visto desde la orilla
+fig, ax = plt.subplots(figsize=(14, 9), facecolor=(0.62, 0.78, 0.92))
+castle = [p for p in lobby if abs(p["p"][0]) < 90 and -300 < p["p"][2] < -120]
+draw(ax, castle, oblique, oblique_depth)
+ax.set_xlim(-80, 80); ax.set_ylim(40, 150); ax.axis("off")
+ax.set_facecolor((0.62, 0.78, 0.92))
+ax.set_title("Castillo y puente (mirando al norte)")
+plt.tight_layout(); plt.savefig(out + "_castillo.png", dpi=70); plt.close()
+
 # Arenas de partida (una por mapa)
 fig, axes = plt.subplots(1, 3, figsize=(21, 7.4))
 for ax, z in zip(axes, ("bosque", "cueva", "castillo")):

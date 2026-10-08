@@ -5,8 +5,12 @@
 	  · la horda: recibe del servidor posiciones compactas 10 veces por
 	    segundo y mueve los modelos suavemente (interpolando) cada fotograma
 	  · cristales de XP, corazones y cofres
-	  · efectos de las armas (tajos, proyectiles, dagas, rayos), aura y
-	    orbes alrededor de cada jugador, avisos del jefe y el portal
+	  · efectos de las armas: espada que gira con estela, bolas mágicas con
+	    cola, dagas y hachas que vuelan girando, bombas en parábola que
+	    explotan, rayos en zigzag, ondas del martillo, aura con chispas y
+	    orbes con estela; avisos del jefe y el portal
+	  · enemigos con sombra, que salen del suelo, parpadean en blanco al
+	    recibir un golpe y estallan en trocitos al morir
 	  · números de daño (calculados por la bajada de vida de cada enemigo)
 	Solo dibuja: todo lo importante lo decide el servidor.
 ]]
@@ -39,6 +43,11 @@ type View = {
 	yaw: number,
 	hp: number,
 	phase: number,
+	shadow: BasePart,
+	shadowSize: number,
+	colors: { Color3 },
+	bornAt: number,
+	flashUntil: number,
 }
 
 local player = Players.LocalPlayer
@@ -59,6 +68,16 @@ local orbParts: { [number]: { BasePart } } = {}
 local portalModel: Model? = nil
 local warnings: { BasePart } = {}
 local playSound: (string) -> () = function() end
+local flashesThisSnapshot = 0
+local spawnPuffsThisSnapshot = 0
+
+-- Animaciones cortas que se actualizan cada fotograma (alpha de 0 a 1)
+type Anim = { startAt: number, duration: number, step: (number) -> (), done: (() -> ())? }
+local anims: { Anim } = {}
+local function animate(duration: number, step: (number) -> (), done: (() -> ())?)
+	table.insert(anims, { startAt = os.clock(), duration = duration, step = step, done = done })
+	step(0)
+end
 
 local ENEMY_HEIGHT_OFFSET = 0
 
@@ -160,6 +179,25 @@ local function acquire(typeIndex: number, elite: boolean, boss: boolean): View
 			table.insert(offsets, d.CFrame)
 		end
 	end
+	-- Sombra redonda bajo el enemigo (no se balancea con él)
+	local shadowSize = math.max(2.4, def.size * (if elite then 1.7 else 1) * 3.2)
+	local shadow = Instance.new("Part")
+	shadow.Name = "Sombra"
+	shadow.Anchored = true
+	shadow.CanCollide = false
+	shadow.CanTouch = false
+	shadow.CanQuery = false
+	shadow.CastShadow = false
+	shadow.Shape = Enum.PartType.Cylinder
+	shadow.Size = Vector3.new(0.1, shadowSize, shadowSize)
+	shadow.Color = Color3.new(0, 0, 0)
+	shadow.Material = Enum.Material.SmoothPlastic
+	shadow.Transparency = 0.6
+	shadow.Parent = model
+	local colors: { Color3 } = {}
+	for _, part in parts do
+		table.insert(colors, part.Color)
+	end
 	local bar: Frame? = nil
 	if elite or boss then
 		local gui = Instance.new("BillboardGui")
@@ -199,10 +237,40 @@ local function acquire(typeIndex: number, elite: boolean, boss: boolean): View
 		yaw = 0,
 		hp = 255,
 		phase = random:NextNumber(0, 10),
+		shadow = shadow,
+		shadowSize = shadowSize,
+		colors = colors,
+		bornAt = 0,
+		flashUntil = 0,
 	}
 end
 
+-- Parpadeo blanco al recibir un golpe
+local WHITE = Color3.new(1, 1, 1)
+local function flash(view: View, now: number)
+	if view.flashUntil > now or flashesThisSnapshot > 40 then
+		return
+	end
+	flashesThisSnapshot += 1
+	view.flashUntil = now + 0.09
+	for _, part in view.parts do
+		if part.Transparency < 1 then
+			part.Color = WHITE
+		end
+	end
+end
+
+local function unflash(view: View)
+	for i, part in view.parts do
+		part.Color = view.colors[i]
+	end
+end
+
 local function release(view: View)
+	if view.flashUntil > 0 then
+		unflash(view)
+		view.flashUntil = 0
+	end
 	view.model.Parent = nil
 	local list = pool[view.key]
 	if not list then
@@ -223,13 +291,35 @@ local function deathPuff(x: number, z: number, typeIndex: number)
 	deathPuffsThisFrame += 1
 	local def = Config.Enemies[Config.EnemyList[typeIndex]]
 	local color = if def then def.color else Color3.new(1, 1, 1)
-	local pos = world(x, z, 1.5)
-	for _ = 1, 3 do
-		local cube = effectPart(Enum.PartType.Block, Vector3.new(0.7, 0.7, 0.7), CFrame.new(pos), color, 0.1)
+	local size = if def then def.size else 1
+	local pos = world(x, z, 1.5 * size)
+	-- Destello blanco + trocitos del color del enemigo que saltan y caen
+	fadeOut(effectPart(Enum.PartType.Ball, Vector3.new(1, 1, 1) * 1.5 * size, CFrame.new(pos), Color3.fromRGB(255, 250, 230), 0.2), 0.25, { Size = Vector3.new(1, 1, 1) * 4 * size })
+	for _ = 1, 5 do
+		local cube = effectPart(Enum.PartType.Block, Vector3.new(0.6, 0.6, 0.6) * size, CFrame.new(pos) * CFrame.Angles(random:NextNumber(0, 6), random:NextNumber(0, 6), 0), color, 0)
 		cube.Material = Enum.Material.SmoothPlastic
-		local offset = Vector3.new(random:NextNumber(-3, 3), random:NextNumber(1, 3), random:NextNumber(-3, 3))
-		fadeOut(cube, 0.45, { CFrame = CFrame.new(pos + offset), Size = Vector3.new(0.2, 0.2, 0.2) })
+		local vx, vz = random:NextNumber(-7, 7), random:NextNumber(-7, 7)
+		local vy = random:NextNumber(6, 11)
+		local spin = random:NextNumber(4, 10)
+		animate(0.55, function(a)
+			local t = a * 0.55
+			cube.CFrame = CFrame.new(pos + Vector3.new(vx * t, vy * t - 30 * t * t, vz * t)) * CFrame.Angles(spin * t, spin * t * 0.7, 0)
+			cube.Transparency = math.max(0, a - 0.5) * 2
+		end, function()
+			cube:Destroy()
+		end)
 	end
+end
+
+-- Polvo al salir del suelo
+local function spawnPuff(x: number, z: number)
+	if spawnPuffsThisSnapshot > 6 then
+		return
+	end
+	spawnPuffsThisSnapshot += 1
+	local ring = disc(world(x, z, 0.15), 1.5, Color3.fromRGB(120, 100, 80), 0.4)
+	ring.Material = Enum.Material.SmoothPlastic
+	fadeOut(ring, 0.4, { Size = Vector3.new(0.1, 5, 5) })
 end
 
 ---------------------------------------------------------------------
@@ -284,41 +374,222 @@ end
 ---------------------------------------------------------------------
 local FX: { [string]: (...any) -> () } = {}
 
-function FX.slash(_userId: number, x: number, z: number, angle: number, radius: number, full: boolean)
-	local look = Vector3.new(-math.sin(angle), 0, -math.cos(angle))
-	local center = world(x, z, 0.6)
-	if full then
-		fadeOut(disc(center, radius * 2, Color3.fromRGB(226, 232, 240), 0.55), 0.22)
-	else
-		fadeOut(disc(center + look * radius * 0.5, radius * 1.2, Color3.fromRGB(226, 232, 240), 0.5), 0.2)
+-- Estela: una parte con Trail (dos puntos) que deja una cola al moverse
+local function addTrail(part: BasePart, color: Color3, width: number, lifetime: number)
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, width / 2, 0)
+	a0.Parent = part
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -width / 2, 0)
+	a1.Parent = part
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new(0.2, 1)
+	trail.Lifetime = lifetime
+	trail.LightEmission = 0.8
+	trail.FaceCamera = true
+	trail.Parent = part
+end
+
+-- Chispas pequeñas al impactar
+local function sparks(position: Vector3, color: Color3, count: number, spread: number)
+	for _ = 1, count do
+		local spark = effectPart(Enum.PartType.Block, Vector3.new(0.25, 0.25, 0.25), CFrame.new(position), color, 0)
+		local offset = Vector3.new(random:NextNumber(-1, 1), random:NextNumber(0.2, 1), random:NextNumber(-1, 1)) * spread
+		fadeOut(spark, 0.25, { CFrame = CFrame.new(position + offset), Size = Vector3.new(0.05, 0.05, 0.05) })
 	end
 end
 
+local STEEL = Color3.fromRGB(226, 232, 240)
+local GOLDEN = Color3.fromRGB(251, 191, 36)
+
+-- Espada: gira alrededor del jugador (o barre por delante) dejando estela
+function FX.slash(userId: number, x: number, z: number, angle: number, radius: number, full: boolean, _hit: boolean?, level: number?)
+	local evolved = (level or 1) > Config.MAX_ITEM_LEVEL
+	local bladeColor = if evolved then GOLDEN else STEEL
+	local length = math.max(3, radius * 0.85)
+	local blade = effectPart(Enum.PartType.Block, Vector3.new(0.5, 0.18, length), CFrame.new(), bladeColor, 0)
+	blade.Material = if evolved then Enum.Material.Neon else Enum.Material.Metal
+	blade.Reflectance = 0.2
+	local guard = effectPart(Enum.PartType.Block, Vector3.new(1.6, 0.3, 0.3), CFrame.new(), GOLDEN, 0)
+	guard.Material = Enum.Material.Metal
+	addTrail(blade, if evolved then GOLDEN else Color3.fromRGB(186, 230, 253), 0.4, 0.12)
+	local startAngle = angle + (if full then 0 else math.rad(70))
+	local sweep = if full then -math.pi * 2 else -math.rad(140)
+	local duration = if full then 0.28 else 0.18
+	animate(duration, function(a)
+		local root = rootOf(userId)
+		local center = if root then root.Position - Vector3.new(0, 1.2, 0) else world(x, z, 1.4)
+		local yaw = startAngle + sweep * a
+		local dir = Vector3.new(-math.sin(yaw), 0, -math.cos(yaw))
+		local frame = CFrame.lookAt(center, center + dir)
+		blade.CFrame = frame * CFrame.new(0, 0, -(1.6 + length / 2))
+		guard.CFrame = frame * CFrame.new(0, 0, -1.4)
+		blade.Transparency = math.max(0, a - 0.7) / 0.3
+		guard.Transparency = blade.Transparency
+	end, function()
+		blade:Destroy()
+		guard:Destroy()
+	end)
+end
+
+-- Varita: bola mágica con cola y chispas al dar
 function FX.bolt(x1: number, z1: number, x2: number, z2: number, evolved: boolean)
 	local from, to = world(x1, z1, 2.5), world(x2, z2, 2)
-	local ball = effectPart(Enum.PartType.Ball, Vector3.new(1, 1, 1) * (if evolved then 1.6 else 1), CFrame.new(from), Color3.fromRGB(167, 139, 250), 0)
-	TweenService:Create(ball, TweenInfo.new(0.14, Enum.EasingStyle.Linear), { CFrame = CFrame.new(to) }):Play()
-	task.delay(0.15, function()
+	local color = if evolved then Color3.fromRGB(244, 114, 182) else Color3.fromRGB(167, 139, 250)
+	local ball = effectPart(Enum.PartType.Ball, Vector3.new(1, 1, 1) * (if evolved then 1.6 else 1.1), CFrame.new(from), color, 0)
+	addTrail(ball, color, 0.8, 0.18)
+	animate(0.15, function(a)
+		ball.CFrame = CFrame.new(from:Lerp(to, a) + Vector3.new(0, math.sin(a * math.pi) * 1.2, 0))
+	end, function()
+		sparks(to, color, 4, 2.5)
 		fadeOut(ball, 0.1, { Size = Vector3.new(2.5, 2.5, 2.5) })
 	end)
 end
 
-function FX.dagger(x: number, z: number, dx: number, dz: number, length: number)
+-- Dagas: vuelan girando y dejan una estela fina
+function FX.dagger(x: number, z: number, dx: number, dz: number, length: number, level: number?)
+	local evolved = (level or 1) > Config.MAX_ITEM_LEVEL
 	local direction = Vector3.new(dx, 0, dz)
 	local from = world(x, z, 2)
 	local to = from + direction * length
-	local blade = effectPart(Enum.PartType.Block, Vector3.new(0.3, 0.3, 2), CFrame.lookAt(from, to), Color3.fromRGB(226, 232, 240), 0)
-	TweenService:Create(blade, TweenInfo.new(0.25, Enum.EasingStyle.Linear), { CFrame = CFrame.lookAt(to, to + direction) }):Play()
-	task.delay(0.26, function()
+	local blade = effectPart(Enum.PartType.Block, Vector3.new(0.2, 0.5, 1.8), CFrame.lookAt(from, to), if evolved then GOLDEN else STEEL, 0)
+	blade.Material = Enum.Material.Metal
+	local hilt = effectPart(Enum.PartType.Block, Vector3.new(0.3, 0.3, 0.6), CFrame.new(), Color3.fromRGB(185, 28, 28), 0)
+	addTrail(blade, Color3.fromRGB(226, 232, 240), 0.25, 0.1)
+	animate(0.25, function(a)
+		local cf = CFrame.lookAt(from:Lerp(to, a), to + direction) * CFrame.Angles(0, 0, a * 12)
+		blade.CFrame = cf
+		hilt.CFrame = cf * CFrame.new(0, 0, 1.1)
+	end, function()
 		blade:Destroy()
+		hilt:Destroy()
 	end)
 end
 
-function FX.lightning(x: number, z: number, aoe: number)
+-- Rayo: zigzag desde el cielo, destello en el suelo y chispas
+function FX.lightning(x: number, z: number, aoe: number, level: number?)
+	local evolved = (level or 1) > Config.MAX_ITEM_LEVEL
+	local color = if evolved then Color3.fromRGB(196, 181, 253) else Color3.fromRGB(186, 230, 253)
 	local ground = world(x, z, 0)
-	local beam = effectPart(Enum.PartType.Block, Vector3.new(0.7, 30, 0.7), CFrame.new(ground + Vector3.new(0, 15, 0)), Color3.fromRGB(186, 230, 253), 0.1)
-	fadeOut(beam, 0.25, { Size = Vector3.new(0.1, 30, 0.1) })
-	fadeOut(disc(ground + Vector3.new(0, 0.3, 0), aoe * 2, Color3.fromRGB(125, 211, 252), 0.4), 0.3)
+	local top = ground + Vector3.new(random:NextNumber(-3, 3), 34, random:NextNumber(-3, 3))
+	local prev = top
+	for k = 1, 6 do
+		local t = k / 6
+		local nextPoint = top:Lerp(ground, t) + (if k < 6 then Vector3.new(random:NextNumber(-2.2, 2.2), 0, random:NextNumber(-2.2, 2.2)) else Vector3.new())
+		local length = (nextPoint - prev).Magnitude
+		local segment = effectPart(Enum.PartType.Block, Vector3.new(0.6, 0.6, length), CFrame.lookAt((prev + nextPoint) / 2, nextPoint), color, 0)
+		fadeOut(segment, 0.22, { Size = Vector3.new(0.1, 0.1, length) })
+		prev = nextPoint
+	end
+	fadeOut(disc(ground + Vector3.new(0, 0.3, 0), aoe * 2, Color3.fromRGB(125, 211, 252), 0.35), 0.3)
+	fadeOut(effectPart(Enum.PartType.Ball, Vector3.new(2, 2, 2), CFrame.new(ground + Vector3.new(0, 1, 0)), Color3.new(1, 1, 1), 0.2), 0.2, { Size = Vector3.new(1, 1, 1) * aoe * 1.2 })
+	sparks(ground + Vector3.new(0, 0.8, 0), color, 5, aoe)
+end
+
+-- Hacha: sale girando hacia delante y vuelve al jugador
+function FX.axe(userId: number, dx: number, dz: number, length: number, level: number?)
+	local evolved = (level or 1) > Config.MAX_ITEM_LEVEL
+	local root = rootOf(userId)
+	if not root then
+		return
+	end
+	local start = root.Position - Vector3.new(0, 1, 0)
+	local direction = Vector3.new(dx, 0, dz)
+	local size = if evolved then 1.5 else 1
+	local handle = effectPart(Enum.PartType.Block, Vector3.new(0.3, 0.3, 3) * size, CFrame.new(start), Color3.fromRGB(120, 72, 36), 0)
+	handle.Material = Enum.Material.Wood
+	local head = effectPart(Enum.PartType.Block, Vector3.new(0.25, 1.6, 1.2) * size, CFrame.new(start), if evolved then Color3.fromRGB(239, 68, 68) else STEEL, 0)
+	head.Material = Enum.Material.Metal
+	addTrail(head, if evolved then Color3.fromRGB(252, 165, 165) else Color3.fromRGB(203, 213, 225), 1.2 * size, 0.15)
+	animate(0.9, function(a)
+		local r = rootOf(userId)
+		local home = if r then r.Position - Vector3.new(0, 1, 0) else start
+		local out = math.sin(a * math.pi) * length
+		local pos = home + direction * out
+		local cf = CFrame.new(pos) * CFrame.Angles(0, a * 26, 0)
+		handle.CFrame = cf
+		head.CFrame = cf * CFrame.new(0, 0, -1.3 * size)
+	end, function()
+		handle:Destroy()
+		head:Destroy()
+	end)
+end
+
+-- Bomba: vuela en parábola, mecha encendida y explosión al caer
+function FX.bomb(x1: number, z1: number, x2: number, z2: number, aoe: number, level: number?)
+	local evolved = (level or 1) > Config.MAX_ITEM_LEVEL
+	local from, to = world(x1, z1, 2.5), world(x2, z2, 0.8)
+	local bomb = effectPart(Enum.PartType.Ball, Vector3.new(1.4, 1.4, 1.4) * (if evolved then 1.4 else 1), CFrame.new(from), if evolved then Color3.fromRGB(194, 65, 12) else Color3.fromRGB(38, 38, 48), 0)
+	bomb.Material = if evolved then Enum.Material.Neon else Enum.Material.SmoothPlastic
+	local fuse = effectPart(Enum.PartType.Ball, Vector3.new(0.5, 0.5, 0.5), CFrame.new(from), Color3.fromRGB(253, 224, 71), 0)
+	addTrail(fuse, Color3.fromRGB(251, 146, 60), 0.4, 0.2)
+	local warn = disc(to - Vector3.new(0, 0.5, 0), aoe * 2, Color3.fromRGB(249, 115, 22), 0.75)
+	animate(Config.BOMB_FLIGHT, function(a)
+		local pos = from:Lerp(to, a) + Vector3.new(0, math.sin(a * math.pi) * 9, 0)
+		bomb.CFrame = CFrame.new(pos) * CFrame.Angles(a * 6, 0, a * 4)
+		fuse.CFrame = bomb.CFrame * CFrame.new(0, 0.8, 0)
+	end, function()
+		bomb:Destroy()
+		fuse:Destroy()
+		warn:Destroy()
+		local center = to + Vector3.new(0, 0.5, 0)
+		fadeOut(effectPart(Enum.PartType.Ball, Vector3.new(2, 2, 2), CFrame.new(center), Color3.fromRGB(253, 186, 116), 0.1), 0.35, { Size = Vector3.new(1, 1, 1) * aoe * 2.2 })
+		fadeOut(effectPart(Enum.PartType.Ball, Vector3.new(1, 1, 1), CFrame.new(center), Color3.fromRGB(254, 240, 138), 0), 0.2, { Size = Vector3.new(1, 1, 1) * aoe * 1.2 })
+		local scorch = disc(to - Vector3.new(0, 0.6, 0), aoe * 1.8, Color3.fromRGB(30, 20, 15), 0.4)
+		scorch.Material = Enum.Material.SmoothPlastic
+		fadeOut(scorch, 1.2)
+		sparks(center, Color3.fromRGB(251, 146, 60), 6, aoe)
+		playSound("hit")
+	end)
+end
+
+-- Martillo: onda de tierra con rocas que saltan
+function FX.quake(x: number, z: number, radius: number, level: number?)
+	local evolved = (level or 1) > Config.MAX_ITEM_LEVEL
+	local center = world(x, z, 0.3)
+	local ring = disc(center, 2, if evolved then Color3.fromRGB(251, 191, 36) else Color3.fromRGB(180, 140, 100), 0.3)
+	fadeOut(ring, 0.35, { Size = Vector3.new(0.2, radius * 2, radius * 2) })
+	local rocks = if evolved then 12 else 8
+	for k = 1, rocks do
+		local a = k / rocks * math.pi * 2 + random:NextNumber(-0.2, 0.2)
+		local d = radius * random:NextNumber(0.55, 0.95)
+		local base = center + Vector3.new(math.cos(a) * d, -0.5, math.sin(a) * d)
+		local rock = effectPart(Enum.PartType.Block, Vector3.new(1, 1, 1) * random:NextNumber(0.8, 1.6), CFrame.new(base), Color3.fromRGB(120, 100, 80), 0)
+		rock.Material = Enum.Material.Slate
+		local delay = d / radius * 0.15
+		local total = 0.5 + delay
+		animate(total, function(t)
+			local local_ = math.clamp((t * total - delay) / 0.5, 0, 1)
+			rock.CFrame = CFrame.new(base + Vector3.new(0, math.sin(local_ * math.pi) * 2.2, 0)) * CFrame.Angles(local_ * 3, local_ * 2, 0)
+		end, function()
+			rock:Destroy()
+		end)
+	end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root and (root.Position - center).Magnitude < 6 then
+		playSound("hit")
+	end
+end
+
+-- Oleadas: aro dorado al empezar; al acabar suena el botín
+function FX.wave(_wave: number, _total: number)
+	if not runState then
+		return
+	end
+	for _, mate in runState.team do
+		local root = rootOf(mate.userId)
+		if root then
+			fadeOut(disc(root.Position - Vector3.new(0, 2.8, 0), 3, GOLDEN, 0.3), 0.6, { Size = Vector3.new(0.2, 40, 40) })
+		end
+	end
+end
+
+function FX.wavedone(_wave: number)
+	playSound("coin")
 end
 
 function FX.slamwarn(x: number, z: number, radius: number, warn: number)
@@ -419,8 +690,20 @@ local function updateWeaponsVisuals(now: number)
 					local d = st.radius * areaMult * 2
 					if not aura then
 						aura = disc(base, d, Color3.fromRGB(253, 224, 71), 0.75)
-						aura.Name = "Aura"
-						auraParts[mate.userId] = aura
+						local newAura = aura :: BasePart
+						newAura.Name = "Aura"
+						-- Chispas doradas que suben desde el suelo
+						local emitter = Instance.new("ParticleEmitter")
+						emitter.EmissionDirection = Enum.NormalId.Right -- el disco está girado: su "derecha" mira arriba
+						emitter.Rate = 14
+						emitter.Lifetime = NumberRange.new(0.6, 1.1)
+						emitter.Speed = NumberRange.new(2, 4)
+						emitter.Size = NumberSequence.new(0.35, 0)
+						emitter.Color = ColorSequence.new(Color3.fromRGB(254, 240, 138))
+						emitter.LightEmission = 1
+						emitter.Transparency = NumberSequence.new(0.1, 1)
+						emitter.Parent = newAura
+						auraParts[mate.userId] = newAura
 					end
 					local a = aura :: BasePart
 					a.Size = Vector3.new(0.2, d, d)
@@ -441,8 +724,10 @@ local function updateWeaponsVisuals(now: number)
 						local orb = orbs[k]
 						if not orb then
 							orb = effectPart(Enum.PartType.Ball, Vector3.new(1.6, 1.6, 1.6), CFrame.new(base), Color3.fromRGB(56, 189, 248), 0)
-							orb.Name = "Orbe"
-							orbs[k] = orb
+							local newOrb = orb :: BasePart
+							newOrb.Name = "Orbe"
+							addTrail(newOrb, Color3.fromRGB(125, 211, 252), 1.2, 0.25)
+							orbs[k] = newOrb
 						end
 						local angle = runTime * st.speed + (k - 1) / count * math.pi * 2
 						local r = st.orbit * areaMult
@@ -495,6 +780,12 @@ local function clearAll()
 		part:Destroy()
 	end
 	warnings = {}
+	for _, anim in anims do
+		if anim.done then
+			anim.done()
+		end
+	end
+	anims = {}
 end
 
 -- Estado de la partida (o nil en el lobby)
@@ -518,6 +809,8 @@ function SwarmView.onSnapshot(data: buffer, gemAdds: { number }, gemRemoves: { n
 	local now = os.clock()
 	snapshotInterval = math.clamp(now - snapshotAt, 0.05, 0.3)
 	snapshotAt = now
+	flashesThisSnapshot = 0
+	spawnPuffsThisSnapshot = 0
 	local count = buffer.readu16(data, 0)
 	local seen: { [number]: boolean } = {}
 	local offset = 2
@@ -543,7 +836,9 @@ function SwarmView.onSnapshot(data: buffer, gemAdds: { number }, gemRemoves: { n
 			newView.id = id
 			newView.prevX, newView.prevZ, newView.x, newView.z = x, z, x, z
 			newView.hp = hp
+			newView.bornAt = now
 			views[id] = newView
+			spawnPuff(x, z)
 		else
 			local v = view :: View
 			v.prevX, v.prevZ = v.x, v.z
@@ -557,9 +852,10 @@ function SwarmView.onSnapshot(data: buffer, gemAdds: { number }, gemRemoves: { n
 				local key = typeIndex * 2 + (if elite then 1 else 0)
 				local maxHp = (scaleHp :: any)[key]
 				if not maxHp then
-					maxHp = Config.enemyStats(def, runState.mapIndex, runState.time, #runState.team, elite).hp
+					maxHp = Config.enemyStats(def, runState.mapIndex, math.max(1, runState.wave or 1), #runState.team, elite, runState.difficulty).hp
 					;(scaleHp :: any)[key] = maxHp
 				end
+				flash(v, now)
 				local amount = (v.hp - hp) / 255 * maxHp
 				if amount >= 1 then
 					floatingText(world(x, z, v.height + 0.5), Config.formatNumber(amount), Color3.fromRGB(255, 255, 255), 18, 0.6)
@@ -599,6 +895,22 @@ function SwarmView.update(dt: number)
 	if not runState then
 		return
 	end
+	-- Animaciones de efectos
+	if #anims > 0 then
+		local keep = {}
+		for _, anim in anims do
+			local a = (now - anim.startAt) / anim.duration
+			anim.step(math.min(1, a))
+			if a >= 1 then
+				if anim.done then
+					anim.done()
+				end
+			else
+				table.insert(keep, anim)
+			end
+		end
+		anims = keep
+	end
 	local alpha = math.clamp((now - snapshotAt) / snapshotInterval, 0, 1)
 	local parts: { BasePart } = {}
 	local cframes: { CFrame } = {}
@@ -614,10 +926,19 @@ function SwarmView.update(dt: number)
 		view.phase += dt
 		local model = Config.Enemies[Config.EnemyList[view.typeIndex]].model
 		local bob = if model == "flyer" then math.sin(view.phase * 3) * 0.5 elseif model == "slime" then math.abs(math.sin(view.phase * 6)) * 0.6 else 0
-		local rootCFrame = CFrame.new(origin + Vector3.new(x, ENEMY_HEIGHT_OFFSET + bob, z)) * CFrame.Angles(0, view.yaw, 0)
+		-- Al aparecer salen del suelo
+		local rise = math.clamp((now - view.bornAt) / 0.35, 0, 1)
+		local sink = (1 - rise) * view.height
+		local rootCFrame = CFrame.new(origin + Vector3.new(x, ENEMY_HEIGHT_OFFSET + bob - sink, z)) * CFrame.Angles(0, view.yaw, 0)
 		for i, part in view.parts do
 			table.insert(parts, part)
 			table.insert(cframes, rootCFrame * view.offsets[i])
+		end
+		table.insert(parts, view.shadow)
+		table.insert(cframes, CFrame.new(origin + Vector3.new(x, 0.06, z)) * CFrame.Angles(0, 0, math.rad(90)))
+		if view.flashUntil > 0 and now >= view.flashUntil then
+			view.flashUntil = 0
+			unflash(view)
 		end
 	end
 	if #parts > 0 then

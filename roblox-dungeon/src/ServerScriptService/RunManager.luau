@@ -7,11 +7,12 @@
 	    Persiguen al jugador más cercano, se empujan entre ellos y golpean
 	    al tocarte
 	  · armas automáticas de cada jugador (tajo, proyectiles, dagas, aura,
-	    orbes, rayos) y mejoras al subir de nivel (1 de 3, o 4 con el pase)
+	    orbes, hachas, bombas, rayos, martillo) y mejoras al subir de nivel
+	    (1 de 3, o 4 con el pase). Solo salen las armas desbloqueadas
 	  · cristales de XP compartidos por el equipo, corazones y cofres
 	  · tras vencer al jefe aparece un portal: hay que escapar a tiempo
-	Al acabar, cada jugador recibe su oro (completo si escapa, la mitad si
-	cae o abandona) a través de deps.onFinish.
+	Al acabar, cada jugador recibe sus Coronas (completas si escapa, la mitad
+	si cae o abandona) a través de deps.onFinish.
 ]]
 
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("GameConfig"))
@@ -80,6 +81,7 @@ type Member = {
 	offer: { Offer }?,
 	offerAt: number,
 	rerolls: number,
+	unlocked: { [string]: boolean },
 	lives: number,
 	invulnerableUntil: number,
 	dashReadyAt: number,
@@ -98,6 +100,7 @@ type Run = {
 	slot: number,
 	mapIndex: number,
 	map: any,
+	difficulty: number,
 	origin: Vector3,
 	members: { Member },
 	byPlayer: { [Player]: Member },
@@ -110,11 +113,17 @@ type Run = {
 	gemAdds: { number },
 	gemRemoves: { number },
 	fx: { any },
+	delayed: { { at: number, x: number, z: number, aoe: number, damage: number, member: Member } },
 	level: number,
 	xp: number,
 	kills: number,
 	spawnAcc: number,
-	elitesDone: { [number]: boolean },
+	wave: number,
+	wavePhase: string, -- "break" (descanso) o "fight"
+	waveStart: number,
+	waveSize: number,
+	waveToSpawn: number,
+	breakEnd: number,
 	boss: Enemy?,
 	bossSpawned: boolean,
 	bossDead: boolean,
@@ -130,6 +139,7 @@ type Deps = {
 	arenaMapOf: (slot: number) -> number?,
 	baseStats: (Player) -> Config.Stats,
 	classWeapon: (Player) -> string,
+	unlockedWeapons: (Player) -> { [string]: boolean },
 	bonuses: (Player) -> any,
 	teleport: (Player, CFrame) -> (),
 	onFinish: (Player, any) -> (),
@@ -204,7 +214,7 @@ end
 ---------------------------------------------------------------------
 local function spawnEnemy(run: Run, enemyId: string, x: number, z: number, elite: boolean?): Enemy
 	local def = Config.Enemies[enemyId]
-	local stats = Config.enemyStats(enemyId, run.mapIndex, run.time, #run.members, elite)
+	local stats = Config.enemyStats(enemyId, run.mapIndex, math.max(1, run.wave), #run.members, elite, run.difficulty)
 	run.nextEnemyId = run.nextEnemyId % 65535 + 1
 	local enemy: Enemy = {
 		id = run.nextEnemyId,
@@ -272,13 +282,13 @@ end
 local function pickEnemyType(run: Run): string
 	local total = 0
 	for _, entry in run.map.timeline do
-		if run.time >= entry.from then
+		if run.wave >= entry.wave then
 			total += entry.weight
 		end
 	end
 	local roll = random:NextNumber() * total
 	for _, entry in run.map.timeline do
-		if run.time >= entry.from then
+		if run.wave >= entry.wave then
 			roll -= entry.weight
 			if roll <= 0 then
 				return entry.enemy
@@ -370,6 +380,120 @@ local function damageEnemy(run: Run, enemy: Enemy, amount: number, member: Membe
 end
 
 ---------------------------------------------------------------------
+-- Oleadas
+---------------------------------------------------------------------
+-- Una manada: varios enemigos que llegan juntos desde la misma dirección
+local function spawnPack(run: Run, players: { Member }, count: number)
+	local x, z = spawnPoint(run, players, nil)
+	local enemyId = pickEnemyType(run)
+	for k = 1, count do
+		local angle = random:NextNumber(0, math.pi * 2)
+		local d = random:NextNumber(0, 2 + count * 0.7)
+		local px, pz = clampToArena(run, x + math.cos(angle) * d, z + math.sin(angle) * d, 3)
+		-- Algunas manadas mezclan tipos
+		spawnEnemy(run, if k % 3 == 0 then pickEnemyType(run) else enemyId, px, pz, false)
+	end
+end
+
+local function startWave(run: Run, players: { Member })
+	run.wave += 1
+	run.wavePhase = "fight"
+	run.waveStart = run.time
+	local isBossWave = run.wave >= run.map.waves
+	run.waveSize = math.floor(Config.waveSize(run.wave, #run.members, run.difficulty) * (if isBossWave then 0.5 else 1))
+	run.waveToSpawn = run.waveSize
+	run.spawnAcc = math.min(10, 4 + math.floor(run.wave / 2)) -- la primera manada llega al momento
+	for _, elite in run.map.elites do
+		if elite.wave == run.wave then
+			local x, z = spawnPoint(run, players, nil)
+			spawnEnemy(run, elite.enemy, x, z, true)
+		end
+	end
+	if isBossWave and not run.bossSpawned then
+		run.bossSpawned = true
+		local x, z = spawnPoint(run, players, 38)
+		run.boss = spawnEnemy(run, run.map.boss, x, z, false)
+		for _, member in players do
+			deps.notify(member.player, "👑 ¡" .. Config.Enemies[run.map.boss].name .. " ha llegado!", "boss")
+		end
+	end
+	addFx(run, "wave", run.wave, run.map.waves)
+	for _, member in run.members do
+		if not member.finished then
+			deps.markDirty(member.player)
+		end
+	end
+end
+
+-- Oleada superada: descanso y todos los cristales vuelan hacia el equipo
+local function finishWave(run: Run, players: { Member })
+	run.wavePhase = "break"
+	run.breakEnd = run.time + Config.WAVE_BREAK
+	for id, gem in run.gems do
+		if gem.kind == 1 then
+			-- Al jugador más cercano (solo para el dibujo: la XP es del equipo)
+			local best, collector = math.huge, players[1]
+			for _, member in players do
+				local d = (member.x - gem.x) ^ 2 + (member.z - gem.z) ^ 2
+				if d < best then
+					best, collector = d, member
+				end
+			end
+			run.xp += gem.value
+			run.gems[id] = nil
+			run.gemCount -= 1
+			table.insert(run.gemRemoves, id)
+			table.insert(run.gemRemoves, collector.userId)
+		end
+	end
+	addFx(run, "wavedone", run.wave)
+	for _, member in run.members do
+		if not member.finished then
+			deps.markDirty(member.player)
+		end
+	end
+end
+
+local function updateWaves(run: Run, players: { Member }, dt: number)
+	local cap = Config.maxAlive(math.max(1, run.wave), #run.members, run.difficulty)
+	if run.bossDead then
+		-- Huida: siguen llegando manadas mientras corres al portal
+		run.spawnAcc += Config.waveSize(run.wave, #run.members, run.difficulty) / Config.WAVE_SPAWN_TIME * dt
+		if run.spawnAcc >= 6 and #run.enemies < cap then
+			run.spawnAcc -= 6
+			spawnPack(run, players, 6)
+		end
+		return
+	end
+	if run.wavePhase == "break" then
+		if run.time >= run.breakEnd then
+			startWave(run, players)
+		end
+		return
+	end
+	-- Las manadas de la oleada llegan durante WAVE_SPAWN_TIME segundos
+	local packSize = math.min(10, 4 + math.floor(run.wave / 2))
+	run.spawnAcc += run.waveSize / Config.WAVE_SPAWN_TIME * dt
+	while run.waveToSpawn > 0 and run.spawnAcc >= math.min(packSize, run.waveToSpawn) and #run.enemies < cap do
+		local count = math.min(packSize, run.waveToSpawn)
+		run.spawnAcc -= count
+		run.waveToSpawn -= count
+		spawnPack(run, players, count)
+	end
+	-- ¿Superada? (no en la oleada del jefe: esa se acaba al vencerlo).
+	-- Si se alarga demasiado, la siguiente empieza igualmente (los que
+	-- quedaban por salir ya no salen)
+	if run.wave < run.map.waves then
+		local overtime = run.time - run.waveStart > Config.WAVE_SPAWN_TIME + Config.WAVE_OVERTIME
+		local cleared = run.waveToSpawn == 0 and #run.enemies <= math.max(3, run.waveSize * Config.WAVE_CLEAR_LEFT)
+		if cleared or overtime then
+			run.waveToSpawn = 0
+			finishWave(run, players)
+		end
+	end
+end
+
+---------------------------------------------------------------------
 -- Daño al jugador
 ---------------------------------------------------------------------
 local function hurt(run: Run, member: Member, amount: number)
@@ -411,7 +535,7 @@ local function buildOffer(member: Member): { Offer }
 	end
 	if countWeapons(member) < Config.MAX_WEAPONS then
 		for _, weaponId in Config.WeaponOrder do
-			if not member.weapons[weaponId] then
+			if not member.weapons[weaponId] and member.unlocked[weaponId] then
 				table.insert(pool, { offer = { kind = "weapon", id = weaponId, level = 1 }, weight = 2 })
 			end
 		end
@@ -541,7 +665,7 @@ local function fireWeapon(run: Run, member: Member, weaponId: string, level: num
 			end
 		end
 		member.cooldowns[weaponId] = now + cooldown
-		addFx(run, "slash", member.userId, member.x - ox, member.z - oz, math.atan2(-member.lookX, -member.lookZ), radius, st.full, hit)
+		addFx(run, "slash", member.userId, member.x - ox, member.z - oz, math.atan2(-member.lookX, -member.lookZ), radius, st.full, hit, level)
 	elseif weapon.kind == "aura" then
 		local radius = st.radius * member.areaMult
 		for _, enemy in enemiesAround(run, member.x, member.z, radius) do
@@ -606,8 +730,65 @@ local function fireWeapon(run: Run, member: Member, weaponId: string, level: num
 			for i = 1, math.min(st.pierce, #hits) do
 				damageEnemy(run, hits[i].enemy, damage, member, 2)
 			end
-			addFx(run, "dagger", member.x - ox, member.z - oz, dirX, dirZ, st.length)
+			addFx(run, "dagger", member.x - ox, member.z - oz, dirX, dirZ, st.length, level)
 		end
+		member.cooldowns[weaponId] = now + cooldown
+	elseif weapon.kind == "boomerang" then
+		-- Hachas: salen hacia el enemigo más cercano y vuelven; cortan a todos los del camino
+		local baseAngle = math.atan2(member.lookZ, member.lookX)
+		local best = st.length * st.length
+		for _, enemy in run.enemies do
+			if not enemy.dead then
+				local dx, dz = enemy.x - member.x, enemy.z - member.z
+				local d2 = dx * dx + dz * dz
+				if d2 < best then
+					best = d2
+					baseAngle = math.atan2(dz, dx)
+				end
+			end
+		end
+		local length = st.length * member.areaMult
+		for k = 1, st.count do
+			local angle = baseAngle + (k - 1) * (math.pi * 2 / st.count)
+			local dirX, dirZ = math.cos(angle), math.sin(angle)
+			for _, enemy in run.enemies do
+				if not enemy.dead then
+					local rx, rz = enemy.x - member.x, enemy.z - member.z
+					local along = rx * dirX + rz * dirZ
+					if along > -1 and along <= length then
+						local sx, sz = rx - dirX * along, rz - dirZ * along
+						local width = 2.4 + enemy.radius
+						if sx * sx + sz * sz <= width * width then
+							damageEnemy(run, enemy, damage, member, 3)
+						end
+					end
+				end
+			end
+			addFx(run, "axe", member.userId, dirX, dirZ, length, level)
+		end
+		member.cooldowns[weaponId] = now + cooldown
+	elseif weapon.kind == "bomb" then
+		-- Bombas: caen sobre enemigos al azar y explotan un instante después
+		local targets = enemiesAround(run, member.x, member.z, st.range)
+		if #targets == 0 then
+			member.cooldowns[weaponId] = now + 0.3
+			return
+		end
+		local aoe = st.aoe * member.areaMult
+		for _ = 1, st.count do
+			local target = targets[random:NextInteger(1, #targets)]
+			local tx, tz = target.x + random:NextNumber(-1.5, 1.5), target.z + random:NextNumber(-1.5, 1.5)
+			table.insert(run.delayed, { at = run.time + Config.BOMB_FLIGHT, x = tx, z = tz, aoe = aoe, damage = damage, member = member })
+			addFx(run, "bomb", member.x - ox, member.z - oz, tx - ox, tz - oz, aoe, level)
+		end
+		member.cooldowns[weaponId] = now + cooldown
+	elseif weapon.kind == "quake" then
+		-- Martillo: onda alrededor del jugador que empuja con fuerza
+		local radius = st.radius * member.areaMult
+		for _, enemy in enemiesAround(run, member.x, member.z, radius) do
+			damageEnemy(run, enemy, damage, member, 7)
+		end
+		addFx(run, "quake", member.x - ox, member.z - oz, radius, level)
 		member.cooldowns[weaponId] = now + cooldown
 	elseif weapon.kind == "lightning" then
 		local targets = enemiesAround(run, member.x, member.z, st.range)
@@ -622,7 +803,7 @@ local function fireWeapon(run: Run, member: Member, weaponId: string, level: num
 			for _, enemy in enemiesAround(run, tx, tz, aoe) do
 				damageEnemy(run, enemy, damage, member, 2)
 			end
-			addFx(run, "lightning", tx - ox, tz - oz, aoe)
+			addFx(run, "lightning", tx - ox, tz - oz, aoe, level)
 		end
 		member.cooldowns[weaponId] = now + cooldown
 	end
@@ -652,6 +833,8 @@ local function finishMember(run: Run, member: Member, result: string, teleport: 
 	deps.onFinish(member.player, {
 		result = result,
 		mapIndex = run.mapIndex,
+		difficulty = run.difficulty,
+		wave = run.wave,
 		time = run.time,
 		kills = member.kills,
 		teamKills = run.kills,
@@ -710,32 +893,7 @@ local function stepRun(run: Run, dt: number, now: number)
 	end
 
 	if #players > 0 then
-		-- Oleadas
-		local rateMult = if run.boss then 0.3 elseif run.bossDead then 1.6 else 1
-		run.spawnAcc = math.min(run.spawnAcc + Config.spawnRate(run.time, #run.members) * rateMult * dt, 5)
-		local cap = Config.maxAlive(run.time, #run.members)
-		while run.spawnAcc >= 1 do
-			run.spawnAcc -= 1
-			if #run.enemies < cap then
-				local x, z = spawnPoint(run, players, nil)
-				spawnEnemy(run, pickEnemyType(run), x, z, false)
-			end
-		end
-		for i, elite in run.map.elites do
-			if not run.elitesDone[i] and run.time >= elite.at then
-				run.elitesDone[i] = true
-				local x, z = spawnPoint(run, players, nil)
-				spawnEnemy(run, elite.enemy, x, z, true)
-			end
-		end
-		if not run.bossSpawned and run.time >= run.map.bossAt then
-			run.bossSpawned = true
-			local x, z = spawnPoint(run, players, 38)
-			run.boss = spawnEnemy(run, run.map.boss, x, z, false)
-			for _, member in players do
-				deps.notify(member.player, "👑 ¡" .. Config.Enemies[run.map.boss].name .. " ha llegado!", "boss")
-			end
-		end
+		updateWaves(run, players, dt)
 	end
 
 	-- Enemigos: perseguir, empujarse y golpear
@@ -850,6 +1008,21 @@ local function stepRun(run: Run, dt: number, now: number)
 				fireWeapon(run, member, weaponId, member.weapons[weaponId], now)
 			end
 		end
+	end
+
+	-- Explosiones pendientes (bombas)
+	if #run.delayed > 0 then
+		local keep = {}
+		for _, blast in run.delayed do
+			if run.time >= blast.at then
+				for _, enemy in enemiesAround(run, blast.x, blast.z, blast.aoe) do
+					damageEnemy(run, enemy, blast.damage, blast.member, 3)
+				end
+			else
+				table.insert(keep, blast)
+			end
+		end
+		run.delayed = keep
 	end
 
 	-- Quitar enemigos muertos
@@ -989,7 +1162,9 @@ function RunManager.runOf(player: Player): any
 end
 
 -- Empieza una partida con estos jugadores (1 a 4) en un mapa
-function RunManager.startRun(players: { Player }, mapIndex: number): (boolean, string?)
+function RunManager.startRun(players: { Player }, mapIndex: number, difficulty: number?): (boolean, string?)
+	local diffIndex = if difficulty and Config.Difficulties[difficulty] then difficulty else 1
+	local diff = Config.Difficulties[diffIndex]
 	-- Hueco libre: mejor uno que ya tenga este mapa, luego uno vacío, luego cualquiera
 	local slot = nil
 	for pass = 1, 3 do
@@ -1018,6 +1193,7 @@ function RunManager.startRun(players: { Player }, mapIndex: number): (boolean, s
 		slot = slot,
 		mapIndex = mapIndex,
 		map = Config.Maps[mapIndex],
+		difficulty = diffIndex,
 		origin = origin,
 		members = {},
 		byPlayer = {},
@@ -1030,11 +1206,17 @@ function RunManager.startRun(players: { Player }, mapIndex: number): (boolean, s
 		gemAdds = {},
 		gemRemoves = {},
 		fx = {},
+		delayed = {},
 		level = 1,
 		xp = 0,
 		kills = 0,
 		spawnAcc = 0,
-		elitesDone = {},
+		wave = 0,
+		wavePhase = "break",
+		waveStart = 0,
+		waveSize = 0,
+		waveToSpawn = 0,
+		breakEnd = 3, -- cuenta atrás antes de la primera oleada
 		boss = nil,
 		bossSpawned = false,
 		bossDead = false,
@@ -1049,6 +1231,8 @@ function RunManager.startRun(players: { Player }, mapIndex: number): (boolean, s
 		local base = deps.baseStats(player)
 		local bonuses = deps.bonuses(player)
 		local weapon = deps.classWeapon(player)
+		local unlocked = deps.unlockedWeapons(player)
+		unlocked[weapon] = true
 		local member: Member = {
 			player = player,
 			userId = player.UserId,
@@ -1070,12 +1254,13 @@ function RunManager.startRun(players: { Player }, mapIndex: number): (boolean, s
 			magnet = Config.PICKUP_RADIUS,
 			armor = 0,
 			regen = 0,
-			goldMult = Config.goldMult(base, bonuses),
+			goldMult = Config.goldMult(base, bonuses) * diff.gold,
 			choiceCount = if bonuses.choicePass then 4 else 3,
 			pendingChoices = 0,
 			offer = nil,
 			offerAt = 0,
-			rerolls = Config.BASE_REROLLS + (if bonuses.rerollPass then 3 else 0),
+			rerolls = Config.BASE_REROLLS + base.rerolls + (if bonuses.rerollPass then 3 else 0),
+			unlocked = unlocked,
 			lives = base.lives,
 			invulnerableUntil = os.clock() + 2,
 			dashReadyAt = 0,
@@ -1150,7 +1335,7 @@ function RunManager.dash(player: Player): boolean
 	return true
 end
 
--- El jugador abandona (se queda la mitad del oro)
+-- El jugador abandona (se queda la mitad de las Coronas)
 function RunManager.leave(player: Player): (boolean, string?)
 	local run = runOfPlayer[player]
 	local member = run and run.byPlayer[player]
@@ -1251,8 +1436,13 @@ function RunManager.stateFor(player: Player): any
 	return {
 		map = run.map.id,
 		mapIndex = run.mapIndex,
+		difficulty = run.difficulty,
 		time = run.time,
-		bossAt = run.map.bossAt,
+		wave = run.wave,
+		waves = run.map.waves,
+		wavePhase = run.wavePhase,
+		breakLeft = math.max(0, run.breakEnd - run.time),
+		waveLeft = run.waveToSpawn + #run.enemies,
 		level = run.level,
 		xp = run.xp,
 		xpNeeded = Config.xpToNext(run.level, #run.members),

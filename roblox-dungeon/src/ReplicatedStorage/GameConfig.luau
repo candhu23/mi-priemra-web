@@ -10,7 +10,8 @@
 
 local Config = {}
 
-Config.VERSION = "0.2.1"
+Config.VERSION = "0.3"
+Config.CURRENCY = "Coronas" -- la moneda del juego (icono: moneda de oro con una corona)
 Config.DATASTORE_NAME = "DungeonAscend_v2"
 Config.LEADERBOARD_NAME = "DungeonAscendKills_v2"
 Config.AUTOSAVE_INTERVAL = 60
@@ -45,11 +46,12 @@ Config.MAX_ENEMIES = 200 -- tope por partida (rendimiento)
 Config.MAX_GEMS = 220
 Config.HEART_CHANCE = 0.008 -- corazón que cura
 Config.HEART_HEAL = 0.3
+Config.BOMB_FLIGHT = 0.45 -- segundos que tarda una bomba en caer
 Config.REVIVE_INVULNERABLE = 3
 
 -- XP que necesita el EQUIPO para subir del nivel L al L+1 (más jugadores → más XP)
 function Config.xpToNext(level: number, players: number): number
-	return math.floor((3 + 2 * level ^ 1.35) * (1 + 0.5 * (players - 1)))
+	return math.floor((3 + 2.4 * level ^ 1.45) * (1 + 0.5 * (players - 1)))
 end
 
 ---------------------------------------------------------------------
@@ -130,8 +132,78 @@ Config.Weapons = {
 		},
 		evolution = { passive = "iman", name = "Tormenta Eterna", emoji = "🌩️", damage = 90, cooldown = 1.1, count = 6, aoe = 7, range = 50 },
 	},
+	hacha = {
+		name = "Hacha arrojadiza", emoji = "🪓", kind = "boomerang", color = Color3.fromRGB(203, 213, 225),
+		desc = "Va hacia el enemigo más cercano y vuelve, cortando a todos.",
+		levels = {
+			{ damage = 16, cooldown = 1.8, count = 1, length = 22 },
+			{ damage = 21, cooldown = 1.7, count = 1, length = 24 },
+			{ damage = 26, cooldown = 1.6, count = 2, length = 25 },
+			{ damage = 32, cooldown = 1.5, count = 2, length = 27 },
+			{ damage = 40, cooldown = 1.4, count = 3, length = 30 },
+		},
+		evolution = { passive = "armadura", name = "Hachas del Berserker", emoji = "🪓", damage = 60, cooldown = 1.1, count = 6, length = 34 },
+	},
+	bomba = {
+		name = "Bomba de fuego", emoji = "💣", kind = "bomb", color = Color3.fromRGB(249, 115, 22),
+		desc = "Lanza bombas que explotan entre los enemigos.",
+		levels = {
+			{ damage = 30, cooldown = 2.6, count = 1, aoe = 5, range = 34 },
+			{ damage = 40, cooldown = 2.5, count = 1, aoe = 5.6, range = 36 },
+			{ damage = 50, cooldown = 2.3, count = 2, aoe = 6.2, range = 38 },
+			{ damage = 62, cooldown = 2.2, count = 2, aoe = 6.8, range = 40 },
+			{ damage = 78, cooldown = 2.0, count = 3, aoe = 7.5, range = 42 },
+		},
+		evolution = { passive = "regeneracion", name = "Lluvia de Meteoritos", emoji = "☄️", damage = 120, cooldown = 1.5, count = 5, aoe = 9, range = 48 },
+	},
+	martillo = {
+		name = "Martillo sísmico", emoji = "🔨", kind = "quake", color = Color3.fromRGB(180, 140, 100),
+		desc = "Golpea el suelo: onda que empuja y daña a tu alrededor.",
+		levels = {
+			{ damage = 20, cooldown = 3.0, radius = 10 },
+			{ damage = 28, cooldown = 2.8, radius = 11.5 },
+			{ damage = 36, cooldown = 2.6, radius = 13 },
+			{ damage = 45, cooldown = 2.4, radius = 14.5 },
+			{ damage = 56, cooldown = 2.2, radius = 16 },
+		},
+		evolution = { passive = "vida", name = "Martillo de los Titanes", emoji = "⚒️", damage = 110, cooldown = 1.6, radius = 22 },
+	},
 }
-Config.WeaponOrder = { "espada", "varita", "dagas", "aura", "orbes", "rayo" }
+Config.WeaponOrder = { "espada", "varita", "dagas", "aura", "orbes", "hacha", "bomba", "rayo", "martillo" }
+
+-- Armas que se tienen desde el principio (las de las clases); el resto sale del cofre de armas
+Config.STARTER_WEAPONS = { espada = true, varita = true, dagas = true }
+-- Peso de cada arma en el cofre (probabilidades visibles en el juego)
+Config.WeaponChest = {
+	{ id = "aura", weight = 30, rarity = "raro" },
+	{ id = "orbes", weight = 28, rarity = "raro" },
+	{ id = "hacha", weight = 22, rarity = "raro" },
+	{ id = "bomba", weight = 12, rarity = "epico" },
+	{ id = "rayo", weight = 6, rarity = "epico" },
+	{ id = "martillo", weight = 2, rarity = "legendario" },
+}
+
+-- Precio del cofre de armas: sube con cada arma que ya tienes desbloqueada
+function Config.weaponChestPrice(unlockedFromChest: number): number
+	return math.floor(600 * 1.6 ^ unlockedFromChest)
+end
+
+-- Probabilidad de cada arma que aún no tienes
+function Config.weaponChestOdds(unlocked: { [string]: boolean }): { { id: string, chance: number } }
+	local total = 0
+	for _, entry in Config.WeaponChest do
+		if not unlocked[entry.id] then
+			total += entry.weight
+		end
+	end
+	local odds = {}
+	for _, entry in Config.WeaponChest do
+		if not unlocked[entry.id] then
+			table.insert(odds, { id = entry.id, chance = entry.weight / total })
+		end
+	end
+	return odds
+end
 for id, weapon in Config.Weapons do
 	weapon.id = id
 end
@@ -165,7 +237,7 @@ for id, passive in Config.Passives do
 end
 
 ---------------------------------------------------------------------
--- Clases (se compran con oro)
+-- Clases (se compran con Coronas)
 ---------------------------------------------------------------------
 Config.Classes = {
 	{ id = "guerrero", name = "Guerrero", emoji = "🛡️", weapon = "espada", price = 0, health = 30, desc = "Empieza con Espada. +30 de vida." },
@@ -178,26 +250,97 @@ for _, class in Config.Classes do
 end
 
 ---------------------------------------------------------------------
--- Mejoras permanentes (se compran con oro en el lobby)
+-- Árbol de mejoras permanentes (se compran con Coronas en el lobby)
 ---------------------------------------------------------------------
-Config.MetaUpgrades = {
-	{ id = "fuerza", name = "Fuerza", emoji = "💪", max = 10, base = 150, value = 0.05, desc = "+5 % de daño por nivel" },
-	{ id = "vida", name = "Vitalidad", emoji = "❤️", max = 10, base = 150, value = 10, desc = "+10 de vida por nivel" },
-	{ id = "velocidad", name = "Agilidad", emoji = "👟", max = 10, base = 200, value = 0.03, desc = "+3 % de velocidad por nivel" },
-	{ id = "iman", name = "Imán", emoji = "🧲", max = 10, base = 120, value = 0.1, desc = "+10 % de radio para recoger" },
-	{ id = "recarga", name = "Concentración", emoji = "⏱️", max = 10, base = 300, value = 0.02, desc = "-2 % de recarga por nivel" },
-	{ id = "regen", name = "Recuperación", emoji = "💚", max = 10, base = 200, value = 0.2, desc = "+0,2 de vida por segundo" },
-	{ id = "oro", name = "Avaricia", emoji = "🪙", max = 10, base = 250, value = 0.05, desc = "+5 % de oro por nivel" },
-	{ id = "vidas", name = "Segunda vida", emoji = "💖", max = 2, base = 3000, value = 1, growth = 4, desc = "Revives solo una vez más por partida" },
+-- Cada nodo se desbloquea al comprar su padre. x, y = posición en la página (0-1).
+-- stat: damage, cooldown, area, health, regen, lives, speed, gold, magnet, rerolls
+Config.Branches = {
+	{ id = "ataque", name = "Ataque", color = Color3.fromRGB(220, 38, 38) },
+	{ id = "defensa", name = "Defensa", color = Color3.fromRGB(37, 99, 235) },
+	{ id = "fortuna", name = "Fortuna", color = Color3.fromRGB(202, 138, 4) },
 }
-Config.MetaById = {}
-for _, upgrade in Config.MetaUpgrades do
-	Config.MetaById[upgrade.id] = upgrade
+Config.Tree = {
+	-- Ataque
+	{ id = "a1", branch = "ataque", name = "Filo afilado", icon = "fuerza", stat = "damage", value = 0.05, cost = 150, x = 0.17, y = 0.1 },
+	{ id = "a2", branch = "ataque", parent = "a1", name = "Golpe certero", icon = "fuerza", stat = "damage", value = 0.05, cost = 400, x = 0.17, y = 0.3 },
+	{ id = "a3", branch = "ataque", parent = "a2", name = "Manos rápidas", icon = "rapidez", stat = "cooldown", value = 0.04, cost = 800, x = 0.09, y = 0.5 },
+	{ id = "a4", branch = "ataque", parent = "a2", name = "Furia", icon = "fuerza", stat = "damage", value = 0.08, cost = 1200, x = 0.25, y = 0.5 },
+	{ id = "a5", branch = "ataque", parent = "a3", name = "Maestría", icon = "rapidez", stat = "cooldown", value = 0.06, cost = 2500, x = 0.09, y = 0.7 },
+	{ id = "a6", branch = "ataque", parent = "a4", name = "Gran alcance", icon = "area", stat = "area", value = 0.08, cost = 2500, x = 0.25, y = 0.7 },
+	{ id = "a7", branch = "ataque", parent = "a5", name = "Señor de la guerra", icon = "fuerza", stat = "damage", value = 0.12, cost = 6000, x = 0.09, y = 0.9 },
+	{ id = "a8", branch = "ataque", parent = "a6", name = "Torbellino", icon = "area", stat = "area", value = 0.12, cost = 6000, x = 0.25, y = 0.9 },
+	-- Defensa
+	{ id = "d1", branch = "defensa", name = "Piel dura", icon = "vida", stat = "health", value = 15, cost = 150, x = 0.5, y = 0.1 },
+	{ id = "d2", branch = "defensa", parent = "d1", name = "Robustez", icon = "vida", stat = "health", value = 20, cost = 400, x = 0.5, y = 0.3 },
+	{ id = "d3", branch = "defensa", parent = "d2", name = "Vendas", icon = "regeneracion", stat = "regen", value = 0.3, cost = 800, x = 0.42, y = 0.5 },
+	{ id = "d4", branch = "defensa", parent = "d2", name = "Coraza", icon = "armadura", stat = "health", value = 25, cost = 1200, x = 0.58, y = 0.5 },
+	{ id = "d5", branch = "defensa", parent = "d3", name = "Sanación", icon = "regeneracion", stat = "regen", value = 0.5, cost = 2500, x = 0.42, y = 0.7 },
+	{ id = "d6", branch = "defensa", parent = "d4", name = "Inquebrantable", icon = "armadura", stat = "health", value = 40, cost = 2500, x = 0.58, y = 0.7 },
+	{ id = "d7", branch = "defensa", parent = "d5", name = "Segunda vida", icon = "revive", stat = "lives", value = 1, cost = 5000, x = 0.42, y = 0.9 },
+	{ id = "d8", branch = "defensa", parent = "d6", name = "Fénix", icon = "revive", stat = "lives", value = 1, cost = 12000, x = 0.58, y = 0.9 },
+	-- Fortuna
+	{ id = "f1", branch = "fortuna", name = "Botas ligeras", icon = "botas", stat = "speed", value = 0.04, cost = 150, x = 0.83, y = 0.1 },
+	{ id = "f2", branch = "fortuna", parent = "f1", name = "Bolsa grande", icon = "coin", stat = "gold", value = 0.06, cost = 400, x = 0.75, y = 0.3 },
+	{ id = "f3", branch = "fortuna", parent = "f1", name = "Imán", icon = "iman", stat = "magnet", value = 0.15, cost = 600, x = 0.91, y = 0.3 },
+	{ id = "f4", branch = "fortuna", parent = "f2", name = "Mercader", icon = "coin", stat = "gold", value = 0.08, cost = 1200, x = 0.75, y = 0.5 },
+	{ id = "f5", branch = "fortuna", parent = "f3", name = "Atracción", icon = "iman", stat = "magnet", value = 0.2, cost = 2000, x = 0.91, y = 0.5 },
+	{ id = "f6", branch = "fortuna", parent = "f4", name = "Golpe de suerte", icon = "gem", stat = "rerolls", value = 1, cost = 2500, x = 0.75, y = 0.7 },
+	{ id = "f7", branch = "fortuna", parent = "f5", name = "Viento a favor", icon = "botas", stat = "speed", value = 0.06, cost = 5000, x = 0.91, y = 0.7 },
+	{ id = "f8", branch = "fortuna", parent = "f6", name = "Tesoro real", icon = "crown", stat = "gold", value = 0.15, cost = 8000, x = 0.75, y = 0.9 },
+}
+Config.TreeById = {}
+for _, node in Config.Tree do
+	Config.TreeById[node.id] = node
 end
 
-function Config.metaCost(upgradeId: string, level: number): number
-	local upgrade = Config.MetaById[upgradeId]
-	return math.floor(upgrade.base * (upgrade.growth or 1.6) ^ level)
+-- Texto del efecto de un nodo: "+5 % de daño"
+function Config.nodeEffect(node: any): string
+	local v = node.value
+	local texts = {
+		damage = "+" .. math.floor(v * 100) .. " % de daño",
+		cooldown = "-" .. math.floor(v * 100) .. " % de recarga",
+		area = "+" .. math.floor(v * 100) .. " % de alcance",
+		health = "+" .. v .. " de vida",
+		regen = "+" .. v .. " de vida por segundo",
+		lives = "+1 vida extra por partida",
+		speed = "+" .. math.floor(v * 100) .. " % de velocidad",
+		gold = "+" .. math.floor(v * 100) .. " % de Coronas",
+		magnet = "+" .. math.floor(v * 100) .. " % de radio para recoger",
+		rerolls = "+1 cambio de mejoras por partida",
+	}
+	return texts[node.stat] or ""
+end
+
+-- ¿Se puede comprar? (no comprado y con el padre comprado)
+function Config.nodeAvailable(tree: { [string]: boolean }, node: any): boolean
+	return not tree[node.id] and (node.parent == nil or tree[node.parent] == true)
+end
+
+---------------------------------------------------------------------
+-- Dificultades (cada una se desbloquea superando la anterior en ese mapa)
+---------------------------------------------------------------------
+Config.Difficulties = {
+	{ id = "normal", name = "Normal", color = Color3.fromRGB(34, 197, 94), hp = 1, damage = 1, speed = 1, count = 1, gold = 1, rarityBoost = 1 },
+	{ id = "dificil", name = "Difícil", color = Color3.fromRGB(249, 115, 22), hp = 2.2, damage = 1.6, speed = 1.08, count = 1.3, gold = 1.8, rarityBoost = 2 },
+	{ id = "pesadilla", name = "Pesadilla", color = Color3.fromRGB(190, 18, 60), hp = 4, damage = 2.4, speed = 1.15, count = 1.6, gold = 3, rarityBoost = 4 },
+}
+Config.DifficultyById = {}
+for i, difficulty in Config.Difficulties do
+	difficulty.index = i
+	Config.DifficultyById[difficulty.id] = difficulty
+end
+
+-- ¿Está disponible esta dificultad en este mapa?
+function Config.difficultyUnlocked(unlockedMap: number, mapWins: { [string]: any }, mapIndex: number, difficulty: number): boolean
+	if mapIndex > unlockedMap then
+		return false
+	end
+	if difficulty <= 1 then
+		return true
+	end
+	local wins = mapWins[Config.Maps[mapIndex].id]
+	local previous = Config.Difficulties[difficulty - 1].id
+	return type(wins) == "table" and (wins[previous] or 0) > 0
 end
 
 ---------------------------------------------------------------------
@@ -232,7 +375,7 @@ end
 Config.Slots = {
 	{ id = "weapon", name = "Arma", emoji = "⚔️", stat = "% de daño" },
 	{ id = "armor", name = "Armadura", emoji = "🛡️", stat = "vida" },
-	{ id = "amulet", name = "Amuleto", emoji = "📿", stat = "% de oro" },
+	{ id = "amulet", name = "Amuleto", emoji = "📿", stat = "% de Coronas" },
 }
 
 -- base = % de daño (arma), vida (armadura) o % de oro (amuleto)
@@ -297,7 +440,7 @@ function Config.powerText(item: Item): string
 	elseif def.slot == "armor" then
 		return "+" .. power .. " de vida"
 	end
-	return "+" .. power .. " % de oro"
+	return "+" .. power .. " % de Coronas"
 end
 
 ---------------------------------------------------------------------
@@ -313,26 +456,35 @@ export type Stats = {
 	regen: number, -- vida por segundo
 	gold: number, -- multiplicador
 	lives: number, -- vidas extra por partida
+	rerolls: number, -- cambios de mejoras extra por partida
 }
 
-function Config.baseStats(classId: string, upgrades: { [string]: number }, equipped: { [string]: Item? }): Stats
+function Config.baseStats(classId: string, tree: { [string]: boolean }, equipped: { [string]: Item? }): Stats
 	local class = Config.ClassById[classId] or Config.Classes[1]
-	local function meta(id: string): number
-		return (upgrades[id] or 0) * Config.MetaById[id].value
+	local sum: { [string]: number } = {}
+	for id in tree do
+		local node = Config.TreeById[id]
+		if node then
+			sum[node.stat] = (sum[node.stat] or 0) + node.value
+		end
+	end
+	local function get(stat: string): number
+		return sum[stat] or 0
 	end
 	local weapon = equipped.weapon
 	local armor = equipped.armor
 	local amulet = equipped.amulet
 	return {
-		damage = 1 + meta("fuerza") + (if weapon then Config.itemPower(weapon) / 100 else 0),
-		health = Config.BASE_HEALTH + (class.health or 0) + meta("vida") + (if armor then Config.itemPower(armor) else 0),
-		speed = 1 + (class.speed or 0) + meta("velocidad"),
-		area = 1 + (class.area or 0),
-		cooldown = 1 - meta("recarga"),
-		magnet = 1 + meta("iman"),
-		regen = meta("regen"),
-		gold = 1 + meta("oro") + (if amulet then Config.itemPower(amulet) / 100 else 0),
-		lives = meta("vidas"),
+		damage = 1 + get("damage") + (if weapon then Config.itemPower(weapon) / 100 else 0),
+		health = Config.BASE_HEALTH + (class.health or 0) + get("health") + (if armor then Config.itemPower(armor) else 0),
+		speed = 1 + (class.speed or 0) + get("speed"),
+		area = 1 + (class.area or 0) + get("area"),
+		cooldown = 1 - get("cooldown"),
+		magnet = 1 + get("magnet"),
+		regen = get("regen"),
+		gold = 1 + get("gold") + (if amulet then Config.itemPower(amulet) / 100 else 0),
+		lives = get("lives"),
+		rerolls = get("rerolls"),
 	}
 end
 
@@ -370,37 +522,52 @@ for i, id in Config.EnemyList do
 end
 
 Config.ELITE = { hp = 12, size = 1.7, xp = 15, gold = 10, damage = 1.5 } -- los élite sueltan un cofre
-Config.HP_PER_MINUTE = 0.12 -- los enemigos ganan +12 % de vida por minuto de partida
+Config.HP_PER_WAVE = 0.2 -- los enemigos ganan +20 % de vida en cada oleada
+
+---------------------------------------------------------------------
+-- Oleadas
+---------------------------------------------------------------------
+Config.WAVE_SPAWN_TIME = 40 -- segundos en los que llegan las manadas de una oleada
+Config.WAVE_OVERTIME = 20 -- si quedan enemigos, la siguiente oleada empieza igualmente tras este tiempo
+Config.WAVE_BREAK = 6 -- descanso entre oleadas (los cristales vuelan hacia ti)
+Config.WAVE_CLEAR_LEFT = 0.12 -- la oleada se da por superada si queda menos de este % de enemigos
+
+-- Enemigos que trae una oleada (más jugadores → más enemigos)
+function Config.waveSize(wave: number, players: number, difficulty: number?): number
+	local count = Config.Difficulties[difficulty or 1].count
+	return math.floor((70 + 34 * (wave - 1) ^ 1.25) * (1 + 0.6 * (players - 1)) * count)
+end
 
 ---------------------------------------------------------------------
 -- Mapas (se desbloquean escapando del anterior)
 ---------------------------------------------------------------------
--- timeline: a partir de "from" segundos puede aparecer ese enemigo con ese peso
+-- waves = oleadas (el jefe llega en la última) · timeline: desde la oleada "wave"
+-- puede aparecer ese enemigo con ese peso · elites: un élite (suelta cofre) en esa oleada
 Config.Maps = {
 	{
 		id = "bosque", name = "Bosque Encantado", emoji = "🌲", color = Color3.fromRGB(34, 197, 94),
 		scale = { hp = 1, damage = 1, gold = 1 },
-		bossAt = 480,
-		timeline = { { from = 0, enemy = "slime", weight = 10 }, { from = 50, enemy = "lobo", weight = 7 }, { from = 150, enemy = "goblin", weight = 5 }, { from = 300, enemy = "goblin", weight = 5 } },
-		elites = { { at = 150, enemy = "lobo" }, { at = 300, enemy = "goblin" }, { at = 420, enemy = "goblin" } },
+		waves = 10,
+		timeline = { { wave = 1, enemy = "slime", weight = 10 }, { wave = 2, enemy = "lobo", weight = 7 }, { wave = 4, enemy = "goblin", weight = 5 }, { wave = 7, enemy = "goblin", weight = 5 } },
+		elites = { { wave = 3, enemy = "lobo" }, { wave = 6, enemy = "goblin" }, { wave = 8, enemy = "goblin" } },
 		boss = "rey_goblin",
 		drops = { "espada_hierro", "cota_cuero", "amuleto_cobre" },
 	},
 	{
 		id = "cueva", name = "Cueva de Cristal", emoji = "💎", color = Color3.fromRGB(56, 189, 248),
 		scale = { hp = 1.6, damage = 1.5, gold = 3 },
-		bossAt = 540,
-		timeline = { { from = 0, enemy = "murcielago", weight = 10 }, { from = 40, enemy = "arana", weight = 7 }, { from = 140, enemy = "golem", weight = 4 }, { from = 320, enemy = "golem", weight = 5 } },
-		elites = { { at = 140, enemy = "arana" }, { at = 280, enemy = "golem" }, { at = 420, enemy = "golem" } },
+		waves = 11,
+		timeline = { { wave = 1, enemy = "murcielago", weight = 10 }, { wave = 2, enemy = "arana", weight = 7 }, { wave = 4, enemy = "golem", weight = 4 }, { wave = 8, enemy = "golem", weight = 5 } },
+		elites = { { wave = 3, enemy = "arana" }, { wave = 6, enemy = "golem" }, { wave = 9, enemy = "golem" } },
 		boss = "golem_cristal",
 		drops = { "hacha_cristal", "armadura_cristal", "amuleto_amatista" },
 	},
 	{
 		id = "castillo", name = "Castillo Maldito", emoji = "🏰", color = Color3.fromRGB(168, 85, 247),
 		scale = { hp = 2.6, damage = 2.2, gold = 8 },
-		bossAt = 600,
-		timeline = { { from = 0, enemy = "esqueleto", weight = 10 }, { from = 40, enemy = "espectro", weight = 7 }, { from = 130, enemy = "caballero", weight = 4 }, { from = 330, enemy = "caballero", weight = 6 } },
-		elites = { { at = 130, enemy = "espectro" }, { at = 270, enemy = "caballero" }, { at = 420, enemy = "caballero" }, { at = 520, enemy = "caballero" } },
+		waves = 12,
+		timeline = { { wave = 1, enemy = "esqueleto", weight = 10 }, { wave = 2, enemy = "espectro", weight = 7 }, { wave = 4, enemy = "caballero", weight = 4 }, { wave = 8, enemy = "caballero", weight = 6 } },
+		elites = { { wave = 3, enemy = "espectro" }, { wave = 6, enemy = "caballero" }, { wave = 8, enemy = "caballero" }, { wave = 10, enemy = "caballero" } },
 		boss = "lich",
 		drops = { "guadana_sombria", "armadura_hueso", "amuleto_almas" },
 	},
@@ -411,24 +578,22 @@ for i, map in Config.Maps do
 	Config.MapById[map.id] = map
 end
 
--- Ritmo de aparición (enemigos por segundo) y tope de enemigos vivos
-function Config.spawnRate(seconds: number, players: number): number
-	return (1.6 + 0.65 * seconds / 60) * (1 + 0.5 * (players - 1))
+-- Tope de enemigos vivos a la vez (rendimiento y para que no sea imposible)
+function Config.maxAlive(wave: number, players: number, difficulty: number?): number
+	local count = Config.Difficulties[difficulty or 1].count
+	return math.min(Config.MAX_ENEMIES, math.floor((90 + 16 * (wave - 1)) * (1 + 0.4 * (players - 1)) * count))
 end
 
-function Config.maxAlive(seconds: number, players: number): number
-	return math.min(Config.MAX_ENEMIES, math.floor((80 + 20 * seconds / 60) * (1 + 0.4 * (players - 1))))
-end
-
--- Estadísticas de un enemigo en un mapa, en el segundo "seconds" de la partida
-function Config.enemyStats(enemyId: string, mapIndex: number, seconds: number, players: number, elite: boolean?)
+-- Estadísticas de un enemigo en un mapa y una oleada
+function Config.enemyStats(enemyId: string, mapIndex: number, wave: number, players: number, elite: boolean?, difficulty: number?)
 	local def = Config.Enemies[enemyId]
 	local scale = Config.Maps[mapIndex].scale
-	local hp = def.hp * scale.hp * (1 + 0.5 * (players - 1))
+	local diff = Config.Difficulties[difficulty or 1]
+	local hp = def.hp * scale.hp * diff.hp * (1 + 0.5 * (players - 1))
 	if not def.boss then
-		hp *= 1 + Config.HP_PER_MINUTE * seconds / 60
+		hp *= 1 + Config.HP_PER_WAVE * (wave - 1)
 	end
-	local damage = def.damage * scale.damage
+	local damage = def.damage * scale.damage * diff.damage
 	if elite then
 		hp *= Config.ELITE.hp
 		damage *= Config.ELITE.damage
@@ -436,11 +601,12 @@ function Config.enemyStats(enemyId: string, mapIndex: number, seconds: number, p
 	return {
 		hp = math.floor(hp),
 		damage = math.floor(damage),
-		slamDamage = if def.slam then math.floor(def.slam.damage * scale.damage) else 0,
+		slamDamage = if def.slam then math.floor(def.slam.damage * scale.damage * diff.damage) else 0,
 		xp = if elite then Config.ELITE.xp else def.xp,
 		gold = (if elite then Config.ELITE.gold else def.gold) * scale.gold,
 		radius = 1.4 * def.size * (if elite then Config.ELITE.size else 1),
-		speed = def.speed * (if elite then 0.85 else 1),
+		-- Cada oleada son un poco más rápidos (+2,5 %, máx. +30 %); el jefe no
+		speed = def.speed * diff.speed * (if def.boss then 1 else 1 + math.min(0.3, 0.025 * (wave - 1))) * (if elite then 0.85 else 1),
 	}
 end
 
@@ -469,15 +635,15 @@ Config.MAX_FRIENDS_BONUS = 4
 ---------------------------------------------------------------------
 Config.Monetization = {
 	GamePasses = {
-		{ key = "goldPass", id = 0, name = "x2 Oro", emoji = "🪙", desc = "Ganas el doble de oro en cada partida, para siempre.", suggestedPrice = 149 },
+		{ key = "goldPass", id = 0, name = "x2 Coronas", emoji = "👑", desc = "Ganas el doble de Coronas en cada partida, para siempre.", suggestedPrice = 149 },
 		{ key = "choicePass", id = 0, name = "4 opciones", emoji = "🃏", desc = "Al subir de nivel eliges entre 4 mejoras en vez de 3.", suggestedPrice = 199 },
 		{ key = "rerollPass", id = 0, name = "Rerolls +3", emoji = "🎲", desc = "3 cambios de mejoras extra en cada partida.", suggestedPrice = 99 },
 		{ key = "bagPass", id = 0, name = "Mochila grande", emoji = "🎒", desc = "+" .. Config.INVENTORY_PASS_BONUS .. " huecos en la mochila.", suggestedPrice = 49 },
 	},
 	Products = {
-		{ key = "gold_small", id = 0, kind = "gold", name = "Bolsa de oro", emoji = "💰", minutes = 20, desc = "Oro de 20 minutos de tu mejor mapa.", suggestedPrice = 25 },
-		{ key = "gold_big", id = 0, kind = "gold", name = "Cofre de oro", emoji = "🏆", minutes = 120, desc = "Oro de 2 horas de tu mejor mapa.", suggestedPrice = 99 },
-		{ key = "boost", id = 0, kind = "boost", name = "Boost x2 oro (15 min)", emoji = "🚀", minutes = 15, desc = "x2 de oro durante 15 minutos.", suggestedPrice = 39 },
+		{ key = "gold_small", id = 0, kind = "gold", name = "Bolsa de Coronas", emoji = "💰", minutes = 20, desc = "Coronas de 20 minutos de tu mejor mapa.", suggestedPrice = 25 },
+		{ key = "gold_big", id = 0, kind = "gold", name = "Cofre real", emoji = "🏆", minutes = 120, desc = "Coronas de 2 horas de tu mejor mapa.", suggestedPrice = 99 },
+		{ key = "boost", id = 0, kind = "boost", name = "Boost x2 Coronas (15 min)", emoji = "🚀", minutes = 15, desc = "x2 de Coronas durante 15 minutos.", suggestedPrice = 39 },
 		{ key = "revive", id = 0, kind = "revive", name = "Revivir", emoji = "💖", desc = "Vuelves a la partida con toda la vida.", suggestedPrice = 15 },
 	},
 }
@@ -536,6 +702,11 @@ function Config.formatNumber(n: number): string
 		return string.format("%d%s", math.floor(value), SUFFIXES[index])
 	end
 	return string.format("%.1f%s", math.floor(value * 10) / 10, SUFFIXES[index])
+end
+
+-- Cantidad de la moneda del juego en texto: "1.2K Coronas"
+function Config.money(n: number): string
+	return Config.formatNumber(n) .. " " .. Config.CURRENCY
 end
 
 function Config.formatTime(seconds: number): string

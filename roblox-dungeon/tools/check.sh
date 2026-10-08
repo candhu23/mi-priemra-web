@@ -40,7 +40,8 @@ echo "== 5/6 Equilibrio: bots que juegan partidas completas con el código real 
 "$BIN/lune" run "$ROOT/tools/harness/run_server.luau" "$SRC" bot 2>&1 | grep -E "^  [A-Z]" || status=1
 
 if command -v python3 > /dev/null && python3 -c "import matplotlib" 2> /dev/null; then
-	python3 "$ROOT/tools/harness/render.py" "$OUT/world.json" "$OUT/render" > /dev/null && echo "Dibujos: tools/out/render_ciudad.png, render_zonas.png y render_enemigos.png"
+	python3 "$ROOT/tools/harness/render.py" "$OUT/world.json" "$OUT/render" > /dev/null && echo "Dibujos: tools/out/render_ciudad.png, render_castillo.png, render_zonas.png y render_enemigos.png"
+	python3 "$ROOT/tools/harness/render_icons.py" "$OUT/icons.json" "$OUT/render_iconos.png" > /dev/null && echo "Iconos: tools/out/render_iconos.png"
 fi
 
 echo "== 6/6 Construir DungeonAscend.rbxl"
