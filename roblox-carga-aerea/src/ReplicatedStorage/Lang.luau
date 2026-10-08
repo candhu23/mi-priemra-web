@@ -1,0 +1,192 @@
+-- Textos del juego en inglés (en) y español (es).
+-- Uso: Lang.t("es", "n_landed", { to = "LHR", net = "$1.2K" }) → reemplaza {to} y {net}.
+-- Si falta una clave en español se usa la inglesa; si falta en las dos, se muestra la clave.
+
+local Lang = {}
+
+Lang.en = {
+	game_title = "AIR CARGO EMPIRE",
+	-- Navegación
+	nav_map = "MAP", nav_fleet = "FLEET", nav_dispatch = "DISPATCH", nav_pilots = "PILOTS",
+	nav_company = "COMPANY", nav_settings = "SETTINGS",
+	top_level = "LV {level}",
+	-- Mapa
+	map_ready = "{n} plane(s) ready", map_tap = "TAP TO DISPATCH", map_all_busy = "All planes in the air",
+	map_labels = "LABELS", map_locked = "Locked region", map_planes_here = "Your planes here: {n}",
+	map_weather = "Weather: {w}",
+	-- Flota
+	tab_my_planes = "MY PLANES", tab_dealership = "DEALERSHIP", tab_upgrades = "UPGRADES",
+	st_idle = "ON GROUND", st_enroute = "EN ROUTE", st_repair = "NEEDS REPAIR", st_ferry = "REPOSITIONING",
+	at_airport = "At {code} · {city}", to_airport = "{from} → {to} · {time}",
+	stat_capacity = "{t} t", stat_range = "{km} km", stat_speed = "{v} km/h", stat_burn = "{l} L/km",
+	condition = "Condition {p}%", hangar = "HANGAR {n}/{max}",
+	btn_dispatch = "DISPATCH", btn_repair = "REPAIR {cost}", btn_sell = "SELL", btn_buy = "BUY",
+	btn_upgrade = "UPGRADE {cost}", btn_unlock = "UNLOCK {cost}", btn_confirm = "CONFIRM",
+	btn_cancel = "CANCEL", btn_close = "CLOSE", btn_fly = "FLY", btn_hire = "HIRE {cost}",
+	btn_fire = "DISMISS", btn_refresh = "REFRESH", btn_ferry = "REPOSITION",
+	req_level = "Requires level {level}", req_license = "Requires: {license}", owned = "OWNED", maxed = "MAX LEVEL",
+	unlocked_level = "Unlocked · level {level}",
+	class_prop = "TURBOPROP", class_jet = "JET",
+	plane_courier_d = "Tiny single-engine hauler. Short hops with parcels and mail.",
+	plane_turboprop_d = "Rugged twin turboprop for regional freight.",
+	plane_narrowbody_d = "Fast jet freighter for busy continental routes.",
+	plane_widebody_d = "Long-haul widebody that crosses oceans.",
+	plane_jumbo_d = "Four engines, nose door, huge payload.",
+	plane_heavy_d = "Heavy lifter for oversize cargo nobody else can carry.",
+	up_hangar = "Bigger Hangar", up_hangar_d = "+2 plane slots per level.",
+	up_fuel = "Fuel Contracts", up_fuel_d = "−5% fuel cost per level.",
+	up_broker = "Freight Brokers", up_broker_d = "+4% payout on every load per level.",
+	up_level = "LEVEL {n}/{max}",
+	-- Despacho
+	disp_auto = "AUTO DISPATCH", disp_auto_on = "ON", disp_auto_off = "OFF", disp_auto_locked = "Unlocks at level {level}",
+	disp_auto_short = "⚡ AUTO: {v}", disp_auto_locked_short = "⚡ AUTO · LV {level}",
+	disp_planes = "PLANES", disp_no_idle = "No planes on the ground right now.",
+	disp_pilot = "WHO FLIES?", pilot_you = "You", disp_board = "LOAD BOARD · {code} {city}",
+	disp_pick = "Pick a plane on the left.", board_empty = "No loads right now. Refresh or reposition.",
+	col_net = "NET", disp_time = "{time}", disp_fuel = "Fuel {fuel}", disp_cooldown = "{s}s",
+	ferry_title = "Reposition {name}", ferry_body = "Empty flight to another airport. Costs fuel, pays nothing.",
+	-- Cargas
+	cargo_general = "General Freight", cargo_mail = "Express Mail", cargo_perishable = "Perishables",
+	cargo_electronics = "Electronics", cargo_livestock = "Live Animals", cargo_pharma = "Pharma (cold chain)",
+	cargo_dangerous = "Dangerous Goods", cargo_oversize = "Oversize", cargo_ferry = "Empty",
+	-- Clima
+	w_clear = "Clear", w_rain = "Rain", w_snow = "Snow", w_storm = "Storm",
+	-- Regiones
+	r_NA = "North America", r_EU = "Europe", r_SA = "South America", r_AS = "Asia",
+	r_AF = "Middle East & Africa", r_OC = "Oceania", airports_n = "{n} airports",
+	-- Licencias
+	lic_turboprop = "Turboprop Rating", lic_turboprop_d = "Fly twin turboprops.",
+	lic_livestock = "Live Animals Permit", lic_livestock_d = "Carry live animals (+40% pay).",
+	lic_jet = "Jet Type Rating", lic_jet_d = "Fly jet freighters.",
+	lic_pharma = "Cold Chain Certificate", lic_pharma_d = "Carry pharma (+60% pay).",
+	lic_dangerous = "Dangerous Goods Permit", lic_dangerous_d = "Carry dangerous goods (+80% pay).",
+	lic_heavy = "Heavy Freighter Rating", lic_heavy_d = "Fly the biggest freighters.",
+	-- Pilotos
+	tab_roster = "ROSTER", tab_hire = "HIRE PILOTS", roster = "PILOTS {n}/{max}",
+	rarity_common = "Common", rarity_uncommon = "Uncommon", rarity_rare = "Rare", rarity_epic = "Epic", rarity_legendary = "Legendary",
+	pilot_bonus = "+{p}% pay", pilot_flying = "Flying", pilot_free = "Available", no_pilots = "No pilots yet. Hire one to fly more planes at once!",
+	ag_school = "Flight School", ag_school_d = "Fresh graduates. Mostly Common, the odd gem.",
+	ag_academy = "Airline Academy", ag_academy_d = "Experienced crews. No Commons.",
+	ag_aces = "Ace Recruiters", ag_aces_d = "Veteran captains. Rare or better.",
+	odds = "ODDS", pilot_fee_note = "Hired pilots keep 10% of each flight's pay.",
+	hired_title = "NEW PILOT!",
+	-- Empresa
+	tab_overview = "OVERVIEW", tab_regions = "REGIONS", tab_licenses = "LICENSES",
+	ov_level = "Company level", ov_earned = "Total earned", ov_flights = "Deliveries", ov_km = "Kilometres flown",
+	ov_tons = "Tons delivered", ov_fleet = "Fleet", ov_pilots = "Pilots", xp_next = "{xp} / {need} XP",
+	-- Ajustes
+	set_language = "LANGUAGE", lang_auto = "Automatic", set_sound = "SOUND", on = "ON", off = "OFF",
+	set_version = "Version {v}", credits = "Icons: Lucide (ISC). Map data: Natural Earth (public domain).",
+	warn_nosave = "Progress is NOT being saved (DataStore unavailable).",
+	-- Avisos
+	n_welcome = "Welcome! Your first plane is waiting in New York. Open DISPATCH to take a load.",
+	n_landed = "Landed at {to}: {net}", n_takeoff = "Departed {from} → {to}", n_ferry = "Repositioning to {to}",
+	n_ferry_landed = "Arrived at {to} (fuel {fuel})", n_level_up = "Company level {level}!",
+	n_bought = "{name} added to your fleet", n_sold = "Plane sold for {value}", n_repaired = "Plane repaired",
+	n_hired = "{name} joined your crew", n_fired = "{name} left the company", n_region = "New region: {region}",
+	n_license = "License obtained", n_upgrade = "Upgrade bought", n_offline = "While you were away {count} flight(s) landed: {net}",
+	n_load_failed = "Could not load your save. Progress will not be saved this session.", n_pass = "Pass activated!",
+	-- Errores
+	err_generic = "That didn't work.", err_money = "Not enough money.", err_level = "Requires level {level}.",
+	err_plane_busy = "That plane is busy.", err_needs_repair = "The plane needs repairs first.",
+	err_plane_license = "You need the license for this plane.", err_cargo_license = "You need a license for this cargo.",
+	err_cargo_plane = "Only a heavy lifter can carry this.", err_too_heavy = "Too heavy for this plane.",
+	err_out_of_range = "Out of this plane's range.", err_load_gone = "That load is gone.",
+	err_pilot_busy = "That pilot is flying.", err_you_busy = "You are already flying another plane.",
+	err_hangar_full = "Hangar full. Upgrade it in FLEET → UPGRADES.", err_last_plane = "You can't sell your last plane.",
+	err_no_repair = "Already in perfect condition.", err_roster_full = "Roster full.", err_owned = "Already owned.",
+	err_maxed = "Already at max level.", err_cooldown = "Wait {s}s.", err_slow_down = "Too fast!",
+}
+
+Lang.es = {
+	game_title = "IMPERIO DE CARGA AÉREA",
+	nav_map = "MAPA", nav_fleet = "FLOTA", nav_dispatch = "DESPACHO", nav_pilots = "PILOTOS",
+	nav_company = "EMPRESA", nav_settings = "AJUSTES",
+	top_level = "NV {level}",
+	map_ready = "{n} avión(es) listos", map_tap = "TOCA PARA DESPACHAR", map_all_busy = "Todos los aviones en el aire",
+	map_labels = "NOMBRES", map_locked = "Región bloqueada", map_planes_here = "Tus aviones aquí: {n}",
+	map_weather = "Clima: {w}",
+	tab_my_planes = "MIS AVIONES", tab_dealership = "CONCESIONARIO", tab_upgrades = "MEJORAS",
+	st_idle = "EN TIERRA", st_enroute = "EN VUELO", st_repair = "NECESITA REPARACIÓN", st_ferry = "REPOSICIONANDO",
+	at_airport = "En {code} · {city}",
+	condition = "Estado {p} %", hangar = "HANGAR {n}/{max}",
+	btn_dispatch = "DESPACHAR", btn_repair = "REPARAR {cost}", btn_sell = "VENDER", btn_buy = "COMPRAR",
+	btn_upgrade = "MEJORAR {cost}", btn_unlock = "DESBLOQUEAR {cost}", btn_confirm = "CONFIRMAR",
+	btn_cancel = "CANCELAR", btn_close = "CERRAR", btn_fly = "VOLAR", btn_hire = "CONTRATAR {cost}",
+	btn_fire = "DESPEDIR", btn_refresh = "ACTUALIZAR", btn_ferry = "REPOSICIONAR",
+	req_level = "Requiere nivel {level}", req_license = "Requiere: {license}", owned = "TUYO", maxed = "NIVEL MÁXIMO",
+	unlocked_level = "Desbloqueado · nivel {level}",
+	class_prop = "TURBOHÉLICE", class_jet = "REACTOR",
+	plane_courier_d = "Monomotor pequeño. Saltos cortos con paquetes y correo.",
+	plane_turboprop_d = "Bimotor turbohélice resistente para carga regional.",
+	plane_narrowbody_d = "Carguero a reacción rápido para rutas continentales.",
+	plane_widebody_d = "Fuselaje ancho de largo alcance que cruza océanos.",
+	plane_jumbo_d = "Cuatro motores, puerta en el morro, carga enorme.",
+	plane_heavy_d = "Gigante para carga sobredimensionada que nadie más puede llevar.",
+	up_hangar = "Hangar más grande", up_hangar_d = "+2 plazas de avión por nivel.",
+	up_fuel = "Contratos de combustible", up_fuel_d = "−5 % de coste de combustible por nivel.",
+	up_broker = "Agentes de carga", up_broker_d = "+4 % de pago en cada carga por nivel.",
+	up_level = "NIVEL {n}/{max}",
+	disp_auto = "DESPACHO AUTOMÁTICO", disp_auto_on = "SÍ", disp_auto_off = "NO", disp_auto_locked = "Se desbloquea en el nivel {level}",
+	disp_auto_short = "⚡ AUTO: {v}", disp_auto_locked_short = "⚡ AUTO · NV {level}",
+	disp_planes = "AVIONES", disp_no_idle = "Ahora mismo no hay aviones en tierra.",
+	disp_pilot = "¿QUIÉN VUELA?", pilot_you = "Tú", disp_board = "TABLÓN DE CARGAS · {code} {city}",
+	disp_pick = "Elige un avión a la izquierda.", board_empty = "No hay cargas. Actualiza o reposiciona el avión.",
+	col_net = "NETO", disp_fuel = "Combustible {fuel}",
+	ferry_title = "Reposicionar {name}", ferry_body = "Vuelo vacío a otro aeropuerto. Gasta combustible y no paga nada.",
+	cargo_general = "Carga general", cargo_mail = "Correo urgente", cargo_perishable = "Perecederos",
+	cargo_electronics = "Electrónica", cargo_livestock = "Animales vivos", cargo_pharma = "Fármacos (frío)",
+	cargo_dangerous = "Mercancías peligrosas", cargo_oversize = "Sobredimensionada", cargo_ferry = "Vacío",
+	w_clear = "Despejado", w_rain = "Lluvia", w_snow = "Nieve", w_storm = "Tormenta",
+	r_NA = "Norteamérica", r_EU = "Europa", r_SA = "Sudamérica", r_AS = "Asia",
+	r_AF = "Oriente Medio y África", r_OC = "Oceanía", airports_n = "{n} aeropuertos",
+	lic_turboprop = "Habilitación turbohélice", lic_turboprop_d = "Vuela bimotores turbohélice.",
+	lic_livestock = "Permiso de animales vivos", lic_livestock_d = "Lleva animales vivos (+40 % de pago).",
+	lic_jet = "Habilitación de reactor", lic_jet_d = "Vuela cargueros a reacción.",
+	lic_pharma = "Certificado de cadena de frío", lic_pharma_d = "Lleva fármacos (+60 % de pago).",
+	lic_dangerous = "Permiso de mercancías peligrosas", lic_dangerous_d = "Lleva mercancías peligrosas (+80 % de pago).",
+	lic_heavy = "Habilitación de carguero pesado", lic_heavy_d = "Vuela los cargueros más grandes.",
+	tab_roster = "PLANTILLA", tab_hire = "CONTRATAR", roster = "PILOTOS {n}/{max}",
+	rarity_common = "Común", rarity_uncommon = "Poco común", rarity_rare = "Raro", rarity_epic = "Épico", rarity_legendary = "Legendario",
+	pilot_bonus = "+{p} % de pago", pilot_flying = "Volando", pilot_free = "Disponible", no_pilots = "Aún no tienes pilotos. ¡Contrata uno para volar más aviones a la vez!",
+	ag_school = "Escuela de vuelo", ag_school_d = "Recién graduados. Casi todos comunes, alguna joya.",
+	ag_academy = "Academia de aerolínea", ag_academy_d = "Tripulaciones con experiencia. Sin comunes.",
+	ag_aces = "Cazatalentos de ases", ag_aces_d = "Comandantes veteranos. Raro o mejor.",
+	odds = "PROBABILIDADES", pilot_fee_note = "Los pilotos contratados se quedan el 10 % del pago de cada vuelo.",
+	hired_title = "¡NUEVO PILOTO!",
+	tab_overview = "RESUMEN", tab_regions = "REGIONES", tab_licenses = "LICENCIAS",
+	ov_level = "Nivel de empresa", ov_earned = "Ganado en total", ov_flights = "Entregas", ov_km = "Kilómetros volados",
+	ov_tons = "Toneladas entregadas", ov_fleet = "Flota", ov_pilots = "Pilotos",
+	set_language = "IDIOMA", lang_auto = "Automático", set_sound = "SONIDO", on = "SÍ", off = "NO",
+	set_version = "Versión {v}", credits = "Iconos: Lucide (ISC). Datos del mapa: Natural Earth (dominio público).",
+	warn_nosave = "El progreso NO se está guardando (DataStore no disponible).",
+	n_welcome = "¡Bienvenido! Tu primer avión te espera en Nueva York. Abre DESPACHO para coger una carga.",
+	n_landed = "Aterrizaje en {to}: {net}", n_takeoff = "Despegue {from} → {to}", n_ferry = "Reposicionando a {to}",
+	n_ferry_landed = "Llegada a {to} (combustible {fuel})", n_level_up = "¡Nivel de empresa {level}!",
+	n_bought = "{name} se une a tu flota", n_sold = "Avión vendido por {value}", n_repaired = "Avión reparado",
+	n_hired = "{name} se une a tu tripulación", n_fired = "{name} deja la empresa", n_region = "Nueva región: {region}",
+	n_license = "Licencia conseguida", n_upgrade = "Mejora comprada", n_offline = "Mientras no estabas aterrizaron {count} vuelo(s): {net}",
+	n_load_failed = "No se pudo cargar tu partida. Esta sesión no se guardará.", n_pass = "¡Pase activado!",
+	err_generic = "No se pudo hacer.", err_money = "No tienes suficiente dinero.", err_level = "Requiere nivel {level}.",
+	err_plane_busy = "Ese avión está ocupado.", err_needs_repair = "Primero hay que reparar el avión.",
+	err_plane_license = "Necesitas la licencia de este avión.", err_cargo_license = "Necesitas una licencia para esta carga.",
+	err_cargo_plane = "Solo un carguero pesado puede llevarla.", err_too_heavy = "Demasiado pesada para este avión.",
+	err_out_of_range = "Fuera del alcance de este avión.", err_load_gone = "Esa carga ya no está.",
+	err_pilot_busy = "Ese piloto está volando.", err_you_busy = "Ya estás pilotando otro avión.",
+	err_hangar_full = "Hangar lleno. Amplíalo en FLOTA → MEJORAS.", err_last_plane = "No puedes vender tu último avión.",
+	err_no_repair = "Ya está en perfecto estado.", err_roster_full = "Plantilla llena.", err_owned = "Ya lo tienes.",
+	err_maxed = "Ya está al máximo.", err_cooldown = "Espera {s} s.", err_slow_down = "¡Demasiado rápido!",
+}
+
+function Lang.t(lang: string, key: string, params: { [string]: any }?): string
+	local text = (Lang :: any)[lang] and (Lang :: any)[lang][key] or Lang.en[key] or key
+	if params then
+		text = string.gsub(text, "{(%w+)}", function(k)
+			local v = params[k]
+			return v ~= nil and tostring(v) or "{" .. k .. "}"
+		end)
+	end
+	return text
+end
+
+return Lang

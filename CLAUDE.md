@@ -249,3 +249,25 @@ al harness del servidor**.
 - No poner identificadores de modelo de IA en commits ni en el código.
 - Tras cambiar algo visible, explica al usuario qué cambia, qué verificaste, qué NO pudiste
   verificar (no hay Studio aquí) y tu % de confianza.
+
+---
+
+## 14. Segundo juego: «Air Cargo Empire» (`roblox-carga-aerea/`)
+
+- Gestión de una aerolínea de carga, **casi todo interfaz** (inspirado en el género de un juego de
+  camiones que el usuario enseñó; NO copiar su diseño, textos ni assets). Versión 0.1, sin publicar.
+- Rama de esta parte: `claude/zealous-dirac-ejfljx`. Lugar: `roblox-carga-aerea/AirCargo.rbxl`.
+- Diseño y economía: `roblox-carga-aerea/DISENO.md`. Guía del usuario: `roblox-carga-aerea/README.md`.
+- Código: `Config.luau` (todos los datos; `Config.Assets` con los IDs de imagen), `Lang.luau`
+  (textos EN/ES, el servidor manda **claves**, no textos), `GameServer.server.luau`,
+  `GameClient.client.luau` (una función `build*Page` por pantalla; al cambiar de idioma se reconstruye todo).
+- Assets que el usuario sube (4): `assets/iconos.png` (hoja 8×8 de 128 px, Lucide ISC),
+  `assets/aviones.png` (2×3 celdas de 512×256), `assets/mapa_oeste.png` y `mapa_este.png` (Natural Earth).
+  Se regeneran con `tools/assets/build_*.{js,py}`. Mientras `Config.Assets.* = ""` hay sustitutos de texto.
+- Verificación: `roblox-carga-aerea/tools/check.sh` (compila, luau-lsp 0 avisos, harness de servidor que
+  juega y mide el ritmo, harness de cliente que pulsa todos los botones, vista previa PNG y `rojo build`).
+- **Vista previa aproximada** (no es Roblox): `tools/harness/preview.py` convierte el árbol de la interfaz en
+  HTML y lo fotografía con Chromium → `tools/out/preview/*.png`. Úsala para revisar cambios visuales.
+- `Players.CharacterAutoLoads = false` (sin personaje). Datos: DataStore `AirCargo_v1`.
+- Trampas nuevas: en el harness, pulsar un botón puede destruir otros (cambio de pestaña/avión): comprobar
+  que siguen vivos; el tablón de cargas se genera según los aviones en tierra en ESE aeropuerto.
