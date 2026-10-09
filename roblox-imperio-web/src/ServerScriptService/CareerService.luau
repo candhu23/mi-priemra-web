@@ -17,7 +17,8 @@ local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local CareerService = {}
 
 type Ctx = {
-	gain: (data: any, amount: number) -> (),
+	gain: (data: any, amount: number, tag: string?) -> (),
+	spend: (data: any, amount: number, tag: string) -> (),
 	notify: (player: Player, text: string, kind: string?) -> (),
 	popup: (player: Player, title: string, body: string) -> (),
 	income: (session: any) -> number,
@@ -279,7 +280,7 @@ function CareerService.tryDeliver(player: Player, session, project, variant): bo
 	local def = Config.WebTypeById[contract.type]
 	-- Una web rara encanta al cliente: paga el doble
 	local pay = contract.pay * (if variant then 2 else 1)
-	ctx.gain(data, pay)
+	ctx.gain(data, pay, "encargos")
 	data.reputation += contract.rep
 	CareerService.addXp(player, session, contract.niche, contract.xp)
 	career.stats.contracts += 1
@@ -496,7 +497,7 @@ function Actions.foundAgency(player: Player, session)
 	if data.money < Career.AGENCY_COST then
 		return false, "No tienes suficiente dinero."
 	end
-	data.money -= Career.AGENCY_COST
+	ctx.spend(data, Career.AGENCY_COST, "agencia")
 	career.agency = { name = player.DisplayName .. " Dev Studio", officeLevel = 1, founded = os.time() }
 	career.stats.agency = 1
 	ctx.popup(player, "🏢 ¡Has fundado tu agencia!", "Ahora puedes fichar programadores.\n\nCada uno tiene una especialidad (programación, diseño, marketing, ventas o datos) y un rasgo. Cuanto más raro, más aporta, y suben de nivel solos trabajando.\n\n¡Ve a la pestaña 👥 Agencia!")
@@ -516,7 +517,7 @@ function Actions.upgradeOffice(player: Player, session)
 	if data.money < cost then
 		return false, "No tienes suficiente dinero."
 	end
-	data.money -= cost
+	ctx.spend(data, cost, "agencia")
 	agency.officeLevel += 1
 	for _, perk in Career.OfficePerks do
 		if perk.level == agency.officeLevel then
@@ -539,7 +540,7 @@ function Actions.recruit(player: Player, session)
 	if data.money < cost then
 		return false, "No tienes suficiente dinero."
 	end
-	data.money -= cost
+	ctx.spend(data, cost, "agencia")
 	career.pity += 1
 	local rarity
 	if career.pity >= Career.PITY_INTERVIEWS then
@@ -595,7 +596,7 @@ function Actions.trainProgrammer(_player: Player, session, id: any)
 	if data.money < cost then
 		return false, "No tienes suficiente dinero."
 	end
-	data.money -= cost
+	ctx.spend(data, cost, "agencia")
 	programmer.level += 1
 	CareerService.refreshBonuses(session)
 	return true, "📚 " .. programmer.name .. " sube a nivel " .. programmer.level

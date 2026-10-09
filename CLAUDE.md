@@ -10,7 +10,7 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
   para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
-- **Versión actual del código: 4.0-alpha.1** (`Config.VERSION` en `TycoonConfig.luau`;
+- **Versión actual del código: 4.0-alpha.2** (`Config.VERSION` en `TycoonConfig.luau`;
   súbelo en cada versión nueva). **La v4 está a medias: mira §14** (qué está hecho y qué falta)
   y el encargo completo en `PROMPT_V4.md` (raíz del repo).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
@@ -63,11 +63,26 @@ roblox-imperio-web/
     │   │                       #   de los coches (trafficPath)
     │   ├── Traffic.luau        # (v3.1) Coches que circulan: start(parent) / step(dt), en el CLIENTE
     │   ├── Locale.luau         # Idiomas: resolve / t / f / translate (ver §6 Idiomas)
-    │   ├── LocaleEN.luau       # Diccionario español → inglés (~900 textos)
+    │   ├── LocaleEN.luau       # Diccionario español → inglés (~950 textos; sus claves son la lista oficial)
+    │   ├── LocalePT.luau       # (v4) Diccionario español → portugués de Brasil (mismas claves)
     │   ├── Validate.luau       # (v4) number/integer/text/args: valida TODO lo que manda el cliente
     │   └── StatePatch.luau     # (v4) diff/apply/copy/sig3: el estado viaja por diferencias
     ├── ServerScriptService/
-    │   ├── TycoonServer.server.luau  # Script principal: datos, acciones, tick, compras, guardado
+    │   ├── TycoonServer.server.luau  # (v4) Orquestador: junta las acciones de los módulos, entrar/salir,
+    │   │                             #   tickPlayer (1 s), bucles (guardado, ranking, analítica, envíos)
+    │   ├── ServerState.luau          # (v4) sesiones, remotes, `world` (evento del servidor, meta común,
+    │   │                             #   clasificaciones), notify/popup/notifyAll, gain(data, x, tag)/spend, tipos
+    │   ├── Economy.luau              # (v4) ingresos, visitMult, boost, paidReward/incomeReward
+    │   ├── SaveService.luau          # (v4) DataStore, newData/reconcile/migrate, bloqueo, load/save
+    │   ├── RewardService.luau        # (v4) misiones, objetivos, pase, premios, diaria, regalo, códigos, I+D, tutorial
+    │   ├── SiteService.luau          # (v4) webs, ofertas, negociaciones, empresas, anuncios, Bolsa, salir a bolsa
+    │   ├── WorldEvents.luau          # (v4) eventos aleatorios, eventos del servidor, meta común
+    │   ├── StateService.luau         # (v4) buildState/sendState/requestState (parches)
+    │   ├── VisitService.luau         # (v4) visitas, me gusta, amigos
+    │   ├── PurchaseService.luau      # (v4) ProcessReceipt y Game Passes
+    │   ├── LeaderboardService.luau   # (v4) clasificación global/semanal y premios
+    │   ├── Analytics.luau            # (v4) AnalyticsService: embudos, economía (cada 5 min), progresión
+    │   ├── BadgeAwards.luau          # (v4) da las insignias de Config.Badges
     │   ├── CareerService.luau        # Carrera: XP, encargos (tablón/aceptados/entrega), rangos,
     │   │                             #   agencia, fichajes, XP pasiva de programadores
     │   ├── MarketService.luau        # Bolsa: precios por tick (30 s), dividendos, buy/sell
@@ -80,7 +95,10 @@ roblox-imperio-web/
     │   └── World.luau                # Ciudad, iluminación, día/noche, clasificación global,
     │                                 #   edificio de la Bolsa (setMarketBoard), coches, cartel de ayuda
     └── StarterPlayerScripts/
-        ├── TycoonClient.client.luau  # TODA la interfaz (≈4.100 líneas, 15 pestañas, 8 por fila)
+        ├── TycoonClient.client.luau  # (v4) Junta ClientUI y hace lo común: clic, estado, idioma, carteles
+        ├── ClientUI/                 # (v4) Core.luau (núcleo: piezas de interfaz, ventana, avisos,
+        │                             #   ventanas emergentes; devuelve la tabla `ui`) + Tab*.luau (una
+        │                             #   pestaña por módulo: `return function(ui) ... end`) + Tutorial + HudExtras
         └── TrafficClient.client.luau # Arranca Traffic y lo mueve en Heartbeat
 ```
 
@@ -292,6 +310,9 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
 - **Claridad (v3)**: `TAB_HELP` (línea "ℹ️" arriba de cada pestaña; sus claves en LocaleEN llevan
   el "ℹ️ "), `UNLOCK_INFO` (ventana al desbloquear cada parte), empresas con "Ahora → al subir"
   (`companyEffect` en el cliente), pestaña propia **💡 I+D** (`research`, feature "market").
+- **v4 · Idiomas**: español, inglés y **portugués de Brasil** (`LocalePT`, mismas claves que
+  `LocaleEN`). Botón 🌐 ES → EN → PT. "auto": `pt*` → portugués. `Locale.isValid(lang)` en el
+  servidor. **Todo texto nuevo va a LocaleEN y a LocalePT** (los harness fallan si falta).
 - **Idiomas** (`Locale` + `LocaleEN`): el código sigue en español. El cliente traduce:
   `T("texto")` / `T("plantilla %s", x)` para lo suyo; `create()` traduce solo los textos fijos
   que estén en el diccionario (y guarda `SrcText` para cambiar de idioma en caliente);
@@ -334,6 +355,16 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   - **Recompensas gratis rebajadas**: `Config.REWARD_SCALE = 0.6` en `incomeReward` (las compras
     con Robux usan `paidReward`, sin rebaja). Objetivos ×0,35, offline 35 %, regalo 2 min,
     `SALE_SECONDS` 130.
+
+- **v4 · Analítica** (`Analytics.luau`, todo con pcall): embudo de los primeros minutos
+  (`Analytics.Onboarding`, un paso por jugador nuevo en su primera hora, `data.analytics.onboarding`),
+  embudo "Tutorial" (el cliente manda `tutorialStep(i)`), economía: `gain(data, x, tag)` y
+  `spend(data, x, tag)` suman por categoría y se envía cada `FLUSH_INTERVAL` (300 s) y al salir;
+  progresión "Rascacielos" (plantas) y "SalidasABolsa"; eventos sueltos (WebRara, Codigo).
+  Se ve en Creator Hub → experiencia → Analytics (Funnels, Economy, Progression, Custom).
+- **v4 · Insignias** `Config.Badges` (12, al final de TycoonConfig, `id = 0` = desactivada):
+  `BadgeAwards.check` cada 10 s y `BadgeAwards.give(…, "weekly_top")` al dar el premio semanal.
+  `data.badges[key] = true` cuando ya se dio; si Roblox falla, reintento a los 5 min.
 
 ## 7. Monetización
 
@@ -425,6 +456,14 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
   si un texto nuevo se le escapa (pasó con "Se cerraron N ventas que…").
 - (v4) Una tabla del estado que se ordena de nuevo cada segundo hace parches enormes: manda las
   listas en orden fijo (p. ej. programadores por id) y ordena en el cliente.
+- (v4) **Módulos del cliente**: lo que cambia en caliente o lo define una pestaña y lo usa otra va
+  en la tabla `ui` (`ui.state`, `ui.lang`, `ui.doClick`, `ui.nicheLabel`, `ui.currentTab`…);
+  los alias `local x = ui.x` del principio de cada módulo solo sirven para cosas que no cambian.
+  Los módulos del servidor siguen un orden sin ciclos: ServerState → Economy → SaveService →
+  RewardService → SiteService → WorldEvents → StateService → VisitService → PurchaseService →
+  LeaderboardService (uno solo puede requerir a los anteriores).
+- (v4) En TycoonConfig, una función que use `Config.algo` definido más abajo hace fallar el
+  análisis de tipos: pon esos bloques al final (como `Config.Badges`).
 
 ## 10. Publicar una versión nueva (flujo del usuario)
 
@@ -494,8 +533,9 @@ Se hace por bloques, un commit por bloque con `check.sh` en verde:
   F3, F4a–b, F5a–c, F6, F7a–c, F8, F9, F10). F10 tal como lo describía el encargo no ocurría
   (si el boost sigue activo al entrar, estuvo activo todo el rato offline); se arregló el caso
   contrario (boost que acabó estando fuera) y el x2 de fin de semana.
-- [ ] Bloque 2 · base técnica: analítica (`AnalyticsService`), insignias (`Config.Badges`),
-  dividir cliente/servidor en módulos, portugués (`LocalePT`).
+- [x] **Bloque 2 · base técnica** (4.0-alpha.2): servidor en 12 módulos, cliente en ClientUI/
+  (Core + 15 pestañas + Tutorial + HudExtras), analítica, 12 insignias, portugués (947 textos).
+  Pruebas A1–A4 y B1 en `run_server.luau`; pasada completa en PT en `run_client.luau`.
 - [ ] Bloque 3 · interfaz por 5 centros (móvil primero).
 - [ ] Bloque 4 · Modo Historia (5 capítulos × 6 misiones, mentora Ada).
 - [ ] Bloque 5 · 6 productos nuevos + Eras y Fusión (Legado).

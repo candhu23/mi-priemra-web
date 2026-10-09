@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "4.0-alpha.1"
+Config.VERSION = "4.0-alpha.2"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -1121,5 +1121,51 @@ function Config.formatTime(seconds: number): string
 	end
 	return string.format("%dh %02dm", seconds // 3600, (seconds % 3600) // 60)
 end
+
+---------------------------------------------------------------------
+-- Insignias (Badges) de Roblox: se dan solas al cumplir el hito.
+-- PARA ACTIVARLAS: crea cada insignia en el Creator Hub (tu experiencia →
+-- Engagement → Badges → Create a Badge), copia su número (Badge ID) y
+-- ponlo en "id". Con id = 0 la insignia está desactivada (no se da).
+-- check(d) = ¿lo ha conseguido? (nil = se da desde el código, p. ej. el
+-- top 100 semanal al repartir premios)
+---------------------------------------------------------------------
+local function collectionCount(d): number
+	local n = 0
+	for _, row in d.collection or {} do
+		for _ in row do
+			n += 1
+		end
+	end
+	return n
+end
+Config.Badges = {
+	{ key = "first_site", id = 0, name = "Primera web", desc = "Programa tu primera web.",
+		check = function(d) return (d.stats.built or 0) >= 1 end },
+	{ key = "first_sale", id = 0, name = "Primera venta", desc = "Vende una web a una empresa.",
+		check = function(d) return (d.stats.sold or 0) >= 1 end },
+	{ key = "millionaire", id = 0, name = "Millonario", desc = "Gana $1M en total.",
+		check = function(d) return (d.lifetimeEarned or 0) >= 1e6 end },
+	{ key = "floor_10", id = 0, name = "Planta 10", desc = "Tu rascacielos llega a 10 plantas.",
+		check = function(d) return Config.buildingFloors(d.lifetimeEarned or 0) >= 10 end },
+	{ key = "floor_20", id = 0, name = "Planta 20", desc = "Tu rascacielos llega a 20 plantas.",
+		check = function(d) return Config.buildingFloors(d.lifetimeEarned or 0) >= 20 end },
+	{ key = "floor_40", id = 0, name = "Rascacielos completo", desc = "Tu rascacielos llega a 40 plantas.",
+		check = function(d) return Config.buildingFloors(d.lifetimeEarned or 0) >= 40 end },
+	{ key = "agency", id = 0, name = "Mi propia agencia", desc = "Funda tu agencia de programadores.",
+		check = function(d) return d.career ~= nil and d.career.agency ~= nil end },
+	{ key = "legendary", id = 0, name = "Fichaje legendario", desc = "Ficha a un programador Legendario o Mítico.",
+		check = function(d) return d.career ~= nil and (d.career.stats.bestRarity or 0) >= 5 end },
+	{ key = "first_ipo", id = 0, name = "Salida a bolsa", desc = "Sal a bolsa por primera vez.",
+		check = function(d) return (d.ipoCount or 0) >= 1 end },
+	{ key = "collector", id = 0, name = "Coleccionista", desc = "Llena 20 casillas de la colección.",
+		check = function(d) return collectionCount(d) >= 20 end },
+	{ key = "cto", id = 0, name = "CTO", desc = "Llega al rango CTO en tu carrera.",
+		check = function(d) return d.career ~= nil and (d.career.stats.rank or 0) >= 5 end },
+	{ key = "weekly_top", id = 0, name = "Top 100 semanal", desc = "Queda entre los 100 mejores de una semana.", check = nil },
+}
+Config.BADGE_CHECK_INTERVAL = 10 -- segundos entre comprobaciones
+Config.BADGE_RETRY = 300 -- si Roblox falla al darla, se reintenta a los 5 min
+
 
 return Config

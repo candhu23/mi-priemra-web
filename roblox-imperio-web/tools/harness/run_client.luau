@@ -14,6 +14,7 @@ local marketSource = fs.readFile(SRC .. "/ReplicatedStorage/MarketConfig.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/TycoonClient.client.luau")
 local localeSource = fs.readFile(SRC .. "/ReplicatedStorage/Locale.luau")
 local localeEnSource = fs.readFile(SRC .. "/ReplicatedStorage/LocaleEN.luau")
+local localePtSource = fs.readFile(SRC .. "/ReplicatedStorage/LocalePT.luau")
 local patchSource = fs.readFile(SRC .. "/ReplicatedStorage/StatePatch.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
 local visitJson = serde.decode("json", fs.readFile("visit.json"))
@@ -285,19 +286,56 @@ patchModule.Name = "StatePatch"
 patchModule.Parent = services.ReplicatedStorage
 local StatePatchMod = luau.load(patchSource, { debugName = "StatePatch", environment = env(nil) })()
 local EN = luau.load(localeEnSource, { debugName = "LocaleEN", environment = env(nil) })()
+local PT = luau.load(localePtSource, { debugName = "LocalePT", environment = env(nil) })()
+local localePtModule = roblox.Instance.new("ModuleScript")
+localePtModule.Name = "LocalePT"
+localePtModule.Parent = services.ReplicatedStorage
 local localeEnv = env(wrap(localeModule))
-localeEnv.require = function() return EN end
+localeEnv.require = function(m)
+	return if realOf[m] and realOf[m].Name == "LocalePT" then PT else EN
+end
 local Locale = luau.load(localeSource, { debugName = "Locale", environment = localeEnv })()
 -- Textos que el cliente pide traducir y no están en el diccionario
 local missing = {}
-Locale.onMissing = function(text)
-	missing[text] = true
+Locale.onMissing = function(text, lang)
+	missing[text] = lang or true
 end
-local modulesByName = { CareerConfig = CareerCfg, MarketConfig = MarketCfg, Locale = Locale, LocaleEN = EN, TycoonConfig = Config, StatePatch = StatePatchMod }
-local clientEnv = env(nil)
-clientEnv.require = function(m)
-	return assert(modulesByName[realOf[m] and realOf[m].Name], "módulo desconocido")
+local modulesByName = { CareerConfig = CareerCfg, MarketConfig = MarketCfg, Locale = Locale, LocaleEN = EN, LocalePT = PT, TycoonConfig = Config, StatePatch = StatePatchMod }
+-- PlayerScripts: el LocalScript y la carpeta ClientUI con sus módulos (v4)
+local playerScripts = roblox.Instance.new("Folder")
+playerScripts.Name = "PlayerScripts"
+local clientScript = roblox.Instance.new("LocalScript")
+clientScript.Name = "TycoonClient"
+clientScript.Parent = playerScripts
+local clientUIFolder = roblox.Instance.new("Folder")
+clientUIFolder.Name = "ClientUI"
+clientUIFolder.Parent = playerScripts
+local uiSources = {}
+for _, file in fs.readDir(SRC .. "/StarterPlayerScripts/ClientUI") do
+	if string.sub(file, -5) == ".luau" then
+		local name = string.sub(file, 1, -6)
+		uiSources[name] = fs.readFile(SRC .. "/StarterPlayerScripts/ClientUI/" .. file)
+		local module = roblox.Instance.new("ModuleScript")
+		module.Name = name
+		module.Parent = clientUIFolder
+	end
 end
+local loadedUI = {}
+local function clientRequire(m)
+	local inst = realOf[m]
+	local name = inst and inst.Name
+	if inst and inst.Parent and inst.Parent.Name == "ClientUI" and uiSources[name] then
+		if loadedUI[name] == nil then
+			local moduleEnv = env(m)
+			moduleEnv.require = clientRequire
+			loadedUI[name] = luau.load(uiSources[name], { debugName = name, environment = moduleEnv })()
+		end
+		return loadedUI[name]
+	end
+	return assert(modulesByName[name], "módulo desconocido: " .. tostring(name))
+end
+local clientEnv = env(wrap(clientScript))
+clientEnv.require = clientRequire
 luau.load(clientSource, { debugName = "TycoonClient", environment = clientEnv })()
 
 local function countGui()
@@ -477,7 +515,8 @@ signalFor(idOf(visitRemote), "OnClientEvent"):Fire(visitJson)
 assert(worldLabel.Text == "🏗️ PARCELA LIBRE", "en español el cartel no cambia: " .. worldLabel.Text)
 
 ---------------------------------------------------------------------
--- Ahora en inglés: botón 🌐 y otra vez todas las pestañas y botones
+-- Ahora en inglés y luego en portugués: botón 🌐 y otra vez todas las
+-- pestañas y botones (ES → EN → PT → ES)
 ---------------------------------------------------------------------
 local languageButton = nil
 for _, d in playerGui:GetDescendants() do
@@ -486,51 +525,18 @@ for _, d in playerGui:GetDescendants() do
 	end
 end
 assert(languageButton, "no está el botón de idioma")
-signalFor(idOf(languageButton), "Activated"):Fire()
-assert(languageButton.Text == "🌐 EN", "el botón de idioma no cambió")
-assert(worldLabel.Text == "🏗️ FREE PLOT", "el cartel del mundo no se tradujo: " .. worldLabel.Text)
-assert(worldInfo.Text == "12 floors · $1.50K/s · 👍 3", "el cartel con datos no se tradujo: " .. worldInfo.Text)
-assert(worldPrompt.ActionText == "View empire", "el ProximityPrompt no se tradujo")
-local sEn = serde.decode("json", serde.encode("json", s2))
-sEn.settings.lang = "en"
-for _ = 1, 2 do
-	for _, d in playerGui:GetDescendants() do
-		-- Pulsar un botón puede borrar otros (filas, ventanas): esos se saltan
-		local alive, id = pcall(idOf, d)
-		if alive and d:IsA("TextButton") and d ~= languageButton then
-			signalFor(id, "Activated"):Fire()
-		end
-	end
-	fireState(sEn)
-end
--- Avisos y ventanas que manda el servidor (en español) → deben salir en inglés
-signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("💾 Partida guardada", "success")
-signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("😴 ¡Bienvenido de vuelta!", "popup", "Mientras no estabas (1h 00m) tus webs y empresas ganaron\n$19.0K")
-signalFor(idOf(visitRemote), "OnClientEvent"):Fire(visitJson)
-fireState(sEn)
--- Abrir las ventanas que estaban en cola y pulsar su botón (la ficha da "me gusta")
-for _ = 1, 40 do
-	local pending = delayed
-	delayed = {}
-	for _, item in pending do
-		item[1](table.unpack(item[2], 1, item[2].n))
-	end
-	local modal = playerGui:FindFirstChild("ImperioWebModal")
-	if modal and modal.Enabled then
-		for _, d in modal:GetDescendants() do
-			if d:IsA("TextButton") then
-				signalFor(idOf(d), "Activated"):Fire()
-			end
-		end
-	end
-end
 
--- Buscar textos que se hayan quedado en español
+-- Palabras que delatan un texto que se ha quedado en español
+local SPANISH = {
+	en = { " de ", " la ", " el ", " tu ", " tus ", " para ", " con ", " por ", " en ", " una ", " del ", " los ", " las ", " y ", "¿", "¡", "á", "é", "í", "ó", "ú", "ñ" },
+	-- (el portugués comparte muchas: solo las que son solo del español)
+	pt = { " el ", " los ", " las ", " y ", " del ", " tu ", " tus ", " una ", " con ", " muy ", " pero ", " hay ", " ya ", " ha ", " has ",
+		" un ", " al ", " la ", " es ", "ción", "ión ", " más ", " aún ", "¿", "¡", "ñ" },
+}
 local properNames = { "Jorge", "Ana", "Dev Studio" }
 for _, c in CareerCfg.Companies do table.insert(properNames, c.name) end
 for _, n in CareerCfg.FirstNames do table.insert(properNames, n) end
 table.sort(properNames, function(a, b) return #a > #b end)
-local SPANISH = { " de ", " la ", " el ", " tu ", " tus ", " para ", " con ", " por ", " en ", " una ", " del ", " los ", " las ", " y ", "¿", "¡", "á", "é", "í", "ó", "ú", "ñ" }
 local function stripName(text, name)
 	local i = string.find(text, name, 1, true)
 	while i do
@@ -539,39 +545,95 @@ local function stripName(text, name)
 	end
 	return text
 end
-local leftovers = {}
-for _, d in playerGui:GetDescendants() do
-	-- Los números flotantes del clic duran 0,8 s (aquí no se borran porque
-	-- Lune no ejecuta animaciones): los de antes del cambio de idioma no cuentan
-	local isText = d:IsA("TextLabel") or d:IsA("TextButton")
-	local transient = isText and string.find(d.Text, "¡CRÍTICO!", 1, true) ~= nil
-	if isText and d.Text ~= "" and not transient then
-		local clean = " " .. d.Text .. " "
-		for _, name in properNames do
-			clean = stripName(clean, name)
+
+local function languagePass(code, label, expected)
+	table.clear(missing)
+	signalFor(idOf(languageButton), "Activated"):Fire()
+	assert(languageButton.Text == "🌐 " .. string.upper(code), "el botón de idioma no cambió: " .. languageButton.Text)
+	assert(worldLabel.Text == expected.board, "el cartel del mundo no se tradujo: " .. worldLabel.Text)
+	assert(worldInfo.Text == expected.info, "el cartel con datos no se tradujo: " .. worldInfo.Text)
+	assert(worldPrompt.ActionText == expected.prompt, "el ProximityPrompt no se tradujo: " .. worldPrompt.ActionText)
+	local sLang = serde.decode("json", serde.encode("json", s2))
+	sLang.settings.lang = code
+	for _ = 1, 2 do
+		for _, d in playerGui:GetDescendants() do
+			-- Pulsar un botón puede borrar otros (filas, ventanas): esos se saltan
+			local alive, id = pcall(idOf, d)
+			if alive and d:IsA("TextButton") and d ~= languageButton then
+				signalFor(id, "Activated"):Fire()
+			end
 		end
-		for _, word in SPANISH do
-			if string.find(clean, word, 1, true) then
-				leftovers[d.Text] = word
-				break
+		fireState(sLang)
+	end
+	-- Avisos y ventanas que manda el servidor (en español) → deben salir traducidos
+	signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("💾 Partida guardada", "success")
+	signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("😴 ¡Bienvenido de vuelta!", "popup", "Mientras no estabas (1h 00m) tus webs y empresas ganaron\n$19.0K")
+	signalFor(idOf(visitRemote), "OnClientEvent"):Fire(visitJson)
+	fireState(sLang)
+	-- Abrir las ventanas que estaban en cola y pulsar su botón (la ficha da "me gusta")
+	for _ = 1, 40 do
+		local pending = delayed
+		delayed = {}
+		for _, item in pending do
+			item[1](table.unpack(item[2], 1, item[2].n))
+		end
+		local modal = playerGui:FindFirstChild("ImperioWebModal")
+		if modal and modal.Enabled then
+			for _, d in modal:GetDescendants() do
+				if d:IsA("TextButton") then
+					signalFor(idOf(d), "Activated"):Fire()
+				end
 			end
 		end
 	end
+	-- Buscar textos que se hayan quedado en español
+	local leftovers = {}
+	for _, d in playerGui:GetDescendants() do
+		-- Los números flotantes del clic duran 0,8 s (aquí no se borran porque
+		-- Lune no ejecuta animaciones): los de antes del cambio de idioma no cuentan
+		local isText = d:IsA("TextLabel") or d:IsA("TextButton")
+		local transient = isText and string.find(d.Text, "¡CRÍTICO!", 1, true) ~= nil
+		if isText and d.Text ~= "" and not transient then
+			local clean = " " .. d.Text .. " "
+			for _, name in properNames do
+				clean = stripName(clean, name)
+			end
+			for _, word in SPANISH[code] do
+				if string.find(clean, word, 1, true) then
+					leftovers[d.Text] = word
+					break
+				end
+			end
+		end
+	end
+	local nLeft = 0
+	for text, word in leftovers do
+		nLeft += 1
+		print("  EN ESPAÑOL [" .. word .. "]: " .. string.gsub(text, "\n", " / "))
+	end
+	local nMissing = 0
+	for text in missing do
+		nMissing += 1
+		print("  FALTA EN EL DICCIONARIO (" .. code .. "): " .. string.gsub(text, "\n", " / "))
+	end
+	print(label .. ": textos en español que quedan", nLeft, "· claves que faltan", nMissing)
+	assert(nLeft == 0 and nMissing == 0, "faltan traducciones (" .. code .. ")")
 end
-local nLeft = 0
-for text, word in leftovers do
-	nLeft += 1
-	print("  EN ESPAÑOL [" .. word .. "]: " .. string.gsub(text, "\n", " / "))
+
+languagePass("en", "Inglés", { board = "🏗️ FREE PLOT", info = "12 floors · $1.50K/s · 👍 3", prompt = "View empire" })
+languagePass("pt", "Portugués", { board = "🏗️ TERRENO LIVRE", info = "12 andares · $1.50K/s · 👍 3", prompt = "Ver império" })
+-- Toda clave de LocaleEN tiene que estar en LocalePT (y al revés)
+local onlyEn, onlyPt = 0, 0
+for key in EN do
+	if PT[key] == nil then onlyEn += 1 print("  FALTA EN LocalePT: " .. key) end
 end
-local nMissing = 0
-for text in missing do
-	nMissing += 1
-	print("  FALTA EN EL DICCIONARIO: " .. string.gsub(text, "\n", " / "))
+for key in PT do
+	if EN[key] == nil then onlyPt += 1 print("  SOBRA EN LocalePT: " .. key) end
 end
-print("Inglés: textos en español que quedan", nLeft, "· claves que faltan", nMissing)
-assert(nLeft == 0 and nMissing == 0, "faltan traducciones")
+assert(onlyEn == 0 and onlyPt == 0, "LocaleEN y LocalePT no tienen las mismas claves")
 -- Y volver al español
 signalFor(idOf(languageButton), "Activated"):Fire()
+assert(languageButton.Text == "🌐 ES", "el botón no volvió al español")
 assert(worldLabel.Text == "🏗️ PARCELA LIBRE", "el cartel no volvió al español")
 fireState(stateJson)
 

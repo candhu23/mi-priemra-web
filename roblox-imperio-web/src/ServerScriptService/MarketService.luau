@@ -22,7 +22,8 @@ local Validate = require(ReplicatedStorage:WaitForChild("Validate"))
 local MarketService = {}
 
 type Ctx = {
-	gain: (data: any, amount: number) -> (),
+	gain: (data: any, amount: number, tag: string?) -> (),
+	spend: (data: any, amount: number, tag: string) -> (),
 	notifyAll: (text: string, kind: string) -> (),
 	sessions: () -> { [Player]: any },
 	onTick: (rows: { any }) -> (), -- para el panel de la Bolsa en el mapa
@@ -88,7 +89,7 @@ local function step(tick: number, live: boolean)
 		for id, position in session.data.portfolio do
 			local state = stocks[id]
 			if state and position.units > 0 then
-				ctx.gain(session.data, position.units * state.price * Market.DIVIDEND)
+				ctx.gain(session.data, position.units * state.price * Market.DIVIDEND, "bolsa")
 			end
 		end
 	end
@@ -182,7 +183,7 @@ function MarketService.buy(session, id: any, fraction: any): (boolean, string?)
 	if amount < 1 then
 		return false, "No tienes suficiente dinero."
 	end
-	data.money -= amount
+	ctx.spend(data, amount, "bolsa")
 	local net = amount * (1 - Market.FEE)
 	position.units += net / state.price
 	position.invested += amount
@@ -214,7 +215,7 @@ function MarketService.sell(session, id: any, fraction: any): (boolean, string?,
 	local profit = money - cost
 	if profit > 0 then
 		data.money += cost
-		ctx.gain(data, profit)
+		ctx.gain(data, profit, "bolsa")
 	else
 		data.money += money
 	end

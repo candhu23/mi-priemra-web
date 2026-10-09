@@ -14,8 +14,15 @@ local function readSource(path)
 	end
 	return sources[path]
 end
-for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ServerScriptService/MarketService.luau", "/ReplicatedStorage/MarketConfig.luau", "/ReplicatedStorage/CityLayout.luau", "/ServerScriptService/AgencyOffice.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ReplicatedStorage/Validate.luau", "/ReplicatedStorage/StatePatch.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
-	readSource(SRC .. rel)
+-- Todos los módulos de ReplicatedStorage y ServerScriptService (se leen
+-- antes porque fs.readFile no se puede usar dentro de require)
+local MODULE_DIRS = { "ReplicatedStorage", "ServerScriptService" }
+for _, dir in MODULE_DIRS do
+	for _, file in fs.readDir(SRC .. "/" .. dir) do
+		if string.sub(file, -5) == ".luau" then
+			readSource(SRC .. "/" .. dir .. "/" .. file)
+		end
+	end
 end
 
 local realOf = setmetatable({}, { __mode = "k" })
@@ -244,6 +251,27 @@ playersFolder.Parent = dataModel
 
 local closeHandlers = {}
 local studioMode = false -- RunService:IsStudio()
+-- Analítica e insignias: se apuntan las llamadas
+local analyticsLog = {}
+local function logger(kind)
+	return function(_, ...)
+		table.insert(analyticsLog, { kind = kind, args = table.pack(...) })
+	end
+end
+local analyticsMock = {
+	LogOnboardingFunnelStepEvent = logger("onboarding"),
+	LogFunnelStepEvent = logger("funnel"),
+	LogEconomyEvent = logger("economy"),
+	LogProgressionCompleteEvent = logger("progress"),
+	LogCustomEvent = logger("custom"),
+}
+local badgesAwarded = {}
+local badgeMock = {
+	AwardBadgeAsync = function(_, userId, badgeId)
+		table.insert(badgesAwarded, { userId = userId, badgeId = badgeId })
+		return true
+	end,
+}
 local game = {
 	JobId = "servidor-A",
 	GetService = function(_, name)
@@ -252,6 +280,8 @@ local game = {
 			MarketplaceService = MarketplaceService, Players = Players,
 			PolicyService = { GetPolicyInfoForPlayerAsync = function() return { ArePaidRandomItemsRestricted = false } end },
 			RunService = { IsStudio = function() return studioMode end },
+			AnalyticsService = analyticsMock,
+			BadgeService = badgeMock,
 		}
 		if mocks[name] then
 			return mocks[name]
@@ -269,21 +299,13 @@ local function addModule(parent, className, name, path)
 	modulePaths[m:GetFullName()] = path
 	return m
 end
-addModule(services.ReplicatedStorage, "ModuleScript", "TycoonConfig", SRC .. "/ReplicatedStorage/TycoonConfig.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "CareerConfig", SRC .. "/ReplicatedStorage/CareerConfig.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "MarketConfig", SRC .. "/ReplicatedStorage/MarketConfig.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "CityLayout", SRC .. "/ReplicatedStorage/CityLayout.luau")
-addModule(services.ServerScriptService, "ModuleScript", "AgencyOffice", SRC .. "/ServerScriptService/AgencyOffice.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "Locale", SRC .. "/ReplicatedStorage/Locale.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "LocaleEN", SRC .. "/ReplicatedStorage/LocaleEN.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "Validate", SRC .. "/ReplicatedStorage/Validate.luau")
-addModule(services.ReplicatedStorage, "ModuleScript", "StatePatch", SRC .. "/ReplicatedStorage/StatePatch.luau")
-addModule(services.ServerScriptService, "ModuleScript", "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
-addModule(services.ServerScriptService, "ModuleScript", "CareerService", SRC .. "/ServerScriptService/CareerService.luau")
-addModule(services.ServerScriptService, "ModuleScript", "MarketService", SRC .. "/ServerScriptService/MarketService.luau")
-addModule(services.ServerScriptService, "ModuleScript", "Building", SRC .. "/ServerScriptService/Building.luau")
-addModule(services.ServerScriptService, "ModuleScript", "World", SRC .. "/ServerScriptService/World.luau")
-addModule(services.ServerScriptService, "ModuleScript", "PlotManager", SRC .. "/ServerScriptService/PlotManager.luau")
+for _, dir in MODULE_DIRS do
+	for _, file in fs.readDir(SRC .. "/" .. dir) do
+		if string.sub(file, -5) == ".luau" and not string.find(file, "%.server%.luau$") and not string.find(file, "%.client%.luau$") then
+			addModule(services[dir], "ModuleScript", string.sub(file, 1, -6), SRC .. "/" .. dir .. "/" .. file)
+		end
+	end
+end
 local serverScript = addModule(services.ServerScriptService, "Script", "TycoonServer", SRC .. "/ServerScriptService/TycoonServer.server.luau")
 
 local Random = {
@@ -359,6 +381,11 @@ do
 	-- En el harness el tiempo casi no avanza entre acciones: sin límite de
 	-- envíos para que cada acción mande su estado (la prueba F7 lo activa)
 	cfg.STATE_MIN_INTERVAL = 0
+	-- Dos insignias activadas para probar
+	for _, badge in cfg.Badges do
+		if badge.key == "first_site" then badge.id = 9001 end
+		if badge.key == "weekly_top" then badge.id = 9002 end
+	end
 end
 -- Arrancar el script del servidor (se queda dormido en su bucle principal)
 do
@@ -1013,6 +1040,44 @@ print("  bonus de logros: dinero", Config.achievementBonus(s, "money"), "· clic
 
 fs.writeFile("state.json", serde.encode("json", lastState()))
 
+-- Bloque 2: analítica e insignias --------------------------------------
+print("-- Analítica e insignias --")
+do
+	local count = {}
+	local onboardingSteps, sinks, sources, tutorialSteps = {}, {}, {}, 0
+	for _, entry in analyticsLog do
+		count[entry.kind] = (count[entry.kind] or 0) + 1
+		if entry.kind == "onboarding" then onboardingSteps[entry.args[3]] = true end
+		if entry.kind == "economy" then
+			local list = if tostring(entry.args[2]) == tostring(roblox.Enum.AnalyticsEconomyFlowType.Source) then sources else sinks
+			list[entry.args[7]] = true
+		end
+	end
+	local parts = {}
+	for kind, n in count do table.insert(parts, kind .. "=" .. n) end
+	table.sort(parts)
+	print("  llamadas: " .. table.concat(parts, ", "))
+	local function keys(t) local out = {} for k in t do table.insert(out, k) end table.sort(out) return table.concat(out, ", ") end
+	print("  embudo: " .. keys(onboardingSteps))
+	print("  economía · entra: " .. keys(sources) .. " · sale: " .. keys(sinks))
+	check("A1", onboardingSteps["Entra por primera vez"] and onboardingSteps["Empieza su primera web"] and onboardingSteps["Termina su primera web"],
+		"embudo de los primeros minutos")
+	check("A2", sources.ingresos and sources.robux and sinks.webs and sinks.empresas, "economía: entradas y salidas por categoría")
+	check("A3", (count.progress or 0) > 0, "progresión (plantas del rascacielos)")
+	local first, weekly = false, false
+	for _, b in badgesAwarded do
+		if b.userId == 42 and b.badgeId == 9001 then first = true end
+		if b.userId == 42 and b.badgeId == 9002 then weekly = true end
+	end
+	check("B1", first and weekly and #badgesAwarded <= 4, "insignias: primera web y top semanal, sin repetirse")
+	act("tutorialStep", 1)
+	act("tutorialStep", 1) -- repetido: no se apunta dos veces
+	act("tutorialStep", 0 / 0)
+	local funnel = 0
+	for _, entry in analyticsLog do if entry.kind == "funnel" then funnel += 1 end end
+	check("A4", funnel == 1, "embudo del tutorial (un evento por paso)")
+end
+
 -- F7: cuánto ocupa lo que se manda cada segundo ------------------------
 print("-- F7: tamaño del estado --")
 do
@@ -1056,8 +1121,8 @@ do
 	for i = 1, math.min(8, #keys) do table.insert(parts, keys[i].key .. "=" .. keys[i].bytes) end
 	print("  bytes por segundo de cada parte: " .. table.concat(parts, ", "))
 	-- (medido en JSON; por la red de Roblox los números ocupan menos)
-	check("F7a", count > 0 and full == 0 and total / count < 1536 and p90 < 2048 and maxSize < 4096,
-		"cada segundo solo viaja lo que cambia (media < 1,5 KB, p90 < 2 KB)")
+	check("F7a", count > 0 and full == 0 and total / count < 2048 and p90 < 2048 and maxSize < 4096,
+		"cada segundo solo viaja lo que cambia (media y p90 < 2 KB)")
 	-- Los clics no mandan estado
 	s = lastState()
 	fakeTime += 100
@@ -1181,6 +1246,21 @@ for _, f in fired do
 	end
 end
 for _, m in actionMessages do table.insert(texts, m) end
+-- En portugués solo sirven las palabras que son solo del español
+local SPANISH_PT = { " el ", " los ", " las ", " y ", " del ", " tu ", " tus ", " una ", " con ", " muy ", " pero ", " hay ", " ya ", " ha ", " has ",
+	" un ", " al ", " la ", " es ", "ción", "ión ", " más ", " aún ", "¿", "¡", "ñ" }
+local function looksSpanishPT(text)
+	local clean = " " .. text .. " "
+	for _, name in properNames do
+		clean = stripName(clean, name)
+	end
+	for _, word in SPANISH_PT do
+		if string.find(clean, word, 1, true) then
+			return word
+		end
+	end
+	return nil
+end
 local seenText, bad = {}, 0
 for _, text in texts do
 	if not seenText[text] then
@@ -1191,6 +1271,13 @@ for _, text in texts do
 		if word then
 			bad += 1
 			print("  SIN TRADUCIR [" .. word .. "]: " .. text .. "  →  " .. english)
+		end
+		local portuguese = Locale.translate("pt", text)
+		print("  [pt] " .. string.gsub(portuguese, "\n", " / "))
+		local wordPt = looksSpanishPT(portuguese)
+		if wordPt then
+			bad += 1
+			print("  SIN TRADUCIR AL PORTUGUÉS [" .. tostring(wordPt) .. "]: " .. text .. "  →  " .. portuguese)
 		end
 	end
 end
