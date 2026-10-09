@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "4.0-alpha.2"
+Config.VERSION = "4.0-alpha.3"
 
 ---------------------------------------------------------------------
 -- Ajustes generales

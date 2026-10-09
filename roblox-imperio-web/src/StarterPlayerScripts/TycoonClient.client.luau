@@ -55,9 +55,7 @@ local chips = ui.chips
 local eventLabel = ui.eventLabel
 local saveBanner = ui.saveBanner
 local window = ui.window
-local windowTitle = ui.windowTitle
 local languageButton = ui.languageButton
-local TABS = ui.TABS
 local renderers = ui.renderers
 local refreshTabButtons = ui.refreshTabButtons
 local selectTab = ui.selectTab
@@ -255,7 +253,7 @@ local function renderAlways(s)
 			researchReady = true
 		end
 	end
-	setBadge("market", s.ipoShares >= 1)
+	setBadge("ipo", s.ipoShares >= 1)
 	setBadge("research", researchReady)
 	local claimable = 0
 	for _, goal in Config.Goals do
@@ -527,11 +525,7 @@ ui.applyLanguage = function(newLang: string)
 	end
 	-- Pestañas y todo lo que se pinta con el estado
 	refreshTabButtons()
-	for _, tab in TABS do
-		if tab.id == ui.currentTab then
-			windowTitle.Text = tab.emoji .. " " .. T(tab.name)
-		end
-	end
+	ui.updateTitle()
 	if ui.state then
 		renderAlways(ui.state)
 		if renderers[ui.currentTab] then

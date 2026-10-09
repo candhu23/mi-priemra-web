@@ -956,4 +956,11 @@ return {
 	["🔔 ¿Salir a bolsa?"] = "🔔 Abrir capital?",
 	["Ganas: +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes"] = "Você ganha: +%d ações (+%d%% de dinheiro para sempre) e +%d 💡 patentes",
 	["👋 ¿Despedir a %s?"] = "👋 Demitir %s?",
+	["Producción"] = "Produção",
+	["Inversión"] = "Investimentos",
+	["Progreso"] = "Progresso",
+	["Tienda y social"] = "Loja e social",
+	["Salir a bolsa"] = "Abrir capital",
+	["Imperio Web"] = "Império Web",
+	["ℹ️ Empiezas de cero, pero cada acción te da más dinero para siempre y patentes para 💡 I+D."] = "ℹ️ Você começa do zero, mas cada ação te dá mais dinheiro para sempre e patentes para 💡 P&D.",
 }

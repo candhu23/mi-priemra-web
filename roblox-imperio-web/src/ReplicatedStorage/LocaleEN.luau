@@ -956,4 +956,11 @@ return {
 	["🔔 ¿Salir a bolsa?"] = "🔔 Go public?",
 	["Ganas: +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes"] = "You get: +%d shares (+%d%% money forever) and +%d 💡 patents",
 	["👋 ¿Despedir a %s?"] = "👋 Fire %s?",
+	["Producción"] = "Production",
+	["Inversión"] = "Investing",
+	["Progreso"] = "Progress",
+	["Tienda y social"] = "Shop & social",
+	["Salir a bolsa"] = "Go public",
+	["Imperio Web"] = "Web Empire",
+	["ℹ️ Empiezas de cero, pero cada acción te da más dinero para siempre y patentes para 💡 I+D."] = "ℹ️ You start from scratch, but each share gives you more money forever, plus patents for 💡 R&D.",
 }

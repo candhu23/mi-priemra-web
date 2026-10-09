@@ -230,6 +230,7 @@ local mocks = {
 		GetProductInfo = function() return { PriceInRobux = 99 } end,
 	},
 	SocialService = { CanSendGameInviteAsync = function() return true end, PromptGameInvite = function() end },
+	GuiService = { GetGuiInset = function() return roblox.Vector2.new(0, 58), roblox.Vector2.new(0, 0) end },
 }
 local game = {
 	GetService = function(_, name)
@@ -513,6 +514,53 @@ fireState(stateJson)
 -- Ficha de otro imperio
 signalFor(idOf(visitRemote), "OnClientEvent"):Fire(visitJson)
 assert(worldLabel.Text == "🏗️ PARCELA LIBRE", "en español el cartel no cambia: " .. worldLabel.Text)
+
+---------------------------------------------------------------------
+-- v4 bloque 3: centros con sub-pestañas, pensados para móvil
+---------------------------------------------------------------------
+do
+	local ui = loadedUI.Core
+	assert(ui and ui.HUBS, "Core no expone los centros")
+	-- Móvil apaisado típico (844 × 390) y vertical (390 × 844)
+	for _, viewport in { roblox.Vector2.new(844, 390), roblox.Vector2.new(390, 844), roblox.Vector2.new(1920, 1080) } do
+		ui.resizeWindow(viewport)
+		local scale = ui.window:FindFirstChildOfClass("UIScale").Scale
+		local hubHeight = ui.hubBar.Size.Y.Offset * scale
+		local subHeight = ui.subBar.Size.Y.Offset * scale
+		local windowHeight = ui.window.Size.Y.Offset * scale
+		local windowWidth = ui.window.Size.X.Offset * scale
+		print(string.format("  pantalla %dx%d: escala %.2f · centros %d px · pestañas %d px · ventana %dx%d px",
+			viewport.X, viewport.Y, scale, hubHeight, subHeight, windowWidth, windowHeight))
+		assert(hubHeight >= 44 and subHeight >= 44, "botones de menos de 44 px")
+		-- (la barra de Roblox ocupa 58 px arriba: GuiService simulado)
+		assert(windowHeight <= viewport.Y - 58 and windowWidth <= viewport.X, "la ventana no cabe en la pantalla")
+	end
+	assert(#ui.HUBS == 5, "deberían ser 5 centros")
+	local seen = {}
+	for _, hub in ui.HUBS do
+		assert(#hub.tabs <= 5, "más de 5 pestañas en un centro: " .. hub.id)
+		for _, id in hub.tabs do
+			assert(not seen[id], "pestaña en dos centros: " .. id)
+			seen[id] = true
+			assert(ui.pages[id], "pestaña sin página: " .. id)
+		end
+	end
+	for _, tab in ui.TABS do
+		assert(seen[tab.id], "pestaña sin centro: " .. tab.id)
+	end
+	-- Pulsar cada centro abre una de sus pestañas (están todas desbloqueadas aquí)
+	for _, hub in ui.HUBS do
+		signalFor(idOf(ui.hubButtons[hub.id]), "Activated"):Fire()
+		assert(ui.currentHub == hub.id and ui.hubOfTab[ui.currentTab] == hub, "el centro " .. hub.id .. " no abrió su pestaña")
+		local visible = 0
+		for _, child in ui.subBar:GetChildren() do
+			if child:IsA("TextButton") and child.Visible then visible += 1 end
+		end
+		assert(visible == #hub.tabs, "se ven " .. visible .. " pestañas en " .. hub.id)
+	end
+	ui.selectTab("create")
+	print("Centros OK: 5 centros, " .. #ui.TABS .. " pestañas, máximo 5 por fila")
+end
 
 ---------------------------------------------------------------------
 -- Ahora en inglés y luego en portugués: botón 🌐 y otra vez todas las

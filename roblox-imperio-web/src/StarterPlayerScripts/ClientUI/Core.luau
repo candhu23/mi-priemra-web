@@ -390,6 +390,9 @@ local function updateScale()
 	for _, scale in scaledObjects do
 		scale.Scale = value
 	end
+	if ui.resizeWindow then
+		ui.resizeWindow(size)
+	end
 end
 
 ---------------------------------------------------------------------
@@ -551,7 +554,26 @@ local window = create("Frame", {
 	Visible = false,
 	ZIndex = 5,
 }, { corner(16), stroke(Color3.fromRGB(96, 165, 250), 3) })
-autoScale(window)
+
+-- v4 (móvil primero): la ventana del ordenador tiene su propia escala y no
+-- baja del 85 % (así los botones miden ≥ 44 px en el móvil). Si la pantalla
+-- es pequeña, la ventana se hace más baja/estrecha en vez de más pequeña.
+local windowScale = create("UIScale", { Parent = window })
+function ui.resizeWindow(size: Vector2)
+	-- La barra de arriba de Roblox ocupa sitio (esta pantalla no la ignora)
+	local insetY = 0
+	local ok, topLeft = pcall(function()
+		return (game:GetService("GuiService"):GetGuiInset())
+	end)
+	if ok and typeof(topLeft) == "Vector2" then
+		insetY = topLeft.Y
+	end
+	local height = size.Y - insetY
+	local scale = math.clamp(math.min(size.X / 920, height / 600), 0.85, 1.15)
+	windowScale.Scale = scale
+	window.Size = UDim2.fromOffset(math.min(880, (size.X - 16) / scale), math.min(560, (height - 16) / scale))
+	window.Position = UDim2.fromScale(0.5, if height < 600 then 0.5 else 0.53)
+end
 
 local header = create("Frame", {
 	Parent = window,
@@ -563,22 +585,22 @@ local windowTitle = create("TextLabel", {
 	Parent = header,
 	BackgroundTransparency = 1,
 	Position = UDim2.fromOffset(16, 0),
-	Size = UDim2.new(1, -250, 1, 0),
+	Size = UDim2.new(1, -270, 1, 0),
 	Text = "🌐 Imperio Web",
 	TextColor3 = THEME.text,
 	Font = Enum.Font.FredokaOne,
-	TextSize = 26,
+	TextScaled = true,
 	TextXAlignment = Enum.TextXAlignment.Left,
-})
+}, { maxText(26) })
 
-local closeButton = makeButton(header, "✕", THEME.red, UDim2.fromOffset(40, 36), function()
+local closeButton = makeButton(header, "✕", THEME.red, UDim2.fromOffset(48, 42), function()
 	window.Visible = false
 end)
 closeButton.AnchorPoint = Vector2.new(1, 0.5)
 closeButton.Position = UDim2.new(1, -8, 0.5, 0)
 
 -- 🔊 → 🔉 → 🔇 (Config.VOLUME_STEPS)
-ui.muteButton = makeButton(header, "🔊", THEME.card, UDim2.fromOffset(44, 36), function()
+ui.muteButton = makeButton(header, "🔊", THEME.card, UDim2.fromOffset(48, 42), function()
 	local steps = Config.VOLUME_STEPS
 	local nextVolume = steps[1]
 	for i, v in steps do
@@ -592,21 +614,21 @@ ui.muteButton = makeButton(header, "🔊", THEME.card, UDim2.fromOffset(44, 36),
 	audio.updateMusic()
 end)
 ui.muteButton.AnchorPoint = Vector2.new(1, 0.5)
-ui.muteButton.Position = UDim2.new(1, -56, 0.5, 0)
+ui.muteButton.Position = UDim2.new(1, -62, 0.5, 0)
 
 -- 🎵 música sí / no
-audio.button = makeButton(header, "🎵", THEME.green, UDim2.fromOffset(44, 36), function()
+audio.button = makeButton(header, "🎵", THEME.green, UDim2.fromOffset(48, 42), function()
 	audio.musicOn = not audio.musicOn
 	setButton(audio.button, "🎵", true, if audio.musicOn then THEME.green else THEME.card)
 	sendAction("setMusic", audio.musicOn)
 	audio.updateMusic()
 end)
 audio.button.AnchorPoint = Vector2.new(1, 0.5)
-audio.button.Position = UDim2.new(1, -186, 0.5, 0)
+audio.button.Position = UDim2.new(1, -202, 0.5, 0)
 
 -- Botón de idioma (ES / EN). Se define abajo, cuando ya existe todo.
 ui.applyLanguage = function() end
-local languageButton = makeButton(header, "🌐 " .. string.upper(ui.lang), THEME.card, UDim2.fromOffset(74, 36), function()
+local languageButton = makeButton(header, "🌐 " .. string.upper(ui.lang), THEME.card, UDim2.fromOffset(80, 42), function()
 	-- ES → EN → PT → ES
 	local newLang = Locale.LANGS[1]
 	for i, code in Locale.LANGS do
@@ -618,17 +640,32 @@ local languageButton = makeButton(header, "🌐 " .. string.upper(ui.lang), THEM
 	ui.applyLanguage(newLang)
 end)
 languageButton.AnchorPoint = Vector2.new(1, 0.5)
-languageButton.Position = UDim2.new(1, -108, 0.5, 0)
+languageButton.Position = UDim2.new(1, -116, 0.5, 0)
 
-local tabBar = create("Frame", {
+-- v4: 5 CENTROS con sub-pestañas (pensado primero para móvil: botones grandes,
+-- nunca más de 5 por fila). Arriba los centros; debajo, las pestañas del centro.
+local hubBar = create("Frame", {
 	Parent = window,
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 58),
-	Size = UDim2.new(1, -20, 0, 74),
+	Position = UDim2.fromOffset(10, 56),
+	Size = UDim2.new(1, -20, 0, 54),
 }, {
-	create("UIGridLayout", {
-		CellSize = UDim2.new(1 / 8, -6, 0, 34),
-		CellPadding = UDim2.fromOffset(6, 6),
+	create("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}),
+})
+
+local subBar = create("Frame", {
+	Parent = window,
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 116),
+	Size = UDim2.new(1, -20, 0, 52),
+}, {
+	create("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 6),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	}),
 })
@@ -636,8 +673,8 @@ local tabBar = create("Frame", {
 local content = create("Frame", {
 	Parent = window,
 	BackgroundTransparency = 1,
-	Position = UDim2.fromOffset(10, 140),
-	Size = UDim2.new(1, -20, 1, -150),
+	Position = UDim2.fromOffset(10, 176),
+	Size = UDim2.new(1, -20, 1, -184),
 })
 
 local TABS = {
@@ -655,13 +692,36 @@ local TABS = {
 	{ id = "ranking", emoji = "🏆", name = "Ranking", color = Color3.fromRGB(234, 179, 8) },
 	{ id = "market", emoji = "📈", name = "Bolsa", color = THEME.pink },
 	{ id = "research", emoji = "💡", name = "I+D", color = Color3.fromRGB(59, 130, 246) },
+	{ id = "ipo", emoji = "🔔", name = "Salir a bolsa", color = THEME.pink },
 	{ id = "shop", emoji = "🛒", name = "Tienda", color = Color3.fromRGB(20, 184, 166) },
 }
+local TabById: { [string]: any } = {}
+for _, tab in TABS do
+	TabById[tab.id] = tab
+end
+
+-- Los 5 centros y sus pestañas (en orden)
+local HUBS = {
+	{ id = "production", emoji = "🛠️", name = "Producción", color = THEME.green, tabs = { "create", "sites", "ads" } },
+	{ id = "business", emoji = "💼", name = "Negocio", color = Color3.fromRGB(14, 165, 233), tabs = { "clients", "companies", "career", "agency" } },
+	{ id = "investment", emoji = "📈", name = "Inversión", color = THEME.pink, tabs = { "market", "research", "ipo" } },
+	{ id = "progress", emoji = "🎯", name = "Progreso", color = Color3.fromRGB(245, 158, 11), tabs = { "missions", "achievements", "season", "collection" } },
+	{ id = "social", emoji = "🛒", name = "Tienda y social", color = Color3.fromRGB(20, 184, 166), tabs = { "shop", "ranking" } },
+}
+local hubOfTab: { [string]: any } = {}
+for _, hub in HUBS do
+	for _, id in hub.tabs do
+		hubOfTab[id] = hub
+	end
+end
 
 local pages: { [string]: ScrollingFrame } = {}
 local tabButtons: { [string]: TextButton } = {}
+local hubButtons: { [string]: TextButton } = {}
+local lastTabOfHub: { [string]: string } = {} -- al volver a un centro, la última pestaña vista
 local renderers: { [string]: (any) -> () } = {}
 ui.currentTab = "create"
+ui.currentHub = "production"
 
 local function makePage(id: string): ScrollingFrame
 	local page = create("ScrollingFrame", {
@@ -690,6 +750,7 @@ ui.onTabChanged = function() end
 local TAB_FEATURES = {
 	clients = "clients", ads = "ads", ranking = "ranking", companies = "companies", season = "season",
 	career = "career", collection = "collection", agency = "agency", market = "market", research = "market",
+	ipo = "market",
 }
 
 local function tabLocked(id: string): boolean
@@ -697,13 +758,58 @@ local function tabLocked(id: string): boolean
 	return feature ~= nil and ui.state ~= nil and not Config.isUnlocked(ui.state, feature)
 end
 
--- Texto y color de los botones de pestaña (🔒 si aún no se ha desbloqueado)
+-- Un centro está cerrado si todas sus pestañas lo están
+local function hubLocked(hub): boolean
+	for _, id in hub.tabs do
+		if not tabLocked(id) then
+			return false
+		end
+	end
+	return true
+end
+
+-- Título de la ventana: "🛠️ Producción · 🌐 Webs"
+local windowTitleText: () -> string
+function windowTitleText(): string
+	local hub = hubOfTab[ui.currentTab]
+	local tab = TabById[ui.currentTab]
+	if not hub or not tab then
+		return "🌐 " .. T("Imperio Web")
+	end
+	return hub.emoji .. " " .. T(hub.name) .. " · " .. tab.emoji .. " " .. T(tab.name)
+end
+function ui.updateTitle()
+	windowTitle.Text = windowTitleText()
+end
+
+-- Texto y color de los botones (🔒 si aún no se ha desbloqueado). Solo se
+-- ven las pestañas del centro actual, repartidas a lo ancho.
 local function refreshTabButtons()
-	for _, tab in TABS do
-		if tabLocked(tab.id) then
-			setButton(tabButtons[tab.id], "🔒 " .. T(tab.name), true, THEME.disabled)
+	for _, hub in HUBS do
+		local button = hubButtons[hub.id]
+		if hubLocked(hub) then
+			setButton(button, "🔒 " .. T(hub.name), true, THEME.disabled)
 		else
-			setButton(tabButtons[tab.id], tab.emoji .. " " .. T(tab.name), true, if tab.id == ui.currentTab then tab.color else THEME.card)
+			setButton(button, hub.emoji .. " " .. T(hub.name), true, if hub.id == ui.currentHub then hub.color else THEME.card)
+		end
+	end
+	local current = HUBS[1]
+	for _, hub in HUBS do
+		if hub.id == ui.currentHub then
+			current = hub
+		end
+	end
+	for _, tab in TABS do
+		local button = tabButtons[tab.id]
+		local hub = hubOfTab[tab.id]
+		button.Visible = hub == current
+		if hub == current then
+			button.Size = UDim2.new(1 / #current.tabs, -6 + 6 / #current.tabs, 1, 0)
+		end
+		if tabLocked(tab.id) then
+			setButton(button, "🔒 " .. T(tab.name), true, THEME.disabled)
+		else
+			setButton(button, tab.emoji .. " " .. T(tab.name), true, if tab.id == ui.currentTab then tab.color else THEME.card)
 		end
 	end
 end
@@ -714,17 +820,63 @@ local function selectTab(id: string)
 		return
 	end
 	ui.currentTab = id
+	local hub = hubOfTab[id]
+	if hub then
+		ui.currentHub = hub.id
+		lastTabOfHub[hub.id] = id
+	end
 	ui.onTabChanged()
 	for _, tab in TABS do
 		pages[tab.id].Visible = tab.id == id
-		if tab.id == id then
-			windowTitle.Text = tab.emoji .. " " .. T(tab.name)
-		end
 	end
+	ui.updateTitle()
 	refreshTabButtons()
 	if ui.state and renderers[id] then
 		renderers[id](ui.state)
 	end
+end
+
+-- Abrir un centro: su última pestaña vista o la primera que esté abierta
+local function selectHub(hubId: string)
+	for _, hub in HUBS do
+		if hub.id == hubId then
+			if hubLocked(hub) then
+				local floor = math.huge
+				for _, id in hub.tabs do
+					floor = math.min(floor, Config.unlockFloor(TAB_FEATURES[id] or ""))
+				end
+				showToast(T("🔒 Se desbloquea en la planta %d de tu rascacielos.", floor), "error")
+				return
+			end
+			local wanted = lastTabOfHub[hub.id]
+			if not wanted or tabLocked(wanted) then
+				wanted = hub.tabs[1]
+				for _, id in hub.tabs do
+					if not tabLocked(id) then
+						wanted = id
+						break
+					end
+				end
+			end
+			selectTab(wanted)
+		end
+	end
+end
+
+for i, hub in HUBS do
+	local button = makeButton(hubBar, hub.emoji .. " " .. T(hub.name), THEME.card, UDim2.new(1 / #HUBS, -6 + 6 / #HUBS, 1, 0), function()
+		selectHub(hub.id)
+	end)
+	button.LayoutOrder = i
+	hubButtons[hub.id] = button
+end
+for i, tab in TABS do
+	local button = makeButton(subBar, tab.emoji .. " " .. T(tab.name), THEME.card, UDim2.new(0.25, -6, 1, 0), function()
+		selectTab(tab.id)
+	end)
+	button.LayoutOrder = i
+	tabButtons[tab.id] = button
+	makePage(tab.id)
 end
 
 local function openTab(id: string)
@@ -732,14 +884,6 @@ local function openTab(id: string)
 	selectTab(id)
 end
 
-for i, tab in TABS do
-	local button = makeButton(tabBar, tab.emoji .. " " .. T(tab.name), THEME.card, UDim2.new(1 / #TABS, -6, 1, 0), function()
-		selectTab(tab.id)
-	end)
-	button.LayoutOrder = i
-	tabButtons[tab.id] = button
-	makePage(tab.id)
-end
 
 -- Para qué sirve cada pestaña (una línea arriba del todo)
 local TAB_HELP = {
@@ -758,6 +902,7 @@ local TAB_HELP = {
 	market = "Compra acciones baratas y véndelas caras. Los precios cambian cada 30 s. Abajo puedes salir a bolsa con tu imperio.",
 	research = "Mejoras para siempre que se pagan con 💡 patentes (salir a bolsa y el pase).",
 	shop = "Premios gratis por jugar, códigos y mejoras con Robux.",
+	ipo = "Empiezas de cero, pero cada acción te da más dinero para siempre y patentes para 💡 I+D.",
 }
 for id, text in TAB_HELP do
 	local help = create("TextLabel", {
@@ -829,7 +974,23 @@ local computerBadge = create("TextLabel", {
 }, { corner(17), stroke(THEME.text, 2) })
 
 local tabBadges: { [string]: TextLabel } = {}
+local hubBadges: { [string]: TextLabel } = {}
 local badgeValues: { [string]: number } = {}
+for _, hub in HUBS do
+	hubBadges[hub.id] = create("TextLabel", {
+		Parent = hubButtons[hub.id],
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(1, -4, 0, 4),
+		Size = UDim2.fromOffset(24, 24),
+		BackgroundColor3 = THEME.red,
+		Text = "!",
+		TextColor3 = THEME.text,
+		Font = Enum.Font.FredokaOne,
+		TextSize = 15,
+		Visible = false,
+		ZIndex = 3,
+	}, { corner(12), stroke(THEME.text, 1.5) })
+end
 for _, tab in TABS do
 	tabBadges[tab.id] = create("TextLabel", {
 		Parent = tabButtons[tab.id],
@@ -858,7 +1019,15 @@ local function setBadge(id: string, value: (number | boolean)?)
 	badgeValues[id] = count
 	badge.Visible = count > 0
 	badge.Text = if type(value) == "number" then (if value > 9 then "9+" else tostring(value)) else "!"
-	-- El botón del ordenador suma todos los avisos
+	-- Cada centro y el botón del ordenador suman los avisos de sus pestañas
+	for _, hub in HUBS do
+		local sum = 0
+		for _, tabId in hub.tabs do
+			sum += badgeValues[tabId] or 0
+		end
+		hubBadges[hub.id].Visible = sum > 0
+		hubBadges[hub.id].Text = if sum > 9 then "9+" else tostring(sum)
+	end
 	local total = 0
 	for _, n in badgeValues do
 		total += n
@@ -1399,7 +1568,14 @@ ui.header = header
 ui.windowTitle = windowTitle
 ui.closeButton = closeButton
 ui.languageButton = languageButton
-ui.tabBar = tabBar
+ui.hubBar = hubBar
+ui.subBar = subBar
+ui.HUBS = HUBS
+ui.hubOfTab = hubOfTab
+ui.TabById = TabById
+ui.hubButtons = hubButtons
+ui.selectHub = selectHub
+ui.hubLocked = hubLocked
 ui.content = content
 ui.TABS = TABS
 ui.pages = pages

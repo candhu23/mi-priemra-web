@@ -10,7 +10,7 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
   para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
-- **Versión actual del código: 4.0-alpha.2** (`Config.VERSION` en `TycoonConfig.luau`;
+- **Versión actual del código: 4.0-alpha.3** (`Config.VERSION` en `TycoonConfig.luau`;
   súbelo en cada versión nueva). **La v4 está a medias: mira §14** (qué está hecho y qué falta)
   y el encargo completo en `PROMPT_V4.md` (raíz del repo).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
@@ -356,6 +356,16 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
     con Robux usan `paidReward`, sin rebaja). Objetivos ×0,35, offline 35 %, regalo 2 min,
     `SALE_SECONDS` 130.
 
+- **v4 · Interfaz por centros** (`ClientUI/Core`): `HUBS` = 5 centros (🛠️ Producción: create,
+  sites, ads · 💼 Negocio: clients, companies, career, agency · 📈 Inversión: market, research,
+  ipo · 🎯 Progreso: missions, achievements, season, collection · 🛒 Tienda y social: shop,
+  ranking). Barra de centros (54 de alto) y debajo las sub-pestañas del centro (52), nunca más de
+  5 por fila. `selectHub(id)` abre la última pestaña vista del centro; `hubOfTab`, `TabById`,
+  `ui.currentHub`; avisos (!) por pestaña y sumados por centro. Pestaña nueva `ipo` (🔔 Salir a
+  bolsa: tarjeta de salida a bolsa + estadísticas; `renderers.ipo = renderers.market`). La
+  ventana tiene escala propia (`ui.resizeWindow`, mín. 0,85: botones ≥ 44 px en móvil) y en
+  pantallas bajas se acorta (descuenta `GuiService:GetGuiInset()`). Para añadir una pestaña:
+  entrada en `TABS`, en un `HUBS[].tabs`, `TAB_HELP`, `TAB_FEATURES` si se desbloquea, y su módulo.
 - **v4 · Analítica** (`Analytics.luau`, todo con pcall): embudo de los primeros minutos
   (`Analytics.Onboarding`, un paso por jugador nuevo en su primera hora, `data.analytics.onboarding`),
   embudo "Tutorial" (el cliente manda `tutorialStep(i)`), economía: `gain(data, x, tag)` y
@@ -536,7 +546,8 @@ Se hace por bloques, un commit por bloque con `check.sh` en verde:
 - [x] **Bloque 2 · base técnica** (4.0-alpha.2): servidor en 12 módulos, cliente en ClientUI/
   (Core + 15 pestañas + Tutorial + HudExtras), analítica, 12 insignias, portugués (947 textos).
   Pruebas A1–A4 y B1 en `run_server.luau`; pasada completa en PT en `run_client.luau`.
-- [ ] Bloque 3 · interfaz por 5 centros (móvil primero).
+- [x] **Bloque 3 · interfaz por 5 centros** (4.0-alpha.3). Harness del cliente: tamaños en
+  844×390, 390×844 y 1920×1080 (≥ 44 px, cabe), 5 centros, cada pestaña en uno, cada centro abre lo suyo.
 - [ ] Bloque 4 · Modo Historia (5 capítulos × 6 misiones, mentora Ada).
 - [ ] Bloque 5 · 6 productos nuevos + Eras y Fusión (Legado).
 - [ ] Bloque 6 · sede 3D jugable + minijuegos.

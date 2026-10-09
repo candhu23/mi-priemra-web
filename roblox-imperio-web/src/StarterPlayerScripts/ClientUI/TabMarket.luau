@@ -83,7 +83,9 @@ return function(ui: any)
 	end
 
 	-- Salir a bolsa (prestigio)
-	local ipoCard = makeCard(marketPage, 172, 50, Color3.fromRGB(80, 20, 54))
+	-- Salir a bolsa y estadísticas: en su propia pestaña (v4: 🔔 Salir a bolsa)
+	local ipoPage = pages.ipo
+	local ipoCard = makeCard(ipoPage, 172, 50, Color3.fromRGB(80, 20, 54))
 	makeLabel(ipoCard, "🔔 Salir a bolsa con tu imperio", 0, 22, 18, THEME.text, true)
 	local ipoInfo1 = makeLabel(ipoCard, "", 24, 18, 14, THEME.muted)
 	local ipoInfo2 = makeLabel(ipoCard, "", 44, 18, 15, THEME.green, true)
@@ -134,7 +136,7 @@ return function(ui: any)
 	end)
 	ipoButton.Position = UDim2.fromOffset(0, 112)
 
-	local statsCard = makeCard(marketPage, 120, 51)
+	local statsCard = makeCard(ipoPage, 120, 51)
 	makeLabel(statsCard, "📊 Estadísticas y guardado", 0, 22, 17, THEME.text, true)
 	local statsLabel = makeLabel(statsCard, "", 24, 18, 14, THEME.muted)
 	local saveLabel = makeLabel(statsCard, "", 44, 18, 13, THEME.muted)
@@ -239,4 +241,6 @@ return function(ui: any)
 		saveLabel.Text = T("Ganado en total %s · %s", fmt(s.lifetimeEarned), saveText)
 		saveLabel.TextColor3 = if s.canSave then THEME.muted else THEME.red
 	end
+	-- La misma función pinta las dos pestañas
+	renderers.ipo = renderers.market
 end
