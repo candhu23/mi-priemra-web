@@ -1,7 +1,7 @@
 """Vista previa APROXIMADA de la interfaz: convierte el volcado JSON del harness
 (run_client.luau <src> <carpeta>) en HTML y lo fotografía con Chromium.
 
-No es Roblox: las fuentes son parecidas (Oswald real; Builder Sans → Nunito Sans),
+No es Roblox: las fuentes son parecidas (Fredoka One real; Builder Sans → Nunito Sans; emojis de Noto),
 AutomaticSize y el texto ajustado se aproximan. Sirve para ver colores,
 distribución y solapes, no para medir píxeles.
 Uso: python3 -I preview.py <carpeta con los .json> <ancho> <alto> [escala]
@@ -80,12 +80,22 @@ def render(node, parent_layout=None):
 		style.append("transform:" + " ".join(transform))
 	style.append(f"z-index:{node.get('ZIndex', 1)}")
 	bt = node.get("BackgroundTransparency", 0)
-	if bt < 1 and node.get("BackgroundColor3"):
+	grad = mod(node, "UIGradient")
+	if bt < 1 and grad and isinstance(grad.get("Color"), list) and len(grad["Color"]) == 2:
+		a, b = grad["Color"]
+		style.append(f"background:linear-gradient({grad.get('Rotation', 0) + 90}deg,{rgba(a, bt)},{rgba(b, bt)})")
+	elif bt < 1 and node.get("BackgroundColor3"):
 		style.append("background:" + rgba(node["BackgroundColor3"], bt))
+	sc = mod(node, "UISizeConstraint")
+	if sc and sc.get("MaxSize"):
+		style.append(f"max-width:{sc['MaxSize'][0]}px")
 	c = mod(node, "UICorner")
 	if c:
 		r = c["CornerRadius"]
-		style.append(f"border-radius:{r[1]}px" if r[0] == 0 else f"border-radius:{r[0] * 100}%")
+		if r[0] == 0:
+			style.append(f"border-radius:{r[1]}px")
+		else:
+			attrs.append(f'data-radius="{r[0]}"')
 	st = mod(node, "UIStroke")
 	if st and st.get("Thickness", 0) > 0:
 		style.append(f"box-shadow:0 0 0 {st['Thickness']}px {rgba(st['Color'], st.get('Transparency', 0))}")
@@ -126,7 +136,7 @@ def render(node, parent_layout=None):
 	text = ""
 	if cls in ("TextLabel", "TextButton") and node.get("Text"):
 		fam = node.get("FontFace", ["", "Regular"])
-		family = "Oswald" if "Oswald" in fam[0] else "Nunito Sans"
+		family = "Fredoka One" if "Fredoka" in fam[0] else ("Oswald" if "Oswald" in fam[0] else "Nunito Sans")
 		weight = {"Bold": 700, "Medium": 500, "SemiBold": 600, "Regular": 400, "Heavy": 800}.get(fam[1], 400)
 		xa = {"Left": "flex-start", "Center": "center", "Right": "flex-end"}[node.get("TextXAlignment", "Center")]
 		ya = {"Top": "flex-start", "Center": "center", "Bottom": "flex-end"}[node.get("TextYAlignment", "Center")]
@@ -134,10 +144,13 @@ def render(node, parent_layout=None):
 		ta = {"Left": "left", "Center": "center", "Right": "right"}[node.get("TextXAlignment", "Center")]
 		tstyle = (
 			f"display:flex;justify-content:{xa};align-items:{ya};width:100%;height:100%;"
-			f"font-family:'{family}';font-weight:{weight};font-size:{node.get('TextSize', 14)}px;line-height:1.1;"
+			f"font-family:'{family}','Noto Color Emoji';font-weight:{weight};font-size:{node.get('TextSize', 14)}px;line-height:1.1;"
 			f"color:{rgba(node.get('TextColor3', [0, 0, 0]), node.get('TextTransparency', 0))};text-align:{ta}"
 		)
 		span = "overflow:hidden;text-overflow:ellipsis;" + ("white-space:normal" if wrap else "white-space:nowrap")
+		sk = node.get("TextStrokeTransparency", 1)
+		if sk is not None and sk < 1:
+			span += f";-webkit-text-stroke:1.5px {rgba(node.get('TextStrokeColor3', [0, 0, 0]), sk)};paint-order:stroke fill"
 		text = f'<div style="{tstyle}"><span style="{span};max-width:100%">{html.escape(node["Text"])}</span></div>'
 	kids = "".join(render(k, kids_layout) for k in sorted(node["children"], key=lambda k: k.get("LayoutOrder", 0)))
 	inner = f'<div style="{";".join(inner_style)}">{text}{kids}</div>'
@@ -147,6 +160,10 @@ def render(node, parent_layout=None):
 SCRIPT = """
 <script>
 // Relación de aspecto (UIAspectRatioConstraint) e imágenes de hojas de sprites
+document.querySelectorAll('[data-radius]').forEach(el => {
+	const b = el.getBoundingClientRect();
+	el.style.borderRadius = (parseFloat(el.dataset.radius) * Math.min(b.width, b.height)) + 'px';
+});
 document.querySelectorAll('[data-aspect]').forEach(el => {
 	const p = el.parentElement.getBoundingClientRect();
 	const r = parseFloat(el.dataset.aspect);
@@ -188,7 +205,7 @@ async function sheetSize(url) {
 """
 
 HEAD = """<!doctype html><html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Nunito+Sans:wght@500;700&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Fredoka+One&family=Noto+Color+Emoji&family=Nunito+Sans:wght@500;700&display=block" rel="stylesheet">
 <style>body{margin:0;background:#3a4256;font-family:'Nunito Sans'} .g{box-sizing:border-box} .g>div{box-sizing:border-box}</style></head><body>"""
 
 shots = []

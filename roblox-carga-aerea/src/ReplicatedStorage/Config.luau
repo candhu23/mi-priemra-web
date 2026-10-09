@@ -1,129 +1,157 @@
 --!strict
--- Configuración de «Air Cargo Empire»: TODOS los datos y fórmulas de equilibrio.
--- El servidor y el cliente leen este módulo; los textos están en Lang.luau.
+-- Configuración de «AeroCarga España» (EN: Spain Air Cargo Tycoon).
+-- TODOS los datos y fórmulas de equilibrio. Servidor y cliente leen este módulo;
+-- los textos están en Lang.luau y el mapa en MapData.luau.
 
 local Config = {}
 
-Config.VERSION = "0.1"
--- 1 segundo real = 2 minutos de vuelo
-Config.TIME_SCALE = 120
-Config.START_MONEY = 15000
-Config.RATE = 4 -- $ por tonelada·km
-Config.FUEL_PRICE = 2.5 -- $ por litro (base; varía ±30 %)
+Config.VERSION = "0.2"
+Config.TIME_SCALE = 120 -- 1 segundo real = 2 minutos de vuelo
+Config.START_MONEY = 20000
+Config.RATE = 8 -- $ por tonelada·km
+Config.FUEL_PRICE = 2 -- $ por litro (base; varía ±25 %)
 Config.PILOT_FEE = 0.1 -- los pilotos contratados cobran el 10 % de cada vuelo
 Config.AUTO_DISPATCH_LEVEL = 5
-Config.BOARD_SIZE = 8 -- cargas por aeropuerto
+Config.BOARD_SIZE = 7 -- cargas por aeropuerto
 Config.BOARD_TTL = 90 -- segundos hasta renovar un tablón
 Config.REFRESH_COOLDOWN = 20
-Config.WEATHER_PERIOD = 180
 Config.MAX_PILOTS = 20
-Config.REPAIR_BLOCK = 25 -- con menos estado (%) el avión no puede volar
+Config.REPAIR_BLOCK = 25 -- con menos estado (%) el avión no vuela
+Config.OFFLINE_MAX_HOURS = 8
+Config.OFFLINE_RATE = 0.5 -- 50 % de lo que gana tu flota con despacho automático (100 % con el pase)
+Config.GROUP_ID = 0 -- grupo de Roblox para el +10 % (0 = desactivado)
+Config.START_HUB = "MAD"
+
+-- No hay imágenes que subir: mapa, aviones e iconos (emojis) se dibujan con código.
 
 ---------------------------------------------------------------------
--- Assets (sube los PNG de assets/ y pega aquí sus IDs: "rbxassetid://123")
--- Mientras estén vacíos, la interfaz usa sustitutos de texto.
----------------------------------------------------------------------
-Config.Assets = {
-	icons = "", -- assets/iconos.png (1024x1024, celdas de 128)
-	planes = "", -- assets/aviones.png (1024x768, celdas de 512x256)
-	mapWest = "", -- assets/mapa_oeste.png
-	mapEast = "", -- assets/mapa_este.png
-}
-
--- Posición de cada icono en la hoja (mismo orden que tools/assets/build_icons.js)
-Config.Icons = {} :: { [string]: number }
-for i, name in {
-	"menu", "map", "plane", "plane-takeoff", "plane-landing", "users", "user-round", "building-2",
-	"settings", "wrench", "fuel", "landmark", "star", "package", "globe", "warehouse",
-	"trending-up", "cloud-rain", "snowflake", "cloud-lightning", "sun", "clock", "gauge", "route",
-	"coins", "banknote", "trophy", "languages", "volume-2", "volume-x", "x", "chevron-down",
-	"check", "lock", "award", "refresh-cw", "zap", "shield-check", "thermometer-snowflake", "flame",
-	"paw-print", "cpu", "mail", "apple", "container", "map-pin", "shopping-cart", "arrow-right",
-	"info", "gift", "dices", "id-card", "chart-column", "circle-dollar-sign", "weight",
-} do
-	Config.Icons[name] = i - 1
-end
-
--- Mapa equirrectangular: longitud -180..180, latitud 80..-60
-Config.Map = { latTop = 80, latBottom = -60, aspect = 360 / 140 }
-
----------------------------------------------------------------------
--- Paleta (azul marino + naranja; distinta del juego de referencia)
+-- Paleta: soleada y mediterránea (claro), muy distinta de un tema oscuro
 ---------------------------------------------------------------------
 Config.Colors = {
-	bg = Color3.fromRGB(9, 14, 27),
-	panel = Color3.fromRGB(15, 22, 40),
-	card = Color3.fromRGB(20, 29, 51),
-	cardHi = Color3.fromRGB(28, 40, 68),
-	stroke = Color3.fromRGB(40, 54, 86),
-	text = Color3.fromRGB(236, 241, 250),
-	muted = Color3.fromRGB(140, 154, 184),
-	accent = Color3.fromRGB(255, 138, 61), -- naranja: acción principal
-	accentDark = Color3.fromRGB(64, 38, 24),
-	blue = Color3.fromRGB(59, 130, 246),
-	sky = Color3.fromRGB(56, 189, 248), -- pestaña activa
-	green = Color3.fromRGB(52, 211, 153),
-	red = Color3.fromRGB(248, 113, 113),
-	yellow = Color3.fromRGB(250, 204, 21),
-	purple = Color3.fromRGB(167, 139, 250),
+	sea = Color3.fromRGB(126, 200, 240),
+	seaDeep = Color3.fromRGB(96, 178, 228),
+	foreign = Color3.fromRGB(240, 236, 226),
+	locked = Color3.fromRGB(205, 198, 182),
+	panel = Color3.fromRGB(255, 255, 255),
+	soft = Color3.fromRGB(242, 246, 252), -- fondo de tarjetas dentro de paneles
+	line = Color3.fromRGB(222, 229, 240),
+	ink = Color3.fromRGB(31, 42, 68), -- texto principal
+	muted = Color3.fromRGB(110, 122, 145),
+	orange = Color3.fromRGB(255, 107, 53), -- acción principal
+	orangeDark = Color3.fromRGB(214, 78, 30),
+	blue = Color3.fromRGB(45, 127, 249),
+	blueDark = Color3.fromRGB(28, 93, 200),
+	green = Color3.fromRGB(34, 177, 92),
+	greenDark = Color3.fromRGB(22, 133, 66),
+	gold = Color3.fromRGB(255, 196, 46),
+	goldDark = Color3.fromRGB(214, 152, 10),
+	red = Color3.fromRGB(235, 68, 68),
+	purple = Color3.fromRGB(139, 92, 246),
+	white = Color3.fromRGB(255, 255, 255),
+	grey = Color3.fromRGB(196, 203, 215),
+	greyDark = Color3.fromRGB(150, 158, 174),
 }
 
 ---------------------------------------------------------------------
--- Regiones y aeropuertos (ciudades reales; códigos IATA)
+-- Regiones (orden = MapData.regions). Se pintan en el mapa al desbloquearlas.
 ---------------------------------------------------------------------
-export type Region = { id: string, level: number, cost: number }
+export type Region = { id: string, level: number, cost: number, color: Color3 }
 Config.Regions = {
-	{ id = "NA", level = 1, cost = 0 },
-	{ id = "EU", level = 4, cost = 150_000 },
-	{ id = "SA", level = 6, cost = 600_000 },
-	{ id = "AS", level = 8, cost = 2_000_000 },
-	{ id = "AF", level = 10, cost = 5_000_000 },
-	{ id = "OC", level = 13, cost = 15_000_000 },
+	{ id = "CEN", level = 1, cost = 0, color = Color3.fromRGB(255, 186, 73) },
+	{ id = "LEV", level = 1, cost = 0, color = Color3.fromRGB(255, 132, 102) },
+	{ id = "CAT", level = 3, cost = 40_000, color = Color3.fromRGB(252, 211, 77) },
+	{ id = "AND", level = 4, cost = 90_000, color = Color3.fromRGB(132, 204, 22) },
+	{ id = "NOR", level = 6, cost = 300_000, color = Color3.fromRGB(56, 189, 248) },
+	{ id = "CYL", level = 7, cost = 600_000, color = Color3.fromRGB(192, 132, 252) },
+	{ id = "GAL", level = 9, cost = 1_500_000, color = Color3.fromRGB(45, 212, 191) },
+	{ id = "BAL", level = 11, cost = 3_500_000, color = Color3.fromRGB(244, 114, 182) },
+	{ id = "CAN", level = 13, cost = 8_000_000, color = Color3.fromRGB(250, 204, 21) },
 } :: { Region }
+Config.RegionById = {} :: { [string]: Region }
+Config.RegionIndex = {} :: { [string]: number }
+for i, r in Config.Regions do
+	Config.RegionById[r.id] = r
+	Config.RegionIndex[r.id] = i
+end
 
-export type Airport = { code: string, city: string, lat: number, lon: number, region: string, label: string? }
--- label: lado de la etiqueta en el mapa ("top", "left", "right"; por defecto debajo)
+---------------------------------------------------------------------
+-- Productos (lo que se transporta). cold = necesita la cámara frigorífica
+---------------------------------------------------------------------
+export type Good = { id: string, emoji: string, mult: number, cold: boolean? }
+Config.Goods = {
+	{ id = "parcel", emoji = "📦", mult = 1 },
+	{ id = "mail", emoji = "📰", mult = 1.1 },
+	{ id = "oranges", emoji = "🍊", mult = 1.2 },
+	{ id = "veggies", emoji = "🥬", mult = 1.2 },
+	{ id = "tiles", emoji = "🧱", mult = 1.15 },
+	{ id = "oil", emoji = "🫒", mult = 1.3 },
+	{ id = "wine", emoji = "🍷", mult = 1.3 },
+	{ id = "cheese", emoji = "🧀", mult = 1.3 },
+	{ id = "nougat", emoji = "🍬", mult = 1.3 },
+	{ id = "steel", emoji = "🔩", mult = 1.25 },
+	{ id = "bananas", emoji = "🍌", mult = 1.35 },
+	{ id = "ham", emoji = "🍖", mult = 1.4 },
+	{ id = "fashion", emoji = "👗", mult = 1.4 },
+	{ id = "cars", emoji = "🚗", mult = 1.5 },
+	{ id = "tech", emoji = "💻", mult = 1.5 },
+	{ id = "fish", emoji = "🐟", mult = 1.6, cold = true },
+	{ id = "medicine", emoji = "💊", mult = 1.8, cold = true },
+} :: { Good }
+Config.GoodById = {} :: { [string]: Good }
+for _, g in Config.Goods do
+	Config.GoodById[g.id] = g
+end
+
+---------------------------------------------------------------------
+-- Aeropuertos (ciudades reales; códigos IATA). goods = productos típicos de la zona
+-- label = lado de la etiqueta en el mapa ("left", "right", "top", "none"; por defecto debajo)
+---------------------------------------------------------------------
+export type Airport = {
+	code: string, city: string, lat: number, lon: number, region: string, goods: { string }, label: string?,
+}
 Config.Airports = {
-	{ code = "JFK", city = "New York", lat = 40.64, lon = -73.78, region = "NA" },
-	{ code = "LAX", city = "Los Angeles", lat = 33.94, lon = -118.41, region = "NA" },
-	{ code = "ORD", city = "Chicago", lat = 41.98, lon = -87.9, region = "NA", label = "left" },
-	{ code = "MIA", city = "Miami", lat = 25.79, lon = -80.29, region = "NA" },
-	{ code = "DFW", city = "Dallas", lat = 32.9, lon = -97.04, region = "NA", label = "left" },
-	{ code = "SEA", city = "Seattle", lat = 47.45, lon = -122.31, region = "NA" },
-	{ code = "YYZ", city = "Toronto", lat = 43.68, lon = -79.63, region = "NA", label = "top" },
-	{ code = "MEX", city = "Mexico City", lat = 19.44, lon = -99.07, region = "NA" },
-	{ code = "ANC", city = "Anchorage", lat = 61.17, lon = -149.99, region = "NA" },
-	{ code = "MEM", city = "Memphis", lat = 35.04, lon = -89.98, region = "NA", label = "bottom" },
-	{ code = "LHR", city = "London", lat = 51.47, lon = -0.45, region = "EU", label = "left" },
-	{ code = "FRA", city = "Frankfurt", lat = 50.03, lon = 8.56, region = "EU" },
-	{ code = "MAD", city = "Madrid", lat = 40.47, lon = -3.56, region = "EU" },
-	{ code = "CDG", city = "Paris", lat = 49.01, lon = 2.55, region = "EU", label = "left" },
-	{ code = "AMS", city = "Amsterdam", lat = 52.31, lon = 4.76, region = "EU", label = "top" },
-	{ code = "IST", city = "Istanbul", lat = 41.28, lon = 28.75, region = "EU" },
-	{ code = "LEJ", city = "Leipzig", lat = 51.42, lon = 12.24, region = "EU", label = "right" },
-	{ code = "GRU", city = "São Paulo", lat = -23.43, lon = -46.47, region = "SA" },
-	{ code = "BOG", city = "Bogotá", lat = 4.7, lon = -74.15, region = "SA" },
-	{ code = "SCL", city = "Santiago", lat = -33.39, lon = -70.79, region = "SA" },
-	{ code = "EZE", city = "Buenos Aires", lat = -34.82, lon = -58.54, region = "SA" },
-	{ code = "LIM", city = "Lima", lat = -12.02, lon = -77.11, region = "SA" },
-	{ code = "HKG", city = "Hong Kong", lat = 22.31, lon = 113.91, region = "AS" },
-	{ code = "PVG", city = "Shanghai", lat = 31.14, lon = 121.81, region = "AS", label = "right" },
-	{ code = "NRT", city = "Tokyo", lat = 35.77, lon = 140.39, region = "AS", label = "right" },
-	{ code = "ICN", city = "Seoul", lat = 37.46, lon = 126.44, region = "AS", label = "right" },
-	{ code = "SIN", city = "Singapore", lat = 1.36, lon = 103.99, region = "AS" },
-	{ code = "DEL", city = "Delhi", lat = 28.56, lon = 77.1, region = "AS" },
-	{ code = "BKK", city = "Bangkok", lat = 13.69, lon = 100.75, region = "AS" },
-	{ code = "DXB", city = "Dubai", lat = 25.25, lon = 55.36, region = "AF", label = "right" },
-	{ code = "DOH", city = "Doha", lat = 25.27, lon = 51.61, region = "AF", label = "left" },
-	{ code = "JNB", city = "Johannesburg", lat = -26.14, lon = 28.25, region = "AF" },
-	{ code = "NBO", city = "Nairobi", lat = -1.32, lon = 36.93, region = "AF" },
-	{ code = "CAI", city = "Cairo", lat = 30.12, lon = 31.41, region = "AF" },
-	{ code = "LOS", city = "Lagos", lat = 6.58, lon = 3.32, region = "AF" },
-	{ code = "SYD", city = "Sydney", lat = -33.95, lon = 151.18, region = "OC" },
-	{ code = "AKL", city = "Auckland", lat = -37.01, lon = 174.79, region = "OC" },
-	{ code = "PER", city = "Perth", lat = -31.94, lon = 115.97, region = "OC" },
+	{ code = "MAD", city = "Madrid", lat = 40.47, lon = -3.56, region = "CEN", goods = { "medicine", "tech", "fashion" } },
+	{ code = "CQM", city = "Ciudad Real", lat = 38.86, lon = -3.97, region = "CEN", goods = { "cheese", "wine" } },
+	{ code = "ABC", city = "Albacete", lat = 38.95, lon = -1.86, region = "CEN", goods = { "cheese", "steel" }, label = "right" },
+	{ code = "VLC", city = "Valencia", lat = 39.49, lon = -0.48, region = "LEV", goods = { "oranges", "tiles" }, label = "right" },
+	{ code = "CDT", city = "Castellón", lat = 40.21, lon = 0.07, region = "LEV", goods = { "tiles", "oranges" }, label = "right" },
+	{ code = "ALC", city = "Alicante", lat = 38.28, lon = -0.56, region = "LEV", goods = { "nougat", "fashion" }, label = "right" },
+	{ code = "RMU", city = "Murcia", lat = 37.8, lon = -1.13, region = "LEV", goods = { "veggies", "oranges" }, label = "right" },
+	{ code = "BCN", city = "Barcelona", lat = 41.3, lon = 2.08, region = "CAT", goods = { "cars", "medicine", "fashion" }, label = "right" },
+	{ code = "GRO", city = "Girona", lat = 41.9, lon = 2.76, region = "CAT", goods = { "ham", "veggies" }, label = "right" },
+	{ code = "REU", city = "Reus", lat = 41.15, lon = 1.17, region = "CAT", goods = { "wine", "oil" }, label = "left" },
+	{ code = "ZAZ", city = "Zaragoza", lat = 41.67, lon = -1.04, region = "CAT", goods = { "fashion", "cars" } },
+	{ code = "HSK", city = "Huesca", lat = 42.08, lon = -0.32, region = "CAT", goods = { "ham", "veggies" }, label = "right" },
+	{ code = "SVQ", city = "Sevilla", lat = 37.42, lon = -5.9, region = "AND", goods = { "oil", "oranges" }, label = "left" },
+	{ code = "AGP", city = "Málaga", lat = 36.67, lon = -4.5, region = "AND", goods = { "tech", "veggies" } },
+	{ code = "GRX", city = "Granada", lat = 37.19, lon = -3.78, region = "AND", goods = { "oil", "ham" } },
+	{ code = "LEI", city = "Almería", lat = 36.84, lon = -2.37, region = "AND", goods = { "veggies" }, label = "right" },
+	{ code = "XRY", city = "Jerez", lat = 36.74, lon = -6.06, region = "AND", goods = { "wine", "fish" }, label = "left" },
+	{ code = "ODB", city = "Córdoba", lat = 37.84, lon = -4.85, region = "AND", goods = { "oil" }, label = "left" },
+	{ code = "MLN", city = "Melilla", lat = 35.28, lon = -2.96, region = "AND", goods = { "parcel", "fish" } },
+	{ code = "BIO", city = "Bilbao", lat = 43.3, lon = -2.91, region = "NOR", goods = { "steel", "fish" }, label = "top" },
+	{ code = "EAS", city = "San Sebastián", lat = 43.36, lon = -1.79, region = "NOR", goods = { "fish", "cheese" }, label = "right" },
+	{ code = "VIT", city = "Vitoria", lat = 42.88, lon = -2.72, region = "NOR", goods = { "parcel", "steel" }, label = "none" },
+	{ code = "PNA", city = "Pamplona", lat = 42.77, lon = -1.65, region = "NOR", goods = { "cars", "veggies" }, label = "right" },
+	{ code = "RJL", city = "Logroño", lat = 42.46, lon = -2.32, region = "NOR", goods = { "wine" } },
+	{ code = "SDR", city = "Santander", lat = 43.43, lon = -3.82, region = "NOR", goods = { "cheese", "fish" }, label = "left" },
+	{ code = "OVD", city = "Asturias", lat = 43.56, lon = -6.03, region = "NOR", goods = { "cheese", "steel" }, label = "top" },
+	{ code = "VLL", city = "Valladolid", lat = 41.71, lon = -4.85, region = "CYL", goods = { "cars", "cheese" }, label = "right" },
+	{ code = "LEN", city = "León", lat = 42.59, lon = -5.65, region = "CYL", goods = { "ham", "steel" } },
+	{ code = "SLM", city = "Salamanca", lat = 40.95, lon = -5.5, region = "CYL", goods = { "ham" } },
+	{ code = "RGS", city = "Burgos", lat = 42.36, lon = -3.62, region = "CYL", goods = { "ham", "cheese" }, label = "none" },
+	{ code = "BJZ", city = "Badajoz", lat = 38.89, lon = -6.82, region = "CYL", goods = { "ham", "oil" } },
+	{ code = "SCQ", city = "Santiago", lat = 42.9, lon = -8.42, region = "GAL", goods = { "fish", "cheese" }, label = "right" },
+	{ code = "VGO", city = "Vigo", lat = 42.23, lon = -8.63, region = "GAL", goods = { "fish", "cars" } },
+	{ code = "LCG", city = "A Coruña", lat = 43.3, lon = -8.38, region = "GAL", goods = { "fashion", "fish" }, label = "top" },
+	{ code = "PMI", city = "Palma", lat = 39.55, lon = 2.74, region = "BAL", goods = { "parcel", "oil" } },
+	{ code = "IBZ", city = "Ibiza", lat = 38.87, lon = 1.37, region = "BAL", goods = { "fashion", "parcel" } },
+	{ code = "MAH", city = "Menorca", lat = 39.86, lon = 4.22, region = "BAL", goods = { "cheese" }, label = "top" },
+	{ code = "TFN", city = "Tenerife", lat = 28.48, lon = -16.34, region = "CAN", goods = { "bananas", "fish" }, label = "top" },
+	{ code = "LPA", city = "Gran Canaria", lat = 27.93, lon = -15.39, region = "CAN", goods = { "bananas", "parcel" } },
+	{ code = "ACE", city = "Lanzarote", lat = 28.95, lon = -13.61, region = "CAN", goods = { "wine" }, label = "top" },
+	{ code = "SPC", city = "La Palma", lat = 28.62, lon = -17.76, region = "CAN", goods = { "bananas" }, label = "top" },
 } :: { Airport }
-
 Config.AirportByCode = {} :: { [string]: Airport }
 for _, a in Config.Airports do
 	Config.AirportByCode[a.code] = a
@@ -139,21 +167,26 @@ function Config.distance(a: string, b: string): number
 end
 
 ---------------------------------------------------------------------
--- Aviones (nombres inventados: nada de marcas reales)
--- cap = toneladas, speed = km/h, range = km, burn = litros/km
--- sheet = celda en assets/aviones.png
+-- Aviones (nombres de aves, inventados). cap = t, speed = km/h, range = km, burn = L/km
+-- look = cómo se dibuja: props (hélices), engines, highWing, livery (color de la franja)
 ---------------------------------------------------------------------
 export type PlaneModel = {
-	id: string, name: string, class: string, cap: number, speed: number, range: number,
-	burn: number, price: number, level: number, license: string?, sheet: number,
+	id: string, emoji: string, cap: number, speed: number, range: number, burn: number,
+	price: number, level: number, length: number, props: boolean, engines: number, highWing: boolean, livery: Color3,
 }
 Config.Planes = {
-	{ id = "courier", name = "SkyHopper C1", class = "prop", cap = 1.5, speed = 340, range = 1800, burn = 0.6, price = 25_000, level = 1, sheet = 0 },
-	{ id = "turboprop", name = "Coastline T8", class = "prop", cap = 8, speed = 500, range = 2600, burn = 1.6, price = 75_000, level = 3, license = "turboprop", sheet = 1 },
-	{ id = "narrowbody", name = "Jetline N20", class = "jet", cap = 20, speed = 820, range = 4200, burn = 3.7, price = 1_500_000, level = 6, license = "jet", sheet = 2 },
-	{ id = "widebody", name = "Horizon W55", class = "jet", cap = 55, speed = 870, range = 7500, burn = 7, price = 8_000_000, level = 10, license = "jet", sheet = 3 },
-	{ id = "jumbo", name = "Titan J110", class = "jet", cap = 110, speed = 900, range = 8800, burn = 13, price = 25_000_000, level = 15, license = "heavy", sheet = 4 },
-	{ id = "heavy", name = "Goliath H150", class = "jet", cap = 150, speed = 780, range = 5500, burn = 19, price = 45_000_000, level = 20, license = "heavy", sheet = 5 },
+	{ id = "sparrow", emoji = "🐦", cap = 1, speed = 320, range = 1300, burn = 0.5, price = 20_000, level = 1,
+		length = 0.62, props = true, engines = 1, highWing = true, livery = Color3.fromRGB(255, 107, 53) },
+	{ id = "hawk", emoji = "🦅", cap = 3, speed = 420, range = 1800, burn = 1, price = 60_000, level = 3,
+		length = 0.72, props = true, engines = 2, highWing = false, livery = Color3.fromRGB(45, 127, 249) },
+	{ id = "albatross", emoji = "🕊️", cap = 8, speed = 520, range = 2600, burn = 2, price = 250_000, level = 6,
+		length = 0.82, props = true, engines = 2, highWing = true, livery = Color3.fromRGB(34, 177, 92) },
+	{ id = "crane", emoji = "🦩", cap = 16, speed = 780, range = 3000, burn = 3.5, price = 1_200_000, level = 9,
+		length = 0.88, props = false, engines = 2, highWing = false, livery = Color3.fromRGB(139, 92, 246) },
+	{ id = "condor", emoji = "🦚", cap = 30, speed = 840, range = 4500, burn = 6, price = 5_000_000, level = 13,
+		length = 0.95, props = false, engines = 2, highWing = false, livery = Color3.fromRGB(235, 68, 68) },
+	{ id = "whale", emoji = "🐋", cap = 70, speed = 800, range = 6000, burn = 12, price = 20_000_000, level = 18,
+		length = 1, props = false, engines = 4, highWing = true, livery = Color3.fromRGB(255, 196, 46) },
 } :: { PlaneModel }
 Config.PlaneById = {} :: { [string]: PlaneModel }
 for _, p in Config.Planes do
@@ -161,49 +194,15 @@ for _, p in Config.Planes do
 end
 
 ---------------------------------------------------------------------
--- Tipos de carga
----------------------------------------------------------------------
-export type Cargo = { id: string, mult: number, weight: number, icon: string, level: number, license: string?, planes: { string }? }
-Config.Cargo = {
-	{ id = "general", mult = 1, weight = 30, icon = "package", level = 1 },
-	{ id = "mail", mult = 1.15, weight = 20, icon = "mail", level = 1 },
-	{ id = "perishable", mult = 1.25, weight = 15, icon = "apple", level = 2 },
-	{ id = "electronics", mult = 1.3, weight = 12, icon = "cpu", level = 3 },
-	{ id = "livestock", mult = 1.4, weight = 6, icon = "paw-print", level = 5, license = "livestock" },
-	{ id = "pharma", mult = 1.6, weight = 8, icon = "thermometer-snowflake", level = 7, license = "pharma" },
-	{ id = "dangerous", mult = 1.8, weight = 6, icon = "flame", level = 9, license = "dangerous" },
-	{ id = "oversize", mult = 2, weight = 4, icon = "container", level = 20, planes = { "heavy" } },
-} :: { Cargo }
-Config.CargoById = {} :: { [string]: Cargo }
-for _, c in Config.Cargo do
-	Config.CargoById[c.id] = c
-end
-
----------------------------------------------------------------------
--- Licencias (habilitan clases de avión y cargas especiales)
----------------------------------------------------------------------
-export type License = { id: string, level: number, cost: number, icon: string }
-Config.Licenses = {
-	{ id = "turboprop", level = 3, cost = 12_000, icon = "plane" },
-	{ id = "livestock", level = 5, cost = 60_000, icon = "paw-print" },
-	{ id = "jet", level = 6, cost = 250_000, icon = "plane-takeoff" },
-	{ id = "pharma", level = 7, cost = 400_000, icon = "thermometer-snowflake" },
-	{ id = "dangerous", level = 9, cost = 1_200_000, icon = "flame" },
-	{ id = "heavy", level = 15, cost = 5_000_000, icon = "award" },
-} :: { License }
-Config.LicenseById = {} :: { [string]: License }
-for _, l in Config.Licenses do
-	Config.LicenseById[l.id] = l
-end
-
----------------------------------------------------------------------
 -- Mejoras de la empresa (coste = base × growth^nivel)
 ---------------------------------------------------------------------
-export type Upgrade = { id: string, icon: string, base: number, growth: number, max: number }
+export type Upgrade = { id: string, emoji: string, base: number, growth: number, max: number, level: number }
 Config.Upgrades = {
-	{ id = "hangar", icon = "warehouse", base = 30_000, growth = 2.2, max = 10 }, -- +2 aviones
-	{ id = "fuel", icon = "fuel", base = 50_000, growth = 2.5, max = 8 }, -- −5 % combustible
-	{ id = "broker", icon = "trending-up", base = 80_000, growth = 2.6, max = 10 }, -- +4 % pago
+	{ id = "hangar", emoji = "🏗️", base = 25_000, growth = 2.1, max = 10, level = 1 }, -- +2 aviones
+	{ id = "sales", emoji = "📈", base = 50_000, growth = 2.5, max = 10, level = 2 }, -- +5 % de pago
+	{ id = "fuel", emoji = "⛽", base = 40_000, growth = 2.4, max = 8, level = 3 }, -- −5 % combustible
+	{ id = "fast", emoji = "⏱️", base = 100_000, growth = 3, max = 5, level = 5 }, -- −8 % tiempo de vuelo
+	{ id = "cold", emoji = "❄️", base = 150_000, growth = 1, max = 1, level = 7 }, -- permite 🐟 y 💊
 } :: { Upgrade }
 Config.UpgradeById = {} :: { [string]: Upgrade }
 for _, u in Config.Upgrades do
@@ -213,72 +212,56 @@ function Config.upgradeCost(id: string, level: number): number
 	local u = Config.UpgradeById[id]
 	return math.floor(u.base * u.growth ^ level)
 end
-function Config.maxPlanes(hangar: number): number
-	return 3 + hangar * 2
+function Config.maxPlanes(hangar: number, pass: boolean?): number
+	return 3 + hangar * 2 + (pass and 5 or 0)
 end
 
 ---------------------------------------------------------------------
--- Pilotos: rarezas y agencias de contratación (probabilidades visibles)
+-- Pilotos: candidatos a la vista (NO hay sorteo de pago: ves sus estrellas antes de ficharlos)
 ---------------------------------------------------------------------
-export type Rarity = { id: string, bonus: number, color: Color3 }
-Config.Rarities = {
-	{ id = "common", bonus = 0, color = Color3.fromRGB(160, 170, 190) },
-	{ id = "uncommon", bonus = 0.05, color = Color3.fromRGB(52, 211, 153) },
-	{ id = "rare", bonus = 0.12, color = Color3.fromRGB(59, 130, 246) },
-	{ id = "epic", bonus = 0.22, color = Color3.fromRGB(167, 139, 250) },
-	{ id = "legendary", bonus = 0.4, color = Color3.fromRGB(250, 204, 21) },
-} :: { Rarity }
-Config.RarityIndex = {} :: { [string]: number }
-for i, r in Config.Rarities do
-	Config.RarityIndex[r.id] = i
+Config.CANDIDATES = 3
+Config.CANDIDATE_REFRESH = 240 -- segundos hasta que llegan candidatos nuevos
+Config.StarChance = { 42, 30, 17, 8, 3 } -- probabilidad de que un candidato tenga 1..5 estrellas (%)
+Config.StarBonus = { 0, 0.05, 0.1, 0.18, 0.3 } -- % extra de pago
+Config.StarPrice = { 2_500, 6_000, 15_000, 40_000, 100_000 } -- × (1 + 0,35 × (nivel − 1))
+Config.PILOT_MAX_LEVEL = 10
+Config.PILOT_LEVEL_BONUS = 0.015 -- +1,5 % de pago por nivel del piloto
+function Config.pilotXpForLevel(level: number): number
+	return 3 * (level - 1) * level -- vuelos acumulados: 0, 6, 18, 36...
 end
-
-export type Agency = { id: string, level: number, cost: number, odds: { number }, icon: string }
--- odds en el orden de Config.Rarities (suman 100)
-Config.Agencies = {
-	{ id = "school", level = 1, cost = 5_000, odds = { 60, 28, 10, 1.8, 0.2 }, icon = "users" },
-	{ id = "academy", level = 8, cost = 250_000, odds = { 0, 38, 46, 14, 2 }, icon = "award" },
-	{ id = "aces", level = 15, cost = 3_000_000, odds = { 0, 0, 55, 38, 7 }, icon = "star" },
-} :: { Agency }
-Config.AgencyById = {} :: { [string]: Agency }
-for _, a in Config.Agencies do
-	Config.AgencyById[a.id] = a
+function Config.candidatePrice(stars: number, companyLevel: number): number
+	return math.floor(Config.StarPrice[stars] * (1 + 0.35 * (companyLevel - 1)) / 100) * 100
 end
-
+function Config.searchCost(companyLevel: number): number
+	return 1000 * companyLevel
+end
+function Config.pilotBonus(stars: number, level: number): number
+	return Config.StarBonus[stars] + Config.PILOT_LEVEL_BONUS * (level - 1)
+end
+Config.Avatars = { "👨‍✈️", "👩‍✈️", "🧑‍✈️", "👨🏽‍✈️", "👩🏽‍✈️", "👨🏿‍✈️", "👩🏻‍✈️", "🧑🏾‍✈️" }
 Config.FirstNames = {
-	"Alex", "Sam", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Jamie", "Avery", "Quinn",
-	"Lucía", "Mateo", "Sofía", "Diego", "Valentina", "Hugo", "Aiko", "Kenji", "Amara", "Kwame",
-	"Priya", "Arjun", "Mei", "Wei", "Leila", "Omar", "Ingrid", "Lars", "Chloé", "Luca",
+	"Lucía", "Mateo", "Sofía", "Hugo", "Martina", "Leo", "Valeria", "Pablo", "Carmen", "Álvaro",
+	"Alba", "Daniel", "Noa", "Mario", "Irene", "Javier", "Paula", "Diego", "Elena", "Marco",
+	"Alex", "Sam", "Taylor", "Jordan", "Aiko", "Kenji", "Amara", "Omar", "Ingrid", "Chloé",
 }
 Config.LastNames = {
-	"Reyes", "Walker", "Silva", "Kim", "Nakamura", "Okafor", "Patel", "Novak", "Rossi", "Müller",
-	"García", "Brooks", "Haddad", "Larsen", "Moreau", "Costa", "Chen", "Singh", "Mensah", "Ortega",
+	"García", "Martínez", "López", "Sánchez", "Pérez", "Gómez", "Ruiz", "Díaz", "Moreno", "Álvarez",
+	"Navarro", "Torres", "Domínguez", "Vázquez", "Ramos", "Gil", "Serrano", "Blanco", "Molina", "Castro",
 }
 
 ---------------------------------------------------------------------
--- Clima (cambia por aeropuerto cada WEATHER_PERIOD s)
+-- Contratos exprés: aparecen cada cierto tiempo, pagan mucho y caducan
 ---------------------------------------------------------------------
-export type Weather = { id: string, chance: number, pay: number, time: number, wear: number, icon: string }
-Config.Weather = {
-	{ id = "clear", chance = 60, pay = 1, time = 1, wear = 1, icon = "sun" },
-	{ id = "rain", chance = 25, pay = 1.05, time = 1.05, wear = 1.2, icon = "cloud-rain" },
-	{ id = "snow", chance = 8, pay = 1.15, time = 1.15, wear = 1.5, icon = "snowflake" },
-	{ id = "storm", chance = 7, pay = 1.3, time = 1.25, wear = 2, icon = "cloud-lightning" },
-} :: { Weather }
-Config.WeatherById = {} :: { [string]: Weather }
-for _, w in Config.Weather do
-	Config.WeatherById[w.id] = w
-end
+Config.Express = { every = { 90, 150 }, lasts = 80, mult = 2.5 }
 
 ---------------------------------------------------------------------
 -- Progresión
 ---------------------------------------------------------------------
--- XP total necesaria para llegar al nivel L
 function Config.xpForLevel(level: number): number
 	if level <= 1 then
 		return 0
 	end
-	return math.floor(150 * (level - 1) ^ 2)
+	return math.floor(220 * (level - 1) ^ 2.35)
 end
 function Config.levelFromXp(xp: number): number
 	local level = 1
@@ -291,16 +274,14 @@ function Config.flightXp(gross: number): number
 	return math.max(1, math.floor(math.sqrt(gross)))
 end
 -- Duración del vuelo en segundos reales
-function Config.flightSeconds(distance: number, speed: number, weatherTime: number): number
-	return math.max(15, math.floor(distance / speed * 3600 / Config.TIME_SCALE * weatherTime + 0.5))
+function Config.flightSeconds(distance: number, speed: number, timeMult: number): number
+	return math.max(10, math.floor(distance / speed * 3600 / Config.TIME_SCALE * timeMult + 0.5))
 end
--- Pago bruto de una carga
-function Config.payout(weight: number, distance: number, cargoMult: number, weatherPay: number): number
-	return math.floor(weight * distance * Config.RATE * cargoMult * weatherPay)
+function Config.payout(weight: number, distance: number, goodMult: number): number
+	return math.floor(weight * distance * Config.RATE * goodMult)
 end
--- Desgaste del avión (% de estado) por vuelo
-function Config.wear(distance: number, weatherWear: number): number
-	return math.floor(distance / 1000 * 1.5 * weatherWear * 10 + 0.5) / 10
+function Config.wear(distance: number): number
+	return math.floor(distance / 1000 * 2.5 * 10 + 0.5) / 10
 end
 function Config.repairCost(price: number, condition: number): number
 	return math.floor(price * 0.002 * (100 - condition))
@@ -308,17 +289,81 @@ end
 function Config.sellPrice(price: number, condition: number): number
 	return math.floor(price * 0.5 * (0.5 + condition / 200))
 end
+-- Escala de premios (misiones, objetivos, recompensa diaria) según el nivel
+function Config.rewardScale(level: number): number
+	return math.floor(1500 * level ^ 1.7 / 100) * 100
+end
 
 ---------------------------------------------------------------------
--- Monetización (id = 0 → no aparece). Se rellenará más adelante.
+-- Recompensa diaria (racha de 7 días; se pierde si pasan más de 48 h)
 ---------------------------------------------------------------------
-Config.Monetization = {
-	GamePasses = {
-		{ key = "x2", id = 0, icon = "coins" }, -- dinero x2
-		{ key = "autopilot", id = 0, icon = "zap" }, -- despacho automático desde nivel 1
-		{ key = "hangar", id = 0, icon = "warehouse" }, -- +4 aviones
-	},
-	Products = {},
+Config.DailyRewards = { 1, 1.5, 2, 2.5, 3, 4, 6 } -- × rewardScale; el día 7 además da x2 30 min
+
+---------------------------------------------------------------------
+-- Misiones diarias (3 al día: fácil, media, difícil)
+---------------------------------------------------------------------
+export type MissionDef = { id: string, stat: string, goal: { number }, reward: number }
+Config.MissionPool = {
+	{ id = "deliveries", stat = "flights", goal = { 5, 12, 25 }, reward = 1 },
+	{ id = "km", stat = "km", goal = { 2000, 6000, 15000 }, reward = 1 },
+	{ id = "express", stat = "express", goal = { 1, 2, 4 }, reward = 1.3 },
+	{ id = "tons", stat = "tons", goal = { 5, 20, 60 }, reward = 1.1 },
+	{ id = "local", stat = "localGoods", goal = { 3, 8, 15 }, reward = 1.1 },
+	{ id = "earn", stat = "earned", goal = { 1, 3, 8 }, reward = 1.2 }, -- × rewardScale
+	{ id = "upgrades", stat = "purchases", goal = { 1, 2, 4 }, reward = 1 },
+} :: { MissionDef }
+Config.MISSIONS_BOOST_MIN = 15 -- completar las 3 → x2 15 min
+
+---------------------------------------------------------------------
+-- Objetivos (cadena: se muestra el siguiente sin reclamar; se reclaman a mano)
+---------------------------------------------------------------------
+export type GoalDef = { id: string, stat: string, target: number, reward: number }
+Config.Goals = {} :: { GoalDef }
+local GOAL_TRACKS: { { stat: string, targets: { number } } } = {
+	{ stat = "flights", targets = { 1, 5, 15, 40, 100, 250, 600, 1500 } },
+	{ stat = "planes", targets = { 2, 3, 5, 8, 12, 18 } },
+	{ stat = "pilots", targets = { 1, 3, 6, 10, 15 } },
+	{ stat = "regions", targets = { 3, 4, 5, 6, 7, 8, 9 } },
+	{ stat = "level", targets = { 3, 5, 8, 12, 16, 20 } },
+	{ stat = "express", targets = { 1, 5, 20, 60 } },
+	{ stat = "earned", targets = { 50_000, 500_000, 5_000_000, 50_000_000, 500_000_000 } },
 }
+-- Cadena: primero el objetivo 1 de cada grupo (en el orden de arriba), luego el 2, etc.
+local maxLen = 0
+for _, track in GOAL_TRACKS do
+	maxLen = math.max(maxLen, #track.targets)
+end
+for i = 1, maxLen do
+	for _, track in GOAL_TRACKS do
+		local target = track.targets[i]
+		if target then
+			table.insert(Config.Goals, { id = track.stat .. "_" .. i, stat = track.stat, target = target, reward = 0.6 + i * 0.4 })
+		end
+	end
+end
+
+---------------------------------------------------------------------
+-- Tienda (Robux). id = 0 → no aparece en el juego publicado (en Studio se ve como muestra)
+-- price = precio recomendado para crearlo en el Creator Hub
+---------------------------------------------------------------------
+export type ShopItem = { key: string, id: number, emoji: string, price: number }
+Config.GamePasses = {
+	{ key = "vip", id = 0, emoji = "💰", price = 199 }, -- dinero x2 para siempre
+	{ key = "autopilot", id = 0, emoji = "🤖", price = 149 }, -- despacho automático desde el nivel 1 y 100 % offline
+	{ key = "hangarxl", id = 0, emoji = "🏗️", price = 99 }, -- +5 aviones
+	{ key = "turbo", id = 0, emoji = "🚀", price = 249 }, -- vuelos un 25 % más rápidos
+} :: { ShopItem }
+Config.Products = {
+	{ key = "starter", id = 0, emoji = "🎁", price = 99 }, -- una vez: Halcón + $50K + x2 30 min
+	{ key = "cash_s", id = 0, emoji = "💵", price = 25 },
+	{ key = "cash_m", id = 0, emoji = "💰", price = 79 },
+	{ key = "cash_l", id = 0, emoji = "🏦", price = 249 },
+	{ key = "boost", id = 0, emoji = "⚡", price = 49 }, -- x2 30 min
+	{ key = "landall", id = 0, emoji = "🛬", price = 19 }, -- todos los vuelos aterrizan ya
+	{ key = "star_pilot", id = 0, emoji = "⭐", price = 99 }, -- piloto de 5 estrellas (sin sorteo)
+	{ key = "offline2x", id = 0, emoji = "🌙", price = 29 }, -- duplica las ganancias offline recién cobradas
+} :: { ShopItem }
+-- Dinero de los maletines: minutos de ingresos (con un mínimo según nivel)
+Config.CashPacks = { cash_s = 10, cash_m = 40, cash_l = 180 } :: { [string]: number }
 
 return Config

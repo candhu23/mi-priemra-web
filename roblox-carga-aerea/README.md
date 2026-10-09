@@ -1,53 +1,64 @@
-# Air Cargo Empire (Roblox) — guía rápida
+# AeroCarga España (Roblox) — guía rápida
 
-Juego de gestión de una aerolínea de carga, casi todo interfaz. Diseño completo en [DISENO.md](DISENO.md).
+Juego 2D de aerolínea de carga por España. Diseño completo en [DISENO.md](DISENO.md).
+**No hay que subir ninguna imagen**: el mapa, los aviones y los iconos (emojis) se dibujan con código.
 
-![Mapa](docs/vista_nav_map.jpg)
+![Título](docs/00_titulo.jpg)
 
-## Cómo probarlo en Roblox Studio
+## Probarlo en Roblox Studio (clic a clic)
 
 1. **Descarga el lugar:**
-   https://github.com/candhu23/mi-priemra-web/raw/claude/zealous-dirac-ejfljx/roblox-carga-aerea/AirCargo.rbxl
-2. Ábrelo con **Roblox Studio** (doble clic en el archivo).
-3. Pulsa **Play** (▶). Verás la interfaz con *sustitutos* de iconos y mapa (aún no hay imágenes subidas).
-4. Para que **guarde la partida** al probar: **File → Game Settings → Security →
-   Enable Studio Access to API Services → Save**. (Solo funciona después de publicarlo, ver abajo.)
+   https://github.com/candhu23/mi-priemra-web/raw/claude/zealous-dirac-ejfljx/roblox-carga-aerea/AeroCarga.rbxl
+2. Ábrelo con doble clic (se abre en Roblox Studio).
+3. Pulsa **Play** (▶). Debe salir la pantalla azul con **AeroCarga · ESPAÑA** y el botón **JUGAR**.
+4. Si en vez del mapa ves «Conectando con el servidor…» durante más de 10 segundos:
+   **View → Output** y mándame captura de las líneas en **rojo**.
+
+> Sin publicar, el juego **funciona pero no guarda la partida** (sale un aviso). Es normal.
 
 ## Publicarlo como juego NUEVO (no reemplaces Web Empire Tycoon)
 
-1. En Studio con `AirCargo.rbxl` abierto: **File → Publish to Roblox As…**
-2. Elige **Create new experience** (crear experiencia nueva). **No elijas Web Empire Tycoon.**
-3. Nombre: *Air Cargo Empire* (o el que quieras) → **Create**.
+1. Con `AeroCarga.rbxl` abierto: **File → Publish to Roblox As…**
+2. Elige **Create new experience** (experiencia nueva). **No elijas Web Empire Tycoon.**
+3. Nombre recomendado: **AeroCarga España ✈️** · Descripción: la del final de esta guía → **Create**.
+4. Para que guarde: **Home → Game Settings → Security → activa «Enable Studio Access to API Services» → Save**.
 
-## Subir las 4 imágenes (iconos, aviones y mapa)
+## Crear los artículos de la tienda (cuando quieras ganar Robux)
 
-1. Descarga las 4 imágenes de la carpeta `assets/`:
-   - https://github.com/candhu23/mi-priemra-web/raw/claude/zealous-dirac-ejfljx/roblox-carga-aerea/assets/iconos.png
-   - https://github.com/candhu23/mi-priemra-web/raw/claude/zealous-dirac-ejfljx/roblox-carga-aerea/assets/aviones.png
-   - https://github.com/candhu23/mi-priemra-web/raw/claude/zealous-dirac-ejfljx/roblox-carga-aerea/assets/mapa_oeste.png
-   - https://github.com/candhu23/mi-priemra-web/raw/claude/zealous-dirac-ejfljx/roblox-carga-aerea/assets/mapa_este.png
-2. En Studio (con el juego ya publicado): **View → Asset Manager**.
-3. Botón **Bulk Import** (icono de nube con flecha) → selecciona las 4 imágenes → **Abrir**.
-4. Espera a que pasen la moderación (puede tardar unos minutos; mientras, salen en gris).
-5. En la carpeta **Images** del Asset Manager: **clic derecho en cada imagen → Copy ID to Clipboard**
-   y pégame los 4 números diciendo cuál es cuál. Yo los pongo en el código y te paso el `.rbxl` nuevo.
+1. Entra en **create.roblox.com → Creations → AeroCarga España → Monetization**.
+2. **Passes → Create a Pass**: crea los 4 pases (nombre, imagen y precio de la tabla de `DISENO.md` §6) y pon cada uno **On Sale**.
+3. **Developer Products → Create**: crea los 10 productos de la tabla.
+4. Copia el **ID** de cada uno (número largo) y pásamelos indicando cuál es cuál. Yo los pongo en el código.
+
+## Descripción para la página del juego (puedes copiarla)
+
+> ✈️ ¡Crea tu aerolínea de carga y conquista España! Lleva naranjas de Valencia, jamón de Salamanca,
+> vino de La Rioja o plátanos de Canarias. Compra aviones, ficha pilotos, completa contratos exprés
+> y pinta el mapa de España con tus colores. ¡Juega con amigos y gana más!
+>
+> ✈️ Build your cargo airline and conquer Spain! Deliver local products, buy planes, hire pilots,
+> complete express contracts and paint the map of Spain with your colours. Play with friends for bonus cash!
 
 ## Cómo está hecho (para Claude)
 
 ```
 roblox-carga-aerea/
-├── default.project.json      # Rojo. Players.CharacterAutoLoads = false (juego solo de interfaz)
-├── AirCargo.rbxl             # Lugar generado con tools/check.sh
-├── DISENO.md                 # Documento de diseño
-├── assets/                   # PNG para subir a Roblox + LICENCIAS.md
-├── docs/                     # Capturas de la vista previa aproximada
+├── default.project.json        # Rojo. Players.CharacterAutoLoads = false (juego 2D, sin personaje)
+├── AeroCarga.rbxl              # Lugar generado por tools/check.sh (lo que se publica)
+├── DISENO.md · README.md · docs/ (capturas de la vista previa)
 ├── src/
-│   ├── ReplicatedStorage/Config.luau   # TODOS los datos y fórmulas (+ Config.Assets con los IDs)
-│   ├── ReplicatedStorage/Lang.luau     # Textos en inglés y español
-│   ├── ServerScriptService/GameServer.server.luau
-│   └── StarterPlayerScripts/GameClient.client.luau  # Toda la interfaz
+│   ├── ReplicatedStorage/
+│   │   ├── Config.luau         # TODOS los datos y fórmulas (aeropuertos, aviones, tienda…)
+│   │   ├── Lang.luau           # Textos EN/ES (el servidor manda claves, el cliente traduce)
+│   │   └── MapData.luau        # GENERADO por tools/assets/build_spain.py (mapa en franjas)
+│   ├── ServerScriptService/
+│   │   ├── GameServer.server.luau   # Remotes, entrada/salida, estado, bucle
+│   │   └── Cargo/ Data.luau (guardado, todo en pcall) · Game.luau (lógica) · Shop.luau (Robux)
+│   └── StarterPlayerScripts/
+│       ├── GameClient.client.luau   # Arranque de la interfaz
+│       └── UI/ Kit · PlaneArt · MapView · Hud · Screens · *Panel
 └── tools/
-    ├── check.sh              # Verificación completa + rojo build (OBLIGATORIO antes de commit)
-    ├── assets/               # Scripts que generan los PNG (build_icons.js, build_planes.js, build_map.py)
-    └── harness/              # run_server / run_client (Lune) + preview.py (vista previa en Chromium)
+    ├── check.sh                # Verificación completa + .rbxl (OBLIGATORIO antes de commit)
+    ├── assets/build_spain.py   # Regenera MapData.luau desde Natural Earth
+    └── harness/                # mock.luau, run_server.luau, run_game.luau, check_lang.py, preview.py
 ```

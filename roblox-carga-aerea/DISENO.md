@@ -1,142 +1,118 @@
-# Air Cargo Empire — Documento de diseño (v0.1)
+# AeroCarga España — Documento de diseño (v0.2)
 
-> Nombre provisional. En español: *Imperio de Carga Aérea*. Se puede cambiar sin tocar la lógica.
+> En inglés: *Spain Air Cargo Tycoon*. Nombre fácil de cambiar (textos en `Lang.luau`).
 
-## 1. Idea en una frase
+![Mapa](docs/10_mapa.jpg)
 
-Empiezas con una avioneta de carga en Nueva York y construyes una aerolínea de carga mundial:
-compras aviones, contratas pilotos, eliges cargas del tablón, sacas licencias y abres regiones
-hasta tener una flota de cargueros gigantes volando sola por todo el mundo.
+## 1. Idea
 
-**Inspiración:** un juego de gestión de camiones que me enseñaste (capturas del 9-oct-2026).
-Tomamos el **género y el tipo de interfaz** (juego casi todo de menús, mapa con rutas, tarjetas
-de vehículos, pilotos con rarezas y probabilidades visibles). **No copiamos** su nombre, textos,
-colores, distribución exacta ni ningún asset. Diferencias de identidad:
+Tienes una avioneta en Madrid. Llevas los productos típicos de cada zona de España
+(naranjas de Valencia, jamón de Salamanca, vino de Logroño, pescado de Vigo, plátanos de Canarias…),
+compras aviones, fichas pilotos y **vas pintando el mapa de España con tus colores** al abrir regiones.
+Todo es 2D: el mapa ocupa la pantalla y las ventanas se abren encima.
 
-| | Referencia | Este juego |
+## 2. Por qué ya no se parece al juego de camiones
+
+| | Juego de referencia | AeroCarga España |
 |---|---|---|
-| Vehículos | Camiones por EE. UU. | Aviones de carga por 6 regiones del mundo |
-| Color de acento | Amarillo | Naranja + azul cielo |
-| Navegación | Menú lateral | Menú lateral + pestañas propias, Despacho en una sola pantalla |
-| Extras propios | — | Clima por aeropuerto que paga más, reposicionar en vacío, licencias de carga especial |
+| Tema | Camiones por EE. UU. | Aviones de carga por España, con productos reales de cada zona |
+| Aspecto | Oscuro (azul marino), letra condensada | Claro y soleado, letra redondeada, botones «gruesos» de juego para móvil |
+| Estructura | Menú lateral y páginas que sustituyen la pantalla | Mapa siempre visible + barra inferior de 6 botones + ventanas encima |
+| Mapa | Imagen de satélite oscura de EE. UU. | España dibujada con código por regiones que se colorean al abrirlas |
+| Contratar | Agencias con barras de probabilidades (sorteo) | Candidatos a la vista: ves sus estrellas y su precio, **sin sorteo** |
+| Vehículos | Fotos 3D de camiones | Aviones dibujados con código, con nombres de aves |
+| Otros | Seguro, licencias, banco | Contratos exprés, misiones diarias, premio diario, objetivos, tutorial guiado |
 
-## 2. Bucle principal (lo que hace el jugador cada minuto)
+Lo que comparten es el **género** (gestionar una empresa de transporte), y eso no tiene dueño.
+No he copiado código, textos, nombres, imágenes ni la distribución de pantallas.
+No soy abogado: es una valoración razonable, no un consejo legal (ver §8).
 
-1. **Despacho** → elige avión en tierra → elige quién vuela (tú o un piloto) → elige carga → **VOLAR**.
-2. El avión cruza el mapa en tiempo real (1 s real = 2 min de vuelo; un vuelo dura de 15 s a ~5 min).
-3. Al aterrizar cobra: **pago − combustible − comisión del piloto (10 %)** y gana XP.
-4. Con el dinero: más aviones, pilotos, licencias, regiones y mejoras → vuelos más largos y caros.
-5. Nivel 5: **despacho automático** (la flota trabaja sola, también con el juego cerrado: los vuelos
-   en curso aterrizan aunque salgas).
+## 3. Bucle principal
 
-Tú solo puedes pilotar **un** avión a la vez: para volar más aviones a la vez hay que contratar pilotos.
+1. **Cargas** → eliges avión → quién vuela (tú o un piloto) → carga → **VOLAR**.
+2. El avión cruza el mapa (1 s real = 2 min de vuelo). Al aterrizar sube el dinero flotando.
+3. Cobras: **pago − combustible − 10 % del piloto contratado**, y ganas XP.
+4. Compras más aviones, fichas pilotos, abres regiones y mejoras la empresa.
+5. Nivel 5: **despacho automático**. Con él activado tu flota también gana mientras no juegas (50 %, o 100 % con el pase).
 
-## 3. Pantallas (todas hechas por código)
+Tú solo puedes llevar un avión a la vez: para volar varios hay que fichar pilotos.
 
-| Pantalla | Contenido |
+## 4. Lo que engancha
+
+| Sistema | Qué hace |
 |---|---|
-| **Mapa** | Mapa del mundo oscuro, aeropuertos (clima, aviones en tierra), rutas punteadas y aviones moviéndose, tarjeta "N aviones listos → despachar" |
-| **Flota** | Mis aviones (estado, ubicación, condición, reparar/vender) · Concesionario · Mejoras |
-| **Despacho** | Lista de aviones · tablón de cargas del aeropuerto · selector de piloto · actualizar · reposicionar · interruptor AUTO |
-| **Pilotos** | Plantilla · Contratar (3 agencias con barra y lista de probabilidades) |
-| **Empresa** | Resumen (nivel, XP, estadísticas) · Regiones · Licencias |
-| **Ajustes** | Idioma (automático/inglés/español), sonido, versión y créditos |
+| **Tutorial guiado** (5 pasos) | Una capitana y una flecha 👇 te dicen qué pulsar: primer vuelo (15 s, bien pagado), comprar avión, fichar piloto y reclamar el primer objetivo. Regalos de $5.000 y $10.000. |
+| **Objetivo siempre visible** | Tarjeta abajo a la izquierda con el siguiente objetivo y su barra; se reclama con un toque. 41 objetivos en cadena. |
+| **Contratos exprés** ⚡ | Cada 1,5–2,5 min aparece uno dorado en un aeropuerto: paga ×2,5 y caduca en 80 s. Aviso, pulso en el mapa y botón IR. |
+| **Misiones diarias** | 3 al día (fácil, media y difícil); completar las 3 da x2 de dinero durante 15 min. |
+| **Premio diario** 🎁 | Racha de 7 días que crece; el día 7 da además x2 durante 30 min. |
+| **Mapa que se colorea** | Cada región abierta se pinta de su color; las bloqueadas muestran nivel o precio. |
+| **Pilotos que suben de nivel** | Ganan +1,5 % de pago por nivel al volar. Candidatos nuevos cada 4 min. |
+| **Bienvenida de vuelta** | Te dice cuánto ganó tu flota mientras no estabas (con opción de duplicarlo con Robux). |
+| **Celebraciones** | Subida de nivel con confeti y lista de lo desbloqueado; fichajes de 4–5★ con confeti. |
+| **Social** | +10 % por cada amigo en el servidor (máx. 4), +10 % con Premium, botón de invitar, avisos a todo el servidor ("Fulano ha comprado un Cóndor"), ranking mundial. |
 
-Barra superior siempre visible: dinero, nivel con barra de XP, precio del combustible, aviones en el aire.
+## 5. Economía (todo en `src/ReplicatedStorage/Config.luau`)
 
-## 4. Economía (todos los números están en `src/ReplicatedStorage/Config.luau`)
+**Aviones**
 
-**Aviones** (nombres inventados, sin marcas reales):
+| Avión | Carga | Velocidad | Alcance | Precio | Nivel |
+|---|---|---|---|---|---|
+| 🐦 Gorrión | 1 t | 320 km/h | 1.300 km | $20.000 | 1 |
+| 🦅 Halcón | 3 t | 420 km/h | 1.800 km | $60.000 | 3 |
+| 🕊️ Albatros | 8 t | 520 km/h | 2.600 km (llega a Canarias) | $250.000 | 6 |
+| 🦩 Grulla | 16 t | 780 km/h | 3.000 km | $1,2M | 9 |
+| 🦚 Cóndor | 30 t | 840 km/h | 4.500 km | $5M | 13 |
+| 🐋 Ballena | 70 t | 800 km/h | 6.000 km | $20M | 18 |
 
-| Avión | Clase | Carga | Velocidad | Alcance | Consumo | Precio | Nivel | Licencia |
-|---|---|---|---|---|---|---|---|---|
-| SkyHopper C1 | turbohélice | 1,5 t | 340 km/h | 1.800 km | 0,6 L/km | $25.000 | 1 | — |
-| Coastline T8 | turbohélice | 8 t | 500 km/h | 2.600 km | 1,6 L/km | $75.000 | 3 | Turbohélice |
-| Jetline N20 | reactor | 20 t | 820 km/h | 4.200 km | 3,7 L/km | $1,5M | 6 | Reactor |
-| Horizon W55 | reactor | 55 t | 870 km/h | 7.500 km | 7 L/km | $8M | 10 | Reactor |
-| Titan J110 | reactor | 110 t | 900 km/h | 8.800 km | 13 L/km | $25M | 15 | Pesado |
-| Goliath H150 | reactor | 150 t | 780 km/h | 5.500 km | 19 L/km | $45M | 20 | Pesado |
+**Pago** = toneladas × km × $8 × multiplicador del producto (📦 ×1 … 💊 ×1,8) × mejoras × bonus del piloto × bonus sociales/VIP/turbo.
+**Regiones**: Madrid y Centro + Levante (gratis) · Cataluña y Aragón (nv 3, $40K) · Andalucía (nv 4, $90K) · Cornisa Norte (nv 6, $300K) ·
+Castilla y Extremadura (nv 7, $600K) · Galicia (nv 9, $1,5M) · Baleares (nv 11, $3,5M) · Canarias (nv 13, $8M). 41 aeropuertos.
+**Mejoras**: hangar (+2 aviones), equipo comercial (+5 % de pago), combustible (−5 %), carga rápida (−8 % de tiempo), cámara frigorífica (🐟 y 💊).
+**Pilotos**: candidatos de 1 a 5★ (42/30/17/8/3 %); bonus 0/5/10/18/30 % + 1,5 % por nivel; precio según estrellas y tu nivel.
 
-**Pago de una carga** = toneladas × km × $4 × tipo de carga × clima × mejoras × bonus del piloto.
-Tipos de carga: general ×1, correo ×1,15, perecederos ×1,25, electrónica ×1,3, animales vivos ×1,4*,
-fármacos ×1,6*, peligrosas ×1,8*, sobredimensionada ×2 (solo Goliath). *Necesitan licencia.
+**Ritmo medido** (bot perfecto en `tools/check.sh`; una persona irá unas 2–3 veces más lenta):
+nivel 2 ≈ 1 min · nivel 3 ≈ 3 min · 1.ª región nueva ≈ 4 min · nivel 5 ≈ 10 min · nivel 10 ≈ 22 min.
 
-**Clima** (cambia cada 3 min por aeropuerto): despejado / lluvia (+5 %) / nieve (+15 %) / tormenta (+30 %, más lento y más desgaste).
+## 6. Monetización (preparada; falta crear los artículos y poner sus IDs)
 
-**Combustible:** $2,50/L ±30 % (cambia cada 5 min). Se paga al aterrizar, así que nunca te quedas bloqueado sin dinero.
+Todo con Robux es opcional y **sin artículos aleatorios de pago** (así no hay que declarar "paid random items").
 
-**Desgaste:** ~1,5 % por cada 1.000 km. Por debajo del 25 % no vuela hasta repararlo.
-
-**Regiones:** Norteamérica (inicio) · Europa (nv 4, $150K) · Sudamérica (nv 6, $600K) · Asia (nv 8, $2M) ·
-Oriente Medio y África (nv 10, $5M) · Oceanía (nv 13, $15M). 38 aeropuertos reales en total.
-
-**Pilotos** (se pagan con dinero del juego, NO con Robux; probabilidades siempre visibles):
-
-| Agencia | Nivel | Precio | Común | Poco común | Raro | Épico | Legendario |
-|---|---|---|---|---|---|---|---|
-| Escuela de vuelo | 1 | $5.000 | 60 % | 28 % | 10 % | 1,8 % | 0,2 % |
-| Academia de aerolínea | 8 | $250K | 0 % | 38 % | 46 % | 14 % | 2 % |
-| Cazatalentos de ases | 15 | $3M | 0 % | 0 % | 55 % | 38 % | 7 % |
-
-Bonus de pago por rareza: 0 / +5 / +12 / +22 / +40 %. Máximo 20 pilotos.
-
-**Mejoras:** Hangar (+2 plazas, empiezas con 3) · Contratos de combustible (−5 %/nivel) · Agentes de carga (+4 % de pago/nivel).
-
-**XP y niveles:** XP por vuelo = √(pago bruto). XP para el nivel L = 150 × (L−1)².
-
-### Ritmo medido (bot perfecto en el harness; una persona irá más lenta)
-
-| Momento | Minuto |
-|---|---|
-| Nivel 2 | ~2,7 |
-| 2º avión | ~4,5 |
-| 1er piloto contratado | ~5,6 |
-| Licencia turbohélice (nivel 3) | ~9 |
-| 1er turbohélice | ~21 |
-| Nivel 5 (despacho automático) | ~26 |
-| Nivel 6 | ~32 |
-
-Confianza en que el ritmo sea bueno para personas: **~50 %**. Hay que ajustarlo cuando lo pruebes:
-sospecho que entre el minuto 9 y el 21 hay un tramo lento.
-
-## 5. Gráficos: qué es código y qué son imágenes
-
-| Elemento | Cómo se hace | Quién |
+| Tipo | Artículo | Precio recomendado |
 |---|---|---|
-| Toda la interfaz (paneles, botones, barras, pestañas, animaciones, colores, fuentes Oswald + Builder Sans) | Código | Claude |
-| Hoja de 55 iconos (`assets/iconos.png`) | Generada desde **Lucide** (licencia ISC) | Claude la genera, **tú la subes** |
-| Mapa del mundo en 2 trozos (`assets/mapa_oeste.png`, `mapa_este.png`) | Dibujado desde **Natural Earth** (dominio público) | Claude lo genera, **tú lo subes** |
-| Ilustraciones de los 6 aviones (`assets/aviones.png`) | Dibujadas por código (vista lateral, estilo plano) | Claude las genera, **tú las subes** |
+| Game Pass | 💰 VIP: dinero x2 | 199 R$ |
+| Game Pass | 🤖 Piloto automático (auto desde nivel 1 + 100 % offline) | 149 R$ |
+| Game Pass | 🏗️ Hangar XL (+5 aviones) | 99 R$ |
+| Game Pass | 🚀 Motores turbo (vuelos −25 %) | 249 R$ |
+| Producto | 🎁 Pack de inicio (Halcón + $50K + x2 30 min, una vez) | 99 R$ |
+| Producto | 💵 Maletín / 💰 Maleta / 🏦 Caja fuerte (10 / 40 / 180 min de tus ingresos) | 25 / 79 / 249 R$ |
+| Producto | ⚡ Turbo x2 (30 min) | 49 R$ |
+| Producto | 🛬 Aterrizar todos ya | 19 R$ |
+| Producto | ⭐ Piloto estrella (5★, sin sorteo) | 99 R$ |
+| Producto | 🌙 Duplicar ganancias offline (sale al volver) | 29 R$ |
 
-Mientras no se suban las imágenes, el juego funciona igual pero con sustitutos de texto (iconos
-como símbolos, mapa con una retícula). **Son 4 subidas en total.**
+Mientras un artículo tenga `id = 0` no aparece en el juego publicado; en Studio se ve como muestra.
 
-Limitación honesta: las ilustraciones de aviones son **más simples** que los camiones en 3D del juego
-de referencia. Mejorarlas exigiría modelos 3D o un render profesional (fase posterior).
+## 7. Qué se ha verificado y qué no
 
-## 6. Monetización (preparada, sin activar: todos los `id = 0`)
+**Verificado** (con `tools/check.sh`, sin Studio):
+- 0 avisos del analizador con la API de Roblox, y 242 textos presentes en inglés y español.
+- **Sin DataStore (como en Studio sin publicar)**: el juego funciona y avisa de que no guarda.
+  Era la causa probable de que no vieras aviones ni pudieras fichar en la v0.1.
+- Un bot juega 25 min de partida real, y se prueban salida/entrada con ganancias offline, compras con Robux simuladas y recibos repetidos.
+- **Juego completo**: servidor e interfaz reales juntos. Se pulsa JUGAR, se hace el tutorial siguiendo la flecha, se abren todas las ventanas y pestañas,
+  se pulsan más de 7.000 botones y se cambia de idioma.
+- Vista previa aproximada en navegador (`docs/*.jpg`).
 
-Propuesta, siguiendo lo aprendido con Web Empire Tycoon (nada de artículos aleatorios de pago):
-- Game Pass **Dinero x2**
-- Game Pass **Piloto automático** (despacho automático desde el nivel 1)
-- Game Pass **Hangar VIP** (+4 aviones)
-- Developer Products de dinero (más adelante)
+**No verificado**:
+- No he abierto Roblox Studio. Las fuentes, los emojis y algunos tamaños automáticos pueden verse algo distintos.
+- Que el sonido interno `rbxasset://sounds/electronicpingshort.wav` exista (confianza ~70 %; si no existe, simplemente no suena).
+- Cómo lo vive una persona real (ritmo, si el tutorial se entiende, si engancha).
 
-## 7. Fases siguientes (ideas, por orden de impacto estimado)
+## 8. Parecido con el otro juego (valoración, no consejo legal)
 
-1. Tutorial guiado (5–6 pasos) y recompensa diaria — enganche de los primeros minutos.
-2. Contratos con empresas (cargas repetidas mejor pagadas) y reputación.
-3. Seguro y perfil de riesgo (incidentes en tormenta, averías).
-4. Clasificación global y semanal.
-5. Alianzas entre jugadores ("team up").
-6. Sonidos propios, mejores ilustraciones de aviones, fondo 3D de hangar.
-
-## 8. Qué NO está verificado
-
-- No he podido abrirlo en Roblox Studio: la interfaz se ha probado con Lune (crea todos los objetos
-  reales de Roblox y pulsa todos los botones) y con una **vista previa aproximada** en navegador
-  (`docs/vista_*.jpg`). Las fuentes y algunos tamaños automáticos pueden verse algo distintos en Roblox.
-- La ruta de la fuente Builder Sans (`rbxasset://fonts/families/BuilderSans.json`) no la he podido
-  comprobar en Roblox; si no existiera, Roblox usa la fuente por defecto (no se rompe nada).
-- El sonido usa un archivo interno de Roblox (`rbxasset://sounds/electronicpingshort.wav`); confianza ~70 %
-  de que exista. Si no, simplemente no suena.
+- Las **mecánicas y el género no tienen derechos de autor**. Lo que suele dar problemas es copiar código, imágenes, textos,
+  nombres o una apariencia muy reconocible ("clon").
+- Esta versión cambia tema, país, mapa, colores, letra, estructura de pantallas, sistema de fichajes y nombres.
+- Riesgo de problemas por parecido: **bajo** en mi opinión (confianza ~85 %).
+- Recomendación extra: en la descripción de Roblox no menciones el otro juego y usa tus propias capturas.
