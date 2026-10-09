@@ -40,6 +40,12 @@ Building.Styles = {
 -- Rascacielos dorado: premio del ranking semanal
 Building.GOLD_STYLE = { glass = Color3.fromRGB(236, 190, 70), accent = Color3.fromRGB(250, 204, 21), frame = Color3.fromRGB(150, 110, 25) }
 
+-- v4 · Fachada de cada era (la 1 usa el estilo de la parcela)
+Building.ERA_STYLES = {
+	[2] = { glass = Color3.fromRGB(40, 54, 92), accent = Color3.fromRGB(34, 211, 238), frame = Color3.fromRGB(22, 28, 44) }, -- Plataformas: cristal oscuro y neón cian
+	[3] = { glass = Color3.fromRGB(226, 232, 245), accent = Color3.fromRGB(232, 121, 249), frame = Color3.fromRGB(148, 163, 184) }, -- Futuro: blanco y neón rosa
+}
+
 local SLAB_COLOR = Color3.fromRGB(232, 232, 236)
 local INTERIOR_DAY = Color3.fromRGB(58, 66, 80)
 local INTERIOR_NIGHT = Color3.fromRGB(255, 214, 150)
@@ -300,10 +306,42 @@ local function buildRoof(model: Model, base: CFrame, sections: { Section }, floo
 	return roof
 end
 
+-- v4 · Azotea de las eras 2 y 3: anillo de neón (Plataformas) y además
+-- una esfera holográfica flotante (Futuro)
+local function buildEraCrown(model: Model, roof: BasePart, era: number, style)
+	local top = roof.CFrame * CFrame.new(0, 0.5, 0)
+	local w = roof.Size.X
+	local ring = verticalCylinder(model, 0.6, w - 1, top * CFrame.new(0, 0.6, 0), style.accent, Enum.Material.Neon)
+	ring.Transparency = 0.2
+	ring.CastShadow = false
+	ring.Name = "AnilloEra"
+	local light = Instance.new("PointLight")
+	light.Color = style.accent
+	light.Range = 30
+	light.Brightness = 2
+	light.Parent = ring
+	if era >= 3 then
+		local orb = Instance.new("Part")
+		orb.Name = "Holograma"
+		orb.Shape = Enum.PartType.Ball
+		orb.Size = Vector3.new(7, 7, 7)
+		orb.CFrame = top * CFrame.new(0, 9, 0)
+		orb.Color = style.accent
+		orb.Material = Enum.Material.ForceField
+		orb.Anchored = true
+		orb.CanCollide = false
+		orb.CastShadow = false
+		orb.Parent = model
+		verticalCylinder(model, 5, 0.6, top * CFrame.new(0, 3, 0), style.frame, Enum.Material.Metal)
+	end
+end
+
 -- Construye el edificio entero. Las plantas por encima de animateFrom
 -- aparecen con animación (para cuando el edificio crece). gold = dorado.
-function Building.build(parent: Instance, base: CFrame, floors: number, styleIndex: number, ownerName: string, isNight: boolean, animateFrom: number, gold: boolean?): Model
-	local style = if gold then Building.GOLD_STYLE else Building.Styles[(styleIndex - 1) % #Building.Styles + 1]
+-- era = 1, 2 o 3 (las eras 2 y 3 cambian fachada y azotea)
+function Building.build(parent: Instance, base: CFrame, floors: number, styleIndex: number, ownerName: string, isNight: boolean, animateFrom: number, gold: boolean?, era: number?): Model
+	local eraStyle = Building.ERA_STYLES[era or 1]
+	local style = if gold then Building.GOLD_STYLE elseif eraStyle then eraStyle else Building.Styles[(styleIndex - 1) % #Building.Styles + 1]
 	local sections = sectionsFor(floors)
 
 	local model = Instance.new("Model")
@@ -312,6 +350,9 @@ function Building.build(parent: Instance, base: CFrame, floors: number, styleInd
 	buildLobby(model, base, style)
 	local animated = buildFloors(model, base, sections, floors, style, isNight, animateFrom)
 	local roof = buildRoof(model, base, sections, floors, style, ownerName)
+	if (era or 1) >= 2 then
+		buildEraCrown(model, roof, era :: number, eraStyle or style)
+	end
 
 	-- Rótulo flotante con nombre y plantas
 	local billboard = Instance.new("BillboardGui")

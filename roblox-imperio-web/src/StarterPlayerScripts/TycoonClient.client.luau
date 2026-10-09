@@ -19,7 +19,7 @@
 local ClientUI = script.Parent:WaitForChild("ClientUI")
 local ui = require(ClientUI:WaitForChild("Core"))
 -- Cada pestaña se construye en su módulo (en este orden)
-for _, name in { "TabCreate", "TabSites", "TabClients", "TabAds", "TabCompanies", "TabCareer", "TabAgency", "TabMissions", "TabAchievements", "TabSeason", "TabCollection", "TabRanking", "TabMarket", "TabResearch", "TabShop", "TabStory", "Tutorial", "HudExtras" } do
+for _, name in { "TabCreate", "TabSites", "TabClients", "TabAds", "TabCompanies", "TabCareer", "TabAgency", "TabMissions", "TabAchievements", "TabSeason", "TabCollection", "TabRanking", "TabMarket", "TabResearch", "TabShop", "TabStory", "TabFusion", "Tutorial", "HudExtras" } do
 	require(ClientUI:WaitForChild(name))(ui)
 end
 

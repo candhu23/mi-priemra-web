@@ -18,6 +18,12 @@ local localePtSource = fs.readFile(SRC .. "/ReplicatedStorage/LocalePT.luau")
 local patchSource = fs.readFile(SRC .. "/ReplicatedStorage/StatePatch.luau")
 local storySource = fs.readFile(SRC .. "/ReplicatedStorage/StoryConfig.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
+-- Fusión lista y Legado para gastar, para que se pulsen también esos botones
+if stateJson.eras then
+	stateJson.eras.legacy = 30
+	stateJson.eras.ipos = stateJson.eras.needIpos
+	stateJson.eras.earned = stateJson.eras.needEarned
+end
 local visitJson = serde.decode("json", fs.readFile("visit.json"))
 
 local realOf = setmetatable({}, { __mode = "k" })

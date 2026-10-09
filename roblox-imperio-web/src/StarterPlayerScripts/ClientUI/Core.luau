@@ -695,6 +695,7 @@ local TABS = {
 	{ id = "market", emoji = "📈", name = "Bolsa", color = THEME.pink },
 	{ id = "research", emoji = "💡", name = "I+D", color = Color3.fromRGB(59, 130, 246) },
 	{ id = "ipo", emoji = "🔔", name = "Salir a bolsa", color = THEME.pink },
+	{ id = "fusion", emoji = "🧬", name = "Fusión", color = Color3.fromRGB(34, 211, 238) },
 	{ id = "shop", emoji = "🛒", name = "Tienda", color = Color3.fromRGB(20, 184, 166) },
 }
 local TabById: { [string]: any } = {}
@@ -706,7 +707,7 @@ end
 local HUBS = {
 	{ id = "production", emoji = "🛠️", name = "Producción", color = THEME.green, tabs = { "create", "sites", "ads" } },
 	{ id = "business", emoji = "💼", name = "Negocio", color = Color3.fromRGB(14, 165, 233), tabs = { "clients", "companies", "career", "agency" } },
-	{ id = "investment", emoji = "📈", name = "Inversión", color = THEME.pink, tabs = { "market", "research", "ipo" } },
+	{ id = "investment", emoji = "📈", name = "Inversión", color = THEME.pink, tabs = { "market", "research", "ipo", "fusion" } },
 	{ id = "progress", emoji = "🎯", name = "Progreso", color = Color3.fromRGB(245, 158, 11), tabs = { "story", "missions", "achievements", "season", "collection" } },
 	{ id = "social", emoji = "🛒", name = "Tienda y social", color = Color3.fromRGB(20, 184, 166), tabs = { "shop", "ranking" } },
 }
@@ -752,7 +753,7 @@ ui.onTabChanged = function() end
 local TAB_FEATURES = {
 	clients = "clients", ads = "ads", ranking = "ranking", companies = "companies", season = "season",
 	career = "career", collection = "collection", agency = "agency", market = "market", research = "market",
-	ipo = "market",
+	ipo = "market", fusion = "market",
 }
 
 local function tabLocked(id: string): boolean
@@ -906,6 +907,7 @@ local TAB_HELP = {
 	shop = "Premios gratis por jugar, códigos y mejoras con Robux.",
 	ipo = "Empiezas de cero, pero cada acción te da más dinero para siempre y patentes para 💡 I+D.",
 	story = "Ada te guía paso a paso: cada misión cumplida da premio y cada capítulo, un premio especial.",
+	fusion = "La Fusión te lleva a la era siguiente: webs nuevas y 🧬 Legado para mejoras que no se pierden nunca.",
 }
 for id, text in TAB_HELP do
 	local help = create("TextLabel", {

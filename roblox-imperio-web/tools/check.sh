@@ -34,12 +34,12 @@ fi
 echo "== 5/7 Interfaz: se crea entera y se pulsan todos los botones (Lune)"
 "$BIN/lune" run "$ROOT/tools/harness/run_client.luau" "$SRC" | tail -3 || status=1
 
-echo "== 6/7 Economía: bot de 6 horas (luau)"
+echo "== 6/7 Economía: bot de 40 horas con salidas a bolsa, Fusión y Eras (luau)"
 mkdir -p "$OUT/sim"
 { echo 'local Color3 = { fromRGB = function() return {} end }'; cat "$SRC/ReplicatedStorage/TycoonConfig.luau"; } > "$OUT/sim/TycoonConfig.luau"
 { echo 'local Color3 = { fromRGB = function() return {} end }'; cat "$SRC/ReplicatedStorage/CareerConfig.luau"; } > "$OUT/sim/CareerConfig.luau"
 cp "$ROOT/tools/sim/sim.luau" "$OUT/sim/"
-(cd "$OUT/sim" && "$BIN/luau" sim.luau -a career | grep -E "ganado \\\$(1.00K|100K|1.00M|100M)|primera (Red|Metaverso)|funda") || status=1
+(cd "$OUT/sim" && "$BIN/luau" sim.luau -a career 40 > sim.txt && grep -E "ganado \\\$(1.00K|1.00M|1.00B|1.00Qa)|primera (Red|Metaverso|Buscador)|funda|FUSIÓN|RESUMEN" sim.txt) || status=1
 
 if command -v python3 > /dev/null && python3 -c "import matplotlib" 2> /dev/null; then
 	python3 "$ROOT/tools/harness/render.py" "$OUT/world.json" "$OUT/render" > /dev/null && echo "Dibujos: tools/out/render_fachadas.png y render_ciudad.png"

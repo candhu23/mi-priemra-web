@@ -165,7 +165,7 @@ end
 local function unlockedTypes(data)
 	local list = {}
 	for _, def in Config.WebTypes do
-		if data.reputation >= def.rep then
+		if data.reputation >= def.rep and Config.eraAllows(data, def) then
 			table.insert(list, def)
 		end
 	end

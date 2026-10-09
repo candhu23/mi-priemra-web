@@ -10,7 +10,7 @@
 
 local Config = {}
 
-Config.VERSION = "4.0-alpha.4"
+Config.VERSION = "4.0-alpha.5"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
@@ -42,7 +42,8 @@ Config.QUICK_SALE_COOLDOWN = 90 -- ...y solo se puede cada 90 s
 Config.SALE_SECONDS = 130 -- una empresa paga ~130 s de lo que puede ganar la web
 -- Las ventas a clientes no son instantáneas: hay que negociar. Segundos por
 -- tipo de web (la Agencia Comercial lo acorta un 3 % por nivel, hasta la mitad)
-Config.DealSeconds = { landing = 60, blog = 90, tienda = 150, noticias = 240, red_social = 360, streaming = 480, app_ia = 600, metaverso = 900 }
+Config.DealSeconds = { landing = 60, blog = 90, tienda = 150, noticias = 240, red_social = 360, streaming = 480, app_ia = 600, metaverso = 900,
+	buscador = 1080, banco = 1260, cloud = 1440, videojuego = 1620, superapp = 1800, cuantica = 2100 }
 Config.MAX_DEALS = 2 -- negociaciones a la vez (+1 cada 15 niveles de Agencia Comercial, máx. 4)
 Config.MAINTENANCE_RATE = 0.0002 -- contrato de mantenimiento: % del precio de venta por segundo
 Config.MAX_SEO = 10
@@ -51,6 +52,16 @@ Config.DESIGN_QUALITY_BONUS = 0.10 -- cada nivel de rediseño: +10 % de calidad
 Config.SEO_VISIT_BONUS = 1.25 -- cada nivel de SEO multiplica las visitas
 Config.IPO_MIN_EARNED = 1_000_000 -- dinero ganado en la partida para salir a bolsa
 Config.SHARE_BONUS = 0.05 -- +5 % de dinero por cada acción
+-- v4: acciones al salir a bolsa = 10 × (1 + log10(ganado / $1M)) ^ SHARES_POWER.
+-- En la v3.1 eran 10 × √(ganado / $1M): con $1M y $100M dan casi lo mismo, pero
+-- con la raíz salir a bolsa una y otra vez se disparaba sin fin (lo vio el
+-- simulador: el dinero de una partida crece mucho más que el multiplicador).
+Config.SHARES_POWER = 2
+-- v4: tope suave de las acciones. Hasta SHARE_SOFTCAP acciones cada una da
+-- +5 %; a partir de ahí el multiplicador crece como (acciones/tope)^SHARE_SOFT_EXP.
+-- Sin esto, salir a bolsa una y otra vez crecía sin fin (lo vio el simulador).
+Config.SHARE_SOFTCAP = 100
+Config.SHARE_SOFT_EXP = 0.5
 Config.EVENT_MIN_DELAY = 90
 Config.EVENT_MAX_DELAY = 180
 Config.CLICK_RATE_LIMIT = 15 -- clics por segundo como máximo
@@ -159,6 +170,26 @@ Config.WebTypes = {
 	{ id = "streaming", name = "Plataforma de Streaming", emoji = "🎬", work = 24960, cost = 250000, visits = 1000, rep = 6000, repReward = 120 },
 	{ id = "app_ia", name = "App de IA", emoji = "🤖", work = 101400, cost = 3000000, visits = 3000, rep = 20000, repReward = 300 },
 	{ id = "metaverso", name = "Metaverso", emoji = "🥽", work = 405600, cost = 50000000, visits = 9000, rep = 65000, repReward = 800 },
+	-- v4 · Era 2 «Plataformas» y Era 3 «Futuro» (era = desde qué era se pueden
+	-- programar; mech = su mecánica propia, ver Config.Mechanics)
+	{ id = "buscador", name = "Buscador", emoji = "🔎", work = 1.6e6, cost = 8e8, visits = 27000, rep = 2e5, repReward = 2000, era = 2, mech = "search" },
+	{ id = "banco", name = "Banco Digital", emoji = "🏦", work = 6.4e6, cost = 1.2e10, visits = 80000, rep = 6e5, repReward = 5000, era = 2, mech = "bank" },
+	{ id = "cloud", name = "Plataforma Cloud", emoji = "☁️", work = 2.6e7, cost = 2e11, visits = 240000, rep = 1.8e6, repReward = 12000, era = 2, mech = "cloud" },
+	{ id = "videojuego", name = "Videojuego Online", emoji = "🎮", work = 1e8, cost = 3e12, visits = 720000, rep = 5.4e6, repReward = 30000, era = 3, mech = "seasons" },
+	{ id = "superapp", name = "Superapp", emoji = "📱", work = 4e8, cost = 5e13, visits = 2.2e6, rep = 1.6e7, repReward = 80000, era = 3, mech = "superapp" },
+	{ id = "cuantica", name = "Red Cuántica", emoji = "⚛️", work = 1.6e9, cost = 8e14, visits = 6.5e6, rep = 5e7, repReward = 200000, era = 3, mech = "quantum" },
+}
+
+-- Mecánica propia de cada producto nuevo (v4). Cada una cuenta como mucho
+-- MECH_MAX webs de su tipo.
+Config.MECH_MAX = 4
+Config.Mechanics = {
+	search = { text = "🔎 Cada Buscador da +8 % de visitas a tus otras webs.", value = 0.08 },
+	bank = { text = "🏦 Cada Banco paga intereses: 0,01 % por segundo del dinero que tienes (como mucho 3 veces lo que gana la web).", value = 0.0001, cap = 3 },
+	cloud = { text = "☁️ Cada Plataforma Cloud alquila capacidad: +2 huecos para webs.", value = 2 },
+	seasons = { text = "🎮 Temporadas: 2,5 min de cada 10 las visitas van x3 (el resto del tiempo, x0,8).", period = 600, length = 150, peak = 3, off = 0.8 },
+	superapp = { text = "📱 Junta tus servicios: +3 % de visitas por cada tipo de web distinto que tengas.", value = 0.03 },
+	quantum = { text = "⚛️ Cada Red Cuántica dobla la probabilidad de webs raras (con el tope de siempre).", value = 1 },
 }
 
 ---------------------------------------------------------------------
@@ -174,6 +205,10 @@ Config.AdNetworks = {
 	{ id = "influads", name = "InfluAds", emoji = "🤳", rpv = 1.44, penalty = 0.10, cost = 25000000, rep = 2500 },
 	{ id = "premium", name = "PremiumAds Global", emoji = "💎", rpv = 2.4, penalty = 0.06, cost = 600000000, rep = 10000 },
 	{ id = "neuroads", name = "NeuroAds IA", emoji = "🧠", rpv = 4.2, penalty = 0.03, cost = 20000000000, rep = 35000 },
+	-- v4 · solo desde la Era 2 / 3
+	{ id = "searchads", name = "BuscaAds", emoji = "🔍", rpv = 7, penalty = 0.04, cost = 6e11, rep = 1.5e5, era = 2 },
+	{ id = "holoads", name = "HoloAds", emoji = "🌐", rpv = 12, penalty = 0.03, cost = 4e13, rep = 1.5e6, era = 2 },
+	{ id = "quantumads", name = "QuantumAds", emoji = "💫", rpv = 21, penalty = 0.02, cost = 2e15, rep = 1.2e7, era = 3 },
 }
 
 -- Cuántos anuncios pones en cada web: más anuncios = más dinero por visita,
@@ -206,6 +241,13 @@ Config.Companies = {
 		desc = "+15 % de dinero por anuncios." },
 	{ id = "datacenter", name = "Centro de Datos", emoji = "🏭", baseCost = 37500000, growth = 1.5, income = 12000.0, maxLevel = 200,
 		desc = "+5 % a todo el dinero y tus webs no se caen." },
+	-- v4 · solo desde la Era 2 / 3
+	{ id = "fintech", name = "Fintech", emoji = "💳", baseCost = 2e9, growth = 1.5, income = 300000.0, maxLevel = 200, era = 2,
+		desc = "+5 % de dinero de los contratos de mantenimiento por nivel." },
+	{ id = "gamestudio", name = "Estudio de Videojuegos", emoji = "🕹️", baseCost = 5e11, growth = 1.5, income = 6000000.0, maxLevel = 200, era = 3,
+		desc = "+5 % de visitas en todas tus webs por nivel." },
+	{ id = "quantumlab", name = "Laboratorio Cuántico", emoji = "🔬", baseCost = 1e14, growth = 1.55, income = 120000000.0, maxLevel = 200, era = 3,
+		desc = "+20 % de velocidad programando por nivel." },
 }
 
 ---------------------------------------------------------------------
@@ -661,6 +703,65 @@ Config.Research = {
 }
 
 ---------------------------------------------------------------------
+-- v4 · Eras y Fusión (segunda capa de prestigio). Se pasa de era con una
+-- Fusión: pide salidas a bolsa EN ESTA ERA y dinero ganado en esta era.
+-- Reinicia como salir a bolsa y además las acciones (no I+D, patentes,
+-- colección, carrera ni historia) y da 🧬 Legado: legacyPerSqrt × √acciones.
+-- moneyMult = multiplicador de dinero fijo de la era.
+---------------------------------------------------------------------
+Config.Eras = {
+	{ id = 1, emoji = "🌐", name = "Web clásica", moneyMult = 1 },
+	{ id = 2, emoji = "🧩", name = "Plataformas", moneyMult = 2 },
+	{ id = 3, emoji = "🚀", name = "Futuro", moneyMult = 4 },
+}
+Config.Fusions = {
+	-- para pasar de la era 1 a la 2, y de la 2 a la 3
+	{ ipos = 5, earned = 5e15 }, -- bot perfecto: ~12 h de juego
+	{ ipos = 6, earned = 5e20 }, -- bot perfecto: Era 3 a las ~30 h
+}
+Config.LEGACY_PER_SQRT = 2 -- 🧬 por Fusión = 2 × √(acciones que tienes)
+
+-- Árbol de Legado: mejoras permanentes (no se pierden nunca). requires =
+-- mejora que necesitas tener antes (al menos a nivel 1).
+Config.LegacyBranches = {
+	{ id = "dinero", emoji = "💰", name = "Dinero" },
+	{ id = "webs", emoji = "🌐", name = "Webs" },
+	{ id = "negocio", emoji = "🤝", name = "Negocio" },
+}
+Config.LegacyTree = {
+	{ id = "herencia", branch = "dinero", emoji = "💰", name = "Herencia", maxLevel = 5, cost = 2, costGrowth = 1.6, value = 0.5,
+		desc = "+50 % de dinero por nivel." },
+	{ id = "preferentes", branch = "dinero", emoji = "📜", name = "Acciones preferentes", maxLevel = 5, cost = 3, costGrowth = 1.6, value = 0.01, requires = "herencia",
+		desc = "Cada acción da un +1 % más de dinero por nivel." },
+	{ id = "salida", branch = "dinero", emoji = "🔔", name = "Salida estelar", maxLevel = 4, cost = 4, costGrowth = 1.7, value = 0.25, requires = "preferentes",
+		desc = "+25 % de acciones al salir a bolsa por nivel." },
+	{ id = "fundadores", branch = "dinero", emoji = "🏦", name = "Capital familiar", maxLevel = 3, cost = 2, costGrowth = 2, value = 1,
+		desc = "Empiezas cada partida con $10K, $1M o $100M." },
+	{ id = "conocida", branch = "dinero", emoji = "⭐", name = "Marca conocida", maxLevel = 3, cost = 3, costGrowth = 2, value = 1, requires = "fundadores",
+		desc = "Empiezas cada partida con reputación: 600, 6.000 o 60.000." },
+	{ id = "trafico", branch = "webs", emoji = "📈", name = "Tráfico heredado", maxLevel = 5, cost = 2, costGrowth = 1.6, value = 0.3,
+		desc = "+30 % de visitas en todas tus webs por nivel." },
+	{ id = "suerte", branch = "webs", emoji = "🍀", name = "Suerte genética", maxLevel = 4, cost = 3, costGrowth = 1.6, value = 0.25, requires = "trafico",
+		desc = "+25 % de probabilidad de webs raras por nivel." },
+	{ id = "codigo", branch = "webs", emoji = "⌨️", name = "Código limpio", maxLevel = 5, cost = 2, costGrowth = 1.6, value = 0.4,
+		desc = "+40 % de trabajo (clics y programadores) por nivel." },
+	{ id = "huecos", branch = "webs", emoji = "🗄️", name = "Granja de servidores", maxLevel = 3, cost = 3, costGrowth = 1.8, value = 1, requires = "codigo",
+		desc = "+1 hueco para webs por nivel." },
+	{ id = "marca", branch = "webs", emoji = "🏅", name = "Prestigio", maxLevel = 4, cost = 2, costGrowth = 1.7, value = 0.3,
+		desc = "+30 % de reputación al terminar y vender webs por nivel." },
+	{ id = "contactos", branch = "negocio", emoji = "📇", name = "Agenda de contactos", maxLevel = 5, cost = 2, costGrowth = 1.6, value = 0.25,
+		desc = "+25 % al vender webs por nivel." },
+	{ id = "expres", branch = "negocio", emoji = "⏩", name = "Negociación exprés", maxLevel = 3, cost = 3, costGrowth = 1.8, value = 0.1, requires = "contactos",
+		desc = "Las negociaciones de venta duran un 10 % menos por nivel." },
+	{ id = "veteranas", branch = "negocio", emoji = "🏢", name = "Empresas veteranas", maxLevel = 5, cost = 2, costGrowth = 1.6, value = 0.4,
+		desc = "+40 % de dinero de tus empresas por nivel." },
+	{ id = "elite", branch = "negocio", emoji = "👥", name = "Agencia de élite", maxLevel = 4, cost = 3, costGrowth = 1.7, value = 0.25, requires = "veteranas",
+		desc = "+25 % a lo que aportan tus programadores por nivel." },
+	{ id = "patentes", branch = "negocio", emoji = "💡", name = "Oficina de patentes", maxLevel = 3, cost = 3, costGrowth = 1.8, value = 0.5,
+		desc = "+50 % de patentes al salir a bolsa por nivel." },
+}
+
+---------------------------------------------------------------------
 -- Pase de temporada: cada temporada dura 4 semanas (empieza un lunes).
 -- Ganas ⭐ puntos de temporada con misiones, objetivos, tiempo jugado y
 -- ventas. 30 niveles con premio gratis y premio premium.
@@ -785,6 +886,7 @@ Config.CompanyById = index(Config.Companies, "id")
 Config.WeekendEventById = index(Config.WeekendEvents, "id")
 Config.VariantById = index(Config.Variants, "id")
 Config.ResearchById = index(Config.Research, "id")
+Config.LegacyById = index(Config.LegacyTree, "id")
 Config.ServerEventById = index(Config.ServerEvents, "id")
 Config.CodeByCode = index(Config.Codes, "code")
 Config.PassByKey = index(Config.Monetization.GamePasses, "key")
@@ -816,11 +918,107 @@ function Config.researchCost(researchId: string, level: number): number
 	return math.max(1, math.floor(def.cost * def.costGrowth ^ level + 0.5))
 end
 
-function Config.patentsForShares(shares: number): number
+-- data (opcional): con la mejora de Legado «Oficina de patentes»
+function Config.patentsForShares(shares: number, data: any?): number
 	if shares < 1 then
 		return 0
 	end
-	return math.max(1, shares // Config.PATENTS_PER_SHARES)
+	local base = math.max(1, shares // Config.PATENTS_PER_SHARES)
+	return if data then math.floor(base * (1 + Config.legacyValue(data, "patentes"))) else base
+end
+
+-- Multiplicador de dinero que dan "shares" acciones (con tope suave)
+function Config.shareMult(data, shares: number): number
+	local per = Config.SHARE_BONUS + Config.legacyValue(data, "preferentes")
+	local cap = Config.SHARE_SOFTCAP
+	if shares <= cap then
+		return 1 + shares * per
+	end
+	return (1 + cap * per) * (shares / cap) ^ Config.SHARE_SOFT_EXP
+end
+
+-- v4 · Era actual, mejoras de Legado y productos de cada era
+function Config.era(data): number
+	return math.clamp((data and data.era) or 1, 1, #Config.Eras)
+end
+
+function Config.eraAllows(data, def): boolean
+	return (def.era or 1) <= Config.era(data)
+end
+
+function Config.legacy(data, legacyId: string): number
+	return (data and data.legacyTree and data.legacyTree[legacyId]) or 0
+end
+
+function Config.legacyValue(data, legacyId: string): number
+	return Config.legacy(data, legacyId) * Config.LegacyById[legacyId].value
+end
+
+-- 🧬 que cuesta subir del nivel "level" al siguiente
+function Config.legacyCost(legacyId: string, level: number): number
+	local def = Config.LegacyById[legacyId]
+	return math.max(1, math.floor(def.cost * def.costGrowth ^ level + 0.5))
+end
+
+-- 🧬 que da una Fusión con estas acciones
+function Config.legacyForShares(shares: number): number
+	return math.floor(Config.LEGACY_PER_SQRT * math.sqrt(math.max(0, shares)))
+end
+
+-- Lo que pide la Fusión para salir de la era actual (nil = ya en la última)
+function Config.fusionRequirement(data)
+	return Config.Fusions[Config.era(data)]
+end
+
+-- Dinero y reputación con que empieza cada partida (I+D y Legado)
+function Config.startMoney(data): number
+	local money = Config.STARTING_MONEY
+	local capital = Config.research(data, "capital")
+	if capital > 0 then
+		money = math.max(money, 100 * 10 ^ capital)
+	end
+	local family = Config.legacy(data, "fundadores")
+	if family > 0 then
+		money = math.max(money, 10 ^ (2 + 2 * family))
+	end
+	return money
+end
+
+function Config.startReputation(data): number
+	local known = Config.legacy(data, "conocida")
+	return if known > 0 then 6 * 10 ^ (known + 1) else 0
+end
+
+-- Reputación que da una web al terminarla o venderla
+function Config.repReward(data, def): number
+	return math.floor(def.repReward * (1 + Config.legacyValue(data, "marca")))
+end
+
+-- Cuántas webs de cada mecánica tienes (cada una cuenta hasta MECH_MAX)
+function Config.mechCount(data, mech: string): number
+	local n = 0
+	for _, site in data.sites or {} do
+		local def = Config.WebTypeById[site.type]
+		if def and def.mech == mech then
+			n += 1
+		end
+	end
+	return math.min(n, Config.MECH_MAX)
+end
+
+-- Reloj de las fórmulas (el simulador lo cambia por su propio tiempo)
+Config.clock = function(): number
+	return os.time()
+end
+
+-- Videojuego Online: ¿está en temporada? (igual en servidor y cliente)
+function Config.gameSeason(unixTime: number): (boolean, number)
+	local m = Config.Mechanics.seasons
+	local t = unixTime % m.period
+	if t < m.length then
+		return true, m.length - t
+	end
+	return false, m.period - t
 end
 
 -- Hitos que ha alcanzado una empresa con ese nivel
@@ -908,7 +1106,9 @@ end
 -- Multiplicador de probabilidad de webs raras (I+D, logros, evento del
 -- servidor y programadores de Datos: eventMult ya los incluye)
 function Config.variantChanceMult(data, eventMult: number?): number
-	return math.min(Config.MAX_VARIANT_CHANCE_MULT, (1 + Config.researchValue(data, "luck") + Config.achievementBonus(data, "rare")) * (eventMult or 1))
+	local quantum = 1 + Config.mechCount(data, "quantum") * Config.Mechanics.quantum.value
+	return math.min(Config.MAX_VARIANT_CHANCE_MULT, (1 + Config.researchValue(data, "luck") + Config.achievementBonus(data, "rare")
+		+ Config.legacyValue(data, "suerte")) * (eventMult or 1) * quantum)
 end
 
 -- Multiplicador del combo de clics
@@ -919,7 +1119,7 @@ end
 -- Segundos que tarda un cliente en comprar una web de ese tipo
 function Config.dealSeconds(data, typeId: string): number
 	local base = Config.DealSeconds[typeId] or 60
-	return math.floor(base * math.max(0.6, 1 - 0.02 * Config.level(data, "comercial")))
+	return math.floor(base * math.max(0.6, 1 - 0.02 * Config.level(data, "comercial")) * (1 - Config.legacyValue(data, "expres")))
 end
 
 -- Negociaciones de venta que puedes tener a la vez
@@ -929,7 +1129,7 @@ end
 
 -- Contratos de mantenimiento (con la mejora de I+D)
 function Config.maintenanceIncome(data): number
-	return data.maintenance * (1 + Config.researchValue(data, "maintenance"))
+	return data.maintenance * (1 + Config.researchValue(data, "maintenance") + 0.05 * Config.level(data, "fintech"))
 end
 
 function Config.companyCost(companyId: string, level: number): number
@@ -940,6 +1140,7 @@ end
 function Config.slots(data, bonuses): number
 	local extra = if bonuses and bonuses.slotsPass then 3 else 0
 	return Config.BASE_SLOTS + Config.level(data, "hosting") + extra + Config.researchValue(data, "slots")
+		+ Config.legacyValue(data, "huecos") + Config.mechCount(data, "cloud") * Config.Mechanics.cloud.value
 end
 
 -- bonuses.agencyWork = trabajo/s de los programadores de tu agencia
@@ -948,12 +1149,14 @@ function Config.workPerSec(data, bonuses): number
 	local agency = if bonuses and bonuses.agencyWork then bonuses.agencyWork else 0
 	local devs = Config.level(data, "devs") * 1.5 * Config.companyMult(data, "devs")
 	return (devs + agency) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo * (1 + Config.achievementBonus(data, "work"))
+		* (1 + 0.2 * Config.level(data, "quantumlab")) * (1 + Config.legacyValue(data, "codigo"))
 end
 
 function Config.clickPower(data, bonuses): number
 	local turbo = if bonuses and bonuses.turbo then 2 else 1
 	local fingers = 1 + Config.researchValue(data, "fingers") + Config.achievementBonus(data, "click")
 	return (1 + Config.workPerSec(data, nil) * 0.15) * (1 + 0.25 * Config.level(data, "ia_lab")) * turbo * fingers
+		* (1 + Config.legacyValue(data, "codigo"))
 end
 
 -- % extra por amigos, Premium y grupo
@@ -974,8 +1177,9 @@ end
 
 -- Multiplicador global de dinero
 function Config.moneyMult(data, bonuses): number
-	local mult = 1 + data.shares * Config.SHARE_BONUS
+	local mult = Config.shareMult(data, data.shares)
 	mult *= 1 + 0.05 * Config.level(data, "datacenter")
+	mult *= Config.Eras[Config.era(data)].moneyMult * (1 + Config.legacyValue(data, "herencia"))
 	mult *= 1 + Config.collectionBonus(data)
 	mult *= 1 + Config.achievementBonus(data, "money")
 	if bonuses then
@@ -990,7 +1194,7 @@ function Config.moneyMult(data, bonuses): number
 		end
 		mult *= 1 + Config.socialBonus(bonuses)
 		-- bonuses.agencyBonus = % extra de los programadores de tu agencia
-		mult *= 1 + (bonuses.agencyBonus or 0)
+		mult *= 1 + (bonuses.agencyBonus or 0) * (1 + Config.legacyValue(data, "elite"))
 	end
 	return mult
 end
@@ -1004,9 +1208,30 @@ function Config.siteVisits(data, site, eventMult: number?): number
 	visits *= 1 + 0.10 * Config.level(data, "marketing")
 	visits *= adLevel.visits * (1 - network.penalty)
 	visits *= 1 + Config.researchValue(data, "viral") + Config.achievementBonus(data, "visits")
+	visits *= (1 + Config.legacyValue(data, "trafico")) * (1 + 0.05 * Config.level(data, "gamestudio"))
 	local variant = site.variant and Config.VariantById[site.variant]
 	if variant then
 		visits *= variant.mult
+	end
+	-- Mecánicas de los productos de las eras 2 y 3
+	local searches = Config.mechCount(data, "search")
+	if def.mech == "search" then
+		searches = math.max(0, searches - 1) -- un Buscador no se impulsa a sí mismo
+	end
+	visits *= 1 + searches * Config.Mechanics.search.value
+	if def.mech == "seasons" then
+		local season = Config.gameSeason(Config.clock())
+		visits *= if season then Config.Mechanics.seasons.peak else Config.Mechanics.seasons.off
+	elseif def.mech == "superapp" then
+		local kinds = {}
+		local n = 0
+		for _, other in data.sites or {} do
+			if not kinds[other.type] then
+				kinds[other.type] = true
+				n += 1
+			end
+		end
+		visits *= 1 + n * Config.Mechanics.superapp.value
 	end
 	return visits * (eventMult or 1)
 end
@@ -1015,7 +1240,14 @@ function Config.siteIncome(data, site, visits: number, moneyMult: number): numbe
 	local network = Config.AdNetworkById[site.network] or Config.AdNetworks[1]
 	local adLevel = Config.AdLevels[site.adLevel] or Config.AdLevels[1]
 	local adBonus = 1 + 0.15 * Config.level(data, "adnet")
-	return visits * network.rpv * adLevel.rev * adBonus * moneyMult
+	local income = visits * network.rpv * adLevel.rev * adBonus * moneyMult
+	-- Banco Digital: intereses del dinero que tienes (con tope)
+	local def = Config.WebTypeById[site.type]
+	if def and def.mech == "bank" then
+		local bank = Config.Mechanics.bank
+		income += math.min((data.money or 0) * bank.value, income * bank.cap)
+	end
+	return income
 end
 
 -- La mejor app de anuncios desbloqueada: las empresas valoran tu web
@@ -1037,7 +1269,7 @@ function Config.saleBase(data, site, moneyMult: number, bonuses: any?): number
 	local visits = Config.siteVisits(data, site, 1)
 	local agency = 1 + (if bonuses then bonuses.agencySale or 0 else 0)
 	local commercial = 1 + 0.12 * Config.level(data, "comercial")
-	local negotiator = 1 + Config.researchValue(data, "negotiator") + Config.achievementBonus(data, "sale")
+	local negotiator = 1 + Config.researchValue(data, "negotiator") + Config.achievementBonus(data, "sale") + Config.legacyValue(data, "contactos")
 	return visits * Config.SALE_SECONDS * Config.bestRpv(data) * commercial * negotiator * agency * moneyMult
 end
 
@@ -1056,14 +1288,16 @@ function Config.companiesIncome(data, moneyMult: number): number
 	for _, def in Config.Companies do
 		total += def.income * Config.level(data, def.id) * Config.companyMult(data, def.id)
 	end
-	return total * moneyMult
+	return total * moneyMult * (1 + Config.legacyValue(data, "veteranas"))
 end
 
-function Config.sharesForIpo(totalEarned: number): number
+-- data (opcional): con la mejora de Legado «Salida estelar»
+function Config.sharesForIpo(totalEarned: number, data: any?): number
 	if totalEarned < Config.IPO_MIN_EARNED then
 		return 0
 	end
-	return math.floor(10 * math.sqrt(totalEarned / Config.IPO_MIN_EARNED))
+	local orders = 1 + math.log10(totalEarned / Config.IPO_MIN_EARNED)
+	return math.floor(10 * orders ^ Config.SHARES_POWER * (1 + Config.legacyValue(data, "salida")))
 end
 
 -- Plantas del rascacielos: crecen con todo lo que has ganado en tu vida
@@ -1162,6 +1396,8 @@ Config.Badges = {
 		check = function(d) return collectionCount(d) >= 20 end },
 	{ key = "cto", id = 0, name = "CTO", desc = "Llega al rango CTO en tu carrera.",
 		check = function(d) return d.career ~= nil and (d.career.stats.rank or 0) >= 5 end },
+	{ key = "first_fusion", id = 0, name = "Fusión", desc = "Haz tu primera Fusión y entra en la Era 2.",
+		check = function(d) return (d.fusions or 0) >= 1 end },
 	{ key = "weekly_top", id = 0, name = "Top 100 semanal", desc = "Queda entre los 100 mejores de una semana.", check = nil },
 }
 Config.BADGE_CHECK_INTERVAL = 10 -- segundos entre comprobaciones

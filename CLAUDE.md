@@ -10,7 +10,7 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
   para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
-- **Versión actual del código: 4.0-alpha.4** (`Config.VERSION` en `TycoonConfig.luau`;
+- **Versión actual del código: 4.0-alpha.5** (`Config.VERSION` en `TycoonConfig.luau`;
   súbelo en cada versión nueva). **La v4 está a medias: mira §14** (qué está hecho y qué falta)
   y el encargo completo en `PROMPT_V4.md` (raíz del repo).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
@@ -68,6 +68,7 @@ roblox-imperio-web/
     │   ├── Validate.luau       # (v4) number/integer/text/args: valida TODO lo que manda el cliente
     │   ├── StatePatch.luau     # (v4) diff/apply/copy/sig3/timer: el estado viaja por diferencias
     │   └── StoryConfig.luau    # (v4) Modo Historia: 5 capítulos × 6 misiones (mentora Ada)
+    │   (Eras, Fusión, Legado y mecánicas de los productos nuevos: en TycoonConfig)
     ├── ServerScriptService/
     │   ├── TycoonServer.server.luau  # (v4) Orquestador: junta las acciones de los módulos, entrar/salir,
     │   │                             #   tickPlayer (1 s), bucles (guardado, ranking, analítica, envíos)
@@ -84,6 +85,9 @@ roblox-imperio-web/
     │   ├── LeaderboardService.luau   # (v4) clasificación global/semanal y premios
     │   ├── Analytics.luau            # (v4) AnalyticsService: embudos, economía (cada 5 min), progresión
     │   ├── BadgeAwards.luau          # (v4) da las insignias de Config.Badges
+    │   ├── StoryService.luau         # (v4) Modo Historia (misiones, avisos de Ada, capítulos)
+    │   ├── MentorNpc.luau            # (v4) Ada en 3D (plaza y parcelas)
+    │   ├── EraService.luau           # (v4) Fusión (pasar de era) y árbol de Legado
     │   ├── CareerService.luau        # Carrera: XP, encargos (tablón/aceptados/entrega), rangos,
     │   │                             #   agencia, fichajes, XP pasiva de programadores
     │   ├── MarketService.luau        # Bolsa: precios por tick (30 s), dividendos, buy/sell
@@ -119,7 +123,7 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
     Se envía cada segundo (bucle) y tras cada acción salvo `click`, como mucho cada
     `Config.STATE_MIN_INTERVAL` (0,25 s; si no, `session.dirty` y lo manda un bucle rápido).
     Totales que crecen cada segundo van redondeados a 3 cifras (`StatePatch.sig3`) y los
-    temporizadores en segundos enteros. Media medida ≈ 1,4 KB/s (antes ~15 KB/s + 15 KB por clic).
+    temporizadores en segundos enteros. Media medida ≈ 1,2 KB/s (antes ~15 KB/s + 15 KB por clic). Los temporizadores de más de 1 h van al minuto (`StatePatch.timer`).
   - `Notify` (RemoteEvent): `(texto, tipo, cuerpo?)`. tipo `popup` = ventana emergente;
     `success|error|event|goal|money|info` = avisos.
   - `OpenComputer` (RemoteEvent): abre la ventana (desde el ProximityPrompt del terminal).
@@ -181,6 +185,10 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
 - **v4 · Versión de la partida**: `dataVersion` (= `Config.DATA_VERSION`, 5) y `migrate(data,
   fromVersion)` tras `reconcile`. Migración a 4: `peakIncome = 0` (se recalcula sin boosts).
   Migración a 5: `story.done = true` si ya salió a bolsa o lleva ≥ $10M ganados (veteranos).
+- v4 · Eras: `era` (1–3), `eraIpos` (salidas a bolsa en esta era), `eraEarned` (lo suma `gain`),
+  `fusions`, `legacy` (🧬 sin gastar), `legacyTree{id=nivel}`. La Fusión reinicia como salir a
+  bolsa (`SiteService.resetRun`) + `shares = 0`; NO toca I+D, patentes, colección, carrera,
+  historia ni `ipoCount`.
   `reconcile` no rellena por dentro los mapas de `RECONCILE_MAPS` (sites, receipts, goals…).
 - `reconcile()` rellena campos nuevos en partidas viejas. **Si añades un campo a `newData()`,
   las partidas antiguas lo reciben solas**; para campos de cada web hay una migración en
@@ -561,7 +569,34 @@ Se hace por bloques, un commit por bloque con `check.sh` en verde:
   `data.story = {chapter, mission, done}`. Pruebas H1–H9 y A5 en `run_server.luau`.
   Para que los parches sigan < 2 KB: progreso/premio con `sig3` y `StatePatch.timer` (los
   temporizadores de más de 1 h van al minuto; `formatTime` no enseña segundos ahí).
-- [ ] Bloque 5 · 6 productos nuevos + Eras y Fusión (Legado).
+- [x] **Bloque 5 · productos nuevos + Eras y Fusión** (4.0-alpha.5). En `TycoonConfig`:
+  - 6 `WebTypes` con `era` (2: buscador, banco, cloud · 3: videojuego, superapp, cuantica) y
+    `mech` → `Config.Mechanics` (search: +8 % visitas a las demás; bank: intereses 0,01 %/s del
+    dinero con tope 3× su ingreso, en `siteIncome`; cloud: +2 huecos en `slots`; seasons: x3
+    2,5 min de cada 10 con `Config.gameSeason(Config.clock())`; superapp: +3 % por tipo distinto;
+    quantum: x2 raras en `variantChanceMult`). Cada mecánica cuenta hasta `MECH_MAX` = 4 webs.
+  - 3 `AdNetworks` y 3 `Companies` con `era` (fintech, gamestudio, quantumlab).
+    `Config.eraAllows(data, def)` lo comprueban servidor (crear, auto, anuncios, empresas,
+    ofertas, encargos) y cliente (candados "🔒 Era N").
+  - `Config.Eras` (moneyMult x1/x2/x4), `Config.Fusions` ({ipos 5, $5e15}, {ipos 6, $5e20}),
+    `LEGACY_PER_SQRT` (🧬 = 2·√acciones), `LegacyTree` (15 nodos en 3 ramas, `requires`) con
+    `Config.legacy/legacyValue/legacyCost`; sus efectos están en las fórmulas (moneyMult,
+    siteVisits, workPerSec, clickPower, saleBase, dealSeconds, slots, companiesIncome,
+    patentsForShares/sharesForIpo con `data`, `startMoney`, `startReputation`, `repReward`).
+  - **Cambio de equilibrio importante**: el simulador mostró que salir a bolsa una y otra vez
+    se disparaba sin fin (10¹⁷ acciones en 3 h; el dinero de una partida crece ~x75 cuando el
+    multiplicador crece x3). Ahora `sharesForIpo = 10·(1+log10(ganado/$1M))^SHARES_POWER(2)` (igual
+    que antes con $1M–$100M) y `Config.shareMult` con tope suave: +5 %/acción hasta
+    `SHARE_SOFTCAP` (100), luego ×(acciones/100)^0,5. Usa siempre `Config.shareMult`.
+  - Servidor: `EraService` (acciones `fusion`, `buyLegacy`; feature "market"), estado `eras{…}`
+    + `era` + `legacyTree`. Insignia `first_fusion`. Rascacielos por era (`Building.ERA_STYLES`,
+    anillo de neón `AnilloEra`, holograma en la Era 3; `PlotManager` reconstruye si cambia `era`).
+  - Cliente: pestaña `TabFusion` (🧬 Fusión, centro Inversión) con confirmación y árbol.
+  - `sim.luau [horas] [debug]` ahora sale a bolsa (cuando el bonus x2, o tras 2,5 h si x1,25),
+    compra I+D y Legado y fusiona. `Config.clock` lo sustituye el simulador. `check.sh` lo corre
+    40 h. Bot perfecto: $1M 42 min · $1B 2 h 18 · 1ª salida 50 min · **1ª Fusión 11 h 48 ·
+    Era 3 28 h 25**. Con las reglas de la v3.1: 479 millones de acciones a las 12 h.
+  - Pruebas E1–E11 en `run_server.luau`; el harness del cliente pone Legado y Fusión lista.
 - [ ] Bloque 6 · sede 3D jugable + minijuegos.
 - [ ] Bloque 7 · P2 (rivales, vehículos, estilos, bots, eventos de temporada, social).
 - [ ] Bloque 8 · P3 (consorcios: explicar riesgos antes).

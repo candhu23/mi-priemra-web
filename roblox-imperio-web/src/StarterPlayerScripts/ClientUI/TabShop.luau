@@ -211,7 +211,7 @@ return function(ui: any)
 
 		local b = s.bonuses
 		local parts = {}
-		table.insert(parts, T("📈 Acciones x%.2f", 1 + s.shares * Config.SHARE_BONUS))
+		table.insert(parts, T("📈 Acciones x%.2f", Config.shareMult(s, s.shares)))
 		local collectionBonus = Config.collectionBonus(s)
 		if collectionBonus > 0 then
 			table.insert(parts, T("📖 Colección +%d%%", math.floor(collectionBonus * 100 + 0.5)))

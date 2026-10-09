@@ -188,6 +188,7 @@ local function gain(data, amount: number, tag: string?)
 	data.totalEarned += amount
 	data.lifetimeEarned += amount
 	data.weekly.earned += amount
+	data.eraEarned = (data.eraEarned or 0) + amount -- para la Fusión
 	Analytics.track(data, "Source", tag or "otros", amount)
 end
 

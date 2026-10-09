@@ -18,6 +18,7 @@ local ServerState = require(ServerScriptService:WaitForChild("ServerState"))
 local Economy = require(ServerScriptService:WaitForChild("Economy"))
 local RewardService = require(ServerScriptService:WaitForChild("RewardService"))
 local StoryService = require(ServerScriptService:WaitForChild("StoryService"))
+local EraService = require(ServerScriptService:WaitForChild("EraService"))
 
 local communityProgress = ServerState.communityProgress
 local sessions = ServerState.sessions
@@ -111,8 +112,8 @@ local function buildState(session: Session)
 		reputation = data.reputation,
 		shares = data.shares,
 		ipoCount = data.ipoCount,
-		ipoShares = Config.sharesForIpo(data.totalEarned),
-		ipoPatents = Config.patentsForShares(Config.sharesForIpo(data.totalEarned)),
+		ipoShares = Config.sharesForIpo(data.totalEarned, data),
+		ipoPatents = Config.patentsForShares(Config.sharesForIpo(data.totalEarned, data), data),
 		maxDeals = Config.maxDeals(data),
 		quickSaleLeft = math.max(0, math.ceil(session.quickSaleReadyAt - now)),
 		weeklyMissions = {
@@ -149,6 +150,10 @@ local function buildState(session: Session)
 		selectedNiche = data.selectedNiche,
 		career = CareerService.buildState(session),
 		story = StoryService.buildState(session),
+		eras = EraService.buildState(session),
+		-- las fórmulas del cliente (Config) leen estos dos campos
+		era = data.era,
+		legacyTree = data.legacyTree,
 		market = MarketService.buildState(session, now),
 		tutorialDone = data.tutorialDone,
 		settings = data.settings,

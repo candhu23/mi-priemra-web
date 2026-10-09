@@ -91,7 +91,8 @@ return function(ui: any)
 	local ipoInfo2 = makeLabel(ipoCard, "", 44, 18, 15, THEME.green, true)
 	makeLabel(ipoCard, "Se reinicia: dinero, webs, empresas, apps, reputación y tus acciones de la Bolsa.", 64, 18, 13, THEME.muted)
 	bindText(makeLabel(ipoCard, "", 84, 18, 13, THEME.muted), function()
-		return T("Te quedas: acciones (+%d%% dinero cada una), patentes e I+D, colección, carrera y tu rascacielos.", math.floor(Config.SHARE_BONUS * 100))
+		return T("Te quedas: acciones (+%d%% dinero cada una hasta %d, luego algo menos), patentes e I+D, colección, carrera y tu rascacielos.",
+			math.floor(Config.SHARE_BONUS * 100), Config.SHARE_SOFTCAP)
 	end)
 	local ipoButton: TextButton
 	ipoButton = makeButton(ipoCard, "", THEME.pink, UDim2.new(1, 0, 0, 38), function()
@@ -129,7 +130,8 @@ return function(ui: any)
 			table.insert(lines, T("🤝 Las %d ventas que negocias se cobran ya: +%s", dealCount, fmt(dealTotal)))
 		end
 		table.insert(lines, "")
-		table.insert(lines, T("Ganas: +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", s.ipoShares, math.floor(s.ipoShares * Config.SHARE_BONUS * 100), s.ipoPatents))
+		table.insert(lines, T("Ganas: +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", s.ipoShares,
+			math.floor((Config.shareMult(s, s.shares + s.ipoShares) / Config.shareMult(s, s.shares) - 1) * 100 + 0.5), s.ipoPatents))
 		showConfirm(T("🔔 ¿Salir a bolsa?"), table.concat(lines, "\n"), T("Sí, salir a bolsa"), THEME.pink, function()
 			sendAction("ipo")
 		end)
@@ -219,7 +221,7 @@ return function(ui: any)
 			marketTotal.TextColor3 = THEME.yellow
 		end
 
-		ipoInfo1.Text = T("Ganado en esta partida: %s · Acciones: %d (x%.2f dinero)", fmt(s.totalEarned), s.shares, 1 + s.shares * Config.SHARE_BONUS)
+		ipoInfo1.Text = T("Ganado en esta partida: %s · Acciones: %d (x%.2f dinero)", fmt(s.totalEarned), s.shares, Config.shareMult(s, s.shares))
 		if s.ipoShares >= 1 then
 			ipoInfo2.Text = T("Si sales a bolsa ahora consigues +%d acciones y +%d 💡 patentes", s.ipoShares, s.ipoPatents)
 			setButton(ipoButton, T("🔔 Salir a bolsa (+%d acciones)", s.ipoShares), true)

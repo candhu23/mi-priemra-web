@@ -47,7 +47,7 @@ end
 local function unlockedTypes(data)
 	local list = {}
 	for _, def in Config.WebTypes do
-		if data.reputation >= def.rep then
+		if data.reputation >= def.rep and Config.eraAllows(data, def) then
 			table.insert(list, def)
 		end
 	end
@@ -108,6 +108,9 @@ local function canStartProject(session: Session, def, forContract: boolean?): (b
 	local data = session.data
 	if data.project then
 		return false, "Ya estás programando una web."
+	end
+	if not Config.eraAllows(data, def) then
+		return false, string.format("Se desbloquea en la Era %d (Fusión).", def.era)
 	end
 	if data.reputation < def.rep then
 		return false, "Necesitas " .. Config.formatNumber(def.rep) .. " de reputación."
@@ -214,7 +217,7 @@ local function finishProject(player: Player, session: Session)
 	table.insert(data.sites, site)
 	data.stats.built += 1
 	data.stats.byType[def.id] = (data.stats.byType[def.id] or 0) + 1
-	data.reputation += def.repReward
+	data.reputation += Config.repReward(data, def)
 	CareerService.addXp(player, session, niche, def.work / 5)
 	progressDaily(session, "built", 1)
 	Analytics.onboarding(player, data, "firstSite")
@@ -331,7 +334,7 @@ function Actions.setAuto(_player: Player, session: Session, typeId: any)
 		return true, "Modo automático desactivado."
 	end
 	local def = Config.WebTypeById[typeId]
-	if not def or data.reputation < def.rep then
+	if not def or data.reputation < def.rep or not Config.eraAllows(data, def) then
 		return false, "Esa web aún no está desbloqueada."
 	end
 	data.autoType = def.id
@@ -393,6 +396,9 @@ function Actions.unlockNetwork(_player: Player, session: Session, networkId: any
 	if not network or data.unlockedAds[networkId] then
 		return false, nil
 	end
+	if not Config.eraAllows(data, network) then
+		return false, string.format("Se desbloquea en la Era %d (Fusión).", network.era)
+	end
 	if data.reputation < network.rep then
 		return false, "Necesitas " .. Config.formatNumber(network.rep) .. " de reputación."
 	end
@@ -412,6 +418,9 @@ function Actions.buyCompany(player: Player, session: Session, companyId: any, am
 		return false, nil
 	end
 	local level = Config.level(data, def.id)
+	if not Config.eraAllows(data, def) then
+		return false, string.format("Se desbloquea en la Era %d (Fusión).", def.era)
+	end
 	if level >= def.maxLevel then
 		return false, "Nivel máximo."
 	end
@@ -456,7 +465,7 @@ local function completeSale(player: Player, session: Session, site, price: numbe
 	table.remove(data.sites, siteIndex)
 	gain(data, price, "ventas")
 	data.maintenance += price * Config.MAINTENANCE_RATE
-	data.reputation += def.repReward
+	data.reputation += Config.repReward(data, def)
 	data.stats.sold += 1
 	progressDaily(session, "sold", 1)
 	addSeasonXp(player, session, Config.SeasonXp.sale)
@@ -551,46 +560,62 @@ local function pendingDeals(data): (number, number)
 	return count, total
 end
 
-function Actions.ipo(player: Player, session: Session)
+-- Cobra ya las ventas que se estaban negociando (al salir a bolsa o fusionar)
+local function closeDeals(player: Player, session: Session): (number, number)
 	local data = session.data
-	-- Las ventas que se estaban negociando se cobran ya (y cuentan para las acciones)
 	local dealCount, dealTotal = pendingDeals(data)
-	if Config.sharesForIpo(data.totalEarned + dealTotal) < 1 then
-		return false, "Necesitas ganar " .. Config.formatMoney(Config.IPO_MIN_EARNED) .. " en esta partida."
-	end
 	for i = #data.sites, 1, -1 do
 		local site = data.sites[i]
 		if site.deal then
 			completeSale(player, session, site, site.deal.price)
 		end
 	end
-	local newShares = Config.sharesForIpo(data.totalEarned)
+	if dealCount > 0 then
+		notify(player, string.format("🤝 Se cerraron %d ventas que estabas negociando: +%s", dealCount, Config.formatMoney(dealTotal)), "money")
+	end
+	return dealCount, dealTotal
+end
+
+-- Empieza una partida nueva: lo que se reinicia al salir a bolsa (y en la
+-- Fusión). Respeta I+D y Legado (dinero y reputación iniciales, IA heredada).
+local function resetRun(session: Session)
+	local data = session.data
 	local fresh = newData()
-	local newPatents = Config.patentsForShares(newShares)
-	data.patents += newPatents
-	-- I+D: dinero inicial y Laboratorio de IA que se conservan
-	local capital = Config.research(data, "capital")
-	data.money = if capital > 0 then 100 * 10 ^ capital else fresh.money
+	data.money = Config.startMoney(data)
 	data.totalEarned = 0
-	data.reputation = 0
+	data.reputation = Config.startReputation(data)
 	data.sites = {}
 	data.project = nil
 	data.autoType = nil
 	data.companies = if Config.research(data, "autolab") > 0 then { ia_lab = 1 } else {}
 	data.unlockedAds = fresh.unlockedAds
 	data.maintenance = 0
-	data.shares += newShares
-	data.ipoCount += 1
 	data.peakIncome = 0
 	MarketService.clear(session)
 	session.offers = {}
 	session.event = nil
 	refreshOffers(session)
-	if dealCount > 0 then
-		notify(player, string.format("🤝 Se cerraron %d ventas que estabas negociando: +%s", dealCount, Config.formatMoney(dealTotal)), "money")
+end
+
+function Actions.ipo(player: Player, session: Session)
+	local data = session.data
+	-- Las ventas que se estaban negociando se cobran ya (y cuentan para las acciones)
+	local _, dealTotal = pendingDeals(data)
+	if Config.sharesForIpo(data.totalEarned + dealTotal, data) < 1 then
+		return false, "Necesitas ganar " .. Config.formatMoney(Config.IPO_MIN_EARNED) .. " en esta partida."
 	end
+	closeDeals(player, session)
+	local newShares = Config.sharesForIpo(data.totalEarned, data)
+	local newPatents = Config.patentsForShares(newShares, data)
+	local multBefore = Config.shareMult(data, data.shares)
+	local multGain = Config.shareMult(data, data.shares + newShares) / multBefore - 1
+	data.patents += newPatents
+	resetRun(session)
+	data.shares += newShares
+	data.ipoCount += 1
+	data.eraIpos = (data.eraIpos or 0) + 1
 	Analytics.progress(player, "SalidasABolsa", data.ipoCount, "Salida " .. data.ipoCount)
-	return true, string.format("📈 ¡Saliste a bolsa! +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", newShares, math.floor(newShares * Config.SHARE_BONUS * 100), newPatents), { money = true }
+	return true, string.format("📈 ¡Saliste a bolsa! +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", newShares, math.floor(multGain * 100 + 0.5), newPatents), { money = true }
 end
 
 -- Bolsa de Ciudad Web (MarketService): fraction = parte del dinero / de tus acciones
@@ -635,6 +660,8 @@ end
 SiteService.activeDeals = activeDeals
 SiteService.addWork = addWork
 SiteService.canStartProject = canStartProject
+SiteService.closeDeals = closeDeals
+SiteService.resetRun = resetRun
 SiteService.completeSale = completeSale
 SiteService.finishDeals = finishDeals
 SiteService.finishProject = finishProject

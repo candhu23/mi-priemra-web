@@ -33,6 +33,7 @@ local LeaderboardService = require(ServerScriptService:WaitForChild("Leaderboard
 local Analytics = require(ServerScriptService:WaitForChild("Analytics"))
 local BadgeAwards = require(ServerScriptService:WaitForChild("BadgeAwards"))
 local StoryService = require(ServerScriptService:WaitForChild("StoryService"))
+local EraService = require(ServerScriptService:WaitForChild("EraService"))
 
 local actionFunction = ServerState.actionFunction
 local gain = ServerState.gain
@@ -115,6 +116,8 @@ local ACTION_FEATURES = {
 	buyResearch = "market",
 	buyStock = "market",
 	sellStock = "market",
+	fusion = "market",
+	buyLegacy = "market",
 }
 
 local Actions = {}
@@ -221,6 +224,7 @@ local function plotExtras(session: Session)
 	local career = data.career
 	return {
 		gold = data.goldUntil > os.time(),
+		era = Config.era(data),
 		likes = data.likes,
 		agency = career.agency ~= nil,
 		agencyName = if career.agency then career.agency.name else nil,
@@ -533,7 +537,7 @@ CareerService.init({
 })
 
 -- Las acciones viven en cada módulo; aquí se juntan todas
-for _, module in { CareerService, SiteService, RewardService, StateService, VisitService, SaveService, StoryService } do
+for _, module in { CareerService, SiteService, RewardService, StateService, VisitService, SaveService, StoryService, EraService } do
 	for name, handler in (module :: any).Actions do
 		assert(Actions[name] == nil, "acción repetida: " .. name)
 		Actions[name] = handler

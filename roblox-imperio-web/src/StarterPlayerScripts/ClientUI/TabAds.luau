@@ -49,6 +49,8 @@ return function(ui: any)
 			if s.unlockedAds[network.id] then
 				setButton(row.button, T("✓ Desbloqueada"), false, THEME.green)
 				row.button:SetAttribute("PaintColor", THEME.green)
+			elseif not Config.eraAllows(s, network) then
+				setButton(row.button, T("🔒 Se desbloquea en la Era %d (🧬 Fusión)", network.era), false)
 			elseif s.reputation < network.rep then
 				setButton(row.button, T("🔒 Necesitas ⭐ %s de reputación", num(network.rep)), false)
 			else

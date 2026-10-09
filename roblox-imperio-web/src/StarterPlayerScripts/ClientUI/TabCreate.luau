@@ -54,10 +54,17 @@ return function(ui: any)
 
 	local typeRows: { [string]: any } = {}
 	for i, def in Config.WebTypes do
-		local card = makeCard(createPage, 92, 10 + i)
+		-- Los productos de las eras 2 y 3 enseñan además su mecánica propia
+		local mech = def.mech and Config.Mechanics[def.mech]
+		local card = makeCard(createPage, if mech then 132 else 92, 10 + i)
 		local title = makeLabel(card, def.emoji .. " " .. T(def.name), 0, 24, 18, THEME.text, true)
 		local info = makeLabel(card, "", 26, 18, 14, THEME.muted)
-		local buttons = makeButtonRow(card, 46, 26)
+		if mech then
+			local mechLabel = makeLabel(card, mech.text, 46, 36, 13, THEME.yellow)
+			mechLabel.TextWrapped = true
+			mechLabel.TextTruncate = Enum.TextTruncate.None
+		end
+		local buttons = makeButtonRow(card, if mech then 86 else 46, 26)
 		local createButton = makeButton(buttons, "Crear", THEME.accent, UDim2.new(0.62, -3, 1, 0), function()
 			sendAction("startProject", def.id)
 		end)
@@ -102,8 +109,10 @@ return function(ui: any)
 		local full = #s.sites >= s.slots
 		for _, def in Config.WebTypes do
 			local row = typeRows[def.id]
-			local locked = s.reputation < def.rep
-			row.title.Text = def.emoji .. " " .. T(def.name) .. (if locked then T("  🔒 necesitas ⭐ %s", num(def.rep)) else "")
+			local eraLocked = not Config.eraAllows(s, def)
+			local locked = eraLocked or s.reputation < def.rep
+			row.title.Text = def.emoji .. " " .. T(def.name) .. (if eraLocked then T("  🔒 Era %d (🧬 Fusión)", def.era)
+				elseif locked then T("  🔒 necesitas ⭐ %s", num(def.rep)) else "")
 			row.title.TextColor3 = if locked then THEME.muted else THEME.text
 			row.info.Text = T("Coste %s · Trabajo %s · 👀 ~%s visitas/s · ⭐ +%d rep", fmt(def.cost), num(def.work), num(def.visits), def.repReward)
 

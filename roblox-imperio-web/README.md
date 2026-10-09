@@ -1,6 +1,26 @@
-# 🌐 Imperio Web Tycoon · v3.1 (juego de Roblox)
+# 🌐 Imperio Web Tycoon · v4 (juego de Roblox)
 
 Eres un emprendedor que programa páginas web. Las monetizas con anuncios, las vendes a empresas según sus visitas, fundas tus propias empresas y acabas sacando tu imperio a bolsa mientras tu rascacielos se convierte en el más alto de Ciudad Web. **El objetivo: ganar todo el dinero posible.**
+
+## Novedades de la v4 (en curso: 4.0-alpha.5)
+
+- **Más seguro**: tu partida no se puede abrir en dos servidores a la vez (no se pierde
+  progreso), las compras con Robux no se pierden si falla el guardado, la Bolsa es igual en
+  todos los servidores y el juego gasta mucha menos conexión.
+- **Portugués** (Brasil), además de español e inglés. Botón 🌐 en el ordenador.
+- **Interfaz por 5 centros** pensada para el móvil: 🛠️ Producción, 💼 Negocio,
+  📈 Inversión, 🎯 Progreso y 🛒 Tienda y social.
+- **Modo Historia «Del garaje al imperio»**: 5 capítulos × 6 misiones con la mentora
+  **Ada** (está en la plaza y junto a tu ordenador). Premio por misión y por capítulo.
+- **6 productos nuevos** con mecánica propia: 🔎 Buscador, 🏦 Banco Digital y ☁️ Plataforma
+  Cloud (Era 2); 🎮 Videojuego Online, 📱 Superapp y ⚛️ Red Cuántica (Era 3). Y 3 apps de
+  anuncios y 3 empresas nuevas.
+- **Eras y 🧬 Fusión**: tras varias salidas a bolsa puedes fusionarte y pasar a la era
+  siguiente (Plataformas → Futuro). Ganas **Legado** para un árbol de 15 mejoras que no se
+  pierden nunca, y tu rascacielos cambia de aspecto.
+- **Salir a bolsa, reequilibrado**: las acciones crecen más despacio con cifras enormes (antes
+  salir a bolsa una y otra vez se disparaba sin fin).
+- **Insignias** de Roblox (13) y analítica para ver dónde se atasca la gente.
 
 ## Novedades de la v3.1 (ciudad nueva y agencia de verdad)
 - **🗺️ Ciudad rehecha**: la plaza está ahora en el **centro**, como una **glorieta** con la fuente, árboles, bancos, flores y farolas. Al sur, la Bolsa; al norte, los paneles de clasificación. Arcos de bienvenida en las dos entradas y una rotonda en cada punta de la avenida.

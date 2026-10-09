@@ -115,6 +115,13 @@ local function newData()
 		badges = {}, -- [clave de Config.Badges] = true cuando ya se ha dado
 		story = { chapter = 1, mission = 1, done = false }, -- Modo Historia (StoryConfig)
 		analytics = { onboarding = {} }, -- pasos del embudo ya enviados
+		-- Eras y Fusión (TycoonConfig: Eras, Fusions, LegacyTree)
+		era = 1,
+		eraIpos = 0, -- salidas a bolsa en esta era
+		eraEarned = 0, -- dinero ganado en esta era
+		fusions = 0,
+		legacy = 0, -- 🧬 Legado sin gastar
+		legacyTree = {}, -- [mejora] = nivel
 	}
 end
 
@@ -123,7 +130,7 @@ end
 local RECONCILE_MAPS = {
 	sites = true, receipts = true, goals = true, codes = true, portfolio = true,
 	companies = true, research = true, collection = true, programmers = true, contracts = true,
-	badges = true, onboarding = true,
+	badges = true, onboarding = true, legacyTree = true,
 }
 
 -- Rellena campos que falten en partidas guardadas con versiones antiguas

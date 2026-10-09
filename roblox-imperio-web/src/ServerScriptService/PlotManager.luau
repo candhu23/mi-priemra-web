@@ -35,6 +35,7 @@ type Plot = {
 	building: Model?,
 	floors: number,
 	gold: boolean,
+	era: number,
 	owner: Player?,
 	showcase: Showcase.Handle,
 	visitPrompt: ProximityPrompt,
@@ -171,6 +172,7 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 		building = nil,
 		floors = 0,
 		gold = false,
+		era = 1,
 		owner = nil,
 		showcase = showcase,
 		visitPrompt = visitPrompt,
@@ -245,6 +247,7 @@ function PlotManager.release(player: Player)
 	end
 	plot.floors = 0
 	plot.gold = false
+	plot.era = 1
 	Showcase.update(plot.showcase, nil)
 end
 
@@ -269,6 +272,7 @@ function PlotManager.update(player: Player, lifetimeEarned: number, income: numb
 	end
 	local floors = Config.buildingFloors(lifetimeEarned)
 	local gold = extra ~= nil and extra.gold == true
+	local era = if extra then extra.era or 1 else 1
 	local info = string.format("%d plantas · %s/s · 👍 %d", floors, Config.formatMoney(income), if extra then extra.likes or 0 else 0)
 	if plot.signInfo.Text ~= info then
 		plot.signInfo.Text = info
@@ -278,7 +282,7 @@ function PlotManager.update(player: Player, lifetimeEarned: number, income: numb
 		plot.signTitle.Text = title
 	end
 	Showcase.update(plot.showcase, extra or {})
-	if floors == plot.floors and gold == plot.gold then
+	if floors == plot.floors and gold == plot.gold and era == plot.era then
 		return
 	end
 
@@ -294,10 +298,12 @@ function PlotManager.update(player: Player, lifetimeEarned: number, income: numb
 		player.DisplayName,
 		World.isNight(),
 		animateFrom,
-		gold
+		gold,
+		era
 	)
 	plot.floors = floors
 	plot.gold = gold
+	plot.era = era
 end
 
 function PlotManager.setLeaderboard(rows, message: string?)

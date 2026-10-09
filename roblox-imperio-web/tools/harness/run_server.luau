@@ -1211,6 +1211,99 @@ end)
 check("F8", okTicks and lastState(player).money > jBefore, "el bucle sigue pagando a los demás aunque falle uno")
 pcall(function() Players.PlayerRemoving:Fire(pablo) end)
 
+-- Bloque 5: productos nuevos, Eras, Fusión y Legado -------------------
+print("-- Eras y Fusión --")
+do
+	local ServerStateMod = requireModule(wrap(services.ServerScriptService:FindFirstChild("ServerState")))
+	local eva = makePlayer("Eva", 50)
+	Players.PlayerAdded:Fire(eva)
+	fakeTime += 1.1
+	local session = ServerStateMod.sessions[eva]
+	local data = session.data
+	data.lifetimeEarned = 1e15 -- rascacielos alto: todo desbloqueado por plantas
+	local st = lastState(eva)
+	check("E1", st.eras and st.eras.era == 1 and st.eras.needIpos == Config.Fusions[1].ipos and data.legacy == 0,
+		"una partida nueva está en la Era 1 y el estado trae lo que pide la Fusión")
+	-- Lo de la Era 2 está cerrado en la Era 1
+	data.reputation = 1e9
+	data.money = 1e16
+	local okWeb, msgWeb = act("startProject", "buscador", nil, eva)
+	local okAd = act("unlockNetwork", "searchads", nil, eva)
+	local okCo = act("buyCompany", "fintech", 1, eva)
+	check("E2", not okWeb and not okAd and not okCo and type(msgWeb) == "string" and string.find(msgWeb, "Era 2") ~= nil,
+		"webs, apps y empresas de la Era 2 no se pueden usar en la Era 1")
+	-- Fusión sin cumplir lo que pide
+	data.eraIpos = Config.Fusions[1].ipos - 1
+	data.eraEarned = Config.Fusions[1].earned
+	local okEarly = act("fusion", nil, nil, eva)
+	check("E3", not okEarly and data.era == 1, "sin las salidas a bolsa necesarias no hay Fusión")
+	-- Fusión de verdad
+	data.eraIpos = Config.Fusions[1].ipos
+	data.shares = 100
+	data.patents = 7
+	data.research.viral = 2
+	data.collection.landing = { normal = true }
+	local ipoBefore = data.ipoCount
+	local okFusion = act("fusion", nil, nil, eva)
+	check("E4", okFusion and data.era == 2 and data.shares == 0 and data.legacy == Config.legacyForShares(100) and data.eraIpos == 0
+		and data.eraEarned == 0 and data.fusions == 1 and #data.sites == 0 and data.money == Config.startMoney(data)
+		and data.patents == 7 and data.research.viral == 2 and data.collection.landing ~= nil and data.ipoCount == ipoBefore,
+		"la Fusión reinicia la partida y las acciones, da Legado y conserva I+D, patentes y colección")
+	tick(1)
+	check("E5", lastState(eva).eras.era == 2 and lastState(eva).era == 2, "el cliente recibe la era nueva")
+	-- Árbol de Legado
+	local okLocked = act("buyLegacy", "preferentes", nil, eva)
+	local legacyBefore = data.legacy
+	local mmBefore = Config.moneyMult(data, nil)
+	local okBuy = act("buyLegacy", "herencia", nil, eva)
+	local okBad = act("buyLegacy", "noexiste", nil, eva)
+	check("E6", not okLocked and okBuy and not okBad and data.legacyTree.herencia == 1 and data.legacy == legacyBefore - Config.legacyCost("herencia", 0)
+		and math.abs(Config.moneyMult(data, nil) / mmBefore - 1.5) < 1e-6,
+		"Legado: hace falta la mejora anterior, cuesta 🧬 y da su efecto")
+	-- En la Era 2 sí se puede programar un Buscador
+	data.reputation = 1e9
+	data.money = 1e16
+	local okWeb2 = act("startProject", "buscador", nil, eva)
+	check("E7", okWeb2 and data.project ~= nil and data.project.type == "buscador", "en la Era 2 se abren los productos nuevos")
+	act("cancelProject", nil, nil, eva)
+	-- Mecánicas propias
+	local function fakeSite(typeId, id)
+		return { id = id, type = typeId, name = "X", niche = "ecommerce", quality = 1, seo = 0, design = 0, network = "adsimple", adLevel = 1, totalVisits = 0, earned = 0 }
+	end
+	data.sites = { fakeSite("landing", 9001) }
+	local visitsAlone = Config.siteVisits(data, data.sites[1], 1)
+	local slotsAlone = Config.slots(data, nil)
+	table.insert(data.sites, fakeSite("buscador", 9002))
+	table.insert(data.sites, fakeSite("cloud", 9003))
+	local bank = fakeSite("banco", 9004)
+	table.insert(data.sites, bank)
+	local searchOk = math.abs(Config.siteVisits(data, data.sites[1], 1) / visitsAlone - (1 + Config.Mechanics.search.value)) < 1e-6
+	local cloudOk = Config.slots(data, nil) == slotsAlone + Config.Mechanics.cloud.value
+	data.money = 0
+	local bankPoor = Config.siteIncome(data, bank, 100, 1)
+	data.money = 1e30
+	local bankRich = Config.siteIncome(data, bank, 100, 1)
+	local bankOk = math.abs(bankRich / bankPoor - (1 + Config.Mechanics.bank.cap)) < 1e-6
+	local inSeason = Config.gameSeason(600 * 1000 + 10)
+	local offSeason = Config.gameSeason(600 * 1000 + 400)
+	check("E8", searchOk and cloudOk and bankOk and inSeason and not offSeason,
+		"Buscador (+visitas a las demás), Cloud (+huecos), Banco (intereses con tope) y temporadas del Videojuego")
+	data.sites = {}
+	data.money = 1e16
+	-- La parcela cambia de aspecto con la era
+	local eraBuilding = false
+	for _, d in services.Workspace:GetDescendants() do
+		if d.Name == "AnilloEra" then eraBuilding = true end
+	end
+	check("E9", eraBuilding, "el rascacielos de la Era 2 tiene su azotea de neón")
+	Players.PlayerRemoving:Fire(eva)
+	check("E10", saved["player_50"] and saved["player_50"].era == 2 and saved["player_50"].legacyTree.herencia == 1,
+		"la era y el Legado se guardan")
+	-- Salir a bolsa cuenta para la Fusión
+	local ipoData = lastState().eras
+	check("E11", ipoData ~= nil and ipoData.ipos >= 1, "las salidas a bolsa de esta era se cuentan (Jorge salió a bolsa)")
+end
+
 -- Bloque 4: Modo Historia --------------------------------------------
 print("-- Modo Historia --")
 do

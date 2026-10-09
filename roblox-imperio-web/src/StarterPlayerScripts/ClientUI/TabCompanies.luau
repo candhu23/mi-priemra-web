@@ -53,6 +53,12 @@ return function(ui: any)
 			return T("+%d%% de velocidad", level * 25)
 		elseif id == "adnet" then
 			return T("+%d%% por anuncios", level * 15)
+		elseif id == "fintech" then
+			return T("+%d%% de mantenimiento", level * 5)
+		elseif id == "gamestudio" then
+			return T("+%d%% de visitas", level * 5)
+		elseif id == "quantumlab" then
+			return T("+%d%% de velocidad", level * 20)
 		end
 		return T("+%d%% a todo el dinero", level * 5)
 	end
@@ -81,6 +87,12 @@ return function(ui: any)
 			local milestoneText = (if mult > 1 then string.format(" · 🏅 x%.1f", mult) else "")
 				.. (if nextMilestone then T(" · hito en nivel %d", nextMilestone) else "")
 			row.title.Text = def.emoji .. " " .. T("%s  —  Nivel %d", T(def.name), level) .. incomeText .. milestoneText
+			if not Config.eraAllows(s, def) then
+				row.title.Text = def.emoji .. " " .. T(def.name)
+				row.effect.Text = ""
+				setButton(row.button, T("🔒 Se desbloquea en la Era %d (🧬 Fusión)", def.era), false)
+				continue
+			end
 			row.effect.Text = if level >= def.maxLevel then T("Ahora: %s (máximo)", companyEffect(s, def.id, level))
 				else T("Ahora: %s  →  al subir: %s", companyEffect(s, def.id, level), companyEffect(s, def.id, level + 1))
 			if level >= def.maxLevel then
