@@ -27,6 +27,7 @@ local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
 local Market = require(ReplicatedStorage:WaitForChild("MarketConfig"))
 local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
+local StatePatch = require(ReplicatedStorage:WaitForChild("StatePatch"))
 local remotes = ReplicatedStorage:WaitForChild("TycoonRemotes")
 local actionFunction = remotes:WaitForChild("Action") :: RemoteFunction
 local stateEvent = remotes:WaitForChild("State") :: RemoteEvent
@@ -94,21 +95,64 @@ local sounds: { [string]: Sound } = {}
 for name, def in Config.Sounds do
 	local sound = Instance.new("Sound")
 	sound.Name = name
-	sound.SoundId = def.id
+	-- Sin id propio, el "ping" de Roblox con otro tono
+	sound.SoundId = if def.id ~= "" then def.id else Config.SOUND_FALLBACK
+	sound.PlaybackSpeed = if def.id ~= "" then 1 else def.fallbackSpeed
 	sound.Volume = def.volume
-	sound.PlaybackSpeed = def.speed
 	sound.Parent = soundFolder
 	sounds[name] = sound
 end
 
-local muted = false -- se sincroniza con la partida guardada
+-- Volumen, música y botones de sonido (todo en una tabla: el cliente está
+-- al límite de 200 variables locales)
+local audio: any = {
+	volume = 1, -- 0..1, se sincroniza con la partida guardada
+	musicOn = true,
+	music = {} :: { [string]: Sound }, -- una pista de día y otra de noche (si tienen id)
+	checkAt = 0,
+}
+for name, def in Config.Music do
+	if def.id ~= "" then
+		local sound = Instance.new("Sound")
+		sound.Name = "Musica_" .. name
+		sound.SoundId = def.id
+		sound.Looped = true
+		sound.Volume = 0
+		sound.Parent = soundFolder
+		audio.music[name] = sound
+	end
+end
 
 local function playSound(name: string)
 	local sound = sounds[name]
-	if sound and not muted then
+	local def = Config.Sounds[name]
+	if sound and def and audio.volume > 0 then
+		sound.Volume = def.volume * audio.volume
 		sound.TimePosition = 0
 		sound:Play()
 	end
+end
+
+-- Pone la pista que toca (día o noche) y apaga la otra
+function audio.updateMusic()
+	local clock = game:GetService("Lighting").ClockTime
+	local wanted = if clock >= 6.5 and clock < 18 then "day" else "night"
+	for name, sound in audio.music do
+		local target = if audio.musicOn and name == wanted then Config.Music[name].volume * audio.volume else 0
+		if target > 0 and not sound.IsPlaying then
+			sound:Play()
+		end
+		if math.abs(sound.Volume - target) > 0.001 then
+			TweenService:Create(sound, TweenInfo.new(2), { Volume = target }):Play()
+		end
+		if target == 0 and sound.IsPlaying and sound.Volume < 0.01 then
+			sound:Pause()
+		end
+	end
+end
+
+function audio.volumeIcon(v: number): string
+	return if v <= 0 then "🔇" elseif v < 1 then "🔉" else "🔊"
 end
 
 ---------------------------------------------------------------------
@@ -521,7 +565,7 @@ local windowTitle = create("TextLabel", {
 	Parent = header,
 	BackgroundTransparency = 1,
 	Position = UDim2.fromOffset(16, 0),
-	Size = UDim2.new(1, -200, 1, 0),
+	Size = UDim2.new(1, -250, 1, 0),
 	Text = "🌐 Imperio Web",
 	TextColor3 = THEME.text,
 	Font = Enum.Font.FredokaOne,
@@ -535,14 +579,33 @@ end)
 closeButton.AnchorPoint = Vector2.new(1, 0.5)
 closeButton.Position = UDim2.new(1, -8, 0.5, 0)
 
+-- 🔊 → 🔉 → 🔇 (Config.VOLUME_STEPS)
 local muteButton: TextButton
 muteButton = makeButton(header, "🔊", THEME.card, UDim2.fromOffset(44, 36), function()
-	muted = not muted
-	muteButton.Text = if muted then "🔇" else "🔊"
-	sendAction("setMuted", muted)
+	local steps = Config.VOLUME_STEPS
+	local nextVolume = steps[1]
+	for i, v in steps do
+		if math.abs(v - audio.volume) < 0.01 then
+			nextVolume = steps[i % #steps + 1]
+		end
+	end
+	audio.volume = nextVolume
+	muteButton.Text = audio.volumeIcon(audio.volume)
+	sendAction("setVolume", audio.volume)
+	audio.updateMusic()
 end)
 muteButton.AnchorPoint = Vector2.new(1, 0.5)
 muteButton.Position = UDim2.new(1, -56, 0.5, 0)
+
+-- 🎵 música sí / no
+audio.button = makeButton(header, "🎵", THEME.green, UDim2.fromOffset(44, 36), function()
+	audio.musicOn = not audio.musicOn
+	setButton(audio.button, "🎵", true, if audio.musicOn then THEME.green else THEME.card)
+	sendAction("setMusic", audio.musicOn)
+	audio.updateMusic()
+end)
+audio.button.AnchorPoint = Vector2.new(1, 0.5)
+audio.button.Position = UDim2.new(1, -186, 0.5, 0)
 
 -- Botón de idioma (ES / EN). Se define abajo, cuando ya existe todo.
 local applyLanguage: (newLang: string) -> () = function() end
@@ -972,8 +1035,10 @@ function showToast(text: string, kind: string?)
 	if kind == "rare" then
 		-- Web rara: aviso más grande y con sonido especial
 		toast.Size = UDim2.new(1, 0, 0, 58)
-		playSound("crit")
-	elseif kind == "goal" or kind == "money" then
+		playSound("rare")
+	elseif kind == "goal" then
+		playSound(if string.find(text, "🔓", 1, true) then "unlock" else "levelUp")
+	elseif kind == "money" then
 		playSound("money")
 	elseif kind == "event" or kind == "success" then
 		playSound("success")
@@ -1098,7 +1163,16 @@ local function closeModal()
 	end
 end
 
-local function showModal(title: string, body: string, buttonText: string, onButton: (() -> ())?, extraBuilder: ((Frame) -> ())?)
+-- Botón "Cancelar" (solo en las ventanas de confirmación)
+local modalCancel = makeButton(modalCard, "Cancelar", THEME.card, UDim2.new(0.5, -5, 0, 50), function()
+	closeModal()
+end)
+modalCancel.AnchorPoint = Vector2.new(0, 1)
+modalCancel.Position = UDim2.fromScale(0, 1)
+modalCancel.Visible = false
+
+-- cancelText: si se da, hay dos botones (Cancelar a la izquierda)
+local function showModal(title: string, body: string, buttonText: string, onButton: (() -> ())?, extraBuilder: ((Frame) -> ())?, cancelText: string?, buttonColor: Color3?)
 	local function open()
 		modalOpen = true
 		modalTitle.Text = TR(title)
@@ -1109,7 +1183,16 @@ local function showModal(title: string, body: string, buttonText: string, onButt
 		if extraBuilder then
 			extraBuilder(modalExtra)
 		end
-		setButton(modalButton, TR(buttonText), true, THEME.green)
+		setButton(modalButton, TR(buttonText), true, buttonColor or THEME.green)
+		modalCancel.Visible = cancelText ~= nil
+		if cancelText then
+			setButton(modalCancel, TR(cancelText), true, THEME.card)
+			modalButton.Size = UDim2.new(0.5, -5, 0, 50)
+			modalButton.Position = UDim2.new(0.5, 5, 1, 0)
+		else
+			modalButton.Size = UDim2.new(1, 0, 0, 50)
+			modalButton.Position = UDim2.fromScale(0, 1)
+		end
 		modalAction = function()
 			if onButton then
 				onButton()
@@ -1130,12 +1213,20 @@ local function showModal(title: string, body: string, buttonText: string, onButt
 	end
 end
 
+-- Ventana de "¿Seguro?" con Cancelar / Confirmar
+local function showConfirm(title: string, body: string, confirmText: string, color: Color3, onConfirm: () -> ())
+	showModal(title, body, confirmText, onConfirm, nil, "Cancelar", color)
+end
+
 showSaveHelp = function()
 	showModal("💾 Cómo activar el guardado", "Roblox solo guarda partidas en juegos PUBLICADOS:\n\n1. En Studio: File → Publish to Roblox.\n2. Home → Game Settings → Security → activa «Enable Studio Access to API Services» → Save.\n3. Para la partida (Stop) y vuelve a darle a Play.\n\nEn el juego publicado (jugando desde la web o la app) se guarda siempre.", "Entendido", nil, nil)
 end
 
 notifyEvent.OnClientEvent:Connect(function(text: string, kind: string, body: string?)
 	if kind == "popup" then
+		if string.find(text, "🔓", 1, true) then
+			playSound("unlock")
+		end
 		showModal(text, body or "", "¡Genial!", nil, nil)
 	else
 		showToast(text, kind)
@@ -2284,9 +2375,7 @@ local function showRecruit(programmer)
 	local work, stats = Career.programmerPower(programmer, state and state.bonuses.agencyPro, false)
 	local role = Career.RoleById[programmer.role or "dev"] or Career.Roles[1]
 	local trait = Career.TraitById[programmer.trait or ""]
-	if rarity.order >= 4 then
-		playSound("crit")
-	end
+	playSound(if rarity.order >= 4 then "rare" else "recruit")
 	showModal("🎉 ¡Nuevo fichaje!", "", "¡Bienvenido al equipo!", nil, function(frame)
 		local cardFrame = create("Frame", {
 			Parent = frame,
@@ -2426,7 +2515,19 @@ renderers.agency = function(s)
 	ticketsHint.Text = T("Consigue tickets en 🛒 Tienda · %s", if full then T("⚠️ oficina llena") else T("Hay sitio en la oficina"))
 
 	teamTitleLabel.Text = T("👥 Tu equipo (%d)", #c.programmers)
-	syncRows(agencyPage, programmerRows, c.programmers, function(p)
+	-- Los mejores primero (el servidor los manda por orden de fichaje)
+	local team = table.clone(c.programmers)
+	table.sort(team, function(a, b)
+		local ra, rb = Career.RarityById[a.rarity].order, Career.RarityById[b.rarity].order
+		if ra ~= rb then
+			return ra > rb
+		end
+		if a.level ~= b.level then
+			return a.level > b.level
+		end
+		return a.id < b.id
+	end)
+	syncRows(agencyPage, programmerRows, team, function(p)
 		return p.id
 	end, function(p)
 		local rarity = Career.RarityById[p.rarity]
@@ -2435,7 +2536,7 @@ renderers.agency = function(s)
 			Size = UDim2.new(1, -8, 0, 104),
 			BackgroundColor3 = darken(rarity.color, 0.6),
 		}, { corner(12), padding(10), stroke(rarity.color, 2) })
-		local row: any = { frame = card, id = p.id, confirm = 0 }
+		local row: any = { frame = card, id = p.id, data = p }
 		row.title = makeLabel(card, "", 0, 20, 16, rarity.color, true)
 		row.info = makeLabel(card, "", 22, 18, 13, THEME.text)
 		row.stats = makeLabel(card, "", 42, 18, 13, THEME.yellow, true)
@@ -2444,13 +2545,22 @@ renderers.agency = function(s)
 			sendAction("trainProgrammer", row.id)
 		end)
 		row.fire = makeButton(buttons, "Despedir", THEME.red, UDim2.new(0.3, -3, 1, 0), function()
-			if os.clock() < row.confirm then
-				row.confirm = 0
-				sendAction("fireProgrammer", row.id)
-			else
-				row.confirm = os.clock() + 3
-				row.fire.Text = T("¿Seguro?")
+			local info = row.data
+			local rarityDef = Career.RarityById[info.rarity]
+			local body = T("Vas a despedir a %s (%s, nivel %d). No se puede deshacer.", info.name, T(rarityDef.name), info.level)
+				.. "\n\n" .. T("Pierdes: %s", programmerStatsText(info.work, info.stats))
+			if rarityDef.order >= 5 then
+				local chance = 0
+				for _, entry in Career.odds("weight") do
+					if entry.rarity == rarityDef then
+						chance = entry.percent
+					end
+				end
+				body ..= "\n\n" .. T("⚠️ ¡Es %s! En una entrevista normal solo sale un %.1f%% de las veces.", T(rarityDef.name), chance)
 			end
+			showConfirm(T("👋 ¿Despedir a %s?", info.name), body, T("Sí, despedir"), THEME.red, function()
+				sendAction("fireProgrammer", row.id)
+			end)
 		end)
 		return row
 	end, function(row, p)
@@ -2467,9 +2577,8 @@ renderers.agency = function(s)
 		else
 			setButton(row.train, T("📚 Entrenar · %s", fmt(p.trainCost)), s.money >= p.trainCost)
 		end
-		if os.clock() >= row.confirm then
-			setButton(row.fire, T("Despedir"), true, THEME.red)
-		end
+		row.data = p
+		setButton(row.fire, T("Despedir"), true, THEME.red)
 	end)
 end
 end
@@ -3081,16 +3190,46 @@ makeLabel(ipoCard, "Se reinicia: dinero, webs, empresas, apps, reputación y tus
 bindText(makeLabel(ipoCard, "", 84, 18, 13, THEME.muted), function()
 	return T("Te quedas: acciones (+%d%% dinero cada una), patentes e I+D, colección, carrera y tu rascacielos.", math.floor(Config.SHARE_BONUS * 100))
 end)
-local confirmUntil = 0
 local ipoButton: TextButton
 ipoButton = makeButton(ipoCard, "", THEME.pink, UDim2.new(1, 0, 0, 38), function()
-	if os.clock() < confirmUntil then
-		confirmUntil = 0
-		sendAction("ipo")
-	else
-		confirmUntil = os.clock() + 3
-		ipoButton.Text = T("¿Seguro? Pulsa otra vez para confirmar")
+	local s = state
+	if not s or s.ipoShares < 1 then
+		return
 	end
+	-- Lo que se pierde y lo que se gana, para decidir con calma
+	local companyLevels, apps, stockValue, dealCount, dealTotal = 0, 0, 0, 0, 0
+	for _, level in s.companies do
+		companyLevels += level
+	end
+	for _ in s.unlockedAds do
+		apps += 1
+	end
+	for _, stock in s.market.stocks do
+		stockValue += stock.units * stock.price
+	end
+	for _, site in s.sites do
+		if site.deal then
+			dealCount += 1
+			dealTotal += site.deal.price
+		end
+	end
+	local lines = {
+		T("Pierdes:"),
+		T("· 💰 %s de dinero", fmt(s.money)),
+		T("· 🌐 %d webs y ⭐ %s de reputación", #s.sites, num(s.reputation)),
+		T("· 🏢 %d niveles de empresas y %d apps de anuncios", companyLevels, apps),
+	}
+	if stockValue > 0 then
+		table.insert(lines, T("· 📈 %s en acciones de la Bolsa", fmt(stockValue)))
+	end
+	if dealCount > 0 then
+		table.insert(lines, T("🤝 Las %d ventas que negocias se cobran ya: +%s", dealCount, fmt(dealTotal)))
+	end
+	table.insert(lines, "")
+	table.insert(lines, T("Ganas: +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", s.ipoShares, math.floor(s.ipoShares * Config.SHARE_BONUS * 100), s.ipoPatents))
+	showConfirm(T("🔔 ¿Salir a bolsa?"), table.concat(lines, "\n"), T("Sí, salir a bolsa"), THEME.pink, function()
+		sendAction("ipo")
+	end)
 end)
 ipoButton.Position = UDim2.fromOffset(0, 112)
 
@@ -3113,28 +3252,36 @@ renderers.market = function(s)
 	for _, stock in m.stocks do
 		local def = Market.StockById[stock.id]
 		local row = stockRows[stock.id]
-		local mode = Market.ModeById[stock.mode]
+		local rumor = Market.RumorDirs[stock.rumor] or Market.RumorDirs.flat
 		local change = stock.price / math.max(stock.last, 0.0001) - 1
 		local value = stock.units * stock.price
 		totalValue += value
 		totalInvested += stock.invested
 		row.title.Text = string.format("%s %s (%s) · %s  %s", def.emoji, def.name, def.ticker, fmt(stock.price), percentText(change))
 		row.title.TextColor3 = if change >= 0 then THEME.green else THEME.red
-		row.trend.Text = T("Tendencia: %s %s · Valor justo ~%s · Riesgo %s", mode.emoji, T(mode.name), fmt(def.rest),
+		row.trend.Text = T("📰 Rumor del analista: %s %s · Valor justo ~%s · Riesgo %s", rumor.emoji, T(rumor.text), fmt(def.rest),
 			if def.vol >= 1.3 then T("alto") elseif def.vol <= 0.7 then T("bajo") else T("medio"))
-		-- Gráfica
+		-- Gráfica: el historial es un anillo; head = el precio más antiguo
+		local history = stock.history
+		local count = #history
+		local function priceAt(k: number): number?
+			if k < 1 or k > count then
+				return nil
+			end
+			return history[((stock.head or 1) + k - 2) % count + 1]
+		end
 		local low, high = math.huge, -math.huge
-		for _, price in stock.history do
+		for _, price in history do
 			low = math.min(low, price)
 			high = math.max(high, price)
 		end
 		local range = math.max(high - low, high * 0.02)
 		for k, bar in row.bars do
-			local price = stock.history[k]
+			local price = priceAt(k)
 			if price then
 				bar.Visible = true
 				bar.Size = UDim2.new(1 / CHART_POINTS, -1, 0.1 + 0.9 * (price - low) / range, 0)
-				local previous = stock.history[k - 1] or price
+				local previous = priceAt(k - 1) or price
 				bar.BackgroundColor3 = if price >= previous then THEME.green else THEME.red
 			else
 				bar.Visible = false
@@ -3158,8 +3305,8 @@ renderers.market = function(s)
 		setButton(row.sellHalf, T("Vender la mitad"), stock.units > 0, THEME.orange)
 		setButton(row.sellAll, if stock.units > 0 then T("Vender todo (%s)", fmt(value)) else T("Vender todo"), stock.units > 0, THEME.red)
 	end
-	marketInfo.Text = T("Precios nuevos en %s · comisión %d%% al comprar · dividendo %.2f%% cada 30 s",
-		Config.formatTime(m.nextTick), math.floor(Market.FEE * 100), Market.DIVIDEND * 100)
+	marketInfo.Text = T("Precios nuevos en %s · comisión %d%% · dividendo %.2f%% cada 30 s · el analista acierta un %d%%",
+		Config.formatTime(m.nextTick), math.floor(Market.FEE * 100), Market.DIVIDEND * 100, math.floor((m.accuracy or Market.RUMOR_ACCURACY) * 100 + 0.5))
 	if totalValue > 0 then
 		local profit = totalValue - totalInvested
 		marketTotal.Text = T("💼 Tu cartera vale %s · %s%s", fmt(totalValue), if profit >= 0 then "+" else "-", fmt(math.abs(profit)))
@@ -3172,9 +3319,7 @@ renderers.market = function(s)
 	ipoInfo1.Text = T("Ganado en esta partida: %s · Acciones: %d (x%.2f dinero)", fmt(s.totalEarned), s.shares, 1 + s.shares * Config.SHARE_BONUS)
 	if s.ipoShares >= 1 then
 		ipoInfo2.Text = T("Si sales a bolsa ahora consigues +%d acciones y +%d 💡 patentes", s.ipoShares, s.ipoPatents)
-		if os.clock() >= confirmUntil then
-			setButton(ipoButton, T("🔔 Salir a bolsa (+%d acciones)", s.ipoShares), true)
-		end
+		setButton(ipoButton, T("🔔 Salir a bolsa (+%d acciones)", s.ipoShares), true)
 	else
 		ipoInfo2.Text = T("Necesitas ganar %s en esta partida", fmt(Config.IPO_MIN_EARNED))
 		setButton(ipoButton, T("Te faltan %s", fmt(Config.IPO_MIN_EARNED - s.totalEarned)), false)
@@ -3281,7 +3426,7 @@ local playtimeTitle = makeLabel(playtimeCard, "", 0, 22, 17, THEME.text, true)
 local playtimeRow = makeButtonRow(playtimeCard, 26, 40)
 local playtimeButtons = {}
 for i, reward in Config.PlaytimeRewards do
-	playtimeButtons[i] = makeButton(playtimeRow, reward.minutes .. "m", THEME.card, UDim2.new(1 / #Config.PlaytimeRewards, -6, 1, 0), function()
+	playtimeButtons[i] = makeButton(playtimeRow, reward.atMinutes .. "m", THEME.card, UDim2.new(1 / #Config.PlaytimeRewards, -6, 1, 0), function()
 		sendAction("claimPlaytime", i, nil, function(ok)
 			if ok then
 				pulseMoney()
@@ -3413,21 +3558,21 @@ renderers.shop = function(s)
 	local nextText = nil
 	for i, reward in Config.PlaytimeRewards do
 		local claimed = s.playtime.claimed[tostring(i)] == true
-		local ready = played >= reward.minutes * 60
+		local ready = played >= reward.atMinutes * 60
 		if claimed then
 			setButton(playtimeButtons[i], "✓", false, THEME.green)
 			playtimeButtons[i]:SetAttribute("PaintColor", THEME.green)
 		elseif ready then
-			setButton(playtimeButtons[i], "🎁 " .. reward.minutes .. "m", true, THEME.yellow)
+			setButton(playtimeButtons[i], "🎁 " .. reward.atMinutes .. "m", true, THEME.yellow)
 		else
-			setButton(playtimeButtons[i], reward.minutes .. "m", false, THEME.card)
+			setButton(playtimeButtons[i], reward.atMinutes .. "m", false, THEME.card)
 		end
 		if not claimed and not nextText then
-			local what = if reward.kind == "cash" then T("💰 %d min de ingresos", reward.rewardMinutes)
-				elseif reward.kind == "boost" then T("🚀 Boost x2 %d min", reward.boostMinutes)
+			local what = if reward.kind == "cash" then T("💰 %d min de ingresos", reward.minutes)
+				elseif reward.kind == "boost" then T("🚀 Boost x2 %d min", reward.minutes)
 				else T("🎯 Headhunter Premium")
-			nextText = if ready then T("🎁 ¡Listo! A los %d min: %s", reward.minutes, what)
-				else T("Siguiente a los %d min (%s): %s", reward.minutes, Config.formatTime(reward.minutes * 60 - played), what)
+			nextText = if ready then T("🎁 ¡Listo! A los %d min: %s", reward.atMinutes, what)
+				else T("Siguiente a los %d min (%s): %s", reward.atMinutes, Config.formatTime(reward.atMinutes * 60 - played), what)
 		end
 	end
 	playtimeNext.Text = nextText or T("¡Has recogido todos los de hoy! Mañana más.")
@@ -3862,7 +4007,7 @@ local function renderAlways(s)
 	saveBanner.Visible = not s.canSave
 	local playtimeReady = 0
 	for i, reward in Config.PlaytimeRewards do
-		if not s.playtime.claimed[tostring(i)] and s.playtime.seconds >= reward.minutes * 60 then
+		if not s.playtime.claimed[tostring(i)] and s.playtime.seconds >= reward.atMinutes * 60 then
 			playtimeReady += 1
 		end
 	end
@@ -3951,9 +4096,29 @@ local function renderAlways(s)
 	end
 end
 
-stateEvent.OnClientEvent:Connect(function(newState)
+-- El servidor manda el estado completo la primera vez y luego solo lo que
+-- cambia (isPatch = true). Si llega un parche sin tener estado, se pide entero.
+do
+local resyncAt = 0
+stateEvent.OnClientEvent:Connect(function(payload, isPatch)
 	local first = state == nil
-	state = newState
+	if isPatch then
+		if not state then
+			if os.clock() >= resyncAt then
+				resyncAt = os.clock() + 2
+				task.spawn(function()
+					pcall(function()
+						actionFunction:InvokeServer("requestState")
+					end)
+				end)
+			end
+			return
+		end
+		StatePatch.apply(state, payload)
+	else
+		state = payload
+	end
+	local newState = state
 	for _, site in newState.sites do
 		local history = visitHistory[site.id] or {}
 		table.insert(history, site.visits)
@@ -3980,8 +4145,12 @@ stateEvent.OnClientEvent:Connect(function(newState)
 		if wanted ~= lang then
 			applyLanguage(wanted)
 		end
-		muted = newState.settings and newState.settings.muted == true
-		muteButton.Text = if muted then "🔇" else "🔊"
+		local settings = newState.settings or {}
+		audio.volume = if type(settings.volume) == "number" then settings.volume elseif settings.muted then 0 else 1
+		audio.musicOn = settings.music ~= false
+		muteButton.Text = audio.volumeIcon(audio.volume)
+		setButton(audio.button, "🎵", true, if audio.musicOn then THEME.green else THEME.card)
+		audio.updateMusic()
 		if not newState.tutorialDone then
 			task.delay(1.5, startTutorial)
 		end
@@ -3993,9 +4162,14 @@ stateEvent.OnClientEvent:Connect(function(newState)
 		end)
 	end
 end)
+end
 
 -- Animación suave del dinero y de las barras de progreso
 RunService.RenderStepped:Connect(function()
+	if os.clock() >= audio.checkAt then
+		audio.checkAt = os.clock() + 2
+		audio.updateMusic()
+	end
 	if not state then
 		return
 	end

@@ -1,9 +1,12 @@
 --[[
 	MarketService (ModuleScript en ServerScriptService)
 
-	Mueve los precios de la Bolsa (los mismos para todo el servidor), paga
-	dividendos y gestiona las compras y ventas de cada jugador. Los datos y
-	las reglas están en MarketConfig.
+	Mueve los precios de la Bolsa, paga dividendos y gestiona las compras y
+	ventas de cada jugador. Los datos y las fórmulas están en MarketConfig.
+
+	v4: los precios son iguales en TODOS los servidores (ver MarketConfig:
+	cálculo determinista por tick global = os.time() // TICK). Al arrancar se
+	calculan los últimos WINDOW ticks; luego se sigue tick a tick.
 
 	Inversión de cada jugador: data.portfolio[id] = { units, invested }
 	  · units    = participaciones (dinero invertido / precio al comprar)
@@ -14,108 +17,97 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Market = require(ReplicatedStorage:WaitForChild("MarketConfig"))
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
+local Validate = require(ReplicatedStorage:WaitForChild("Validate"))
 
 local MarketService = {}
 
 type Ctx = {
-	random: Random,
 	gain: (data: any, amount: number) -> (),
 	notifyAll: (text: string, kind: string) -> (),
 	sessions: () -> { [Player]: any },
 	onTick: (rows: { any }) -> (), -- para el panel de la Bolsa en el mapa
+	userId: (session: any) -> number, -- para el rumor del analista
 }
 local ctx: Ctx
 
-type StockState = { price: number, mode: string, ticksLeft: number, history: { number }, last: number }
+-- history es un anillo de HISTORY precios: head = posición del más antiguo
+-- (así, en cada tick solo cambia un hueco y el estado que se envía es pequeño)
+type StockState = { x: number, price: number, last: number, history: { number }, head: number }
 local stocks: { [string]: StockState } = {}
-local nextTickAt = 0
+local currentTick = 0 -- último tick calculado
 
-local function pickMode(previous: string?): string
-	-- Después de dispararse, lo normal es que se hunda (y al revés, que rebote)
-	if previous == "fastRise" and ctx.random:NextNumber() < 0.6 then
-		return "fastFall"
-	elseif previous == "fastFall" and ctx.random:NextNumber() < 0.4 then
-		return "slowRise"
-	end
-	local total = 0
-	for _, mode in Market.Modes do
-		total += mode.weight
-	end
-	local roll = ctx.random:NextNumber() * total
-	for _, mode in Market.Modes do
-		roll -= mode.weight
-		if roll <= 0 then
-			return mode.id
-		end
-	end
-	return "stable"
+local function globalTick(): number
+	return os.time() // Market.TICK
 end
 
-local function setMode(state: StockState, modeId: string)
-	local mode = Market.ModeById[modeId]
-	state.mode = modeId
-	state.ticksLeft = ctx.random:NextInteger(mode.minTicks, mode.maxTicks)
+-- Calcula todo desde cero hasta "tick" (al arrancar, o si el servidor se
+-- quedó parado mucho rato)
+local function rebuild(tick: number)
+	for i, def in Market.Stocks do
+		local first = tick - Market.HISTORY + 1
+		local x = Market.xAt(i, first - 1)
+		local state: StockState = { x = x, price = Market.priceOf(i, x), last = Market.priceOf(i, x), history = {}, head = 1 }
+		for t = first, tick do
+			state.last = state.price
+			state.x = Market.step(state.x, i, t)
+			state.price = Market.priceOf(i, state.x)
+			table.insert(state.history, state.price)
+		end
+		stocks[def.id] = state
+	end
+	currentTick = tick
 end
 
 function MarketService.init(context: Ctx)
 	ctx = context
-	for _, def in Market.Stocks do
-		-- Empieza cerca de su valor justo
-		local price = def.rest * (0.85 + ctx.random:NextNumber() * 0.3)
-		local state: StockState = { price = price, mode = "stable", ticksLeft = 0, history = {}, last = price }
-		setMode(state, pickMode(nil))
-		for _ = 1, Market.HISTORY do
-			table.insert(state.history, price)
-		end
-		stocks[def.id] = state
-	end
-	nextTickAt = os.clock() + Market.TICK
+	rebuild(globalTick())
 end
 
--- Un movimiento de precios
-local function step()
-	for _, def in Market.Stocks do
+-- Avanza un tick. live = false cuando se está recuperando tiempo perdido
+-- (sin noticias ni dividendos, que ya pasaron)
+local function step(tick: number, live: boolean)
+	for i, def in Market.Stocks do
 		local state = stocks[def.id]
-		local mode = Market.ModeById[state.mode]
 		state.last = state.price
-		local noise = (ctx.random:NextNumber() * 2 - 1) * 0.012 * mode.noise * def.vol
-		local pull = (def.rest - state.price) / def.rest * 0.03 -- vuelve poco a poco a su valor justo
-		local change = mode.drift * def.vol + noise + pull
-		state.price = math.clamp(state.price * (1 + change), def.rest * 0.2, def.rest * 4)
-		table.insert(state.history, state.price)
-		if #state.history > Market.HISTORY then
-			table.remove(state.history, 1)
-		end
-		state.ticksLeft -= 1
-		if state.ticksLeft <= 0 then
-			setMode(state, pickMode(state.mode))
-		end
+		state.x = Market.step(state.x, i, tick)
+		state.price = Market.priceOf(i, state.x)
+		state.history[state.head] = state.price
+		state.head = state.head % Market.HISTORY + 1
+	end
+	if not live then
+		return
 	end
 	-- Noticias: cambian la tendencia de una empresa y lo sabe todo el servidor
-	if ctx.random:NextNumber() < Market.NEWS_CHANCE then
-		local def = Market.Stocks[ctx.random:NextInteger(1, #Market.Stocks)]
-		local news = Market.News[ctx.random:NextInteger(1, #Market.News)]
-		setMode(stocks[def.id], if news.good then "fastRise" else "fastFall")
-		ctx.notifyAll(string.format(news.text, def.name), "event")
+	local news = Market.newsAt(tick)
+	if news then
+		local def = Market.Stocks[news.stock]
+		ctx.notifyAll(string.format(Market.News[news.news].text, def.name), "event")
 	end
 	-- Dividendos a quien tenga acciones
 	for _, session in ctx.sessions() do
-		local portfolio = session.data.portfolio
-		for id, position in portfolio do
+		for id, position in session.data.portfolio do
 			local state = stocks[id]
 			if state and position.units > 0 then
 				ctx.gain(session.data, position.units * state.price * Market.DIVIDEND)
 			end
 		end
 	end
-	ctx.onTick(MarketService.rows())
 end
 
-function MarketService.tick(now: number)
-	if now >= nextTickAt then
-		nextTickAt = now + Market.TICK
-		step()
+function MarketService.tick(_now: number)
+	local target = globalTick()
+	if target <= currentTick then
+		return
 	end
+	if target - currentTick > Market.HISTORY then
+		rebuild(target)
+	else
+		while currentTick < target do
+			currentTick += 1
+			step(currentTick, currentTick == target)
+		end
+	end
+	ctx.onTick(MarketService.rows())
 end
 
 -- Para el panel del mapa: precio y cambio desde el tick anterior
@@ -133,27 +125,40 @@ function MarketService.price(id: string): number
 	return if state then state.price else 0
 end
 
--- Estado del mercado para el cliente
-function MarketService.buildState(session, now: number)
+function MarketService.currentTick(): number
+	return currentTick
+end
+
+-- Acierto del rumor del analista (60 % + I+D)
+function MarketService.rumorAccuracy(data): number
+	return math.min(0.95, Market.RUMOR_ACCURACY + Config.researchValue(data, "analyst"))
+end
+
+-- Estado del mercado para el cliente (sin la tendencia real: solo el rumor)
+function MarketService.buildState(session, _now: number)
 	local list = {}
 	local data = session.data
-	for _, def in Market.Stocks do
+	local accuracy = MarketService.rumorAccuracy(data)
+	local userId = ctx.userId(session)
+	for i, def in Market.Stocks do
 		local state = stocks[def.id]
 		local position = data.portfolio[def.id]
 		table.insert(list, {
 			id = def.id,
 			price = state.price,
 			last = state.last,
-			mode = state.mode,
+			rumor = Market.rumor(i, currentTick, userId, accuracy),
 			history = state.history,
+			head = state.head,
 			units = if position then position.units else 0,
 			invested = if position then position.invested else 0,
 		})
 	end
 	return {
 		stocks = list,
-		nextTick = math.max(0, nextTickAt - now),
+		nextTick = math.max(0, (currentTick + 1) * Market.TICK - os.time()),
 		cap = Market.cap(data.peakIncome),
+		accuracy = accuracy,
 	}
 end
 
@@ -163,7 +168,7 @@ end
 -- fraction = parte de tu dinero que inviertes (0..1; se le quita la comisión)
 function MarketService.buy(session, id: any, fraction: any): (boolean, string?)
 	local def = type(id) == "string" and Market.StockById[id]
-	if not def or type(fraction) ~= "number" or fraction ~= fraction or fraction <= 0 or fraction > 1 then
+	if not def or not Validate.number(fraction, 0, 1) or fraction <= 0 then
 		return false, nil
 	end
 	local data = session.data
@@ -188,7 +193,7 @@ end
 -- fraction = parte de tus acciones que vendes (0..1)
 function MarketService.sell(session, id: any, fraction: any): (boolean, string?, number?)
 	local def = type(id) == "string" and Market.StockById[id]
-	if not def or type(fraction) ~= "number" or fraction <= 0 or fraction > 1 then
+	if not def or not Validate.number(fraction, 0, 1) or fraction <= 0 then
 		return false, nil, nil
 	end
 	local data = session.data

@@ -14,6 +14,7 @@ local marketSource = fs.readFile(SRC .. "/ReplicatedStorage/MarketConfig.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/TycoonClient.client.luau")
 local localeSource = fs.readFile(SRC .. "/ReplicatedStorage/Locale.luau")
 local localeEnSource = fs.readFile(SRC .. "/ReplicatedStorage/LocaleEN.luau")
+local patchSource = fs.readFile(SRC .. "/ReplicatedStorage/StatePatch.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
 local visitJson = serde.decode("json", fs.readFile("visit.json"))
 
@@ -164,9 +165,10 @@ end
 -- Servicios
 local dataModel = roblox.Instance.new("DataModel")
 local services = {}
-for _, name in { "Workspace", "ReplicatedStorage", "SoundService" } do
+for _, name in { "Workspace", "ReplicatedStorage", "SoundService", "Lighting" } do
 	services[name] = dataModel:GetService(name)
 end
+services.Lighting.ClockTime = 14 -- (Lune no le da valor por defecto)
 local configModule = roblox.Instance.new("ModuleScript")
 configModule.Name = "TycoonConfig"
 configModule.Parent = services.ReplicatedStorage
@@ -278,6 +280,10 @@ localeEnModule.Parent = services.ReplicatedStorage
 local localeModule = roblox.Instance.new("ModuleScript")
 localeModule.Name = "Locale"
 localeModule.Parent = services.ReplicatedStorage
+local patchModule = roblox.Instance.new("ModuleScript")
+patchModule.Name = "StatePatch"
+patchModule.Parent = services.ReplicatedStorage
+local StatePatchMod = luau.load(patchSource, { debugName = "StatePatch", environment = env(nil) })()
 local EN = luau.load(localeEnSource, { debugName = "LocaleEN", environment = env(nil) })()
 local localeEnv = env(wrap(localeModule))
 localeEnv.require = function() return EN end
@@ -287,7 +293,7 @@ local missing = {}
 Locale.onMissing = function(text)
 	missing[text] = true
 end
-local modulesByName = { CareerConfig = CareerCfg, MarketConfig = MarketCfg, Locale = Locale, LocaleEN = EN, TycoonConfig = Config }
+local modulesByName = { CareerConfig = CareerCfg, MarketConfig = MarketCfg, Locale = Locale, LocaleEN = EN, TycoonConfig = Config, StatePatch = StatePatchMod }
 local clientEnv = env(nil)
 clientEnv.require = function(m)
 	return assert(modulesByName[realOf[m] and realOf[m].Name], "módulo desconocido")
@@ -307,7 +313,32 @@ local function fireState(s)
 	renderStepped:Fire(0.016)
 end
 stateJson.tutorialDone = false
+-- Una misión diaria y una semanal completadas (para pulsar "Reclamar")
+for _, list in { stateJson.dailyMissions.list, stateJson.weeklyMissions.list } do
+	if list[1] then
+		list[1].progress = list[1].target
+		list[1].claimed = false
+	end
+end
 fireState(stateJson)
+-- Un parche (lo normal cada segundo): solo cambian unas pocas cosas
+do
+	local changed = serde.decode("json", serde.encode("json", stateJson))
+	changed.money += 1234
+	changed.offers[1] = nil
+	if changed.sites[1] then changed.sites[1].totalVisits += 10 end
+	changed.project = nil
+	local patch = StatePatchMod.diff(stateJson, changed)
+	signalFor(idOf(stateRemote), "OnClientEvent"):Fire(serde.decode("json", serde.encode("json", patch)), true)
+	renderStepped:Fire(0.016)
+	-- Y al revés, para dejarlo como estaba
+	signalFor(idOf(stateRemote), "OnClientEvent"):Fire(serde.decode("json", serde.encode("json", StatePatchMod.diff(changed, stateJson))), true)
+	renderStepped:Fire(0.016)
+	-- Comprobación del formato: aplicar el parche a una copia da el estado nuevo
+	local rebuilt = StatePatchMod.apply(serde.decode("json", serde.encode("json", stateJson)), serde.decode("json", serde.encode("json", patch)))
+	assert(serde.encode("json", rebuilt) == serde.encode("json", changed) or rebuilt.money == changed.money, "el parche no reconstruye el estado")
+	print("Parches de estado OK")
+end
 
 -- Variante: proyecto en marcha, evento activo, regalo y diaria disponibles
 local s2 = serde.decode("json", serde.encode("json", stateJson))

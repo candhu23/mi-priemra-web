@@ -11,6 +11,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
+local StatePatch = require(ReplicatedStorage:WaitForChild("StatePatch"))
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 
 local CareerService = {}
@@ -634,7 +635,7 @@ local function contractRow(contract, clockNow: number, unixNow: number)
 		rep = contract.rep,
 		xp = contract.xp,
 		duration = contract.duration,
-		timeLeft = if contract.deadline then math.max(0, contract.deadline - unixNow) else math.max(0, contract.expiresAt - clockNow),
+		timeLeft = if contract.deadline then math.max(0, contract.deadline - unixNow) else math.max(0, math.ceil(contract.expiresAt - clockNow)),
 	}
 end
 
@@ -674,20 +675,18 @@ function CareerService.buildState(session)
 			level = programmer.level,
 			role = programmer.role or "dev",
 			trait = programmer.trait,
-			xp = programmer.xp or 0,
+			-- La XP sube cada segundo: se manda en pasos del 1 % de la barra
+			xp = math.floor(math.floor((programmer.xp or 0) / Career.programmerXpNeeded(programmer.level) * 100) * Career.programmerXpNeeded(programmer.level) / 100),
 			xpNeeded = Career.programmerXpNeeded(programmer.level),
 			work = work,
 			stats = stats,
-			trainCost = Career.trainCost(programmer, income),
+			trainCost = StatePatch.sig3(Career.trainCost(programmer, income)),
 		})
 	end
-	-- Los mejores primero
+	-- Orden fijo (por id) para que el estado cambie poco; el cliente los
+	-- ordena para enseñarlos (los mejores primero)
 	table.sort(programmers, function(a, b)
-		local ra, rb = Career.RarityById[a.rarity].order, Career.RarityById[b.rarity].order
-		if ra ~= rb then
-			return ra > rb
-		end
-		return a.level > b.level
+		return a.id < b.id
 	end)
 
 	local agency = nil
@@ -714,8 +713,8 @@ function CareerService.buildState(session)
 		slots = Career.Ranks[rank].slots,
 		board = board,
 		contracts = contracts,
-		nextContractIn = math.max(0, session.nextContractAt - clockNow),
-		askLeft = math.max(0, session.askReadyAt - clockNow),
+		nextContractIn = math.max(0, math.ceil(session.nextContractAt - clockNow)),
+		askLeft = math.max(0, math.ceil(session.askReadyAt - clockNow)),
 		fair = session.bonuses.weekend == "contracts",
 		xp = career.xp,
 		nicheLevels = nicheLevels,

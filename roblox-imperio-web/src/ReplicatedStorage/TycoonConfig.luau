@@ -10,14 +10,24 @@
 
 local Config = {}
 
-Config.VERSION = "3.1"
+Config.VERSION = "4.0-alpha.1"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
 ---------------------------------------------------------------------
 Config.DATASTORE_NAME = "ImperioWeb_v1"
+Config.DATA_VERSION = 4 -- versión de la partida guardada (migrate() en el servidor)
+-- Bloqueo de sesión: la partida guarda qué servidor la tiene abierta. Se
+-- renueva en cada guardado (cada minuto). Si otro servidor la tiene y su
+-- bloqueo es reciente, se reintenta LOCK_RETRIES veces cada LOCK_RETRY_WAIT s;
+-- si sigue, no se carga (se avisa al jugador). Un bloqueo sin renovar desde
+-- hace SESSION_LOCK_STALE s es de un servidor caído y se puede quitar.
+Config.SESSION_LOCK_STALE = 300
+Config.LOCK_RETRIES = 6
+Config.LOCK_RETRY_WAIT = 5
 Config.LEADERBOARD_NAME = "ImperioWebTop_v1"
 Config.AUTOSAVE_INTERVAL = 60 -- segundos
+Config.STATE_MIN_INTERVAL = 0.25 -- como mucho 4 envíos de estado por segundo y jugador
 Config.MANUAL_SAVE_COOLDOWN = 30 -- segundos entre guardados manuales
 Config.LEADERBOARD_REFRESH = 120 -- segundos
 Config.STARTING_MONEY = 25
@@ -106,15 +116,31 @@ Config.Monetization = {
 	MAX_FRIENDS = 4,
 }
 
--- Sonidos. Puedes cambiarlos por IDs de la Creator Store
--- ("rbxassetid://123456").
+-- Sonidos (v4). PARA PONER LOS TUYOS: en el Creator Hub → Creator Store →
+-- Audio busca lo que dice "search", copia el número del sonido (la URL es
+-- .../store/asset/NÚMERO/...) y ponlo así: id = "rbxassetid://NÚMERO".
+-- Mientras id = "", suena el "ping" de Roblox con otro tono (fallbackSpeed)
+-- para que cada sonido se distinga. volume = volumen (0..1).
+Config.SOUND_FALLBACK = "rbxasset://sounds/electronicpingshort.wav"
 Config.Sounds = {
-	click = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.25, speed = 1.6 },
-	crit = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.6, speed = 0.8 },
-	success = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, speed = 1.0 },
-	money = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, speed = 1.25 },
-	error = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.3, speed = 0.5 },
+	click = { id = "", volume = 0.25, fallbackSpeed = 1.6, search = "keyboard click / button click (corto)" },
+	crit = { id = "", volume = 0.6, fallbackSpeed = 0.8, search = "punch impact / power hit" },
+	success = { id = "", volume = 0.5, fallbackSpeed = 1.0, search = "success notification / pop" },
+	money = { id = "", volume = 0.5, fallbackSpeed = 1.25, search = "coins / cash register" },
+	error = { id = "", volume = 0.3, fallbackSpeed = 0.5, search = "error buzz / wrong" },
+	levelUp = { id = "", volume = 0.55, fallbackSpeed = 1.45, search = "level up / achievement" },
+	unlock = { id = "", volume = 0.55, fallbackSpeed = 0.95, search = "unlock chime / door unlock" },
+	recruit = { id = "", volume = 0.6, fallbackSpeed = 1.1, search = "fanfare / reveal" },
+	rare = { id = "", volume = 0.6, fallbackSpeed = 0.7, search = "magic sparkle / shimmer" },
 }
+-- Música de fondo (en bucle). Sin id no suena nada. Se cambia sola con el
+-- día y la noche del juego. Busca pistas largas y sin derechos de terceros
+-- (las de la Creator Store subidas por Roblox o por "Roblox Music").
+Config.Music = {
+	day = { id = "", volume = 0.25, search = "lofi chill / upbeat electronic loop" },
+	night = { id = "", volume = 0.2, search = "synthwave / night city ambient loop" },
+}
+Config.VOLUME_STEPS = { 1, 0.5, 0 } -- el botón 🔊 va pasando por estos volúmenes
 
 ---------------------------------------------------------------------
 -- Tipos de web que puedes programar
@@ -612,6 +638,8 @@ Config.Research = {
 		desc = "+10 % al vender webs por nivel." },
 	{ id = "maintenance", branch = "negocio", emoji = "🔧", name = "Contratos blindados", maxLevel = 5, cost = 2, costGrowth = 1.6, value = 0.25,
 		desc = "+25 % de dinero de los contratos de mantenimiento por nivel." },
+	{ id = "analyst", branch = "negocio", emoji = "🔍", name = "Analista de bolsa", maxLevel = 4, cost = 2, costGrowth = 1.6, value = 0.05,
+		desc = "El rumor del analista de la Bolsa acierta un 5 % más por nivel (del 60 % al 80 %)." },
 	{ id = "fingers", branch = "codigo", emoji = "⚡", name = "Dedos rápidos", maxLevel = 10, cost = 1, costGrowth = 1.5, value = 0.25,
 		desc = "+25 % de trabajo por clic por nivel." },
 	{ id = "slots", branch = "codigo", emoji = "🗄️", name = "Servidores propios", maxLevel = 3, cost = 2, costGrowth = 2, value = 1,
@@ -687,15 +715,18 @@ end
 
 ---------------------------------------------------------------------
 -- Premios por tiempo jugado hoy (minutos acumulados en el día, UTC)
+--   atMinutes = cuándo se puede reclamar
+--   el resto es el premio, con el mismo formato que los del pase
+--   (cash: minutes de ingresos o min; boost: minutes de boost x2)
 ---------------------------------------------------------------------
 Config.PlaytimeRewards = {
-	{ minutes = 5, kind = "cash", rewardMinutes = 3, min = 300 },
-	{ minutes = 10, kind = "cash", rewardMinutes = 5, min = 600 },
-	{ minutes = 15, kind = "cash", rewardMinutes = 8, min = 1000 },
-	{ minutes = 25, kind = "boost", boostMinutes = 10 },
-	{ minutes = 40, kind = "cash", rewardMinutes = 15, min = 3000 },
-	{ minutes = 60, kind = "boost", boostMinutes = 20 },
-	{ minutes = 90, kind = "ticket", ticket = "premium", amount = 1 },
+	{ atMinutes = 5, kind = "cash", minutes = 3, min = 300 },
+	{ atMinutes = 10, kind = "cash", minutes = 5, min = 600 },
+	{ atMinutes = 15, kind = "cash", minutes = 8, min = 1000 },
+	{ atMinutes = 25, kind = "boost", minutes = 10 },
+	{ atMinutes = 40, kind = "cash", minutes = 15, min = 3000 },
+	{ atMinutes = 60, kind = "boost", minutes = 20 },
+	{ atMinutes = 90, kind = "ticket", ticket = "premium", amount = 1 },
 }
 
 ---------------------------------------------------------------------

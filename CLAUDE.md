@@ -10,19 +10,22 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
   para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
-- **Versión actual del código: 3.1** (`Config.VERSION` en `TycoonConfig.luau`; súbelo en
-  cada versión nueva).
+- **Versión actual del código: 4.0-alpha.1** (`Config.VERSION` en `TycoonConfig.luau`;
+  súbelo en cada versión nueva). **La v4 está a medias: mira §14** (qué está hecho y qué falta)
+  y el encargo completo en `PROMPT_V4.md` (raíz del repo).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
   - Experience (universe) ID: `10769603072`
   - Place ID (lugar de inicio): `129921526137293`
 - **Repo:** `candhu23/mi-priemra-web`. La v1.2 (rama `claude/roblox-game-h5olkl`) ya está
-  fusionada en `main`. La **v1.3, v2.0, v2.1, v3.0 y v3.1** están en `claude/optimistic-thompson-296nik`. Cada sesión
+  fusionada en `main`. La **v1.3, v2.0, v2.1, v3.0 y v3.1** están en `claude/optimistic-thompson-296nik`.
+  La **v4** se hace en `claude/ecstatic-curie-dcuw5x` (parte de la v3.1). Cada sesión
   trabaja en la rama que le indique el sistema.
   El juego vive en `roblox-imperio-web/`. `index.html` en la raíz es una web personal del
   usuario, no tiene relación con el juego. Otras ramas del repo tienen otros juegos/proyectos
   del usuario (Steal an Alien, Obby de las Monedas, web SEO…): no mezclar.
-- **Descarga directa del lugar** (lo que el usuario abre en Studio), v3.1:
-  `https://github.com/candhu23/mi-priemra-web/raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl`
+- **Descarga directa del lugar** (lo que el usuario abre en Studio), v4 en curso:
+  `https://github.com/candhu23/mi-priemra-web/raw/claude/ecstatic-curie-dcuw5x/roblox-imperio-web/ImperioWeb.rbxl`
+  (la v3.1: `.../raw/claude/optimistic-thompson-296nik/roblox-imperio-web/ImperioWeb.rbxl`)
 
 ## 2. Sobre el usuario (cómo trabajar con él)
 
@@ -60,7 +63,9 @@ roblox-imperio-web/
     │   │                       #   de los coches (trafficPath)
     │   ├── Traffic.luau        # (v3.1) Coches que circulan: start(parent) / step(dt), en el CLIENTE
     │   ├── Locale.luau         # Idiomas: resolve / t / f / translate (ver §6 Idiomas)
-    │   └── LocaleEN.luau       # Diccionario español → inglés (~900 textos)
+    │   ├── LocaleEN.luau       # Diccionario español → inglés (~900 textos)
+    │   ├── Validate.luau       # (v4) number/integer/text/args: valida TODO lo que manda el cliente
+    │   └── StatePatch.luau     # (v4) diff/apply/copy/sig3: el estado viaja por diferencias
     ├── ServerScriptService/
     │   ├── TycoonServer.server.luau  # Script principal: datos, acciones, tick, compras, guardado
     │   ├── CareerService.luau        # Carrera: XP, encargos (tablón/aceptados/entrega), rangos,
@@ -89,13 +94,21 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   - `Action` (RemoteFunction): `InvokeServer(action, a, b)` → devuelve `(ok, mensaje?, extra?)`.
     `extra` puede llevar `{ money = true }` (suena dinero), `{ crit, power }` (clic crítico),
     `{ recruit = programador }` (animación de fichaje).
-  - `State` (RemoteEvent): el servidor envía el **estado completo** cada segundo y tras cada acción.
+  - `State` (RemoteEvent): **v4: `FireClient(payload, isPatch)`**. La primera vez (o tras la
+    acción `requestState`) va el estado completo (`isPatch = false`); luego solo un **parche**
+    con lo que cambia (`StatePatch.diff` contra `session.sent`, la copia de lo último enviado).
+    Se envía cada segundo (bucle) y tras cada acción salvo `click`, como mucho cada
+    `Config.STATE_MIN_INTERVAL` (0,25 s; si no, `session.dirty` y lo manda un bucle rápido).
+    Totales que crecen cada segundo van redondeados a 3 cifras (`StatePatch.sig3`) y los
+    temporizadores en segundos enteros. Media medida ≈ 1,4 KB/s (antes ~15 KB/s + 15 KB por clic).
   - `Notify` (RemoteEvent): `(texto, tipo, cuerpo?)`. tipo `popup` = ventana emergente;
     `success|error|event|goal|money|info` = avisos.
   - `OpenComputer` (RemoteEvent): abre la ventana (desde el ProximityPrompt del terminal).
   - `Visit` (RemoteEvent): ficha del imperio de otro jugador (cartel "Ver imperio" o
     acción `visitPlot`): plantas, ganado, web estrella, agencia, me gusta, `liked`, `likeReward`.
-- Límite: 10 acciones/s por jugador (los clics van aparte: 15/s).
+- Límite: 10 acciones/s por jugador (los clics van aparte: 15/s). **v4:** antes de cualquier
+  acción `Validate.args(a, b)` rechaza NaN, infinitos y textos de más de 200 caracteres; cada
+  acción valida además sus índices con `Validate.integer`.
 - **Acciones del servidor** (`Actions.*` en TycoonServer + `CareerService.Actions`):
   `click, startProject, cancelProject, setAuto, upgradeSeo, upgradeDesign, setNetwork,
   setNetworkAll, setAdLevel, unlockNetwork, buyCompany, sellToOffer, quickSell, ipo,
@@ -103,7 +116,8 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   saveNow, acceptContract(id), abandonContract(id), workOnContract(id), askContract,
   buyStock(id, fracción del dinero), sellStock(id, fracción 0..1], foundAgency, upgradeOffice,
   recruit, redeemTicket, trainProgrammer, fireProgrammer, setLanguage, visitPlot, likePlot,
-  buyResearch, claimSeason(tier, premium), claimPlaytime(i), redeemCode(texto), claimWeeklyMission(i)`.
+  buyResearch, claimSeason(tier, premium), claimPlaytime(i), redeemCode(texto), claimWeeklyMission(i)`;
+  v4: `requestState, setVolume(0..1), setMusic(bool)`.
   `buyCompany(id, 1|10|"max")`. **`sellToOffer` ya no vende al momento**: crea `site.deal
   {endsAt, price, buyer, specialist}` y `finishDeals` (tick) cobra al acabar (también offline).
   `ACTION_FEATURES` bloquea acciones de partes no desbloqueadas (`Config.Unlocks`).
@@ -134,6 +148,20 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
 - Guardado: cada 60 s, al salir, en `BindToClose` (espera a los pendientes), tras cada compra
   de producto, y manual (`saveNow`, enfriamiento 30 s). Si la carga falla, `canSave = false`
   y **no se guarda** (para no machacar datos). En Studio sin publicar → aviso rojo en pantalla.
+- **v4 · Bloqueo de sesión (F1)**: la carga es un `UpdateAsync` que pone `data._lock =
+  { jobId = game.JobId, t }`. Si otro servidor tiene un bloqueo con menos de
+  `SESSION_LOCK_STALE` (300 s; se renueva en cada guardado, cada 60 s) se reintenta
+  `LOCK_RETRIES` × `LOCK_RETRY_WAIT` (6 × 5 s) y si sigue, **se echa al jugador** con aviso
+  traducido (`kickText`). Un bloqueo más viejo es de un servidor caído y se quita. Cada guardado
+  comprueba que el bloqueo es nuestro (si no: `canSave = false`, no escribe y echa al jugador).
+  Al salir (`saveData(..., true)`) se guarda y se libera. `session.closed` impide que algo
+  pendiente (premio semanal…) vuelva a guardar después. `releasing[userId]` hace esperar a una
+  reentrada rápida en el mismo servidor. Si el jugador se va mientras carga, `releaseLock`.
+- **v4 · Compras (F2)**: si `not canSave` y no es Studio, `ProcessReceipt` devuelve
+  `NotProcessedYet` sin dar nada (Roblox lo reintenta cuando vuelva).
+- **v4 · Versión de la partida**: `dataVersion` (= `Config.DATA_VERSION`, 4) y `migrate(data,
+  fromVersion)` tras `reconcile`. Migración a 4: `peakIncome = 0` (se recalcula sin boosts).
+  `reconcile` no rellena por dentro los mapas de `RECONCILE_MAPS` (sites, receipts, goals…).
 - `reconcile()` rellena campos nuevos en partidas viejas. **Si añades un campo a `newData()`,
   las partidas antiguas lo reciben solas**; para campos de cada web hay una migración en
   `onPlayerAdded`.
@@ -141,7 +169,7 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   shares, ipoCount, sites[], project, autoType, companies{}, unlockedAds{}, maintenance,
   goals{id=true → reclamado}, nextSiteId, stats{built,sold,clicks,crits,byType}, daily{lastDay,streak},
   boostUntil, receipts{purchaseId=time} (últimas 50), selectedNiche, career{…}, tutorialDone,
-  dailyMissions{day,list,bonusGiven}, settings{muted, lang="auto"|"es"|"en"}, lastOnline,
+  dailyMissions{day,list,bonusGiven}, settings{muted, lang="auto"|"es"|"en", volume (v4), music (v4)}, lastOnline,
   weekly{week,earned,prevWeek,prevEarned,rewardedWeek}, goldUntil, likes, likesGiven{day,ids{"u<id>"=true}},
   collection{tipo={normal|brillante|…=true}}, research{id=nivel}, patents, season{id,xp,free{"n"},
   premiumClaimed{"n"},premium}, playtime{day,seconds,claimed{"i"}}, codes{CÓDIGO=true}, firstJoin,
@@ -204,6 +232,16 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
   cada `OFFER_INTERVAL` 45 s (máx. 3); venta rápida x0,5 y cada `QUICK_SALE_COOLDOWN` 90 s.
 - **Tutorial** interactivo de 7 pasos (cliente), una vez por jugador (`tutorialDone`),
   premio $100, se puede repetir desde Misiones.
+- **v4 · arreglos**: premios por tiempo con `atMinutes` (umbral) y `minutes` (premio) — en la
+  v3.1 pagaban el umbral (F3). Salir a bolsa cobra antes las negociaciones en curso (F9).
+  Offline (F10) en trozos de 10 min: boost x2 solo hasta `boostUntil`, x2 de fin de semana solo
+  si lo había. Bucle de economía: `tickPlayer` con `pcall` por jugador (F8, `reportLoopError`),
+  y también guardado automático, clasificación y envíos de estado. Nombres del ranking: máx. 10
+  `GetNameFromUserIdAsync` por actualización. Confirmaciones reales (F12): `showConfirm` en el
+  cliente (despedir, con aviso extra para Legendario/Mítico; salir a bolsa, con lo que se pierde).
+  Sonido (F11): `Config.Sounds` por categorías (click, crit, success, money, error, levelUp,
+  unlock, recruit, rare) con `id = ""` → "ping" con otro tono; `Config.Music` (día/noche, sin id
+  no suena); botón 🔊/🔉/🔇 (`VOLUME_STEPS`) y 🎵 en la cabecera del ordenador.
 - Otros: recompensa diaria (racha de 7, el 7º da boost), regalo cada 10 min, eventos
   aleatorios (viral, buscador, caída, inversor, VIP), ganancias offline (50 %, 8 h),
   clics críticos (6 %, x5), bonus amigos (+10 % c/u, máx 4), Premium +10 %, grupo +10 %
@@ -234,6 +272,16 @@ Todo número de equilibrio está en `TycoonConfig.luau` o `CareerConfig.luau`.
 - **Eventos de fin de semana** (`Config.weekendStatus(t)`, viernes 20:00 → lunes 04:00 UTC,
   rotan por semana): `money` (moneyMult x2), `viral` (visitas x1.5 en `visitMult`), `contracts`
   (Feria de Encargos: pagan x1.5 y llegan el doble de rápido, en CareerService).
+- **Bolsa v4 (F4/F5)**: precios **iguales en todos los servidores**. Tick global =
+  `os.time() // 30`. `Market.hash(a,b,c)` es un "dado" fijo (xorshift con `bit32`); tendencia por
+  bloques de 10 ticks (`Market.modeAt`), noticias por tick (`Market.newsAt`, fijan la tendencia
+  6 ticks) y precio en escala log `x = (1-0,03)·x + tendencia + ruido` (`Market.step`), que olvida
+  el pasado: al arrancar se calculan los últimos `WINDOW` = 1000 ticks (`Market.xAt`, ~20 ms) y
+  da igual cuándo arrancó cada servidor. El historial es un anillo (`history` + `head`). La
+  tendencia real **no se envía**: el cliente ve `rumor` (up/down/flat) del analista, que acierta
+  `RUMOR_ACCURACY` 60 % + I+D `analyst` (+5 %/nivel, máx. 80 %); es fijo por (empresa, bloque,
+  jugador). Dividendo 0,05 %/tick. `peakIncome` se calcula sin boost ni x2 de fin de semana.
+  Lo de abajo (v3) sigue valiendo salvo el movimiento de precios:
 - **Bolsa (v3)** (`MarketConfig` + `MarketService`, idea del mercado de Cookie Clicker): 6 empresas
   con `rest` (valor justo) y `vol`. Cada `TICK` (30 s) el precio cambia por la tendencia (`Modes`:
   stable/slowRise/slowFall/fastRise/fastFall/chaotic) + ruido + un 3 % de vuelta al valor justo,
@@ -330,6 +378,16 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    El bot no cuenta las webs raras (≈ +20 % de dinero de media) ni la Bolsa.
 7. `rojo build` → regenera `ImperioWeb.rbxl` (solo si todo lo anterior pasa). **Súbelo en el commit.**
 
+**v4 en el harness del servidor**: el DataStore simulado guarda **copias JSON** (como Roblox) y
+admite que `UpdateAsync` cancele (devolver nil); `storeFail[clave]` simula una caída;
+`game.JobId = "servidor-A"`; `RunService:IsStudio()` = `studioMode`. `FireClient` también copia
+en JSON y `lastState(who)` **reconstruye** el estado aplicando los parches (como el cliente) y
+devuelve una copia. `Config.STATE_MIN_INTERVAL = 0` en el harness (la prueba F7 lo activa).
+`task.wait` solo cede dentro de `task.spawn` (en el hilo principal no espera). Las pruebas de
+los fallos F1–F10 usan `check(id, cond, texto)` y fallan todas juntas al final; hay jugadores
+extra con `makePlayer(nombre, userId)` (Luis 44, Marta 45, Pablo 46). El harness del cliente
+también prueba un parche de estado.
+
 Limitaciones de Lune a recordar (el harness ya las simula): no tiene eventos (`Activated`,
 `Touched`…), ni `AbsolutePosition`, ni `ViewportSize`; `fs.readFile` es asíncrono (precargar);
 devuelve objetos distintos para la misma instancia (se identifican por el atributo `__hid`);
@@ -358,6 +416,15 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
   especificador de formato; en plantillas escribe `%%`.
 - El botón 🌐 cambia el idioma: en el harness del cliente se salta al pulsar "todos los botones"
   en español (si no, cambia de idioma un número impar de veces).
+- (v4) El **cliente está al límite de 200 locales en el nivel superior**: lo nuevo va en tablas
+  (`audio`) o en bloques `do … end` (el manejador del estado). El bloque 2 de la v4 lo divide
+  en módulos.
+- (v4) `UpdateAsync` puede llamar a la función varias veces: reinicia en ella todo lo que
+  calcule (`locked`, `loaded`…).
+- (v4) El detector de "texto en español" del harness es una lista de palabras; añade palabras
+  si un texto nuevo se le escapa (pasó con "Se cerraron N ventas que…").
+- (v4) Una tabla del estado que se ordena de nuevo cada segundo hace parches enormes: manda las
+  listas en orden fijo (p. ej. programadores por id) y ordena en el cliente.
 
 ## 10. Publicar una versión nueva (flujo del usuario)
 
@@ -418,3 +485,21 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
 - No poner identificadores de modelo de IA en commits ni en el código.
 - Tras cambiar algo visible, explica al usuario qué cambia, qué verificaste, qué NO pudiste
   verificar (no hay Studio aquí) y tu % de confianza.
+
+## 14. Estado de la v4.0 (encargo en `PROMPT_V4.md`)
+
+Se hace por bloques, un commit por bloque con `check.sh` en verde:
+
+- [x] **Bloque 1 · fallos F1–F12** (4.0-alpha.1). Pruebas en `run_server.luau` (F1a–g, F2a–b,
+  F3, F4a–b, F5a–c, F6, F7a–c, F8, F9, F10). F10 tal como lo describía el encargo no ocurría
+  (si el boost sigue activo al entrar, estuvo activo todo el rato offline); se arregló el caso
+  contrario (boost que acabó estando fuera) y el x2 de fin de semana.
+- [ ] Bloque 2 · base técnica: analítica (`AnalyticsService`), insignias (`Config.Badges`),
+  dividir cliente/servidor en módulos, portugués (`LocalePT`).
+- [ ] Bloque 3 · interfaz por 5 centros (móvil primero).
+- [ ] Bloque 4 · Modo Historia (5 capítulos × 6 misiones, mentora Ada).
+- [ ] Bloque 5 · 6 productos nuevos + Eras y Fusión (Legado).
+- [ ] Bloque 6 · sede 3D jugable + minijuegos.
+- [ ] Bloque 7 · P2 (rivales, vehículos, estilos, bots, eventos de temporada, social).
+- [ ] Bloque 8 · P3 (consorcios: explicar riesgos antes).
+

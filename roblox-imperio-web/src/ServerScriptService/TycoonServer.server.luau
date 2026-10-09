@@ -14,12 +14,16 @@ local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local PolicyService = game:GetService("PolicyService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
 local PlotManager = require(ServerScriptService:WaitForChild("PlotManager"))
 local CareerService = require(ServerScriptService:WaitForChild("CareerService"))
 local MarketService = require(ServerScriptService:WaitForChild("MarketService"))
+local Validate = require(ReplicatedStorage:WaitForChild("Validate"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
+local StatePatch = require(ReplicatedStorage:WaitForChild("StatePatch"))
 
 local random = Random.new()
 local Monetization = Config.Monetization
@@ -120,7 +124,7 @@ local function newData()
 		career = CareerService.newData(),
 		tutorialDone = false,
 		dailyMissions = { day = -1, list = {}, bonusGiven = false },
-		settings = { muted = false, lang = "auto" },
+		settings = { muted = false, lang = "auto", volume = 1, music = true },
 		lastOnline = os.time(),
 		-- Ranking semanal: lo ganado esta semana y la anterior (para el premio)
 		weekly = { week = -1, earned = 0, prevWeek = -1, prevEarned = 0, rewardedWeek = -1 },
@@ -142,19 +146,39 @@ local function newData()
 		-- v3.0
 		portfolio = {}, -- Bolsa: [empresa] = { units, invested }
 		peakIncome = 0, -- mejores ingresos/s de la partida (máximo invertible)
+		-- v4.0
+		dataVersion = Config.DATA_VERSION,
 	}
 end
+
+-- Campos que son listas o mapas "id → valor": si faltan se crean, pero no se
+-- rellenan con lo que tenga la plantilla (no son registros con campos fijos)
+local RECONCILE_MAPS = {
+	sites = true, receipts = true, goals = true, codes = true, portfolio = true,
+	companies = true, research = true, collection = true, programmers = true, contracts = true,
+}
 
 -- Rellena campos que falten en partidas guardadas con versiones antiguas
 local function reconcile(data, template)
 	for key, value in template do
 		if data[key] == nil then
 			data[key] = value
-		elseif type(value) == "table" and type(data[key]) == "table" and key ~= "sites" then
+		elseif type(value) == "table" and type(data[key]) == "table" and not RECONCILE_MAPS[key] then
 			reconcile(data[key], value)
 		end
 	end
 	return data
+end
+
+-- Cambios de formato entre versiones de la partida guardada. Se ejecuta
+-- después de reconcile; fromVersion = la versión con la que se guardó.
+local function migrate(data, fromVersion: number)
+	if fromVersion < 4 then
+		-- v4: el máximo invertible en Bolsa ya no cuenta los boosts temporales
+		-- (en la v3.1 un boost x2 lo subía para siempre): se recalcula solo
+		data.peakIncome = 0
+	end
+	data.dataVersion = Config.DATA_VERSION
 end
 
 local function dataKey(player: Player): string
@@ -187,6 +211,7 @@ type Bonuses = {
 }
 type Session = {
 	data: any,
+	userId: number,
 	combo: number, -- clics seguidos
 	lastClickAt: number,
 	floors: number, -- plantas (para avisar de lo que se desbloquea)
@@ -218,6 +243,11 @@ type Session = {
 	leaderLevel: IntValue,
 	weeklyCheckAt: number, -- cuándo mirar si hay premio del ranking semanal
 	weeklyChecking: boolean,
+	closed: boolean, -- el jugador ya se fue (no se vuelve a guardar salvo al liberar)
+	errors: number, -- errores en el bucle de la economía (F8)
+	sent: any, -- copia del último estado enviado (para mandar solo lo que cambia)
+	lastSendAt: number,
+	dirty: boolean, -- hay cambios que enviar en cuanto se pueda
 }
 
 local sessions: { [Player]: Session } = {}
@@ -255,12 +285,16 @@ local weeklyTop: { BoardRow } = {}
 local weeklyTopWeek = -1
 
 local function notify(player: Player, text: string, kind: string?)
-	notifyEvent:FireClient(player, text, kind or "info")
+	if sessions[player] then
+		notifyEvent:FireClient(player, text, kind or "info")
+	end
 end
 
 -- Ventana emergente en el cliente
 local function popup(player: Player, title: string, body: string)
-	notifyEvent:FireClient(player, title, "popup", body)
+	if sessions[player] then
+		notifyEvent:FireClient(player, title, "popup", body)
+	end
 end
 
 local function gain(data, amount: number)
@@ -454,6 +488,7 @@ local function finishProject(player: Player, session: Session)
 	end
 	local def = Config.WebTypeById[project.type]
 	data.project = nil
+	session.dirty = true -- web nueva: que el cliente la vea pronto
 
 	-- ¿Sale una web rara? Se prueba de la más rara a la menos rara
 	local chanceMult = Config.variantChanceMult(data, (if serverEventIs("datastorm") then 5 else 1) * (1 + (session.bonuses.agencyRare or 0)))
@@ -722,6 +757,8 @@ end
 ---------------------------------------------------------------------
 -- Estado que se envía al cliente
 ---------------------------------------------------------------------
+local sig3 = StatePatch.sig3
+
 local function buildState(session: Session)
 	local data = session.data
 	local bonuses = session.bonuses
@@ -746,8 +783,8 @@ local function buildState(session: Session)
 			niche = site.niche,
 			design = site.design or 0,
 			designCost = Config.designCost(site),
-			totalVisits = site.totalVisits or 0,
-			earned = site.earned or 0,
+			totalVisits = sig3(site.totalVisits or 0),
+			earned = sig3(site.earned or 0),
 			viral = session.event ~= nil and session.event.id == "viral" and session.event.siteId == site.id,
 			variant = site.variant,
 			deal = if site.deal then { endsIn = math.max(0, site.deal.endsAt - os.time()), buyer = site.deal.buyer, price = site.deal.price } else nil,
@@ -762,7 +799,7 @@ local function buildState(session: Session)
 			niche = offer.niche,
 			type = offer.type,
 			mult = offer.mult,
-			timeLeft = offer.expiresAt - now,
+			timeLeft = math.ceil(offer.expiresAt - now),
 		})
 	end
 
@@ -802,7 +839,7 @@ local function buildState(session: Session)
 		ipoShares = Config.sharesForIpo(data.totalEarned),
 		ipoPatents = Config.patentsForShares(Config.sharesForIpo(data.totalEarned)),
 		maxDeals = Config.maxDeals(data),
-		quickSaleLeft = math.max(0, session.quickSaleReadyAt - now),
+		quickSaleLeft = math.max(0, math.ceil(session.quickSaleReadyAt - now)),
 		weeklyMissions = {
 			list = data.weeklyMissions.list,
 			bonusGiven = data.weeklyMissions.bonusGiven,
@@ -823,13 +860,13 @@ local function buildState(session: Session)
 		companies = data.companies,
 		unlockedAds = data.unlockedAds,
 		offers = offers,
-		event = if session.event then { name = session.event.name, timeLeft = session.event.endsAt - now } else nil,
+		event = if session.event then { name = session.event.name, timeLeft = math.ceil(session.event.endsAt - now) } else nil,
 		goals = data.goals,
 		stats = data.stats,
 		dailyAvailable = dailyAvailable,
 		dailyDay = dailyDay,
 		dailyAmount = incomeReward(session, dailyDef.minutes, dailyDef.min),
-		giftLeft = math.max(0, session.giftReadyAt - now),
+		giftLeft = math.max(0, math.ceil(session.giftReadyAt - now)),
 		giftAmount = incomeReward(session, Config.GIFT_MINUTES, Config.GIFT_MIN),
 		canSave = session.canSave,
 		lastSaveOk = session.lastSaveOk,
@@ -857,16 +894,16 @@ local function buildState(session: Session)
 		},
 		playtime = { seconds = data.playtime.seconds, claimed = data.playtime.claimed },
 		starterLeft = if data.starterBought then 0 else math.max(0, data.firstJoin + Config.STARTER_HOURS * 3600 - nowUnix),
-		serverEvent = if serverEvent then { id = serverEvent.id, endsIn = serverEvent.endsAt - now } else nil,
+		serverEvent = if serverEvent then { id = serverEvent.id, endsIn = math.ceil(serverEvent.endsAt - now) } else nil,
 		community = if community then {
 			target = community.target,
-			progress = communityProgress(),
-			endsIn = community.endsAt - now,
+			progress = sig3(communityProgress()),
+			endsIn = math.ceil(community.endsAt - now),
 		} else nil,
 		neighbors = neighbors,
 		globalTop = globalTop,
 		weekly = {
-			earned = data.weekly.earned,
+			earned = sig3(data.weekly.earned),
 			resetIn = Config.weekStart(Config.weekIndex(nowUnix) + 1) - nowUnix,
 			top = if weeklyTopWeek == Config.weekIndex(nowUnix) then weeklyTop else {},
 		},
@@ -891,13 +928,37 @@ local function buildState(session: Session)
 	}
 end
 
+-- Manda al cliente lo que ha cambiado desde el último envío (la primera vez,
+-- o si lo pide el cliente, el estado completo). FireClient(estado, esParche)
 local function sendState(player: Player)
 	local session = sessions[player]
 	if session then
 		session.leaderMoney.Value = math.clamp(math.floor(session.data.money), 0, 9e18)
 		session.leaderShares.Value = session.data.shares
 		session.leaderLevel.Value = session.data.career.stats.devLevel
-		stateEvent:FireClient(player, buildState(session))
+		local state = buildState(session)
+		session.dirty = false
+		session.lastSendAt = os.clock()
+		if session.sent == nil then
+			stateEvent:FireClient(player, state, false)
+		else
+			local patch = StatePatch.diff(session.sent, state)
+			if patch == nil then
+				return
+			end
+			stateEvent:FireClient(player, patch, true)
+		end
+		session.sent = StatePatch.copy(state)
+	end
+end
+
+-- Tras una acción: se manda ya si hace al menos STATE_MIN_INTERVAL del último
+-- envío; si no, se marca y lo manda el bucle rápido (máx. 4 envíos/s)
+local function requestState(player: Player, session: Session)
+	if os.clock() - session.lastSendAt >= Config.STATE_MIN_INTERVAL then
+		sendState(player)
+	else
+		session.dirty = true
 	end
 end
 
@@ -1072,7 +1133,7 @@ end
 
 function Actions.setAdLevel(_player: Player, session: Session, siteId: any, level: any)
 	local site = findSite(session.data, siteId)
-	if not site or type(level) ~= "number" or not Config.AdLevels[level] then
+	if not site or not Validate.integer(level, 1, #Config.AdLevels) then
 		return false, nil
 	end
 	site.adLevel = level
@@ -1229,12 +1290,32 @@ function Actions.quickSell(player: Player, session: Session, siteId: any)
 	return true, string.format("🤝 Vendiste %s a %s por %s", site.name, "un comprador anónimo", Config.formatMoney(price)), { money = true }
 end
 
-function Actions.ipo(_player: Player, session: Session)
+-- Lo que cobrarías ya por las negociaciones en curso (para la confirmación)
+local function pendingDeals(data): (number, number)
+	local count, total = 0, 0
+	for _, site in data.sites do
+		if site.deal then
+			count += 1
+			total += site.deal.price
+		end
+	end
+	return count, total
+end
+
+function Actions.ipo(player: Player, session: Session)
 	local data = session.data
-	local newShares = Config.sharesForIpo(data.totalEarned)
-	if newShares < 1 then
+	-- Las ventas que se estaban negociando se cobran ya (y cuentan para las acciones)
+	local dealCount, dealTotal = pendingDeals(data)
+	if Config.sharesForIpo(data.totalEarned + dealTotal) < 1 then
 		return false, "Necesitas ganar " .. Config.formatMoney(Config.IPO_MIN_EARNED) .. " en esta partida."
 	end
+	for i = #data.sites, 1, -1 do
+		local site = data.sites[i]
+		if site.deal then
+			completeSale(player, session, site, site.deal.price)
+		end
+	end
+	local newShares = Config.sharesForIpo(data.totalEarned)
 	local fresh = newData()
 	local newPatents = Config.patentsForShares(newShares)
 	data.patents += newPatents
@@ -1256,6 +1337,9 @@ function Actions.ipo(_player: Player, session: Session)
 	session.offers = {}
 	session.event = nil
 	refreshOffers(session)
+	if dealCount > 0 then
+		notify(player, string.format("🤝 Se cerraron %d ventas que estabas negociando: +%s", dealCount, Config.formatMoney(dealTotal)), "money")
+	end
 	return true, string.format("📈 ¡Saliste a bolsa! +%d acciones (+%d%% de dinero para siempre) y +%d 💡 patentes", newShares, math.floor(newShares * Config.SHARE_BONUS * 100), newPatents), { money = true }
 end
 
@@ -1322,7 +1406,7 @@ end
 function Actions.claimDailyMission(player: Player, session: Session, index: any)
 	ensureDailyMissions(session)
 	local daily = session.data.dailyMissions
-	local mission = type(index) == "number" and daily.list[index]
+	local mission = Validate.integer(index, 1, #daily.list) and daily.list[index]
 	if not mission then
 		return false, nil
 	end
@@ -1359,7 +1443,7 @@ function Actions.claimWeeklyMission(player: Player, session: Session, index: any
 	ensureWeeklyMissions(session)
 	local data = session.data
 	local weekly = data.weeklyMissions
-	local mission = type(index) == "number" and weekly.list[index]
+	local mission = Validate.integer(index, 1, #weekly.list) and weekly.list[index]
 	if not mission then
 		return false, nil
 	end
@@ -1402,8 +1486,31 @@ function Actions.finishTutorial(_player: Player, session: Session)
 	return true, "🎓 ¡Tutorial completado! +" .. Config.formatMoney(Config.TUTORIAL_REWARD), { money = true }
 end
 
+-- El cliente pide el estado completo (p. ej. si le llegó un parche sin tener
+-- el estado de partida)
+function Actions.requestState(_player: Player, session: Session)
+	session.sent = nil
+	return true, nil
+end
+
 function Actions.setMuted(_player: Player, session: Session, muted: any)
 	session.data.settings.muted = muted == true
+	session.data.settings.volume = if muted == true then 0 else 1
+	return true, nil
+end
+
+-- Volumen de los efectos (0..1) y música sí/no
+function Actions.setVolume(_player: Player, session: Session, volume: any)
+	if not Validate.number(volume, 0, 1) then
+		return false, nil
+	end
+	session.data.settings.volume = volume
+	session.data.settings.muted = volume == 0
+	return true, nil
+end
+
+function Actions.setMusic(_player: Player, session: Session, on: any)
+	session.data.settings.music = on == true
 	return true, nil
 end
 
@@ -1451,7 +1558,7 @@ end
 -- Visitar imperios y dar "me gusta"
 ---------------------------------------------------------------------
 local function playerByUserId(userId: any): Player?
-	if type(userId) ~= "number" then
+	if not Validate.integer(userId, 1) then
 		return nil
 	end
 	for other in sessions do
@@ -1563,11 +1670,11 @@ end
 local function giveReward(player: Player, session: Session, reward): string
 	local data = session.data
 	if reward.kind == "cash" then
-		local amount = incomeReward(session, reward.minutes or reward.rewardMinutes or 5, reward.min or 500)
+		local amount = incomeReward(session, reward.minutes or 5, reward.min or 500)
 		gain(data, amount)
 		return "+" .. Config.formatMoney(amount)
 	elseif reward.kind == "boost" then
-		local minutes = reward.minutes or reward.boostMinutes or 10
+		local minutes = reward.minutes or 10
 		data.boostUntil = math.max(data.boostUntil, os.time()) + minutes * 60
 		refreshBoost(session)
 		return "🚀 Boost x2 " .. minutes .. " min"
@@ -1605,7 +1712,7 @@ end
 function Actions.claimSeason(player: Player, session: Session, tier: any, premium: any)
 	ensureSeason(session)
 	local season = session.data.season
-	if type(tier) ~= "number" or tier < 1 or tier > Config.SEASON_TIERS or tier % 1 ~= 0 then
+	if not Validate.integer(tier, 1, Config.SEASON_TIERS) then
 		return false, nil
 	end
 	if seasonTier(season.xp) < tier then
@@ -1641,7 +1748,7 @@ end
 function Actions.claimPlaytime(player: Player, session: Session, index: any)
 	local data = session.data
 	ensurePlaytime(data)
-	local def = type(index) == "number" and Config.PlaytimeRewards[index]
+	local def = Validate.integer(index, 1, #Config.PlaytimeRewards) and Config.PlaytimeRewards[index]
 	if not def then
 		return false, nil
 	end
@@ -1649,17 +1756,17 @@ function Actions.claimPlaytime(player: Player, session: Session, index: any)
 	if data.playtime.claimed[key] then
 		return false, "Ya lo has recogido."
 	end
-	if data.playtime.seconds < def.minutes * 60 then
+	if data.playtime.seconds < def.atMinutes * 60 then
 		return false, "Aún no has jugado suficiente hoy."
 	end
 	data.playtime.claimed[key] = true
 	local text = giveReward(player, session, def)
 	addSeasonXp(player, session, Config.SeasonXp.playtime)
-	return true, string.format("⏱️ %d min jugados: %s", def.minutes, text), { money = true }
+	return true, string.format("⏱️ %d min jugados: %s", def.atMinutes, text), { money = true }
 end
 
 function Actions.redeemCode(player: Player, session: Session, text: any)
-	if type(text) ~= "string" or #text > 40 then
+	if not Validate.text(text, 40) then
 		return false, nil
 	end
 	local code = string.upper((string.gsub(text, "%s", "")))
@@ -1682,6 +1789,10 @@ end
 actionFunction.OnServerInvoke = function(player: Player, action: any, a: any, b: any)
 	local session = sessions[player]
 	if not session or type(action) ~= "string" then
+		return false, nil
+	end
+	-- Nada de NaN, infinitos ni textos enormes (F6)
+	if not Validate.args(a, b) then
 		return false, nil
 	end
 	local handler = Actions[action]
@@ -1719,7 +1830,10 @@ actionFunction.OnServerInvoke = function(player: Player, action: any, a: any, b:
 	if ok then
 		checkGoals(player, session)
 		session.income = computeIncome(session, true)
-		sendState(player)
+		-- El clic no manda estado: el cliente ya suma el progreso él solo
+		if action ~= "click" then
+			requestState(player, session)
+		end
 	end
 	return ok, message, extra
 end
@@ -1784,6 +1898,12 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	local session = player and sessions[player]
 	local product = productById[receipt.ProductId]
 	if not player or not session or not product then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	-- Si la partida no se pudo cargar no se puede guardar: no se entrega
+	-- (Roblox lo vuelve a intentar cuando el jugador vuelva). En Studio sin
+	-- publicar sí, para poder probar la tienda.
+	if not session.canSave and not RunService:IsStudio() then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local data = session.data
@@ -1866,24 +1986,64 @@ end
 ---------------------------------------------------------------------
 -- Entrar y salir del juego
 ---------------------------------------------------------------------
-local function loadData(player: Player): (any, boolean)
+-- Guardados de salida en marcha en ESTE servidor (por UserId): si el jugador
+-- vuelve a entrar antes de que acaben, se espera a que terminen
+local releasing: { [number]: boolean } = {}
+
+-- ¿Tiene la partida abierta OTRO servidor que sigue vivo?
+local function lockedByOther(lock: any): boolean
+	return type(lock) == "table" and lock.jobId ~= game.JobId
+		and type(lock.t) == "number" and os.time() - lock.t < Config.SESSION_LOCK_STALE
+end
+
+-- Carga la partida y la bloquea para este servidor (todo dentro de
+-- UpdateAsync, así dos servidores no pueden cogerla a la vez).
+-- Devuelve (datos, se puede guardar, "locked" si otro servidor la tiene).
+local function loadData(player: Player): (any, boolean, string?)
 	if not store then
-		return newData(), false
+		return newData(), false, nil
 	end
-	for attempt = 1, 3 do
-		local ok, result = pcall(function()
-			return store:GetAsync(dataKey(player))
+	local waited = 0
+	while releasing[player.UserId] and waited < 30 do
+		task.wait(0.5)
+		waited += 0.5
+	end
+	local failures, lockedTries = 0, 0
+	while true do
+		local locked, loaded, fromVersion = false, nil, 0
+		local ok, err = pcall(function()
+			store:UpdateAsync(dataKey(player), function(old)
+				locked, loaded = false, nil
+				if type(old) == "table" and lockedByOther(old._lock) then
+					locked = true
+					return nil -- no se escribe nada
+				end
+				local data = if type(old) == "table" then old else newData()
+				fromVersion = if type(old) == "table" then (tonumber(old.dataVersion) or 0) else Config.DATA_VERSION
+				data._lock = { jobId = game.JobId, t = os.time() }
+				loaded = data
+				return data
+			end)
 		end)
-		if ok then
-			if type(result) == "table" then
-				return reconcile(result, newData()), true
+		if ok and loaded then
+			reconcile(loaded, newData())
+			migrate(loaded, fromVersion)
+			return loaded, true, nil
+		elseif ok and locked then
+			lockedTries += 1
+			if lockedTries >= Config.LOCK_RETRIES then
+				return nil, false, "locked"
 			end
-			return newData(), true
+			task.wait(Config.LOCK_RETRY_WAIT)
+		else
+			failures += 1
+			warn("[ImperioWeb] Error cargando datos (intento " .. failures .. "):", err)
+			if failures >= 3 then
+				return newData(), false, nil
+			end
+			task.wait(2)
 		end
-		warn("[ImperioWeb] Error cargando datos (intento " .. attempt .. "):", result)
-		task.wait(2)
 	end
-	return newData(), false
 end
 
 local pendingSaves = 0
@@ -1897,17 +2057,50 @@ local function leaderboardValue(score: number): number
 	return 10 ^ (score / 1e14) - 1
 end
 
-function saveData(player: Player, session: Session): boolean
+-- Texto en el idioma del jugador (para Kick, que no pasa por el cliente)
+local function kickText(player: Player, text: string): string
+	local ok, localeId = pcall(function()
+		return player.LocaleId
+	end)
+	local setting = if sessions[player] then sessions[player].data.settings.lang else nil
+	return Locale.translate(Locale.resolve(setting, if ok then localeId else nil), text)
+end
+
+-- release = true al salir: guarda por última vez y quita el bloqueo
+function saveData(player: Player, session: Session, release: boolean?): boolean
 	if not session.canSave or not store then
 		return false
 	end
-	session.data.lastOnline = os.time()
+	if session.closed and not release then
+		return false -- el jugador ya se fue: lo último lo guarda la salida
+	end
+	local data = session.data
+	data.lastOnline = os.time()
 	pendingSaves += 1
+	local lost = false
 	local ok, err = pcall(function()
-		store:UpdateAsync(dataKey(player), function()
-			return session.data
+		store:UpdateAsync(dataKey(player), function(old)
+			lost = false
+			-- Otro servidor se ha quedado la partida: no la machacamos
+			if type(old) == "table" and type(old._lock) == "table" and old._lock.jobId ~= game.JobId then
+				lost = true
+				return nil
+			end
+			data._lock = if release then nil else { jobId = game.JobId, t = os.time() }
+			return data
 		end)
 	end)
+	if ok and lost then
+		ok = false
+		session.canSave = false
+		warn("[ImperioWeb] La partida de " .. player.Name .. " está abierta en otro servidor: este ya no la guarda")
+		if not release and player.Parent then
+			player:Kick(kickText(player, "Tu partida se ha abierto en otro servidor. Vuelve a entrar para seguir jugando."))
+		end
+		pendingSaves -= 1
+		session.lastSaveOk = false
+		return false
+	end
 	if leaderboardStore then
 		pcall(function()
 			leaderboardStore:SetAsync("u_" .. player.UserId, leaderboardScore(session.data.lifetimeEarned))
@@ -1998,6 +2191,9 @@ local function grantWeeklyPrize(player: Player, session: Session)
 		return
 	end
 	local ranks = ranksOfWeek(weekly.prevWeek)
+	if session.closed then
+		return -- se fue mientras se consultaba el ranking: se le dará al volver
+	end
 	if not ranks then
 		session.weeklyCheckAt = os.clock() + 120 -- se reintenta más tarde
 		return
@@ -2084,10 +2280,36 @@ local function checkPasses(player: Player, bonuses: Bonuses)
 	end
 end
 
+-- Quita el bloqueo si el jugador se fue mientras cargaba
+local function releaseLock(player: Player)
+	if not store then
+		return
+	end
+	pcall(function()
+		store:UpdateAsync(dataKey(player), function(old)
+			if type(old) == "table" and type(old._lock) == "table" and old._lock.jobId == game.JobId then
+				old._lock = nil
+				return old
+			end
+			return nil
+		end)
+	end)
+end
+
 local function onPlayerAdded(player: Player)
-	local data, canSave = loadData(player)
+	local data, canSave, status = loadData(player)
+	if status == "locked" then
+		if player.Parent then
+			player:Kick(kickText(player, "Tu partida sigue abierta en otro servidor. Espera un minuto y vuelve a entrar."))
+		end
+		return
+	end
 	if not player.Parent then
-		return -- se fue mientras cargaba
+		-- se fue mientras cargaba
+		if canSave then
+			releaseLock(player)
+		end
+		return
 	end
 
 	local leaderstats = Instance.new("Folder")
@@ -2158,6 +2380,7 @@ local function onPlayerAdded(player: Player)
 
 	local session: Session = {
 		data = data,
+		userId = player.UserId,
 		canSave = canSave,
 		bonuses = bonuses,
 		offers = {},
@@ -2189,6 +2412,11 @@ local function onPlayerAdded(player: Player)
 		lastClickAt = 0,
 		floors = Config.buildingFloors(data.lifetimeEarned),
 		achievementTiers = {},
+		closed = false,
+		errors = 0,
+		sent = nil,
+		lastSendAt = 0,
+		dirty = false,
 	}
 	sessions[player] = session
 	rolloverWeek(player, session)
@@ -2214,11 +2442,27 @@ local function onPlayerAdded(player: Player)
 	refreshOffers(session)
 	session.income = computeIncome(session, false)
 
-	-- Ganancias mientras estabas desconectado
+	-- Ganancias mientras estabas desconectado. El boost x2 y el fin de semana
+	-- x2 solo cuentan el rato que estuvieron activos mientras no estabas.
 	local isNew = data.stats.built == 0 and data.lifetimeEarned == 0
-	local away = math.clamp(os.time() - (data.lastOnline or os.time()), 0, Config.OFFLINE_MAX_HOURS * 3600)
+	local lastOnline = tonumber(data.lastOnline) or os.time()
+	local away = math.clamp(os.time() - lastOnline, 0, Config.OFFLINE_MAX_HOURS * 3600)
 	if away >= 60 and session.income > 0 then
-		local earned = session.income * away * Config.OFFLINE_RATE
+		local boost, weekendBonus = bonuses.boost, bonuses.weekend
+		bonuses.boost, bonuses.weekend = false, nil
+		local base = computeIncome(session, false)
+		bonuses.boost, bonuses.weekend = boost, weekendBonus
+		-- Se cuenta en trozos de 10 min (máx. 8 h = 48 trozos)
+		local earned = 0
+		local t = lastOnline
+		while t < lastOnline + away do
+			local step = math.min(600, lastOnline + away - t)
+			local boosted = math.clamp(data.boostUntil - t, 0, step) -- segundos con boost x2
+			local event = Config.weekendStatus(t + step / 2)
+			local weekendMult = if event and event.id == "money" then Config.WEEKEND_MONEY_MULT else 1
+			earned += base * Config.OFFLINE_RATE * weekendMult * (step + boosted)
+			t += step
+		end
 		gain(data, earned)
 		task.delay(2, function()
 			popup(player, "😴 ¡Bienvenido de vuelta!", "Mientras no estabas (" .. Config.formatTime(away) .. ") tus webs y empresas ganaron\n" .. Config.formatMoney(earned))
@@ -2283,7 +2527,10 @@ local function onPlayerRemoving(player: Player)
 		updateFriendBonus(s)
 	end
 	if session then
-		saveData(player, session)
+		session.closed = true
+		releasing[player.UserId] = true
+		saveData(player, session, true)
+		releasing[player.UserId] = nil
 	end
 end
 
@@ -2291,9 +2538,22 @@ end
 -- Clasificación global
 ---------------------------------------------------------------------
 local nameCache: { [number]: string } = {}
+local nameLookupsLeft = 0 -- consultas a Roblox que quedan en esta actualización
 
 local function nameOf(userId: number): string
 	if not nameCache[userId] then
+		-- Si está en el servidor no hace falta preguntar
+		local here = Players:GetPlayerByUserId(userId)
+		if here then
+			nameCache[userId] = here.Name
+			return here.Name
+		end
+		-- Como mucho 10 consultas por actualización (GetNameFromUserIdAsync
+		-- tiene límite de peticiones); las que falten salen en la siguiente
+		if nameLookupsLeft <= 0 then
+			return "Jugador"
+		end
+		nameLookupsLeft -= 1
 		local okName, result = pcall(function()
 			return Players:GetNameFromUserIdAsync(userId)
 		end)
@@ -2326,6 +2586,7 @@ local function topRows(board: OrderedDataStore): { BoardRow }?
 end
 
 local function refreshLeaderboard()
+	nameLookupsLeft = 10
 	if not leaderboardStore then
 		PlotManager.setLeaderboard(nil, "Publica el juego para ver la clasificación")
 		PlotManager.setWeeklyBoard(nil, "Publica el juego para ver la clasificación")
@@ -2393,8 +2654,10 @@ for name, handler in CareerService.Actions do
 end
 
 MarketService.init({
-	random = random,
 	gain = gain,
+	userId = function(session)
+		return session.userId
+	end,
 	notifyAll = function(text, kind)
 		for other in sessions do
 			notify(other, text, kind)
@@ -2421,7 +2684,8 @@ end
 
 game:BindToClose(function()
 	for player, session in sessions do
-		task.spawn(saveData, player, session)
+		session.closed = true
+		task.spawn(saveData, player, session, true)
 	end
 	-- Espera también a los guardados que ya estaban en marcha
 	task.wait(0.5)
@@ -2431,12 +2695,41 @@ game:BindToClose(function()
 	end
 end)
 
+-- Errores en los bucles: se avisan sin parar el juego (F8)
+local loopErrors = 0
+local function reportLoopError(where: string, err: any)
+	loopErrors += 1
+	if loopErrors <= 20 or loopErrors % 100 == 0 then
+		warn(string.format("[ImperioWeb] Error en %s (%d en total): %s", where, loopErrors, tostring(err)))
+	end
+end
+
+-- Envíos de estado pendientes (como mucho cada STATE_MIN_INTERVAL)
+task.spawn(function()
+	while true do
+		task.wait(Config.STATE_MIN_INTERVAL)
+		for player, session in sessions do
+			if session.dirty and os.clock() - session.lastSendAt >= Config.STATE_MIN_INTERVAL then
+				local ok, err = pcall(sendState, player)
+				if not ok then
+					reportLoopError("el envío de estado de " .. player.Name, err)
+				end
+			end
+		end
+	end
+end)
+
 -- Guardado automático
 task.spawn(function()
 	while true do
 		task.wait(Config.AUTOSAVE_INTERVAL)
 		for player, session in sessions do
-			task.spawn(saveData, player, session)
+			task.spawn(function()
+				local ok, err = pcall(saveData, player, session)
+				if not ok then
+					reportLoopError("el guardado de " .. player.Name, err)
+				end
+			end)
 		end
 	end
 end)
@@ -2445,7 +2738,10 @@ end)
 task.spawn(function()
 	task.wait(5)
 	while true do
-		refreshLeaderboard()
+		local ok, err = pcall(refreshLeaderboard)
+		if not ok then
+			reportLoopError("la clasificación", err)
+		end
 		task.wait(Config.LEADERBOARD_REFRESH)
 	end
 end)
@@ -2558,6 +2854,117 @@ local UNLOCK_NAMES = {
 	market = "📈 Bolsa e 💡 I+D",
 }
 
+-- Un segundo de economía para un jugador (si falla, no afecta a los demás)
+local function tickPlayer(player: Player, session: Session, now: number, dt: number, weekendEvent: any, weekendId: string?)
+	local data = session.data
+
+	-- Tiempo jugado hoy (premios y misión diaria "juega X minutos")
+	ensurePlaytime(data)
+	local minutesBefore = data.playtime.seconds // 60
+	data.playtime.seconds += dt
+	local minutesNow = data.playtime.seconds // 60
+	if minutesNow > minutesBefore then
+		progressDaily(session, "playtime", minutesNow - minutesBefore)
+		for _, reward in Config.PlaytimeRewards do
+			if reward.atMinutes == minutesNow then
+				notify(player, string.format("⏱️ ¡Premio por jugar %d minutos listo! Recógelo en 🛒 Tienda", reward.atMinutes), "goal")
+			end
+		end
+	end
+	ensureSeason(session)
+	ensureWeeklyMissions(session)
+	finishDeals(player, session)
+	-- Partes del juego que se abren al crecer el rascacielos
+	local floors = Config.buildingFloors(data.lifetimeEarned)
+	if floors > session.floors then
+		for feature, floor in Config.Unlocks do
+			if floor > session.floors and floor <= floors then
+				notify(player, "🔓 ¡Desbloqueado: " .. UNLOCK_NAMES[feature] .. "! Mira tu ordenador", "goal")
+				popup(player, "🔓 " .. UNLOCK_NAMES[feature], UNLOCK_INFO[feature])
+			end
+		end
+		session.floors = floors
+	end
+	-- Logros: avisar al subir de nivel (el bonus se aplica solo)
+	for _, achievement in Config.Achievements do
+		local tier = Config.achievementTier(data, achievement)
+		if tier > (session.achievementTiers[achievement.id] or 0) then
+			session.achievementTiers[achievement.id] = tier
+			notify(player, string.format("%s ¡Logro %s %s! Bonus permanente", Config.ACHIEVEMENT_TIER_EMOJIS[tier], achievement.emoji, achievement.name), "goal")
+		end
+	end
+	-- El combo se pierde si dejas de teclear
+	if session.combo > 0 and now - session.lastClickAt > Config.COMBO_WINDOW then
+		session.combo = 0
+	end
+
+	-- Evento de fin de semana: avisar cuando empieza y cuando acaba
+	if session.bonuses.weekend ~= weekendId then
+		if weekendEvent then
+			notify(player, "🎉 ¡Empieza el evento: " .. weekendEvent.emoji .. " " .. weekendEvent.name .. "!", "event")
+		else
+			notify(player, "El evento de fin de semana ha terminado. ¡Hasta el próximo!", "info")
+		end
+		session.bonuses.weekend = weekendId
+	end
+	-- Ranking semanal
+	rolloverWeek(player, session)
+	if now >= session.weeklyCheckAt and not session.weeklyChecking and data.weekly.rewardedWeek < data.weekly.prevWeek then
+		session.weeklyChecking = true
+		task.spawn(function()
+			grantWeeklyPrize(player, session)
+			session.weeklyChecking = false
+			if sessions[player] then
+				sendState(player)
+			end
+		end)
+	end
+
+	if session.event and session.event.endsAt <= now then
+		session.event = nil
+	end
+	if now >= session.nextEventAt then
+		session.nextEventAt = now + random:NextNumber(Config.EVENT_MIN_DELAY, Config.EVENT_MAX_DELAY)
+		triggerEvent(player, session)
+	end
+	local hadBoost = session.bonuses.boost
+	refreshBoost(session)
+	if hadBoost and not session.bonuses.boost then
+		notify(player, "🚀 Tu boost x2 ha terminado", "info")
+	end
+
+	CareerService.tick(player, session, dt)
+	ensureDailyMissions(session)
+	session.income = computeIncome(session, true)
+	gain(data, session.income * dt)
+	-- Lo máximo que puedes invertir en Bolsa depende de tus mejores ingresos
+	-- (sin boosts temporales ni el x2 del fin de semana: si no, un boost lo
+	-- subiría para siempre)
+	local bonuses = session.bonuses
+	local boost, weekendBonus = bonuses.boost, bonuses.weekend
+	bonuses.boost, bonuses.weekend = false, nil
+	data.peakIncome = math.max(data.peakIncome, computeIncome(session, false))
+	bonuses.boost, bonuses.weekend = boost, weekendBonus
+	-- Visitas y dinero acumulados por cada web (para su ficha)
+	local moneyMult = Config.moneyMult(data, session.bonuses)
+	for _, site in data.sites do
+		local visits = Config.siteVisits(data, site, visitMult(session, site))
+		site.totalVisits = (site.totalVisits or 0) + visits * dt
+		site.earned = (site.earned or 0) + Config.siteIncome(data, site, visits, moneyMult) * dt
+	end
+
+	local workPerSec = Config.workPerSec(data, session.bonuses) * (if serverEventIs("hackathon") then 2 else 1)
+	if workPerSec > 0 then
+		addWork(player, session, workPerSec * dt)
+	end
+	tryAutoStart(session)
+
+	refreshOffers(session)
+	checkGoals(player, session)
+	PlotManager.update(player, data.lifetimeEarned, session.income, plotExtras(session))
+	sendState(player)
+end
+
 -- Bucle de la economía: una vez por segundo
 local lastTick = os.clock()
 while true do
@@ -2568,110 +2975,17 @@ while true do
 
 	local weekendEvent = Config.weekendStatus(os.time())
 	local weekendId = if weekendEvent then weekendEvent.id else nil
-	updateServerEvent(now)
-	updateCommunity(now)
-	MarketService.tick(now)
+	for name, step in { serverEvent = updateServerEvent, community = updateCommunity, market = MarketService.tick } do
+		local ok, err = pcall(step, now)
+		if not ok then
+			reportLoopError(name, err)
+		end
+	end
 	for player, session in sessions do
-		local data = session.data
-
-		-- Tiempo jugado hoy (premios y misión diaria "juega X minutos")
-		ensurePlaytime(data)
-		local minutesBefore = data.playtime.seconds // 60
-		data.playtime.seconds += dt
-		local minutesNow = data.playtime.seconds // 60
-		if minutesNow > minutesBefore then
-			progressDaily(session, "playtime", minutesNow - minutesBefore)
-			for _, reward in Config.PlaytimeRewards do
-				if reward.minutes == minutesNow then
-					notify(player, string.format("⏱️ ¡Premio por jugar %d minutos listo! Recógelo en 🛒 Tienda", reward.minutes), "goal")
-				end
-			end
+		local ok, err = pcall(tickPlayer, player, session, now, dt, weekendEvent, weekendId)
+		if not ok then
+			session.errors += 1
+			reportLoopError("el jugador " .. player.Name, err)
 		end
-		ensureSeason(session)
-		ensureWeeklyMissions(session)
-		finishDeals(player, session)
-		-- Partes del juego que se abren al crecer el rascacielos
-		local floors = Config.buildingFloors(data.lifetimeEarned)
-		if floors > session.floors then
-			for feature, floor in Config.Unlocks do
-				if floor > session.floors and floor <= floors then
-					notify(player, "🔓 ¡Desbloqueado: " .. UNLOCK_NAMES[feature] .. "! Mira tu ordenador", "goal")
-					popup(player, "🔓 " .. UNLOCK_NAMES[feature], UNLOCK_INFO[feature])
-				end
-			end
-			session.floors = floors
-		end
-		-- Logros: avisar al subir de nivel (el bonus se aplica solo)
-		for _, achievement in Config.Achievements do
-			local tier = Config.achievementTier(data, achievement)
-			if tier > (session.achievementTiers[achievement.id] or 0) then
-				session.achievementTiers[achievement.id] = tier
-				notify(player, string.format("%s ¡Logro %s %s! Bonus permanente", Config.ACHIEVEMENT_TIER_EMOJIS[tier], achievement.emoji, achievement.name), "goal")
-			end
-		end
-		-- El combo se pierde si dejas de teclear
-		if session.combo > 0 and now - session.lastClickAt > Config.COMBO_WINDOW then
-			session.combo = 0
-		end
-
-		-- Evento de fin de semana: avisar cuando empieza y cuando acaba
-		if session.bonuses.weekend ~= weekendId then
-			if weekendEvent then
-				notify(player, "🎉 ¡Empieza el evento: " .. weekendEvent.emoji .. " " .. weekendEvent.name .. "!", "event")
-			else
-				notify(player, "El evento de fin de semana ha terminado. ¡Hasta el próximo!", "info")
-			end
-			session.bonuses.weekend = weekendId
-		end
-		-- Ranking semanal
-		rolloverWeek(player, session)
-		if now >= session.weeklyCheckAt and not session.weeklyChecking and data.weekly.rewardedWeek < data.weekly.prevWeek then
-			session.weeklyChecking = true
-			task.spawn(function()
-				grantWeeklyPrize(player, session)
-				session.weeklyChecking = false
-				if sessions[player] then
-					sendState(player)
-				end
-			end)
-		end
-
-		if session.event and session.event.endsAt <= now then
-			session.event = nil
-		end
-		if now >= session.nextEventAt then
-			session.nextEventAt = now + random:NextNumber(Config.EVENT_MIN_DELAY, Config.EVENT_MAX_DELAY)
-			triggerEvent(player, session)
-		end
-		local hadBoost = session.bonuses.boost
-		refreshBoost(session)
-		if hadBoost and not session.bonuses.boost then
-			notify(player, "🚀 Tu boost x2 ha terminado", "info")
-		end
-
-		CareerService.tick(player, session, dt)
-		ensureDailyMissions(session)
-		session.income = computeIncome(session, true)
-		gain(data, session.income * dt)
-		-- Lo máximo que puedes invertir en Bolsa depende de tus mejores ingresos
-		data.peakIncome = math.max(data.peakIncome, computeIncome(session, false))
-		-- Visitas y dinero acumulados por cada web (para su ficha)
-		local moneyMult = Config.moneyMult(data, session.bonuses)
-		for _, site in data.sites do
-			local visits = Config.siteVisits(data, site, visitMult(session, site))
-			site.totalVisits = (site.totalVisits or 0) + visits * dt
-			site.earned = (site.earned or 0) + Config.siteIncome(data, site, visits, moneyMult) * dt
-		end
-
-		local workPerSec = Config.workPerSec(data, session.bonuses) * (if serverEventIs("hackathon") then 2 else 1)
-		if workPerSec > 0 then
-			addWork(player, session, workPerSec * dt)
-		end
-		tryAutoStart(session)
-
-		refreshOffers(session)
-		checkGoals(player, session)
-		PlotManager.update(player, data.lifetimeEarned, session.income, plotExtras(session))
-		sendState(player)
 	end
 end

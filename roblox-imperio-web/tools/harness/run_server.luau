@@ -14,7 +14,7 @@ local function readSource(path)
 	end
 	return sources[path]
 end
-for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ServerScriptService/MarketService.luau", "/ReplicatedStorage/MarketConfig.luau", "/ReplicatedStorage/CityLayout.luau", "/ServerScriptService/AgencyOffice.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
+for _, rel in { "/ReplicatedStorage/CareerConfig.luau", "/ServerScriptService/CareerService.luau", "/ServerScriptService/MarketService.luau", "/ReplicatedStorage/MarketConfig.luau", "/ReplicatedStorage/CityLayout.luau", "/ServerScriptService/AgencyOffice.luau", "/ReplicatedStorage/TycoonConfig.luau", "/ReplicatedStorage/Locale.luau", "/ReplicatedStorage/LocaleEN.luau", "/ReplicatedStorage/Validate.luau", "/ReplicatedStorage/StatePatch.luau", "/ServerScriptService/Building.luau", "/ServerScriptService/Showcase.luau", "/ServerScriptService/World.luau", "/ServerScriptService/PlotManager.luau", "/ServerScriptService/TycoonServer.server.luau" } do
 	readSource(SRC .. rel)
 end
 
@@ -93,8 +93,15 @@ proxyMeta.__index = function(p, key)
 	end
 	if key == "FireClient" or key == "FireAllClients" then
 		return function(_, plr, ...)
-			local entry = { inst.Name, ... }
-			entry.to = plr -- a quién va (hay dos jugadores)
+			-- Como en Roblox, lo que viaja por un remote es una copia
+			local args = table.pack(...)
+			for i = 1, args.n do
+				if type(args[i]) == "table" then
+					args[i] = serde.decode("json", serde.encode("json", args[i]))
+				end
+			end
+			local entry = { inst.Name, table.unpack(args, 1, args.n) }
+			entry.to = plr -- a quién va (hay varios jugadores)
 			table.insert(fired, entry)
 		end
 	end
@@ -165,11 +172,32 @@ local TweenService = {
 }
 local saved = {}
 local orderedStores = {}
+local storeFail = {} -- [clave] = true → el DataStore falla para esa clave (simula una caída)
+local storeWrites = 0
+-- Como en Roblox, lo guardado es una copia en JSON (no la misma tabla)
+local function jsonCopy(v)
+	if v == nil then
+		return nil
+	end
+	return serde.decode("json", serde.encode("json", v))
+end
 local DataStoreService = {
 	GetDataStore = function()
 		return {
-			GetAsync = function(_, key) return saved[key] end,
-			UpdateAsync = function(_, key, fn) saved[key] = fn(saved[key]) end,
+			GetAsync = function(_, key)
+				if storeFail[key] then error("DataStore caído (simulado)") end
+				return jsonCopy(saved[key])
+			end,
+			-- Si la función devuelve nil, no se escribe nada (igual que en Roblox)
+			UpdateAsync = function(_, key, fn)
+				if storeFail[key] then error("DataStore caído (simulado)") end
+				local result = fn(jsonCopy(saved[key]))
+				if result ~= nil then
+					storeWrites += 1
+					saved[key] = jsonCopy(result)
+				end
+				return result
+			end,
 		}
 	end,
 	-- Una clasificación por nombre (la global y una por semana), ordenada de mayor a menor
@@ -215,12 +243,15 @@ playersFolder.Name = "Players"
 playersFolder.Parent = dataModel
 
 local closeHandlers = {}
+local studioMode = false -- RunService:IsStudio()
 local game = {
+	JobId = "servidor-A",
 	GetService = function(_, name)
 		local mocks = {
 			CollectionService = CollectionService, TweenService = TweenService, DataStoreService = DataStoreService,
 			MarketplaceService = MarketplaceService, Players = Players,
 			PolicyService = { GetPolicyInfoForPlayerAsync = function() return { ArePaidRandomItemsRestricted = false } end },
+			RunService = { IsStudio = function() return studioMode end },
 		}
 		if mocks[name] then
 			return mocks[name]
@@ -245,6 +276,8 @@ addModule(services.ReplicatedStorage, "ModuleScript", "CityLayout", SRC .. "/Rep
 addModule(services.ServerScriptService, "ModuleScript", "AgencyOffice", SRC .. "/ServerScriptService/AgencyOffice.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "Locale", SRC .. "/ReplicatedStorage/Locale.luau")
 addModule(services.ReplicatedStorage, "ModuleScript", "LocaleEN", SRC .. "/ReplicatedStorage/LocaleEN.luau")
+addModule(services.ReplicatedStorage, "ModuleScript", "Validate", SRC .. "/ReplicatedStorage/Validate.luau")
+addModule(services.ReplicatedStorage, "ModuleScript", "StatePatch", SRC .. "/ReplicatedStorage/StatePatch.luau")
 addModule(services.ServerScriptService, "ModuleScript", "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
 addModule(services.ServerScriptService, "ModuleScript", "CareerService", SRC .. "/ServerScriptService/CareerService.luau")
 addModule(services.ServerScriptService, "ModuleScript", "MarketService", SRC .. "/ServerScriptService/MarketService.luau")
@@ -264,16 +297,19 @@ local Random = {
 
 local sleeping = {}
 local fakeTime = 0
+local spawned = setmetatable({}, { __mode = "k" }) -- corrutinas creadas con task.spawn
 local task = {
 	spawn = function(fn, ...)
 		local co = coroutine.create(fn)
+		spawned[co] = true
 		local ok, err = coroutine.resume(co, ...)
 		if not ok then error(debug.traceback(co, tostring(err))) end
 		if coroutine.status(co) == "suspended" then table.insert(sleeping, co) end
 	end,
 	delay = function(_, fn, ...) fn(...) end,
+	-- Solo cede dentro de task.spawn; en el hilo principal del harness no espera
 	wait = function()
-		if coroutine.isyieldable() then coroutine.yield() end
+		if spawned[coroutine.running()] then coroutine.yield() end
 	end,
 }
 
@@ -320,6 +356,9 @@ do
 	cfg.Monetization.Products[7].id = 777 -- contrato legendario
 	cfg.Monetization.Products[8].id = 989 -- pack de inicio
 	cfg.Monetization.Products[9].id = 888 -- pase de temporada premium
+	-- En el harness el tiempo casi no avanza entre acciones: sin límite de
+	-- envíos para que cada acción mande su estado (la prueba F7 lo activa)
+	cfg.STATE_MIN_INTERVAL = 0
 end
 -- Arrancar el script del servidor (se queda dormido en su bucle principal)
 do
@@ -355,15 +394,32 @@ overrides[player] = {
 	Character = false,
 	IsFriendsWithAsync = function() return false end,
 	IsInGroupAsync = function() return false end,
+	Kick = function(_, msg) print("  [kick] Jorge:", msg) end,
 }
 local playersById = { [42] = player }
 Players.GetPlayerByUserId = function(_, id) return playersById[id] end
 Players.PlayerAdded:Fire(player)
 
+-- Estado de cada jugador tal como lo tiene su cliente: el primero llega
+-- entero y luego llegan parches (StatePatch). Devuelve una copia.
+local StatePatchMod = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("StatePatch")))
+local recon = {}
+local reconIndex = 0
 local function lastState(who)
-	for i = #fired, 1, -1 do
-		if fired[i][1] == "State" and (fired[i].to == (who or player) or fired[i].to == nil) then return fired[i][2] end
+	for i = reconIndex + 1, #fired do
+		local f = fired[i]
+		if f[1] == "State" and f.to ~= nil then
+			if f[3] == true then
+				assert(recon[f.to] ~= nil, "llegó un parche sin estado previo")
+				recon[f.to] = StatePatchMod.apply(recon[f.to], f[2])
+			else
+				recon[f.to] = f[2]
+			end
+		end
 	end
+	reconIndex = #fired
+	local current = recon[who or player]
+	return current and StatePatchMod.copy(current)
 end
 
 local actionMessages = {}
@@ -374,6 +430,50 @@ local function act(name, a, b, who)
 		table.insert(actionMessages, message)
 	end
 	return ok, message, extra
+end
+
+-- Pruebas de los fallos de la v3.1 (F1…F12): se apuntan todos y se falla al final
+local failures = {}
+local function check(id, cond, msg)
+	if cond then
+		print("  ✔ " .. id .. ": " .. msg)
+	else
+		print("  ✘ " .. id .. ": " .. msg)
+		table.insert(failures, id .. ": " .. msg)
+	end
+end
+local kicked = {}
+local function makePlayer(name, userId, friends)
+	local real = roblox.Instance.new("Folder")
+	real.Name = name
+	real.Parent = playersFolder
+	local p = wrap(real)
+	overrides[p] = {
+		UserId = userId, DisplayName = name, Name = name,
+		MembershipType = roblox.Enum.MembershipType.None,
+		CharacterAdded = signal(),
+		Character = false,
+		LocaleId = "es-es",
+		IsFriendsWithAsync = function() return friends == true end,
+		IsInGroupAsync = function() return false end,
+		Kick = function(_, msg)
+			kicked[userId] = msg
+			table.insert(actionMessages, msg)
+			print("  [kick] " .. name .. ":", msg)
+		end,
+	}
+	playersById[userId] = p
+	return p, real
+end
+local function statesTo(who)
+	local n = 0
+	for _, f in fired do
+		if f[1] == "State" and f.to == who then n += 1 end
+	end
+	return n
+end
+local function nowUnix()
+	return 1_700_000_000 + math.floor(fakeTime)
 end
 
 local s = lastState()
@@ -574,6 +674,7 @@ overrides[ana] = {
 	Character = false,
 	IsFriendsWithAsync = function() return true end,
 	IsInGroupAsync = function() return false end,
+	Kick = function(_, msg) print("  [kick] Ana:", msg) end,
 }
 playersById[43] = ana
 Players.PlayerAdded:Fire(ana)
@@ -649,7 +750,16 @@ for _, fn in closeHandlers do task.spawn(fn) end
 print("Cierre del servidor OK")
 
 -- Volver a entrar (carga de datos guardados + ganancias offline)
-fakeTime += 3600
+-- (un martes a mediodía, sin evento de fin de semana, para medir el offline)
+do
+	local wk = Config.weekIndex(nowUnix())
+	fakeTime = Config.weekStart(wk + 1) + 86400 + 12 * 3600 - 1_700_000_000
+end
+-- F10: estuvo fuera 1 h y su boost acabó a los 10 min de irse
+saved["player_42"].lastOnline = nowUnix() - 3600
+saved["player_42"].boostUntil = nowUnix() - 3000
+-- F3: hoy ya ha jugado 90 min (puede reclamar los 7 premios por tiempo)
+saved["player_42"].playtime = { day = Config.dayIndex(nowUnix()), seconds = 5400, claimed = {} }
 saved["player_42"].career.xp.tech = 20000
 saved["player_42"].money = 5e6
 saved["player_42"].totalEarned = 4e6 -- para poder salir a bolsa y probar las patentes
@@ -666,6 +776,15 @@ realPlayer.Parent = playersFolder
 Players.PlayerAdded:Fire(player)
 s = lastState()
 print("Reentrada: webs", #s.sites, "dinero", Config.formatMoney(s.money))
+do
+	-- F10: 1 h fuera con boost x2 los primeros 10 min → 70 min de ingresos base × OFFLINE_RATE
+	local base = s.giftAmount / Config.REWARD_SCALE / (Config.GIFT_MINUTES * 60)
+	local offline = s.money - 5e6
+	local expected = base * Config.OFFLINE_RATE * (3600 + 600)
+	print(string.format("  offline: %s (esperado %s, base %s/s)", Config.formatMoney(offline), Config.formatMoney(expected), Config.formatMoney(base)))
+	check("F10", base * 120 > Config.GIFT_MIN and math.abs(offline - expected) <= expected * 1e-3,
+		"ganancias offline con el boost solo mientras duró")
+end
 for _, m in s.dailyMissions.list do
 	assert(Config.DailyMissionById[m.id], "misión antigua sin migrar: " .. m.id)
 end
@@ -714,8 +833,28 @@ assert(not act("redeemCode", "LANZAMIENTO"), "un código solo se usa una vez")
 act("redeemCode", "NOEXISTE")
 act("redeemCode", 123)
 fakeTime += 2
-for i = 1, #Config.PlaytimeRewards do
-	act("claimPlaytime", i)
+do
+	local okAll = true
+	for i, def in Config.PlaytimeRewards do
+		local before = lastState()
+		local base = before.giftAmount / Config.REWARD_SCALE / (Config.GIFT_MINUTES * 60)
+		local announced = def.rewardMinutes or def.boostMinutes or def.minutes
+		local ok = act("claimPlaytime", i)
+		local after = lastState()
+		local good = ok == true
+		if def.kind == "cash" then
+			local expected = math.max(def.min, base * announced * 60) * Config.REWARD_SCALE
+			good = good and math.abs((after.money - before.money) - expected) <= expected * 1e-6
+			print(string.format("    premio %d: +%s (anunciado %d min → %s)", i, Config.formatMoney(after.money - before.money), announced, Config.formatMoney(expected)))
+		elseif def.kind == "boost" then
+			good = good and (after.boostLeft - before.boostLeft) == announced * 60
+			print(string.format("    premio %d: boost +%d s (anunciado %d min)", i, after.boostLeft - before.boostLeft, announced))
+		elseif def.kind == "ticket" then
+			good = good and (after.career.tickets[def.ticket] or 0) == (before.career.tickets[def.ticket] or 0) + def.amount
+		end
+		okAll = okAll and good
+	end
+	check("F3", okAll, "los 7 premios por tiempo pagan exactamente lo anunciado")
 end
 s = lastState()
 print(string.format("  jugado hoy %s · premios recogidos %d", Config.formatTime(s.playtime.seconds), (function() local n = 0 for _ in s.playtime.claimed do n += 1 end return n end)()))
@@ -726,6 +865,16 @@ s = lastState()
 print("  acciones:", #s.market.stocks, "· máximo por empresa", Config.formatMoney(s.market.cap), "· próximo precio en", s.market.nextTick)
 assert(#s.market.stocks == 6, "deberían cotizar 6 empresas")
 local moneyBefore = s.money
+do
+	tick(1)
+	local capBefore = lastState().market.cap
+	MarketplaceService.ProcessReceipt({ PlayerId = 42, ProductId = 333, PurchaseId = "boostCap" })
+	tick(1)
+	local capAfter = lastState().market.cap
+	print(string.format("  máximo invertible: %s → %s con boost", Config.formatMoney(capBefore), Config.formatMoney(capAfter)))
+	check("F5c", capAfter <= capBefore * 1.01, "un boost x2 no sube el máximo invertible en Bolsa")
+end
+moneyBefore = lastState().money
 act("buyStock", "byte", 0.1)
 act("buyStock", "nope", 0.1)
 act("buyStock", "byte", 5) -- fracción no válida
@@ -740,20 +889,79 @@ for _ = 1, 40 do
 end
 s = lastState()
 for _, stock in s.market.stocks do
-	print(string.format("    %s %s · %s · %d puntos", stock.id, Config.formatMoney(stock.price), stock.mode, #stock.history))
+	print(string.format("    %s %s · rumor %s · %d puntos", stock.id, Config.formatMoney(stock.price), tostring(stock.rumor), #stock.history))
+end
+do
+	-- F4: el precio es el mismo que calcularía cualquier otro servidor
+	local Market = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("MarketConfig")))
+	local tickNow = nowUnix() // Market.TICK
+	local same, independent = true, true
+	for i, stock in s.market.stocks do
+		local fresh = Market.priceOf(i, Market.xAt(i, tickNow))
+		same = same and math.abs(stock.price / fresh - 1) < 1e-6
+		-- Un servidor que arrancó 300 ticks antes llega al mismo precio
+		local x = Market.xAt(i, tickNow - 300)
+		for t = tickNow - 299, tickNow do x = Market.step(x, i, t) end
+		independent = independent and math.abs(Market.priceOf(i, x) / fresh - 1) < 1e-9
+		-- La gráfica: el último punto (antes de head) es el precio actual
+		local newest = stock.history[((stock.head or 1) - 2) % #stock.history + 1]
+		same = same and math.abs(newest / stock.price - 1) < 1e-9 and #stock.history == Market.HISTORY
+	end
+	check("F4a", same, "los precios coinciden con el cálculo global (iguales en todos los servidores)")
+	check("F4b", independent, "da igual cuándo arrancó el servidor")
+	-- F5: no se envía la tendencia real; el rumor acierta ~60 %
+	local leaks = false
+	for _, stock in s.market.stocks do
+		if stock.mode ~= nil then leaks = true end
+	end
+	local hits, total = 0, 0
+	for block = 1, 3000 do
+		local t = (tickNow // Market.MODE_BLOCK - block) * Market.MODE_BLOCK
+		local truth = Market.ModeById[Market.modeAt(1 + block % 6, t)].dir
+		if Market.rumor(1 + block % 6, t, 42, 0.6) == truth then hits += 1 end
+		total += 1
+	end
+	print(string.format("  rumor del analista: acierta %.1f %% (%d bloques)", hits / total * 100, total))
+	check("F5a", not leaks and math.abs(hits / total - 0.6) < 0.04, "la tendencia real no se envía y el rumor acierta ~60 %")
+	check("F5b", Market.DIVIDEND <= 0.0005 + 1e-12, "dividendo ~0,05 % por tick")
 end
 fakeTime += 2
 act("sellStock", "byte", 0.5)
 act("sellStock", "byte", 1)
 act("sellStock", "byte", 1) -- ya no tiene
 act("sellStock", "pixl", 2) -- fracción no válida
+act("sellStock", "pixl", 0 / 0) -- NaN (exploit)
+act("buyStock", "pixl", math.huge)
+check("F6", lastState().money == lastState().money and lastState().money ~= math.huge, "vender acciones con NaN no rompe el dinero")
 assert(lastState().market.stocks[1].units == 0, "debería haber vendido todo")
 fakeTime += 2
+-- F9: deja una venta negociándose justo antes de salir a bolsa
+local dealPrice = 0
+for _ = 1, 30 do
+	s = lastState()
+	for _, offer in s.offers do
+		for _, site in s.sites do
+			if dealPrice == 0 and site.type == offer.type and not site.deal and act("sellToOffer", offer.id, site.id) then
+				for _, site2 in lastState().sites do
+					if site2.id == site.id and site2.deal then dealPrice = site2.deal.price end
+				end
+			end
+		end
+	end
+	if dealPrice > 0 then break end
+	fakeTime += 50
+	tick(1)
+end
+fakeTime += 2
+s = lastState()
+local lifetimeBeforeIpo = s.lifetimeEarned
 local patentsBefore = s.patents
 act("ipo")
 s = lastState()
 print("  patentes tras salir a bolsa:", patentsBefore, "→", s.patents, "· dinero inicial", Config.formatMoney(s.money))
 assert(s.patents > patentsBefore, "salir a bolsa debería dar patentes")
+check("F9", dealPrice > 0 and s.lifetimeEarned >= lifetimeBeforeIpo + dealPrice * 0.999,
+	"las negociaciones en curso se cobran al salir a bolsa (" .. Config.formatMoney(dealPrice) .. ")")
 for _, stock in s.market.stocks do
 	assert(stock.units == 0, "al salir a bolsa se pierden las acciones")
 end
@@ -805,13 +1013,146 @@ print("  bonus de logros: dinero", Config.achievementBonus(s, "money"), "· clic
 
 fs.writeFile("state.json", serde.encode("json", lastState()))
 
+-- F7: cuánto ocupa lo que se manda cada segundo ------------------------
+print("-- F7: tamaño del estado --")
+do
+	local fullSize = #serde.encode("json", lastState())
+	local startIdx = #fired
+	for _ = 1, 40 do
+		fakeTime += 1
+		tick(1)
+	end
+	local maxSize, total, count, full = 0, 0, 0, 0
+	local byKey = {}
+	local sizes = {}
+	for i = startIdx + 1, #fired do
+		local f = fired[i]
+		if f[1] == "State" and f.to == player then
+			if f[3] == true then
+				local size = #serde.encode("json", f[2])
+				for key, value in f[2] do
+					byKey[key] = (byKey[key] or 0) + #serde.encode("json", { [key] = value })
+				end
+				if process.env.DEBUG_PATCH and size > 2000 then
+					for key, value in f[2] do print("DEBUG", key, #serde.encode("json", { [key] = value }), string.sub(serde.encode("json", value), 1, 300)) end
+				end
+				table.insert(sizes, size)
+				maxSize = math.max(maxSize, size)
+				total += size
+				count += 1
+			else
+				full += 1
+			end
+		end
+	end
+	table.sort(sizes)
+	local p90 = sizes[math.max(1, math.ceil(#sizes * 0.9))] or 0
+	print(string.format("  estado completo %d bytes · parches por segundo: media %d, p90 %d, máx. %d bytes (%d envíos, %d completos)",
+		fullSize, total // math.max(count, 1), p90, maxSize, count, full))
+	local keys = {}
+	for key, bytes in byKey do table.insert(keys, { key = key, bytes = bytes // math.max(count, 1) }) end
+	table.sort(keys, function(x, y) return x.bytes > y.bytes end)
+	local parts = {}
+	for i = 1, math.min(8, #keys) do table.insert(parts, keys[i].key .. "=" .. keys[i].bytes) end
+	print("  bytes por segundo de cada parte: " .. table.concat(parts, ", "))
+	-- (medido en JSON; por la red de Roblox los números ocupan menos)
+	check("F7a", count > 0 and full == 0 and total / count < 1536 and p90 < 2048 and maxSize < 4096,
+		"cada segundo solo viaja lo que cambia (media < 1,5 KB, p90 < 2 KB)")
+	-- Los clics no mandan estado
+	s = lastState()
+	fakeTime += 100
+	if #s.sites >= s.slots then act("quickSell", s.sites[1].id) end
+	fakeTime += 1.1
+	act("startProject", "landing")
+	local before = statesTo(player)
+	for _ = 1, 3 do invoke(player, "click") fakeTime += 0.1 end
+	check("F7b", statesTo(player) == before, "los clics no mandan estado")
+	-- Como mucho 4 envíos por segundo
+	Config.STATE_MIN_INTERVAL = 0.25
+	fakeTime += 1.1
+	before = statesTo(player)
+	for i = 1, 8 do act("setNiche", if i % 2 == 0 then "gaming" else "tech") end
+	local burst = statesTo(player) - before
+	fakeTime += 0.3
+	tick(0)
+	local afterFlush = statesTo(player) - before
+	Config.STATE_MIN_INTERVAL = 0
+	print(string.format("  8 acciones seguidas: %d envíos al momento, %d tras 0,3 s", burst, afterFlush))
+	check("F7c", burst <= 1 and afterFlush >= 1 and afterFlush <= 3 and lastState().selectedNiche == "gaming",
+		"como mucho 4 envíos por segundo y el último cambio llega igual")
+end
+
+-- F1: bloqueo de sesión del guardado ----------------------------------
+print("-- F1: bloqueo de sesión --")
+local luis = makePlayer("Luis", 44)
+Players.PlayerAdded:Fire(luis)
+fakeTime += 1.1
+Players.PlayerRemoving:Fire(luis)
+check("F1a", saved["player_44"] ~= nil and saved["player_44"]._lock == nil, "al salir se guarda y se libera el bloqueo")
+-- Otro servidor tiene la partida abierta ahora mismo
+saved["player_44"]._lock = { jobId = "servidor-B", t = nowUnix() }
+saved["player_44"].money = 777
+local statesBefore = statesTo(luis)
+Players.PlayerAdded:Fire(luis)
+check("F1b", kicked[44] ~= nil and statesTo(luis) == statesBefore and saved["player_44"]._lock.jobId == "servidor-B",
+	"si otro servidor tiene la partida abierta, no se carga (se le echa con aviso)")
+Players.PlayerRemoving:Fire(luis)
+check("F1c", saved["player_44"].money == 777 and saved["player_44"]._lock.jobId == "servidor-B", "el que no cargó no guarda al salir")
+-- Bloqueo caducado (servidor caído hace una hora): se roba
+kicked[44] = nil
+saved["player_44"]._lock = { jobId = "servidor-B", t = nowUnix() - 3600 }
+Players.PlayerAdded:Fire(luis)
+check("F1d", kicked[44] == nil and lastState(luis) and lastState(luis).money == 777 and saved["player_44"]._lock and saved["player_44"]._lock.jobId == "servidor-A",
+	"un bloqueo caducado se roba y se carga la partida")
+-- Mientras juega, otro servidor le quita la partida: este ya no debe guardar
+saved["player_44"]._lock = { jobId = "servidor-B", t = nowUnix() }
+saved["player_44"].money = 999
+fakeTime += 40
+act("saveNow", nil, nil, luis)
+check("F1e", saved["player_44"].money == 999 and kicked[44] ~= nil, "si perdemos el bloqueo no se machaca la partida")
+Players.PlayerRemoving:Fire(luis)
+check("F1f", saved["player_44"].money == 999 and saved["player_44"]._lock.jobId == "servidor-B", "ni al salir")
+check("F1g", saved["player_42"].dataVersion ~= nil and saved["player_42"].dataVersion >= 4, "las partidas llevan dataVersion")
+
+-- F2: compra con Robux cuando la partida no se pudo cargar ------------
+print("-- F2: compras sin guardado --")
+local marta = makePlayer("Marta", 45)
+storeFail["player_45"] = true
+Players.PlayerAdded:Fire(marta)
+local mBefore = lastState(marta).money
+local decision = MarketplaceService.ProcessReceipt({ PlayerId = 45, ProductId = 111, PurchaseId = "m1" })
+check("F2a", tostring(decision) == tostring(roblox.Enum.ProductPurchaseDecision.NotProcessedYet) and lastState(marta).money == mBefore,
+	"sin guardado (fuera de Studio) la compra queda pendiente y no se entrega")
+studioMode = true
+decision = MarketplaceService.ProcessReceipt({ PlayerId = 45, ProductId = 111, PurchaseId = "m2" })
+studioMode = false
+check("F2b", tostring(decision) == tostring(roblox.Enum.ProductPurchaseDecision.PurchaseGranted) and lastState(marta).money > mBefore,
+	"en Studio sin publicar se sigue entregando para probar")
+Players.PlayerRemoving:Fire(marta)
+storeFail["player_45"] = nil
+
+-- F8: un jugador con datos raros no debe parar la economía de los demás
+print("-- F8: errores aislados por jugador --")
+local pablo = makePlayer("Pablo", 46)
+Players.PlayerAdded:Fire(pablo)
+fakeTime += 1.1
+Players.PlayerRemoving:Fire(pablo)
+saved["player_46"].playtime = { day = Config.dayIndex(nowUnix()), seconds = "roto", claimed = {} }
+pcall(function() Players.PlayerAdded:Fire(pablo) end)
+local jBefore = lastState(player).money
+local okTicks = pcall(function()
+	for _ = 1, 3 do tick(1) end
+end)
+check("F8", okTicks and lastState(player).money > jBefore, "el bucle sigue pagando a los demás aunque falle uno")
+pcall(function() Players.PlayerRemoving:Fire(pablo) end)
+
 -- Traducciones: todo lo que ha dicho el servidor debe salir en inglés
 local Locale = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("Locale")))
 local properNames = {}
 for _, c in Career.Companies do table.insert(properNames, c.name) end
 for _, n in Career.FirstNames do table.insert(properNames, n) end
 table.sort(properNames, function(a, b) return #a > #b end)
-local SPANISH = { " de ", " la ", " el ", " tu ", " tus ", " para ", " con ", " por ", " en ", " una ", " del ", " los ", " las ", " y ", "¿", "¡", "á", "é", "í", "ó", "ú", "ñ" }
+local SPANISH = { " de ", " la ", " el ", " tu ", " tus ", " para ", " con ", " por ", " en ", " una ", " del ", " los ", " las ", " y ", " que ", " se ", " Se ", " es ", "¿", "¡", "á", "é", "í", "ó", "ú", "ñ" }
 local function stripName(text, name)
 	local i = string.find(text, name, 1, true)
 	while i do
@@ -857,5 +1198,10 @@ local count = 0
 for _ in seenText do count += 1 end
 print("Textos del servidor traducidos:", count - bad, "de", count)
 assert(bad == 0, "hay textos del servidor sin traducir")
+if #failures > 0 then
+	print("FALLOS (" .. #failures .. "):")
+	for _, f in failures do print("  - " .. f) end
+	error("hay pruebas F1–F12 que fallan")
+end
 print("TODO OK")
 process.exit(0)
