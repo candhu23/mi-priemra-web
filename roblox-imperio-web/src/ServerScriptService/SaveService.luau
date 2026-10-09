@@ -113,6 +113,7 @@ local function newData()
 		-- v4.0
 		dataVersion = Config.DATA_VERSION,
 		badges = {}, -- [clave de Config.Badges] = true cuando ya se ha dado
+		story = { chapter = 1, mission = 1, done = false }, -- Modo Historia (StoryConfig)
 		analytics = { onboarding = {} }, -- pasos del embudo ya enviados
 	}
 end
@@ -144,6 +145,13 @@ local function migrate(data, fromVersion: number)
 		-- v4: el máximo invertible en Bolsa ya no cuenta los boosts temporales
 		-- (en la v3.1 un boost x2 lo subía para siempre): se recalcula solo
 		data.peakIncome = 0
+	end
+	if fromVersion < 5 then
+		-- v4 (Modo Historia): quien ya ha llegado lejos no empieza la historia
+		-- desde el garaje (le saldrían 20 avisos seguidos); el resto sí
+		if (data.ipoCount or 0) >= 1 or (data.lifetimeEarned or 0) >= 1e7 then
+			data.story.done = true
+		end
 	end
 	data.dataVersion = Config.DATA_VERSION
 end

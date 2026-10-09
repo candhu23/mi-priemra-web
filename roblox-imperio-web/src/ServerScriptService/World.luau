@@ -18,8 +18,10 @@ local Workspace = game:GetService("Workspace")
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("TycoonConfig"))
 local City = require(game:GetService("ReplicatedStorage"):WaitForChild("CityLayout"))
 local Building = require(script.Parent:WaitForChild("Building"))
+local MentorNpc = require(script.Parent:WaitForChild("MentorNpc"))
 
 local World = {}
+World.adaPrompt = nil :: ProximityPrompt? -- Ada de la plaza (lo conecta PlotManager)
 
 World.PLOT_COUNT = 8
 World.PLOT_SIZE = City.PLOT_SIZE
@@ -735,6 +737,10 @@ function World.build(): { CFrame }
 	buildStockExchange(city)
 	buildCrosswalks(city)
 	buildHelpSign(city)
+	-- Ada (Modo Historia), junto al cartel de ayuda mirando a la zona de aparición
+	local adaPosition = PLAZA_CENTER + Vector3.new(9, 0.6, 27)
+	local _ada, adaPrompt = MentorNpc.build(city, CFrame.lookAt(adaPosition, PLAZA_CENTER + Vector3.new(0, 0.6, 20)))
+	World.adaPrompt = adaPrompt
 	World.setLeaderboard(nil, "Cargando...")
 	World.setWeeklyBoard(nil, "Cargando...")
 

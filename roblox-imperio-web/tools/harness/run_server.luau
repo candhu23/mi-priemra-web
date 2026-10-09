@@ -1074,7 +1074,7 @@ do
 	act("tutorialStep", 1) -- repetido: no se apunta dos veces
 	act("tutorialStep", 0 / 0)
 	local funnel = 0
-	for _, entry in analyticsLog do if entry.kind == "funnel" then funnel += 1 end end
+	for _, entry in analyticsLog do if entry.kind == "funnel" and entry.args[2] == "Tutorial" then funnel += 1 end end
 	check("A4", funnel == 1, "embudo del tutorial (un evento por paso)")
 end
 
@@ -1210,6 +1210,88 @@ local okTicks = pcall(function()
 end)
 check("F8", okTicks and lastState(player).money > jBefore, "el bucle sigue pagando a los demás aunque falle uno")
 pcall(function() Players.PlayerRemoving:Fire(pablo) end)
+
+-- Bloque 4: Modo Historia --------------------------------------------
+print("-- Modo Historia --")
+do
+	local ServerStateMod = requireModule(wrap(services.ServerScriptService:FindFirstChild("ServerState")))
+	local sofia = makePlayer("Sofía", 47)
+	Players.PlayerAdded:Fire(sofia)
+	fakeTime += 1.1
+	local session = ServerStateMod.sessions[sofia]
+	local story0 = lastState(sofia).story
+	check("H1", story0 and story0.chapter == 1 and story0.mission == 1 and not story0.done and story0.target == 1,
+		"una partida nueva empieza en el capítulo 1, misión 1")
+	local function notifiesTo(who, kind)
+		local n = 0
+		for _, f in fired do
+			if f[1] == "Notify" and f.to == who and f[3] == kind then n += 1 end
+		end
+		return n
+	end
+	-- Misión 1: programar la primera web (la hace de verdad)
+	local storyBefore = notifiesTo(sofia, "story")
+	act("startProject", "landing", nil, sofia)
+	for _ = 1, 200 do
+		fakeTime += 0.08
+		invoke(sofia, "click")
+		if session.data.stats.built >= 1 then break end
+	end
+	local moneyBefore = session.data.money
+	tick(1)
+	local st = lastState(sofia).story
+	check("H2", st.mission == 2 and session.data.money > moneyBefore and notifiesTo(sofia, "story") > storyBefore,
+		"al cumplir una misión se cobra el premio, avisa Ada y pasa a la siguiente")
+	-- Como mucho una misión por segundo
+	session.data.stats.sold = 5
+	session.data.lifetimeEarned = math.max(session.data.lifetimeEarned, 2000)
+	session.data.story.mission = 4
+	tick(1)
+	check("H3", session.data.story.mission == 5, "como mucho una misión por segundo")
+	-- Fin de capítulo: premio especial (boost) y aviso de capítulo
+	session.data.story.mission = 6
+	local boostBefore = session.data.boostUntil or 0
+	local chapterBefore = notifiesTo(sofia, "chapter")
+	tick(1)
+	st = lastState(sofia).story
+	check("H4", st.chapter == 2 and st.mission == 1 and (session.data.boostUntil or 0) > boostBefore and notifiesTo(sofia, "chapter") == chapterBefore + 1,
+		"al acabar un capítulo da su premio especial y la ventana del capítulo")
+	-- Hablar con Ada
+	storyBefore = notifiesTo(sofia, "story")
+	local okTalk = act("talkToAda", nil, nil, sofia)
+	check("H5", okTalk == true and notifiesTo(sofia, "story") == storyBefore + 1, "hablar con Ada repite la misión actual")
+	-- Último capítulo: la historia termina
+	session.data.story.chapter = 5
+	session.data.story.mission = 6
+	session.data.ipoCount = 2
+	local legacyPatents = session.data.patents or 0
+	tick(1)
+	st = lastState(sofia).story
+	check("H6", st.done == true and session.data.story.done == true and (session.data.patents or 0) > legacyPatents,
+		"la última misión termina la historia (premio: patentes)")
+	tick(1)
+	check("H7", session.data.story.done == true and session.data.story.chapter == 5, "una historia terminada no vuelve a avanzar")
+	act("talkToAda", nil, nil, sofia)
+	Players.PlayerRemoving:Fire(sofia)
+	-- Veteranos: partida de la v4-alpha con mucho ganado → historia completada
+	saved["player_48"] = { money = 10, lifetimeEarned = 2e7, totalEarned = 5e6, dataVersion = 4, ipoCount = 0 }
+	local rosa = makePlayer("Rosa", 48)
+	Players.PlayerAdded:Fire(rosa)
+	local rs = lastState(rosa)
+	check("H8", rs and rs.story and rs.story.done == true, "los veteranos no empiezan la historia desde el garaje")
+	Players.PlayerRemoving:Fire(rosa)
+	saved["player_49"] = { money = 10, lifetimeEarned = 500, totalEarned = 500, dataVersion = 4, ipoCount = 0 }
+	local nuevo = makePlayer("Hugo", 49)
+	Players.PlayerAdded:Fire(nuevo)
+	rs = lastState(nuevo)
+	check("H9", rs and rs.story and rs.story.done == false and rs.story.chapter == 1, "los que llevan poco sí hacen la historia")
+	Players.PlayerRemoving:Fire(nuevo)
+	local funnelHistoria = 0
+	for _, entry in analyticsLog do
+		if entry.kind == "funnel" and entry.args[2] == "Historia" then funnelHistoria += 1 end
+	end
+	check("A5", funnelHistoria >= 4, "embudo de la historia en la analítica")
+end
 
 -- Traducciones: todo lo que ha dicho el servidor debe salir en inglés
 local Locale = requireModule(wrap(services.ReplicatedStorage:FindFirstChild("Locale")))

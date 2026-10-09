@@ -10,13 +10,13 @@
 
 local Config = {}
 
-Config.VERSION = "4.0-alpha.3"
+Config.VERSION = "4.0-alpha.4"
 
 ---------------------------------------------------------------------
 -- Ajustes generales
 ---------------------------------------------------------------------
 Config.DATASTORE_NAME = "ImperioWeb_v1"
-Config.DATA_VERSION = 4 -- versión de la partida guardada (migrate() en el servidor)
+Config.DATA_VERSION = 5 -- versión de la partida guardada (migrate() en el servidor)
 -- Bloqueo de sesión: la partida guarda qué servidor la tiene abierta. Se
 -- renueva en cada guardado (cada minuto). Si otro servidor la tiene y su
 -- bloqueo es reciente, se reintenta LOCK_RETRIES veces cada LOCK_RETRY_WAIT s;

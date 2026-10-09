@@ -16,6 +16,7 @@ local localeSource = fs.readFile(SRC .. "/ReplicatedStorage/Locale.luau")
 local localeEnSource = fs.readFile(SRC .. "/ReplicatedStorage/LocaleEN.luau")
 local localePtSource = fs.readFile(SRC .. "/ReplicatedStorage/LocalePT.luau")
 local patchSource = fs.readFile(SRC .. "/ReplicatedStorage/StatePatch.luau")
+local storySource = fs.readFile(SRC .. "/ReplicatedStorage/StoryConfig.luau")
 local stateJson = serde.decode("json", fs.readFile("state.json"))
 local visitJson = serde.decode("json", fs.readFile("visit.json"))
 
@@ -286,6 +287,9 @@ local patchModule = roblox.Instance.new("ModuleScript")
 patchModule.Name = "StatePatch"
 patchModule.Parent = services.ReplicatedStorage
 local StatePatchMod = luau.load(patchSource, { debugName = "StatePatch", environment = env(nil) })()
+local storyModule = roblox.Instance.new("ModuleScript")
+storyModule.Name = "StoryConfig"
+storyModule.Parent = services.ReplicatedStorage
 local EN = luau.load(localeEnSource, { debugName = "LocaleEN", environment = env(nil) })()
 local PT = luau.load(localePtSource, { debugName = "LocalePT", environment = env(nil) })()
 local localePtModule = roblox.Instance.new("ModuleScript")
@@ -302,6 +306,7 @@ Locale.onMissing = function(text, lang)
 	missing[text] = lang or true
 end
 local modulesByName = { CareerConfig = CareerCfg, MarketConfig = MarketCfg, Locale = Locale, LocaleEN = EN, LocalePT = PT, TycoonConfig = Config, StatePatch = StatePatchMod }
+modulesByName.StoryConfig = luau.load(storySource, { debugName = "StoryConfig", environment = env(nil) })()
 -- PlayerScripts: el LocalScript y la carpeta ClientUI con sus módulos (v4)
 local playerScripts = roblox.Instance.new("Folder")
 playerScripts.Name = "PlayerScripts"

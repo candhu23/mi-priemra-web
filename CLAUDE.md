@@ -10,7 +10,7 @@ repositorio. Léelo entero antes de tocar nada.
 - **Juego de Roblox** tipo *tycoon* en Luau: eres un emprendedor que programa páginas web,
   las monetiza con apps de anuncios, las vende a empresas según sus visitas, hace encargos
   para empresas ficticias, funda su agencia de programadores, invierte en la Bolsa y sale a bolsa.
-- **Versión actual del código: 4.0-alpha.3** (`Config.VERSION` en `TycoonConfig.luau`;
+- **Versión actual del código: 4.0-alpha.4** (`Config.VERSION` en `TycoonConfig.luau`;
   súbelo en cada versión nueva). **La v4 está a medias: mira §14** (qué está hecho y qué falta)
   y el encargo completo en `PROMPT_V4.md` (raíz del repo).
 - **Publicado en Roblox** como *Web Empire Tycoon* (creador: `Candu231`).
@@ -66,7 +66,8 @@ roblox-imperio-web/
     │   ├── LocaleEN.luau       # Diccionario español → inglés (~950 textos; sus claves son la lista oficial)
     │   ├── LocalePT.luau       # (v4) Diccionario español → portugués de Brasil (mismas claves)
     │   ├── Validate.luau       # (v4) number/integer/text/args: valida TODO lo que manda el cliente
-    │   └── StatePatch.luau     # (v4) diff/apply/copy/sig3: el estado viaja por diferencias
+    │   ├── StatePatch.luau     # (v4) diff/apply/copy/sig3/timer: el estado viaja por diferencias
+    │   └── StoryConfig.luau    # (v4) Modo Historia: 5 capítulos × 6 misiones (mentora Ada)
     ├── ServerScriptService/
     │   ├── TycoonServer.server.luau  # (v4) Orquestador: junta las acciones de los módulos, entrar/salir,
     │   │                             #   tickPlayer (1 s), bucles (guardado, ranking, analítica, envíos)
@@ -177,8 +178,9 @@ Rojo mapea `src/<Servicio>` → el servicio de mismo nombre. `*.server.luau` = S
   reentrada rápida en el mismo servidor. Si el jugador se va mientras carga, `releaseLock`.
 - **v4 · Compras (F2)**: si `not canSave` y no es Studio, `ProcessReceipt` devuelve
   `NotProcessedYet` sin dar nada (Roblox lo reintenta cuando vuelva).
-- **v4 · Versión de la partida**: `dataVersion` (= `Config.DATA_VERSION`, 4) y `migrate(data,
+- **v4 · Versión de la partida**: `dataVersion` (= `Config.DATA_VERSION`, 5) y `migrate(data,
   fromVersion)` tras `reconcile`. Migración a 4: `peakIncome = 0` (se recalcula sin boosts).
+  Migración a 5: `story.done = true` si ya salió a bolsa o lleva ≥ $10M ganados (veteranos).
   `reconcile` no rellena por dentro los mapas de `RECONCILE_MAPS` (sites, receipts, goals…).
 - `reconcile()` rellena campos nuevos en partidas viejas. **Si añades un campo a `newData()`,
   las partidas antiguas lo reciben solas**; para campos de cada web hay una migración en
@@ -548,7 +550,17 @@ Se hace por bloques, un commit por bloque con `check.sh` en verde:
   Pruebas A1–A4 y B1 en `run_server.luau`; pasada completa en PT en `run_client.luau`.
 - [x] **Bloque 3 · interfaz por 5 centros** (4.0-alpha.3). Harness del cliente: tamaños en
   844×390, 390×844 y 1920×1080 (≥ 44 px, cabe), 5 centros, cada pestaña en uno, cada centro abre lo suyo.
-- [ ] Bloque 4 · Modo Historia (5 capítulos × 6 misiones, mentora Ada).
+- [x] **Bloque 4 · Modo Historia** (4.0-alpha.4). `StoryConfig` (5 capítulos × 6 misiones con
+  `value(d)`/`target`, premio por misión en minutos de ingresos y premio por capítulo con
+  `RewardService.giveReward`), `StoryService` (mira la misión cada segundo, máx. una por tick;
+  Notify `story` = aviso de Ada, `chapter` = ventana de capítulo; embudo de analítica "Historia";
+  acción `talkToAda`), `MentorNpc` (Ada hecha con piezas: en la plaza y junto al ordenador de cada
+  parcela, ProximityPrompt → abre la pestaña 📖 Historia y saluda). Cliente: `TabStory` (centro
+  🎯 Progreso, primera pestaña), la tarjeta de misión del HUD muestra la de la historia mientras
+  no esté acabada, y al acabar un capítulo hay media vuelta de cámara (6 s) alrededor de tu parcela.
+  `data.story = {chapter, mission, done}`. Pruebas H1–H9 y A5 en `run_server.luau`.
+  Para que los parches sigan < 2 KB: progreso/premio con `sig3` y `StatePatch.timer` (los
+  temporizadores de más de 1 h van al minuto; `formatTime` no enseña segundos ahí).
 - [ ] Bloque 5 · 6 productos nuevos + Eras y Fusión (Legado).
 - [ ] Bloque 6 · sede 3D jugable + minijuegos.
 - [ ] Bloque 7 · P2 (rivales, vehículos, estilos, bots, eventos de temporada, social).

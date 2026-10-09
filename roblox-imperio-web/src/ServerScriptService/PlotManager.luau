@@ -17,6 +17,7 @@ local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Tycoon
 local World = require(script.Parent:WaitForChild("World"))
 local Building = require(script.Parent:WaitForChild("Building"))
 local Showcase = require(script.Parent:WaitForChild("Showcase"))
+local MentorNpc = require(script.Parent:WaitForChild("MentorNpc"))
 
 local PlotManager = {}
 
@@ -68,7 +69,7 @@ local function surfaceLabel(parent: Instance, text: string, size: UDim2, positio
 	return label
 end
 
-local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: (Player) -> (), onVisit: (Player, Player) -> ()): Plot
+local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: (Player) -> (), onVisit: (Player, Player) -> (), onTalk: (Player) -> ()): Plot
 	local model = Instance.new("Model")
 	model.Name = "Parcela" .. index
 	local style = Building.Styles[(index - 1) % #Building.Styles + 1]
@@ -180,6 +181,9 @@ local function buildPlot(city: Instance, index: number, origin: CFrame, onOpen: 
 			onOpen(player)
 		end
 	end)
+	-- Ada, la mentora del Modo Historia, junto al ordenador
+	local _ada, adaPrompt = MentorNpc.build(model, origin * CFrame.new(17, 0.8, -32))
+	adaPrompt.Triggered:Connect(onTalk)
 	visitPrompt.Triggered:Connect(function(visitor)
 		if plot.owner then
 			onVisit(visitor, plot.owner)
@@ -191,12 +195,16 @@ end
 
 -- Crea la ciudad y las parcelas. Llamar una sola vez al arrancar.
 -- onOpen(dueño) abre su ordenador; onVisit(visitante, dueño) su ficha.
-function PlotManager.init(onOpen: (Player) -> (), onVisit: ((Player, Player) -> ())?)
+function PlotManager.init(onOpen: (Player) -> (), onVisit: ((Player, Player) -> ())?, onTalk: ((Player) -> ())?)
 	local origins = World.build()
 	local folder = Instance.new("Folder")
 	folder.Name = "Parcelas"
+	local talk = onTalk or function() end
+	if World.adaPrompt then
+		World.adaPrompt.Triggered:Connect(talk)
+	end
 	for i, origin in origins do
-		table.insert(plots, buildPlot(folder, i, origin, onOpen, onVisit or function() end))
+		table.insert(plots, buildPlot(folder, i, origin, onOpen, onVisit or function() end, talk))
 	end
 	folder.Parent = Workspace
 end

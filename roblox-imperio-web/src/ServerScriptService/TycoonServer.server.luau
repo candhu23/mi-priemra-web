@@ -32,6 +32,7 @@ local PurchaseService = require(ServerScriptService:WaitForChild("PurchaseServic
 local LeaderboardService = require(ServerScriptService:WaitForChild("LeaderboardService"))
 local Analytics = require(ServerScriptService:WaitForChild("Analytics"))
 local BadgeAwards = require(ServerScriptService:WaitForChild("BadgeAwards"))
+local StoryService = require(ServerScriptService:WaitForChild("StoryService"))
 
 local actionFunction = ServerState.actionFunction
 local gain = ServerState.gain
@@ -392,6 +393,14 @@ local function onPlayerAdded(player: Player)
 	if isNew then
 		Analytics.onboarding(player, data, "join")
 	end
+	-- Ada recuerda la misión de la historia (a los nuevos, tras el tutorial)
+	if not data.story.done then
+		task.delay(if isNew then 25 else 9, function()
+			if sessions[player] == session then
+				StoryService.greet(player, session)
+			end
+		end)
+	end
 	local lastOnline = tonumber(data.lastOnline) or os.time()
 	local away = math.clamp(os.time() - lastOnline, 0, Config.OFFLINE_MAX_HOURS * 3600)
 	if away >= 60 and session.income > 0 then
@@ -524,7 +533,7 @@ CareerService.init({
 })
 
 -- Las acciones viven en cada módulo; aquí se juntan todas
-for _, module in { CareerService, SiteService, RewardService, StateService, VisitService, SaveService } do
+for _, module in { CareerService, SiteService, RewardService, StateService, VisitService, SaveService, StoryService } do
 	for name, handler in (module :: any).Actions do
 		assert(Actions[name] == nil, "acción repetida: " .. name)
 		Actions[name] = handler
@@ -552,6 +561,13 @@ PlotManager.init(function(player)
 	openComputerEvent:FireClient(player)
 end, function(visitor, owner)
 	sendVisit(visitor, owner)
+end, function(player)
+	-- Hablar con Ada: abre la pestaña Historia y dice la misión actual
+	local session = sessions[player]
+	if session then
+		openComputerEvent:FireClient(player, "story")
+		StoryService.greet(player, session)
+	end
 end)
 
 PlotManager.setMarketBoard(MarketService.rows())
@@ -771,6 +787,9 @@ local function tickPlayer(player: Player, session: Session, now: number, dt: num
 	end
 
 	CareerService.tick(player, session, dt)
+	if StoryService.check(player, session) then
+		session.dirty = true
+	end
 	ensureDailyMissions(session)
 	session.income = computeIncome(session, true)
 	gain(data, session.income * dt, "ingresos")

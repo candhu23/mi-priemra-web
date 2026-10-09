@@ -148,6 +148,7 @@ local trafficModule = addModule(services.ReplicatedStorage, "Traffic", SRC .. "/
 addModule(services.ServerScriptService, "AgencyOffice", SRC .. "/ServerScriptService/AgencyOffice.luau")
 addModule(services.ServerScriptService, "Building", SRC .. "/ServerScriptService/Building.luau")
 addModule(services.ServerScriptService, "Showcase", SRC .. "/ServerScriptService/Showcase.luau")
+addModule(services.ServerScriptService, "MentorNpc", SRC .. "/ServerScriptService/MentorNpc.luau")
 addModule(services.ServerScriptService, "World", SRC .. "/ServerScriptService/World.luau")
 local plotModule = addModule(services.ServerScriptService, "PlotManager", SRC .. "/ServerScriptService/PlotManager.luau")
 

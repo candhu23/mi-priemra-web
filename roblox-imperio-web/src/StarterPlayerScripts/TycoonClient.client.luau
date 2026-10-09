@@ -19,7 +19,7 @@
 local ClientUI = script.Parent:WaitForChild("ClientUI")
 local ui = require(ClientUI:WaitForChild("Core"))
 -- Cada pestaña se construye en su módulo (en este orden)
-for _, name in { "TabCreate", "TabSites", "TabClients", "TabAds", "TabCompanies", "TabCareer", "TabAgency", "TabMissions", "TabAchievements", "TabSeason", "TabCollection", "TabRanking", "TabMarket", "TabResearch", "TabShop", "Tutorial", "HudExtras" } do
+for _, name in { "TabCreate", "TabSites", "TabClients", "TabAds", "TabCompanies", "TabCareer", "TabAgency", "TabMissions", "TabAchievements", "TabSeason", "TabCollection", "TabRanking", "TabMarket", "TabResearch", "TabShop", "TabStory", "Tutorial", "HudExtras" } do
 	require(ClientUI:WaitForChild(name))(ui)
 end
 
@@ -438,9 +438,42 @@ window:GetPropertyChangedSignal("Visible"):Connect(function()
 	end
 end)
 
-openComputerEvent.OnClientEvent:Connect(function()
-	openTab(ui.currentTab)
+-- (Ada manda abrir directamente la pestaña 📖 Historia)
+openComputerEvent.OnClientEvent:Connect(function(tabId: any)
+	openTab(if type(tabId) == "string" and ui.pages[tabId] then tabId else ui.currentTab)
 end)
+
+-- Fin de capítulo de la historia: la cámara da media vuelta alrededor de
+-- tu rascacielos (6 s) y luego sale la ventana del capítulo
+local showChapterModal = ui.onChapter
+ui.onChapter = function(title: string, body: string)
+	local camera = Workspace.CurrentCamera
+	local center = myPlotPart and myPlotPart.Position
+	if not camera or not center then
+		showChapterModal(title, body)
+		return
+	end
+	local ok = pcall(function()
+		local previousType = camera.CameraType
+		camera.CameraType = Enum.CameraType.Scriptable
+		local started = os.clock()
+		local connection: RBXScriptConnection
+		connection = RunService.RenderStepped:Connect(function()
+			local t = math.min((os.clock() - started) / 6, 1)
+			local angle = math.pi * 0.25 + t * math.pi
+			local eye = center + Vector3.new(math.cos(angle) * 110, 55 + 25 * t, math.sin(angle) * 110)
+			camera.CFrame = CFrame.lookAt(eye, center + Vector3.new(0, 35, 0))
+			if t >= 1 then
+				connection:Disconnect()
+				camera.CameraType = previousType
+				showChapterModal(title, body)
+			end
+		end)
+	end)
+	if not ok then
+		showChapterModal(title, body)
+	end
+end
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then

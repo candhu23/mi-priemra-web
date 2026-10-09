@@ -94,6 +94,13 @@ function StatePatch.sig3(x: number): number
 	return math.floor(x / scale + 0.5) * scale
 end
 
+-- Temporizador en segundos enteros; si queda más de una hora, al minuto
+-- (Config.formatTime ya no enseña los segundos): así no cambia cada segundo
+function StatePatch.timer(seconds: number): number
+	seconds = math.max(0, math.floor(seconds))
+	return if seconds >= 3600 then seconds - seconds % 60 else seconds
+end
+
 -- Copia profunda (el servidor guarda una copia de lo enviado: el estado
 -- apunta a tablas vivas de la partida que cambian solas)
 function StatePatch.copy<T>(value: T): T

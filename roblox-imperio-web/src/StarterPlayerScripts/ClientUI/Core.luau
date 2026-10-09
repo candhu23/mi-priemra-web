@@ -25,6 +25,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local Career = require(ReplicatedStorage:WaitForChild("CareerConfig"))
 local Market = require(ReplicatedStorage:WaitForChild("MarketConfig"))
+local Story = require(ReplicatedStorage:WaitForChild("StoryConfig"))
 local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 local StatePatch = require(ReplicatedStorage:WaitForChild("StatePatch"))
 local remotes = ReplicatedStorage:WaitForChild("TycoonRemotes")
@@ -685,6 +686,7 @@ local TABS = {
 	{ id = "companies", emoji = "🏢", name = "Empresas", color = THEME.orange },
 	{ id = "career", emoji = "💼", name = "Carrera", color = Color3.fromRGB(14, 165, 233) },
 	{ id = "agency", emoji = "👥", name = "Agencia", color = Color3.fromRGB(217, 70, 239) },
+	{ id = "story", emoji = "📖", name = "Historia", color = Color3.fromRGB(124, 58, 237) },
 	{ id = "missions", emoji = "🎯", name = "Misiones", color = Color3.fromRGB(245, 158, 11) },
 	{ id = "achievements", emoji = "🏅", name = "Logros", color = Color3.fromRGB(234, 88, 12) },
 	{ id = "season", emoji = "🎫", name = "Pase", color = Color3.fromRGB(99, 102, 241) },
@@ -705,7 +707,7 @@ local HUBS = {
 	{ id = "production", emoji = "🛠️", name = "Producción", color = THEME.green, tabs = { "create", "sites", "ads" } },
 	{ id = "business", emoji = "💼", name = "Negocio", color = Color3.fromRGB(14, 165, 233), tabs = { "clients", "companies", "career", "agency" } },
 	{ id = "investment", emoji = "📈", name = "Inversión", color = THEME.pink, tabs = { "market", "research", "ipo" } },
-	{ id = "progress", emoji = "🎯", name = "Progreso", color = Color3.fromRGB(245, 158, 11), tabs = { "missions", "achievements", "season", "collection" } },
+	{ id = "progress", emoji = "🎯", name = "Progreso", color = Color3.fromRGB(245, 158, 11), tabs = { "story", "missions", "achievements", "season", "collection" } },
 	{ id = "social", emoji = "🛒", name = "Tienda y social", color = Color3.fromRGB(20, 184, 166), tabs = { "shop", "ranking" } },
 }
 local hubOfTab: { [string]: any } = {}
@@ -903,6 +905,7 @@ local TAB_HELP = {
 	research = "Mejoras para siempre que se pagan con 💡 patentes (salir a bolsa y el pase).",
 	shop = "Premios gratis por jugar, códigos y mejoras con Robux.",
 	ipo = "Empiezas de cero, pero cada acción te da más dinero para siempre y patentes para 💡 I+D.",
+	story = "Ada te guía paso a paso: cada misión cumplida da premio y cada capítulo, un premio especial.",
 }
 for id, text in TAB_HELP do
 	local help = create("TextLabel", {
@@ -1071,7 +1074,7 @@ local missionCard = create("Frame", {
 	BackgroundTransparency = 0.1,
 }, { corner(14), padding(10), stroke(THEME.yellow, 2) })
 autoScale(missionCard)
-makeLabel(missionCard, "🎯 MISIÓN", 0, 18, 15, THEME.yellow, true)
+local missionTitle = makeLabel(missionCard, "🎯 MISIÓN", 0, 18, 15, THEME.yellow, true)
 local missionText = makeLabel(missionCard, "", 20, 20, 15, THEME.text, true)
 local _missionBack, missionFill, missionProgress = makeProgressBar(missionCard, UDim2.fromOffset(0, 44), UDim2.new(1, 0, 0, 18), THEME.yellow)
 local missionReward = makeLabel(missionCard, "", 66, 16, 13, THEME.green, true)
@@ -1085,7 +1088,9 @@ create("TextButton", {
 	Text = "",
 	ZIndex = 5,
 }).Activated:Connect(function()
-	openTab("missions")
+	-- Con la historia en marcha, la tarjeta lleva a 📖 Historia
+	local story = ui.state and ui.state.story
+	openTab(if story and not story.done then "story" else "missions")
 end)
 
 local function currentGoal(s)
@@ -1105,7 +1110,32 @@ local GOAL_FEATURES = {
 	collection_20 = "collection", ipo_5 = "market",
 }
 
+-- v4: mientras dura el Modo Historia, la tarjeta enseña su misión
+local function renderStoryMission(s): boolean
+	local story = s.story
+	local mission, chapter = Story.current(story)
+	if not story or not mission or not chapter then
+		missionTitle.Text = T("🎯 MISIÓN")
+		return false
+	end
+	missionTitle.Text = T("📖 HISTORIA · %s %s", chapter.emoji, T(chapter.name))
+	missionText.Text = T(mission.text)
+	local target = math.max(story.target or 1, 1)
+	local value = math.min(story.progress or 0, target)
+	missionFill.Size = UDim2.fromScale(math.clamp(value / target, 0, 1), 1)
+	missionProgress.Text = if target >= 1000 then fmt(value) .. " / " .. fmt(target) else num(value) .. " / " .. num(target)
+	missionReward.Text = T("🎁 Premio: %s", fmt(story.reward or 0))
+	missionHint.Text = T(mission.hint)
+	if mission.feature and not Config.isUnlocked(s, mission.feature) then
+		missionHint.Text = T("🔒 Se desbloquea en la planta %d de tu rascacielos.", Config.unlockFloor(mission.feature))
+	end
+	return true
+end
+
 local function renderMission(s)
+	if renderStoryMission(s) then
+		return
+	end
 	local goal = currentGoal(s)
 	if not goal then
 		missionText.Text = T("¡Has completado todos los objetivos! 👑")
@@ -1182,6 +1212,7 @@ local TOAST_COLORS = {
 	money = Color3.fromRGB(22, 163, 74),
 	info = THEME.accent,
 	rare = Color3.fromRGB(219, 39, 119),
+	story = Color3.fromRGB(124, 58, 237), -- Ada (Modo Historia)
 }
 local toastOrder = 0
 
@@ -1212,7 +1243,7 @@ function showToast(text: string, kind: string?)
 		playSound(if string.find(text, "🔓", 1, true) then "unlock" else "levelUp")
 	elseif kind == "money" then
 		playSound("money")
-	elseif kind == "event" or kind == "success" then
+	elseif kind == "event" or kind == "success" or kind == "story" then
 		playSound("success")
 	elseif kind == "error" then
 		playSound("error")
@@ -1394,12 +1425,21 @@ showSaveHelp = function()
 	showModal("💾 Cómo activar el guardado", "Roblox solo guarda partidas en juegos PUBLICADOS:\n\n1. En Studio: File → Publish to Roblox.\n2. Home → Game Settings → Security → activa «Enable Studio Access to API Services» → Save.\n3. Para la partida (Stop) y vuelve a darle a Play.\n\nEn el juego publicado (jugando desde la web o la app) se guarda siempre.", "Entendido", nil, nil)
 end
 
+-- Fin de capítulo (TycoonClient lo cambia para añadir la vuelta de cámara)
+ui.onChapter = function(title: string, body: string)
+	playSound("levelUp")
+	showModal(title, body, "¡A por el siguiente!", nil, nil)
+end
+
 notifyEvent.OnClientEvent:Connect(function(text: string, kind: string, body: string?)
 	if kind == "popup" then
 		if string.find(text, "🔓", 1, true) then
 			playSound("unlock")
 		end
 		showModal(text, body or "", "¡Genial!", nil, nil)
+	elseif kind == "chapter" then
+		-- Fin de un capítulo de la historia: vuelta de cámara y ventana
+		ui.onChapter(text, body or "")
 	else
 		showToast(text, kind)
 	end
@@ -1506,6 +1546,7 @@ ui.Workspace = Workspace
 ui.Config = Config
 ui.Career = Career
 ui.Market = Market
+ui.Story = Story
 ui.Locale = Locale
 ui.StatePatch = StatePatch
 ui.remotes = remotes

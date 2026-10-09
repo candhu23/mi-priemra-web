@@ -17,6 +17,7 @@ local MarketService = require(ServerScriptService:WaitForChild("MarketService"))
 local ServerState = require(ServerScriptService:WaitForChild("ServerState"))
 local Economy = require(ServerScriptService:WaitForChild("Economy"))
 local RewardService = require(ServerScriptService:WaitForChild("RewardService"))
+local StoryService = require(ServerScriptService:WaitForChild("StoryService"))
 
 local communityProgress = ServerState.communityProgress
 local sessions = ServerState.sessions
@@ -31,6 +32,7 @@ local StateService = {}
 local Actions = {}
 
 local sig3 = StatePatch.sig3
+local timer = StatePatch.timer
 
 local function buildState(session: Session)
 	local data = session.data
@@ -116,7 +118,7 @@ local function buildState(session: Session)
 		weeklyMissions = {
 			list = data.weeklyMissions.list,
 			bonusGiven = data.weeklyMissions.bonusGiven,
-			resetIn = Config.weekStart(Config.weekIndex(os.time()) + 1) - os.time(),
+			resetIn = timer(Config.weekStart(Config.weekIndex(os.time()) + 1) - os.time()),
 			reward = incomeReward(session, Config.WeeklyMissionReward.minutes, Config.WeeklyMissionReward.min),
 		},
 		maintenance = Config.maintenanceIncome(data),
@@ -146,11 +148,12 @@ local function buildState(session: Session)
 		lastSaveAgo = if session.lastSaveAt > 0 then os.time() - session.lastSaveAt else -1,
 		selectedNiche = data.selectedNiche,
 		career = CareerService.buildState(session),
+		story = StoryService.buildState(session),
 		market = MarketService.buildState(session, now),
 		tutorialDone = data.tutorialDone,
 		settings = data.settings,
 		likes = data.likes,
-		goldLeft = math.max(0, data.goldUntil - nowUnix),
+		goldLeft = timer(data.goldUntil - nowUnix),
 		-- v2.0
 		collection = data.collection,
 		research = data.research,
@@ -163,9 +166,9 @@ local function buildState(session: Session)
 			free = data.season.free,
 			premiumClaimed = data.season.premiumClaimed,
 			premium = data.season.premium,
-			endsIn = Config.seasonEnds(data.season.id) - nowUnix,
+			endsIn = timer(Config.seasonEnds(data.season.id) - nowUnix),
 		},
-		playtime = { seconds = data.playtime.seconds, claimed = data.playtime.claimed },
+		playtime = { seconds = math.floor(data.playtime.seconds), claimed = data.playtime.claimed },
 		starterLeft = if data.starterBought then 0 else math.max(0, data.firstJoin + Config.STARTER_HOURS * 3600 - nowUnix),
 		serverEvent = if world.serverEvent then { id = world.serverEvent.id, endsIn = math.ceil(world.serverEvent.endsAt - now) } else nil,
 		community = if world.community then {
@@ -177,19 +180,19 @@ local function buildState(session: Session)
 		globalTop = world.globalTop,
 		weekly = {
 			earned = sig3(data.weekly.earned),
-			resetIn = Config.weekStart(Config.weekIndex(nowUnix) + 1) - nowUnix,
+			resetIn = timer(Config.weekStart(Config.weekIndex(nowUnix) + 1) - nowUnix),
 			top = if world.weeklyTopWeek == Config.weekIndex(nowUnix) then world.weeklyTop else {},
 		},
 		weekend = {
 			id = if activeWeekend then activeWeekend.id else nil,
-			endsIn = if activeWeekend then weekendEnds - nowUnix else 0,
+			endsIn = if activeWeekend then timer(weekendEnds - nowUnix) else 0,
 			nextId = nextWeekend.id,
-			startsIn = nextWeekendStarts - nowUnix,
+			startsIn = timer(nextWeekendStarts - nowUnix),
 		},
 		dailyMissions = {
 			list = data.dailyMissions.list,
 			bonusGiven = data.dailyMissions.bonusGiven,
-			resetIn = 86400 - os.time() % 86400,
+			resetIn = timer(86400 - os.time() % 86400),
 			rewards = (function()
 				local amounts = {}
 				for i, reward in Config.DailyMissionRewards do
