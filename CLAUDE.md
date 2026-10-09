@@ -1,9 +1,26 @@
-# CLAUDE.md — Contexto del proyecto «Web Empire Tycoon» (Imperio Web Tycoon)
+# CLAUDE.md — Repositorio de juegos de Roblox de Candu231
 
 Este documento es el punto de partida para cualquier sesión nueva de Claude Code en este
 repositorio. Léelo entero antes de tocar nada.
 
+## 0. Índice: ¿en qué juego vas a trabajar?
+
+El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web personal sin relación):
+
+| Juego | Carpeta | Rama de trabajo | Contexto que debes leer |
+|---|---|---|---|
+| **Web Empire Tycoon** (3D, publicado) | `roblox-imperio-web/` | `claude/roblox-game-h5olkl` | Este archivo, §1–§13 |
+| **AeroCarga España** (2D, sin publicar) | `roblox-carga-aerea/` | `claude/zealous-dirac-ejfljx` | **`roblox-carga-aerea/CLAUDE.md`** + §2 y §11 de este archivo |
+
+- Si el usuario habla de aviones, carga aérea, España, mapa o «el juego nuevo» → es **AeroCarga España**.
+- Si la carpeta del juego no existe en tu rama (p. ej. empezaste en `main`), cámbiate a su rama:
+  `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
+  (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).
+- Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para los dos juegos.
+
 ---
+
+# Web Empire Tycoon (Imperio Web Tycoon)
 
 ## 1. Qué es y en qué estado está
 
@@ -252,23 +269,7 @@ al harness del servidor**.
 
 ---
 
-## 14. Segundo juego: «AeroCarga España» (`roblox-carga-aerea/`)
+## 14. Segundo juego: «AeroCarga España»
 
-- Tycoon **2D** de aerolínea de carga por España (v0.2, sin publicar). El usuario pidió que NO se parezca a
-  un juego de camiones que le inspiró: tema, mapa, estilo claro, estructura y fichajes son distintos (ver DISENO.md §2).
-- Rama de esta parte: `claude/zealous-dirac-ejfljx`. Lugar: `roblox-carga-aerea/AeroCarga.rbxl`.
-  Diseño/economía/tienda: `DISENO.md`. Guía del usuario (clic a clic): `README.md`.
-- **No hay imágenes que subir**: mapa (franjas de `MapData.luau`, generado por `tools/assets/build_spain.py` con
-  Natural Earth), aviones (`UI/PlaneArt.luau`, Frames) e iconos (emojis) se dibujan con código.
-- Servidor: `GameServer.server.luau` (remotes, estado, bucle) + `Cargo/Data.luau` (guardado; **todo el DataStore
-  en pcall**: en Studio sin publicar GetDataStore da error y en la v0.1 eso paraba el servidor → interfaz vacía),
-  `Cargo/Game.luau` (lógica y `Actions`), `Cargo/Shop.luau` (ProcessReceipt idempotente).
-- Cliente: `GameClient.client.luau` + `UI/` (Kit = ctx compartido y piezas; MapView, Hud, Screens = ventanas,
-  modal, avisos, título, tutorial con flecha; un módulo por ventana). Textos por clave en `Lang.luau`.
-- Verificación: `roblox-carga-aerea/tools/check.sh` → compila, luau-lsp 0 avisos, `check_lang.py` (todas las
-  claves en EN y ES), `run_server.luau` en modo `sin-datastore` y normal (bot que juega y mide el ritmo),
-  `run_game.luau` (servidor + interfaz reales juntos: tutorial siguiendo la flecha, todas las ventanas, >7.000
-  botones, cambio de idioma) y vista previa PNG aproximada (`preview.py`, Chromium) en `tools/out/preview/`.
-- Trampas: el harness usa el lugar real de Rojo (`tools/out/test.rbxl`) y `mock.luau` simula remotes entre
-  servidor y cliente; en `UICorner` con escala, Roblox limita el radio a la mitad del lado corto (la vista previa
-  lo imita); no rotar contenedores con hijos (el avión del mapa mira a izquierda/derecha en vez de girar).
+Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación, trampas y pendientes) está en
+**`roblox-carga-aerea/CLAUDE.md`**. Léelo antes de tocar esa carpeta. Rama: `claude/zealous-dirac-ejfljx`.
