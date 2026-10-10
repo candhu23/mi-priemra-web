@@ -277,8 +277,23 @@ Config.Express = { every = { 90, 150 }, lasts = 80, mult = 2.5 }
 -- Generador pseudoaleatorio determinista (Park-Miller): con la misma semilla da lo mismo
 -- en todos los servidores (eventos y ciudades en auge iguales para todo el mundo).
 ---------------------------------------------------------------------
+-- Multiplicación de 32 bits sin perder precisión (los números de Luau son dobles)
+local function mul32(a: number, b: number): number
+	local ah, al = bit32.rshift(a, 16), bit32.band(a, 0xFFFF)
+	return bit32.band(al * b + bit32.lshift(bit32.band(ah * b, 0xFFFF), 16), 0xFFFFFFFF)
+end
+-- Mezcla tipo «murmur»: semillas seguidas (1, 2, 3…) dan valores sin relación entre sí
+function Config.hash(n: number): number
+	local h = bit32.band(math.floor(n), 0xFFFFFFFF)
+	h = bit32.bxor(h, bit32.rshift(h, 16))
+	h = mul32(h, 0x85EBCA6B)
+	h = bit32.bxor(h, bit32.rshift(h, 13))
+	h = mul32(h, 0xC2B2AE35)
+	return bit32.bxor(h, bit32.rshift(h, 16))
+end
+
 function Config.prng(seed: number): (number?, number?) -> number
-	local s = math.floor(seed) % 2147483646 + 1
+	local s = Config.hash(seed) % 2147483646 + 1
 	local function nextValue(a: number?, b: number?): number
 		s = (s * 16807) % 2147483647
 		local f = (s - 1) / 2147483646
@@ -399,7 +414,7 @@ function Config.sharesTotal(lifetimeEarned: number): number
 end
 -- Ventajas permanentes según las veces que has salido a bolsa (la n.º i se activa en la salida i)
 Config.IpoPerks = { "gold", "region", "contract", "hawk", "candidate" }
-Config.IPO_START_MONEY = 100_000
+Config.IPO_START_MONEY = 300_000
 
 ---------------------------------------------------------------------
 -- Tu aerolínea: nombre por piezas (sin texto libre, no hace falta filtro) y color

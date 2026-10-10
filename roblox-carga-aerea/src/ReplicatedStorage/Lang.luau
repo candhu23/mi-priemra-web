@@ -175,7 +175,7 @@ Lang.en = {
 	ipo_resets = "Restarts: money, level, planes, pilots, regions, upgrades and contracts.",
 	ipo_keeps = "You keep: shares, passport, goals, airline, game passes and total earnings.",
 	ipo_done_title = "You're on the stock market!", ipo_done = "+{n} shares · {total} in total = +{p}% pay and +{x}% XP forever",
-	perk_gold = "Gold colour for your airline + start with $100K more",
+	perk_gold = "Gold colour for your airline + start with $300K more",
 	perk_region = "Start with Catalonia & Aragon unlocked", perk_contract = "+1 active contract slot",
 	perk_hawk = "Start with an extra Hawk", perk_candidate = "+1 pilot candidate",
 	-- Misiones, objetivos, ajustes
@@ -190,7 +190,7 @@ Lang.en = {
 	n_medal = "New medal for {good}!", n_charter = "Charter: back in {h} h with {amount}",
 	n_feed_ipo = "{player} went public! 🔔", n_ipo_done = "You went public: +{n} shares!",
 	err_charter_busy = "You already have a plane on a charter.", err_contracts_full = "No free contract slots.",
-	err_ipo_shares = "You need at least {n} new shares.", err_gold_locked = "Go public once to unlock gold.",
+	err_ipo_shares = "You need at least {n} new shares.", err_ipo_charter = "Wait for your charter to come back first.", err_gold_locked = "Go public once to unlock gold.",
 }
 
 Lang.es = {
@@ -350,7 +350,7 @@ Lang.es = {
 	ipo_resets = "Se reinicia: dinero, nivel, aviones, pilotos, regiones, mejoras y contratos.",
 	ipo_keeps = "Conservas: acciones, pasaporte, objetivos, aerolínea, pases y lo ganado en total.",
 	ipo_done_title = "¡Ya cotizas en bolsa!", ipo_done = "+{n} acciones · {total} en total = +{p} % de pago y +{x} % de XP para siempre",
-	perk_gold = "Color oro para tu aerolínea + empiezas con $100K más",
+	perk_gold = "Color oro para tu aerolínea + empiezas con $300K más",
 	perk_region = "Empiezas con Cataluña y Aragón abierta", perk_contract = "+1 contrato a la vez",
 	perk_hawk = "Empiezas con un Halcón extra", perk_candidate = "+1 candidato a piloto",
 	-- Misiones, objetivos, ajustes
@@ -365,7 +365,7 @@ Lang.es = {
 	n_medal = "¡Medalla nueva de {good}!", n_charter = "Chárter: vuelve en {h} h con {amount}",
 	n_feed_ipo = "¡{player} ha salido a bolsa! 🔔", n_ipo_done = "Has salido a bolsa: ¡+{n} acciones!",
 	err_charter_busy = "Ya tienes un avión de chárter.", err_contracts_full = "No te quedan huecos de contrato.",
-	err_ipo_shares = "Necesitas al menos {n} acciones nuevas.", err_gold_locked = "Sal a bolsa una vez para desbloquear el oro.",
+	err_ipo_shares = "Necesitas al menos {n} acciones nuevas.", err_ipo_charter = "Espera a que vuelva tu chárter.", err_gold_locked = "Sal a bolsa una vez para desbloquear el oro.",
 }
 
 function Lang.t(lang: string, key: string, params: { [string]: any }?): string

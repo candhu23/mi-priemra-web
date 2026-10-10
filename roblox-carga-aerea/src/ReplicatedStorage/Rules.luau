@@ -18,6 +18,7 @@ export type View = {
 	wanted: { [string]: number }, -- aeropuerto → multiplicador (ciudades en auge)
 	sat: { [string]: number }, -- aeropuerto → multiplicador por saturación (< 1)
 	album: { airports: { [string]: boolean }, goods: { [string]: number } },
+	pending: { [string]: boolean }?, -- destinos con un avión tuyo ya en camino (la ruta ya no es «nueva»)
 }
 export type Mod = { kind: string, icon: string, mult: number }
 
@@ -49,24 +50,22 @@ function Rules.eventAt(now: number): (Config.EventDef?, number)
 		weights[i] = w
 		total += w
 	end
-	local rand = Config.prng(index * 7919 + 13)
-	-- Nunca el mismo evento dos veces seguidas
-	local prevRand = Config.prng((index - 1) * 7919 + 13)
-	local function pick(r: (number?, number?) -> number): number
-		local roll = r() * total
+	-- Sorteo con pesos; «skip» = evento que no puede salir
+	local function pick(r: (number?, number?) -> number, skip: number?): number
+		local roll = r() * (total - (skip and weights[skip] or 0))
 		for i, w in weights do
-			roll -= w
-			if roll <= 0 then
-				return i
+			if i ~= skip then
+				roll -= w
+				if roll <= 0 then
+					return i
+				end
 			end
 		end
-		return #Config.Events
+		return if skip == #Config.Events then 1 else #Config.Events
 	end
-	local i = pick(rand)
-	if i == pick(prevRand) then
-		i = i % #Config.Events + 1
-	end
-	return Config.Events[i], start + Config.EVENT_LENGTH - now
+	-- Nunca el mismo evento que en el periodo anterior (su primer sorteo)
+	local prev = pick(Config.prng(index - 1))
+	return Config.Events[pick(Config.prng(index), prev)], start + Config.EVENT_LENGTH - now
 end
 
 -- ¿Le afecta el evento a esta carga?
@@ -89,7 +88,7 @@ end
 -- Ciudades en auge del periodo actual: { { code, mult } } y segundos hasta que cambien
 function Rules.wantedAt(now: number): ({ { code: string, mult: number } }, number)
 	local index = math.floor(now / Config.WANTED_PERIOD)
-	local rand = Config.prng(index * 104729 + 7)
+	local rand = Config.prng(index + 1_000_000)
 	local starters, others = {}, {}
 	for _, a in Config.Airports do
 		if a.region == "CEN" or a.region == "LEV" then
@@ -115,6 +114,17 @@ end
 ---------------------------------------------------------------------
 -- Pasaporte
 ---------------------------------------------------------------------
+-- Aeropuertos sin sello a los que ya vuela un avión tuyo: el ×1,5 de ruta nueva solo lo cobra el primero
+function Rules.pendingStamps(planes: { any }, album: any): { [string]: boolean }
+	local out = {}
+	for _, p in planes do
+		local f = p.flight
+		if f and f.good ~= "ferry" and f.good ~= "charter" and not album.airports[f.to] then
+			out[f.to] = true
+		end
+	end
+	return out
+end
 function Rules.regionComplete(airports: { [string]: boolean }, regionId: string): boolean
 	for _, a in Config.Airports do
 		if a.region == regionId and not airports[a.code] then
@@ -210,7 +220,7 @@ function Rules.quote(view: View, plane: any, load: any, pilot: any?): (number, n
 		pay *= s
 		table.insert(mods, { kind = "sat", icon = "📉", mult = s })
 	end
-	if not view.album.airports[load.to] then
+	if not view.album.airports[load.to] and not (view.pending and view.pending[load.to]) then
 		pay *= Config.NEW_ROUTE_MULT
 		table.insert(mods, { kind = "new", icon = "✨", mult = Config.NEW_ROUTE_MULT })
 	else

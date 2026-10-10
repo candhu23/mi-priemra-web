@@ -38,7 +38,7 @@ local function grant(session: Game.Session, key: string): boolean
 			data.money += 50_000 -- ya lo tenía: se compensa con dinero
 		else
 			data.starterBought = true
-			table.insert(data.planes, { id = data.nextId, model = "hawk", airport = Config.START_HUB, condition = 100 })
+			table.insert(data.planes, { id = data.nextId, model = "hawk", airport = Config.START_HUB, condition = 100, paid = true })
 			data.nextId += 1
 			data.money += 50_000
 			data.boostUntil = math.max(now, data.boostUntil) + 1800

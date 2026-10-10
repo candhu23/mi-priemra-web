@@ -289,6 +289,9 @@ print("-- Salir a bolsa desde la interfaz --")
 W.Players.PlayerRemoving:Fire(player)
 W.saved[key].xp = 220 * 13 ^ 2.35
 W.saved[key].stats.earned = 40e6
+for _, p in W.saved[key].planes do
+	if p.flight and p.flight.good == "charter" then p.flight.endT = p.flight.startT end -- que vuelva el chárter al entrar
+end
 W.Players.PlayerAdded:Fire(player)
 frame()
 for _ = 1, 3 do

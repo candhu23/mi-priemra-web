@@ -67,12 +67,14 @@ end
 
 local s = lastState()
 assert(s.money == Config.START_MONEY and #s.planes == 1 and s.tutorial == 0, "estado inicial incorrecto")
-assert(s.boards.MAD and s.boards.MAD[1].tutorial, "falta la carga del tutorial en Madrid")
+assert(s.boards.MAD and not s.boards.MAD[1].tutorial, "la carga del tutorial solo sale tras empezarlo")
 print("Estado inicial:", money(s.money), "· tutorial", s.tutorial, "· cargas en MAD", #s.boards.MAD, "· guardar:", s.canSave)
 
 if MODE == "sin-datastore" then
 	assert(s.canSave == false, "sin DataStore, canSave debería ser false")
 	act("tutorial", "start")
+	s = lastState()
+	assert(s.boards.MAD[1].tutorial, "falta la carga del tutorial en Madrid")
 	act("dispatch", s.planes[1].id, s.boards.MAD[1].id, 0)
 	W.tick(20)
 	s = lastState()
@@ -87,6 +89,10 @@ end
 print("-- Tutorial --")
 act("tutorial", "start")
 s = lastState()
+assert(s.boards.MAD[1].tutorial, "falta la carga del tutorial en Madrid")
+act("dispatch", s.planes[1].id, s.boards.MAD[2].id, -1) -- piloto inventado
+act("dispatch", s.planes[1].id, s.boards.MAD[2].id, 0 / 0) -- NaN
+assert(not lastState().planes[1].flight, "no se puede volar con un piloto que no existe")
 act("dispatch", s.planes[1].id, s.boards.MAD[1].id, 0)
 assert(lastState().tutorial == 2, "tras despachar el tutorial debería ir al paso 2")
 act("land", s.planes[1].id, "perfect") -- demasiado pronto

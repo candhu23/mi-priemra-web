@@ -260,7 +260,9 @@ actionRemote.OnServerInvoke = function(player: Player, action: any, a: any, b: a
 		return false, "err_generic"
 	end
 	local ok, key, params, extra = fn(session, a, b, c)
-	sendState(player)
+	if ok then
+		sendState(player) -- si falla no ha cambiado nada (el estado llega igualmente cada segundo)
+	end
 	return ok, key, params, extra
 end
 

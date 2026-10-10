@@ -197,6 +197,9 @@ cd roblox-carga-aerea && tools/check.sh   # la 1.ª vez descarga las herramienta
 - Los tablones se generan según los aviones en tierra en ESE aeropuerto (si no, salen cargas que no caben).
 - Remotes: nada de funciones ni claves mixtas en las tablas del estado (`mock.luau` lo comprueba).
 - `mock.luau` conserva los `nil` en medio de argumentos y respuestas (`table.pack`), como Roblox. Antes los perdía.
+- **Nada que «gane dinero de golpe» debe contar para `earnedWindow`/`rate`** (chárter, aterrizajes offline): de ahí sale
+  `incomeBase`, que paga chárter, contratos, premios y lo offline → se realimentaba (×8 por chárter). Ver `earned(…, countRate)`.
+- `dispatch` solo acepta piloto 0 (tú) o un id de tus pilotos (antes −1/NaN volaban gratis sin piloto).
 - Conexiones a `RenderStepped` fuera de `ctx.tickers` hay que desconectarlas al reconstruir (cambio de idioma):
   ver `landingConn` en `Screens.landing`. El mock ya desconecta de verdad.
 - En `task.delay` del cliente, comprueba `obj.Parent` antes de animar (el objeto puede haberse destruido).

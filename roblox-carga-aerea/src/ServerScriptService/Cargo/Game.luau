@@ -195,6 +195,7 @@ function Game.view(session: Session): Rules.View
 		wanted = Game.world.wanted,
 		sat = Game.satMap(session),
 		album = data.album,
+		pending = Rules.pendingStamps(data.planes, data.album),
 	}
 end
 
@@ -401,7 +402,7 @@ function Game.board(session: Session, code: string, force: boolean?): { Load }
 	end
 	local loads = (b :: any).loads
 	-- Carga del tutorial: corta, rápida y bien pagada
-	if session.data.tutorial <= 1 and code == Config.START_HUB and not (loads[1] and loads[1].tutorial) then
+	if session.data.tutorial == 1 and code == Config.START_HUB and not (loads[1] and loads[1].tutorial) then
 		session.nextLoadId += 1
 		table.insert(loads, 1, {
 			id = session.nextLoadId, good = "parcel", from = code, to = "VLC", weight = 0.8,
@@ -505,9 +506,10 @@ local function newOffer(session: Session): any?
 	local count = Config.contractSize(level)
 	-- Los productos más caros dan contratos mejor pagados
 	local minutes = (count * 2.5 + 4) * (0.6 + 0.4 * Config.GoodById[good].mult)
+	local id = data.nextId
 	data.nextId += 1
 	return {
-		id = data.nextId, company = Config.CompanyByGood[good].id, good = good,
+		id = id, company = Config.CompanyByGood[good].id, good = good,
 		region = regions[rng:NextInteger(1, #regions)], count = count,
 		secs = count * Config.CONTRACT_SECS_PER_LOAD,
 		reward = math.floor(minutes * Game.incomeBase(session) / 100) * 100,
@@ -533,7 +535,7 @@ local function tickContracts(session: Session, now: number)
 		return
 	end
 	local c = data.contracts
-	if now >= c.nextAt or (#c.offers == 0 and #c.active == 0) then
+	if now >= c.nextAt then
 		Game.refreshOffers(session)
 	end
 	for i = #c.active, 1, -1 do
@@ -547,12 +549,12 @@ local function tickContracts(session: Session, now: number)
 end
 
 -- Una entrega cuenta para los contratos activos de ese producto y región
-local function contractDelivery(session: Session, good: string, to: string)
+local function contractDelivery(session: Session, good: string, to: string, landedAt: number)
 	local data = session.data
 	local airport = Config.AirportByCode[to]
 	for i = #data.contracts.active, 1, -1 do
 		local x = data.contracts.active[i]
-		if x.good == good and airport and airport.region == x.region then
+		if x.good == good and airport and airport.region == x.region and landedAt <= x.expires then
 			x.progress += 1
 			if x.progress >= x.count then
 				table.remove(data.contracts.active, i)
@@ -593,11 +595,15 @@ function Game.startFlight(session: Session, plane: any, load: Load, pilotId: num
 	session.dirty = true
 end
 
--- Dinero ganado (cuenta para el ranking, la semana y salir a bolsa)
-local function earned(session: Session, net: number)
+-- Dinero ganado (cuenta para el ranking, la semana y salir a bolsa).
+-- countRate = false para chárter y aterrizajes offline: no deben inflar «ingresos por minuto»
+-- (de ahí salen el pago del siguiente chárter, contratos, premios y lo offline)
+local function earned(session: Session, net: number, countRate: boolean)
 	local data = session.data
 	Game.addStat(session, "earned", net)
-	session.earnedWindow += net
+	if countRate then
+		session.earnedWindow += net
+	end
 	data.run.earned += net
 	local week = math.floor((os.time() - 345600) / 604800)
 	if data.week.id ~= week then
@@ -618,7 +624,7 @@ function Game.finishFlight(session: Session, plane: any, offline: boolean): numb
 		data.money += f.gross
 		data.xp += math.floor(Config.flightXp(f.gross) * Game.xpMult(data))
 		Game.addStat(session, "charters", 1)
-		earned(session, f.gross)
+		earned(session, f.gross, false)
 		if not offline then
 			Game.notify(player, "landed", "n_landed", { code = f.to, net = f.gross, charter = true })
 		end
@@ -665,7 +671,7 @@ function Game.finishFlight(session: Session, plane: any, offline: boolean): numb
 		if Rules.medals(album.goods[f.good]) > medalsBefore and medalsBefore >= 1 and not offline then
 			Game.notify(player, "goal", "n_medal", { good = f.good, n = Rules.medals(album.goods[f.good]) })
 		end
-		contractDelivery(session, f.good, f.to)
+		contractDelivery(session, f.good, f.to, f.endT)
 		local pilot = f.pilot > 0 and findPilot(data, f.pilot)
 		if pilot then
 			pilot.flights += 1
@@ -679,7 +685,7 @@ function Game.finishFlight(session: Session, plane: any, offline: boolean): numb
 	end
 	Game.addStat(session, "km", f.dist)
 	if net > 0 then
-		earned(session, net)
+		earned(session, net, not offline)
 	end
 	tutorialStep(session, 2, 3)
 	if not offline then
@@ -955,13 +961,29 @@ function Game.goPublic(session: Session): number
 	-- Se reinicia: dinero, nivel, flota, pilotos, regiones, mejoras y contratos
 	data.money = Config.START_MONEY + (Game.hasPerk(data, "gold") and Config.IPO_START_MONEY or 0)
 	data.xp = 0
+	-- Lo comprado con Robux se conserva (aviones del pack de inicio y pilotos estrella)
+	local paidPlanes = {}
+	for _, p in data.planes do
+		if p.paid then
+			table.insert(paidPlanes, { id = p.id, model = p.model, airport = Config.START_HUB, condition = 100, paid = true })
+		end
+	end
+	local paidPilots = {}
+	for _, p in data.pilots do
+		if p.trait == "ace" then
+			table.insert(paidPilots, p)
+		end
+	end
 	data.planes = { { id = data.nextId, model = "sparrow", airport = Config.START_HUB, condition = 100 } }
 	data.nextId += 1
+	for _, p in paidPlanes do
+		table.insert(data.planes, p)
+	end
 	if Game.hasPerk(data, "hawk") then
 		table.insert(data.planes, { id = data.nextId, model = "hawk", airport = Config.START_HUB, condition = 100 })
 		data.nextId += 1
 	end
-	data.pilots = {}
+	data.pilots = paidPilots
 	data.regions = { CEN = true, LEV = true }
 	if Game.hasPerk(data, "region") then
 		data.regions.CAT = true
@@ -995,7 +1017,11 @@ function Actions.dispatch(session, planeId, loadId, pilotId)
 	if type(loadId) ~= "number" then
 		return false, "err_generic"
 	end
-	pilotId = type(pilotId) == "number" and pilotId or 0
+	if pilotId == nil then
+		pilotId = 0
+	elseif type(pilotId) ~= "number" then
+		return false, "err_generic"
+	end
 	local plane = findPlane(data, planeId)
 	if not plane then
 		return false, "err_generic"
@@ -1014,7 +1040,8 @@ function Actions.dispatch(session, planeId, loadId, pilotId)
 	if err then
 		return false, err
 	end
-	if pilotId > 0 then
+	if pilotId ~= 0 then
+		-- Cualquier otro número (−1, NaN, decimales…) tiene que ser un piloto tuyo
 		if not findPilot(data, pilotId) then
 			return false, "err_generic"
 		elseif pilotBusy(data, pilotId) then
@@ -1291,7 +1318,6 @@ function Actions.acceptContract(session, offerId)
 			o.progress = 0
 			o.expires = os.time() + o.secs
 			table.insert(c.active, o)
-			session.boards = {} -- los tablones nuevos ya traen cargas para el contrato
 			session.dirty = true
 			return true, "n_contract_accepted", { company = o.company }
 		end
@@ -1318,6 +1344,11 @@ function Actions.goPublic(session)
 		return false, "err_level", { level = Config.IPO_LEVEL }
 	elseif gained < Config.IPO_MIN_SHARES then
 		return false, "err_ipo_shares", { n = Config.IPO_MIN_SHARES }
+	end
+	for _, p in data.planes do
+		if p.flight and p.flight.good == "charter" then
+			return false, "err_ipo_charter"
+		end
 	end
 	Game.goPublic(session)
 	Game.notifyAll("feed", "n_feed_ipo", { player = session.player.DisplayName, n = data.ipoCount })

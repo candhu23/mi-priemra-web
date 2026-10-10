@@ -395,6 +395,7 @@ function Kit.view(): any
 	return {
 		upgrades = st.upgrades, moneyMult = st.moneyMult, fuelPrice = st.fuelPrice, timeMult = st.timeMult,
 		event = st.event, wanted = st.wanted or {}, sat = st.sat or {}, album = st.album or { airports = {}, goods = {} },
+		pending = Rules.pendingStamps(st.planes, st.album or { airports = {} }),
 	}
 end
 

@@ -102,10 +102,10 @@ Castilla y Extremadura (nv 7, $600K) · Galicia (nv 9, $1,5M) · Baleares (nv 11
 
 **Ritmo medido** (bot perfecto en `tools/check.sh`; una persona irá unas 2–3 veces más lenta):
 nivel 2 ≈ 0,5 min · nivel 3 ≈ 2 min · nivel 5 ≈ 8 min · nivel 10 ≈ 19 min · **1.ª salida a bolsa ≈ 40–50 min**
-(una persona: ≈ 1,5–2,5 h) · **2.ª partida: nivel 10 en ≈ 12–13 min** (1,5 veces más rápida).
+(una persona: ≈ 1,5–2,5 h) · **2.ª partida: nivel 10 en ≈ 12–13 min** (1,6–2 veces más rápida).
 
 **Bolsa:** acciones totales = ⌊√(ganado en toda la historia / 1 M)⌋; se cobran las que aún no tienes (mínimo 5 nuevas
-y nivel 12). Ventajas por salida: 1) color oro + $100K al empezar · 2) empiezas con Cataluña y Aragón · 3) +1 contrato ·
+y nivel 12). Ventajas por salida: 1) color oro + $300K al empezar · 2) empiezas con Cataluña y Aragón · 3) +1 contrato ·
 4) un Halcón extra · 5) +1 candidato a piloto. Se conservan acciones, pasaporte, objetivos, aerolínea, pases y lo ganado.
 
 **Premios que no se quedan pequeños:** misiones, objetivos y premio diario usan la mayor de dos cifras: la escala por
@@ -154,6 +154,9 @@ Mientras un artículo tenga `id = 0` no aparece en el juego publicado; en Studio
 - Cómo lo vive una persona real (ritmo, si el tutorial se entiende, si engancha).
 - **v0.3**: si el minijuego de aterrizaje es divertido y justo con lag de móvil (ventana de 4 s, confianza ~60 %);
   si tantas etiquetas (🔥 ✨ 📉 📜) se entienden sin explicación (~65 %); que `os.date("!*t")` funcione igual en Roblox (~90 %).
+- **Límite conocido**: la calidad del aterrizaje la decide el cliente (con lag de móvil no se puede medir bien en el
+  servidor). Un tramposo solo gana +25 % en el único avión que pilota él mismo; el servidor sí comprueba el momento
+  y que sea un solo intento por vuelo.
 
 ## 8. Parecido con el otro juego (valoración, no consejo legal)
 
