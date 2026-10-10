@@ -4,6 +4,11 @@
 
 ![Mapa](docs/10_mapa.jpg)
 
+| | |
+|---|---|
+| ![Aterrizaje](docs/03b_tutorial_aterrizaje.jpg) | ![Contratos](docs/20_contracts.jpg) |
+| ![Pasaporte](docs/20_spain_passport.jpg) | ![Bolsa](docs/42_bolsa.jpg) |
+
 ## 1. Idea
 
 Tienes una avioneta en Madrid. Llevas los productos típicos de cada zona de España
