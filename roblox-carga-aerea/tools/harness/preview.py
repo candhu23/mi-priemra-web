@@ -82,9 +82,9 @@ def render(node, parent_layout=None):
 	style.append(f"z-index:{node.get('ZIndex', 1)}")
 	bt = node.get("BackgroundTransparency", 0)
 	grad = mod(node, "UIGradient")
-	if bt < 1 and grad and isinstance(grad.get("Color"), list) and len(grad["Color"]) == 2:
-		a, b = grad["Color"]
-		style.append(f"background:linear-gradient({grad.get('Rotation', 0) + 90}deg,{rgba(a, bt)},{rgba(b, bt)})")
+	if bt < 1 and grad and isinstance(grad.get("Color"), list) and len(grad["Color"]) >= 2:
+		stops = ",".join(f"{rgba(k[1:4], bt)} {k[0] * 100:.1f}%" for k in grad["Color"])
+		style.append(f"background:linear-gradient({grad.get('Rotation', 0) + 90}deg,{stops})")
 	elif bt < 1 and node.get("BackgroundColor3"):
 		style.append("background:" + rgba(node["BackgroundColor3"], bt))
 	sc = mod(node, "UISizeConstraint")

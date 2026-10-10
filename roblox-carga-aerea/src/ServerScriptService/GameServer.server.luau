@@ -148,6 +148,18 @@ local function sendState(player: Player)
 		weekEarned = data.week.id == math.floor((now - 345600) / 604800) and data.week.earned or 0,
 		airline = data.airline,
 		traffic = traffic,
+		-- v0.4
+		fuel = math.floor(data.fuel),
+		fuelCap = Game.tankCapacity(data),
+		fuelHistory = Game.fuelHistory,
+		fuelBase = Config.FUEL_PRICE * (1 - 0.05 * data.upgrades.fuel),
+		fuelNextIn = Game.fuelNextIn(now),
+		rep = data.rep,
+		dispatcher = Game.dispatcher(session),
+		staff = data.staff,
+		mechanics = data.mechanics,
+		mechCandidates = data.mechCandidates,
+		offlineRate = Game.offlineRate(session),
 	})
 end
 

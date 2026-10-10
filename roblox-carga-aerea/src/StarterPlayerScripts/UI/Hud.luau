@@ -16,7 +16,7 @@ local Hud = {}
 Hud.DOCK = {
 	{ id = "fleet", emoji = "✈️", key = "nav_fleet", color = C.blue, dark = C.blueDark },
 	{ id = "cargo", emoji = "📦", key = "nav_cargo", color = C.orange, dark = C.orangeDark },
-	{ id = "pilots", emoji = "👨‍✈️", key = "nav_pilots", color = C.green, dark = C.greenDark },
+	{ id = "pilots", emoji = "👥", key = "nav_pilots", color = C.green, dark = C.greenDark },
 	{ id = "contracts", emoji = "📜", key = "nav_contracts", color = Color3.fromRGB(20, 184, 166), dark = Color3.fromRGB(13, 132, 120) },
 	{ id = "spain", emoji = "🗺️", key = "nav_spain", color = Color3.fromRGB(236, 72, 153), dark = Color3.fromRGB(190, 40, 115) },
 	{ id = "missions", emoji = "🎯", key = "nav_missions", color = C.gold, dark = C.goldDark },
@@ -104,9 +104,20 @@ end
 
 function Hud.build(parent: Instance)
 	-- Arriba a la izquierda: dinero, nivel y turbo
-	local topLeft = create("Frame", { Parent = parent, BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 10), Size = UDim2.new(0.6, 0, 0, 56) }, {
+	local topLeft = create("Frame", { Parent = parent, BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -340, 0, 56) }, {
 		Kit.list(true, 10, nil, Enum.VerticalAlignment.Center),
 	})
+	-- ☰ Menú con todos los apartados
+	local menuHolder = create("Frame", { Parent = topLeft, LayoutOrder = 0, BackgroundColor3 = C.grey, Size = UDim2.fromOffset(56, 60), BorderSizePixel = 0 }, { corner(16) })
+	local menuBtn = create("TextButton", {
+		Parent = menuHolder, BackgroundColor3 = C.white, Size = UDim2.fromOffset(56, 56), Text = "☰", TextSize = 30, TextColor3 = C.ink,
+		FontFace = Kit.FONT_TITLE, AutoButtonColor = false, BorderSizePixel = 0,
+	}, { corner(16) })
+	menuBtn.Activated:Connect(function()
+		Kit.playSound("click")
+		ctx.openDrawer()
+	end)
+	ctx.targets.menu = menuBtn
 	local moneyHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(230, 54), LayoutOrder = 1 })
 	Kit.emoji(moneyHolder, "💵", 26, { Position = UDim2.fromOffset(10, 11) })
 	local moneyText = Kit.title(moneyHolder, "$0", 26, C.greenDark, { Position = UDim2.fromOffset(48, 2), Size = UDim2.new(1, -56, 0, 32) })
@@ -145,12 +156,36 @@ function Hud.build(parent: Instance)
 	local levelText = Kit.title(levelHolder, "", 20, C.ink, { Position = UDim2.fromOffset(46, 4), Size = UDim2.new(1, -56, 0, 26) })
 	local levelFill = Kit.progress(levelHolder, { Position = UDim2.new(0, 46, 0, 34), Size = UDim2.new(1, -60, 0, 9) }, C.gold)
 
-	local boostHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(150, 54), LayoutOrder = 3 })
+	-- Combustible del depósito (toca para comprar) y reputación
+	local fuelHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(170, 54), LayoutOrder = 3 })
+	local fuelFace = create("TextButton", { Parent = fuelHolder, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "", ZIndex = 2 })
+	fuelFace.Activated:Connect(function()
+		Kit.playSound("click")
+		ctx.openPanel("fuel")
+	end)
+	ctx.targets.fuel = fuelFace
+	Kit.emoji(fuelHolder, "⛽", 22, { Position = UDim2.fromOffset(8, 6) })
+	local fuelText = Kit.title(fuelHolder, "", 16, C.ink, { Position = UDim2.fromOffset(40, 4), Size = UDim2.new(1, -46, 0, 24) })
+	local fuelFill = Kit.progress(fuelHolder, { Position = UDim2.new(0, 40, 0, 34), Size = UDim2.new(1, -52, 0, 9) }, C.blue)
+	local fuelStroke = Kit.stroke(C.red, 3)
+	fuelStroke.Parent = fuelHolder
+
+	local repHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(100, 54), LayoutOrder = 4 })
+	local repFace = create("TextButton", { Parent = repHolder, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "", ZIndex = 2 })
+	repFace.Activated:Connect(function()
+		Kit.playSound("click")
+		ctx.openPanel("company")
+	end)
+	Kit.emoji(repHolder, "🏅", 22, { Position = UDim2.fromOffset(6, 6) })
+	local repText = Kit.title(repHolder, "", 18, C.ink, { Position = UDim2.fromOffset(38, 4), Size = UDim2.new(1, -42, 0, 24) })
+	local repFill = Kit.progress(repHolder, { Position = UDim2.new(0, 38, 0, 34), Size = UDim2.new(1, -48, 0, 9) }, C.gold)
+
+	local boostHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(150, 54), LayoutOrder = 5 })
 	boostHolder.BackgroundColor3 = C.gold
 	local boostText = Kit.title(boostHolder, "", 20, C.ink, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
 	local boostRoot = boostHolder.Parent :: Frame
 
-	local multHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(110, 54), LayoutOrder = 4 })
+	local multHolder = Kit.float(topLeft, { Size = UDim2.fromOffset(110, 54), LayoutOrder = 6 })
 	local multText = Kit.title(multHolder, "", 18, C.purple, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
 	local multRoot = multHolder.Parent :: Frame
 
@@ -298,6 +333,16 @@ function Hud.build(parent: Instance)
 		multRoot.Visible = st.moneyMult > 1 and st.boostLeft <= 0
 		multText.Text = "💰 x" .. string.format("%.1f", st.moneyMult)
 		incomeText.Text = (st.incomePerMin or 0) > 0 and ("📈 " .. T("per_min", { amount = Kit.fmtMoney(st.incomePerMin) })) or ""
+		-- Combustible y reputación
+		local cap = math.max(1, st.fuelCap or 1)
+		local fuel = st.fuel or 0
+		fuelText.Text = Kit.fmtInt(fuel) .. " L"
+		fuelFill.Size = UDim2.fromScale(math.clamp(fuel / cap, 0, 1), 1)
+		local low = fuel < cap * Config.FUEL_LOW
+		fuelFill.BackgroundColor3 = low and C.red or C.blue
+		fuelStroke.Enabled = low
+		repText.Text = tostring(math.floor(st.rep or 0))
+		repFill.Size = UDim2.fromScale(math.clamp((st.rep or 0) / 100, 0, 1), 1)
 		-- Bolsa: se ve cuando se acerca (o si ya saliste alguna vez)
 		ipoRoot.Visible = st.level >= Config.IPO_LEVEL - 4 or (st.ipoCount or 0) > 0
 		ipoDot.Visible = st.level >= Config.IPO_LEVEL and (st.newShares or 0) >= Config.IPO_MIN_SHARES

@@ -5,13 +5,17 @@
 
 local Config = {}
 
-Config.VERSION = "0.3"
+Config.VERSION = "0.4"
 Config.TIME_SCALE = 120 -- 1 segundo real = 2 minutos de vuelo
 Config.START_MONEY = 20000
 Config.RATE = 8 -- $ por tonelada·km
-Config.FUEL_PRICE = 2 -- $ por litro (base; varía ±25 %)
+Config.FUEL_PRICE = 2 -- $ por litro (base; varía ±25 % cada FUEL_PERIOD)
+Config.FUEL_PERIOD = 120 -- el precio del combustible cambia cada 2 min
+Config.FUEL_START = 2000 -- litros en el depósito al empezar
+Config.FUEL_LOW = 0.2 -- aviso de depósito bajo (20 %)
+Config.MIN_FLIGHT = 30 -- ningún vuelo dura menos de 30 s reales
 Config.PILOT_FEE = 0.1 -- los pilotos contratados cobran el 10 % de cada vuelo
-Config.AUTO_DISPATCH_LEVEL = 5
+Config.AUTO_DISPATCH_LEVEL = 5 -- nivel para contratar al despachador (el que despacha solo)
 Config.BOARD_SIZE = 7 -- cargas por aeropuerto
 Config.BOARD_TTL = 90 -- segundos hasta renovar un tablón
 Config.REFRESH_COOLDOWN = 20
@@ -122,6 +126,9 @@ Config.Airports = {
 	{ code = "REU", city = "Reus", lat = 41.15, lon = 1.17, region = "CAT", goods = { "wine", "oil" }, label = "left" },
 	{ code = "ZAZ", city = "Zaragoza", lat = 41.67, lon = -1.04, region = "CAT", goods = { "fashion", "cars" } },
 	{ code = "HSK", city = "Huesca", lat = 42.08, lon = -0.32, region = "CAT", goods = { "ham", "veggies" }, label = "right" },
+	{ code = "ILD", city = "Lleida", lat = 41.73, lon = 0.54, region = "CAT", goods = { "veggies", "oil" }, label = "right" },
+	{ code = "TEV", city = "Teruel", lat = 40.41, lon = -1.22, region = "CAT", goods = { "ham", "tiles" } },
+	{ code = "LEU", city = "La Seu d'Urgell", lat = 42.34, lon = 1.41, region = "CAT", goods = { "cheese" }, label = "top" },
 	{ code = "SVQ", city = "Sevilla", lat = 37.42, lon = -5.9, region = "AND", goods = { "oil", "oranges" }, label = "left" },
 	{ code = "AGP", city = "Málaga", lat = 36.67, lon = -4.5, region = "AND", goods = { "tech", "veggies" } },
 	{ code = "GRX", city = "Granada", lat = 37.19, lon = -3.78, region = "AND", goods = { "oil", "ham" } },
@@ -129,6 +136,7 @@ Config.Airports = {
 	{ code = "XRY", city = "Jerez", lat = 36.74, lon = -6.06, region = "AND", goods = { "wine", "fish" }, label = "left" },
 	{ code = "ODB", city = "Córdoba", lat = 37.84, lon = -4.85, region = "AND", goods = { "oil" }, label = "left" },
 	{ code = "MLN", city = "Melilla", lat = 35.28, lon = -2.96, region = "AND", goods = { "parcel", "fish" } },
+	{ code = "JCU", city = "Ceuta", lat = 35.89, lon = -5.31, region = "AND", goods = { "fish", "parcel" }, label = "left" },
 	{ code = "BIO", city = "Bilbao", lat = 43.3, lon = -2.91, region = "NOR", goods = { "steel", "fish" }, label = "top" },
 	{ code = "EAS", city = "San Sebastián", lat = 43.36, lon = -1.79, region = "NOR", goods = { "fish", "cheese" }, label = "right" },
 	{ code = "VIT", city = "Vitoria", lat = 42.88, lon = -2.72, region = "NOR", goods = { "parcel", "steel" }, label = "none" },
@@ -151,6 +159,9 @@ Config.Airports = {
 	{ code = "LPA", city = "Gran Canaria", lat = 27.93, lon = -15.39, region = "CAN", goods = { "bananas", "parcel" } },
 	{ code = "ACE", city = "Lanzarote", lat = 28.95, lon = -13.61, region = "CAN", goods = { "wine" }, label = "top" },
 	{ code = "SPC", city = "La Palma", lat = 28.62, lon = -17.76, region = "CAN", goods = { "bananas" }, label = "top" },
+	{ code = "FUE", city = "Fuerteventura", lat = 28.45, lon = -13.86, region = "CAN", goods = { "cheese", "fish" }, label = "none" },
+	{ code = "GMZ", city = "La Gomera", lat = 28.03, lon = -17.21, region = "CAN", goods = { "bananas" }, label = "none" },
+	{ code = "VDE", city = "El Hierro", lat = 27.81, lon = -17.89, region = "CAN", goods = { "cheese", "wine" }, label = "none" },
 } :: { Airport }
 Config.AirportByCode = {} :: { [string]: Airport }
 for _, a in Config.Airports do
@@ -203,6 +214,7 @@ Config.Upgrades = {
 	{ id = "fuel", emoji = "⛽", base = 40_000, growth = 2.4, max = 8, level = 3 }, -- −5 % combustible
 	{ id = "fast", emoji = "⏱️", base = 100_000, growth = 3, max = 5, level = 5 }, -- −8 % tiempo de vuelo
 	{ id = "cold", emoji = "❄️", base = 150_000, growth = 1, max = 1, level = 7 }, -- permite 🐟 y 💊
+	{ id = "tank", emoji = "🛢️", base = 8_000, growth = 2.2, max = 12, level = 1 }, -- depósito de combustible más grande
 } :: { Upgrade }
 Config.UpgradeById = {} :: { [string]: Upgrade }
 for _, u in Config.Upgrades do
@@ -211,6 +223,10 @@ end
 function Config.upgradeCost(id: string, level: number): number
 	local u = Config.UpgradeById[id]
 	return math.floor(u.base * u.growth ^ level)
+end
+-- Litros que caben en el depósito
+function Config.tankCapacity(tank: number): number
+	return math.floor(5000 * 1.85 ^ tank / 100) * 100
 end
 function Config.maxPlanes(hangar: number, pass: boolean?): number
 	return 3 + hangar * 2 + (pass and 5 or 0)
@@ -257,6 +273,40 @@ Config.TraitById = {} :: { [string]: Trait }
 for _, t in Config.Traits do
 	Config.TraitById[t.id] = t
 end
+---------------------------------------------------------------------
+-- Reputación (0–100): sube cumpliendo contratos, exprés y aterrizajes perfectos; baja si fallas contratos.
+-- Paga entre ×0,9 (0) y ×1,1 (100) y mejora los premios de los contratos.
+---------------------------------------------------------------------
+Config.REP_START = 50
+Config.Rep = { contract = 3, contractFailed = -6, contractQuit = -3, express = 1, perfect = 0.5, flight = 0.05 }
+function Config.repMult(rep: number): number
+	return 0.9 + 0.2 * math.clamp(rep, 0, 100) / 100
+end
+
+---------------------------------------------------------------------
+-- Personal de tierra
+-- Despachador: manda los aviones solo (nivel 1), compra combustible cuando queda poco (2) y va primero a por
+-- contratos y exprés, con un 75 % de lo ganado mientras no juegas (3).
+-- Mecánicos: reparan gratis los aviones en tierra; cuantas más estrellas, más rápido.
+---------------------------------------------------------------------
+export type DispatcherLevel = { level: number, cost: number }
+Config.Dispatcher = {
+	{ level = 5, cost = 50_000 },
+	{ level = 7, cost = 250_000 },
+	{ level = 10, cost = 1_500_000 },
+} :: { DispatcherLevel }
+Config.MECH_LEVEL = 3 -- nivel para contratar mecánicos
+Config.MAX_MECHANICS = 6
+Config.MECH_CANDIDATES = 2
+Config.MechStarChance = { 50, 30, 20 } -- 1, 2 y 3 estrellas (visibles antes de contratar)
+function Config.mechRate(stars: number): number
+	return 0.15 + 0.1 * stars -- puntos de estado por segundo (1★ 15/min, 3★ 27/min)
+end
+function Config.mechPrice(stars: number, companyLevel: number): number
+	return math.floor(6000 * stars ^ 1.5 * (1 + 0.3 * (companyLevel - 1)) / 100) * 100
+end
+Config.MechAvatars = { "🧑‍🔧", "👨‍🔧", "👩‍🔧", "👨🏽‍🔧", "👩🏽‍🔧", "🧑🏿‍🔧" }
+
 Config.Avatars = { "👨‍✈️", "👩‍✈️", "🧑‍✈️", "👨🏽‍✈️", "👩🏽‍✈️", "👨🏿‍✈️", "👩🏻‍✈️", "🧑🏾‍✈️" }
 Config.FirstNames = {
 	"Lucía", "Mateo", "Sofía", "Hugo", "Martina", "Leo", "Valeria", "Pablo", "Carmen", "Álvaro",
@@ -462,7 +512,11 @@ function Config.flightXp(gross: number): number
 end
 -- Duración del vuelo en segundos reales
 function Config.flightSeconds(distance: number, speed: number, timeMult: number): number
-	return math.max(10, math.floor(distance / speed * 3600 / Config.TIME_SCALE * timeMult + 0.5))
+	return math.max(Config.MIN_FLIGHT, math.floor(distance / speed * 3600 / Config.TIME_SCALE * timeMult + 0.5))
+end
+-- Litros que gasta un vuelo
+function Config.fuelLitres(distance: number, burn: number): number
+	return math.ceil(distance * burn)
 end
 function Config.payout(weight: number, distance: number, goodMult: number): number
 	return math.floor(weight * distance * Config.RATE * goodMult)

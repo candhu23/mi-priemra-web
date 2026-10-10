@@ -74,6 +74,7 @@ function M.new(placePath: string, opts: { [string]: any }?)
 	local SIGNALS = {
 		Activated = true, MouseEnter = true, MouseLeave = true, OnClientEvent = true, OnServerEvent = true,
 		Changed = true, Completed = true, CharacterAdded = true, Triggered = true,
+		InputBegan = true, InputChanged = true, InputEnded = true,
 	}
 	local NOOP = { Play = true, Stop = true }
 
@@ -318,6 +319,7 @@ function M.new(placePath: string, opts: { [string]: any }?)
 		RunService = { RenderStepped = W.renderStepped, Heartbeat = newSignal(), IsStudio = function() return true end },
 		LocalizationService = { RobloxLocaleId = options.locale or "es-es" },
 		SocialService = { PromptGameInvite = function() table.insert(W.prompts, "invite") end, CanSendGameInviteAsync = function() return true end },
+		UserInputService = { TouchPinch = newSignal(), InputBegan = newSignal(), InputChanged = newSignal(), InputEnded = newSignal() },
 	}
 	W.mocks = mocks
 	local camera = { ViewportSize = roblox.Vector2.new(options.width or 1280, options.height or 720), GetPropertyChangedSignal = function() return newSignal() end }

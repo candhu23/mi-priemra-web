@@ -19,6 +19,8 @@ export type View = {
 	sat: { [string]: number }, -- aeropuerto → multiplicador por saturación (< 1)
 	album: { airports: { [string]: boolean }, goods: { [string]: number } },
 	pending: { [string]: boolean }?, -- destinos con un avión tuyo ya en camino (la ruta ya no es «nueva»)
+	rep: number?, -- reputación 0–100
+	fuel: number?, -- litros en el depósito
 }
 export type Mod = { kind: string, icon: string, mult: number }
 
@@ -184,15 +186,18 @@ function Rules.canFly(view: View, plane: any, load: any): string?
 		return "err_out_of_range"
 	elseif good.cold and (view.upgrades.cold or 0) < 1 then
 		return "err_cold"
+	elseif view.fuel and Config.fuelLitres(load.dist, model.burn) > view.fuel then
+		return "err_no_fuel"
 	end
 	return nil
 end
 
--- Devuelve (bruto, combustible, comisión del piloto, segundos, modificadores aplicados)
-function Rules.quote(view: View, plane: any, load: any, pilot: any?): (number, number, number, number, { Mod })
+-- Devuelve (bruto, valor del combustible, comisión del piloto, segundos, modificadores, litros).
+-- El combustible se compra antes (depósito): su valor se resta para comparar cargas, pero al aterrizar no se cobra.
+function Rules.quote(view: View, plane: any, load: any, pilot: any?): (number, number, number, number, { Mod }, number)
 	local model = Config.PlaneById[plane.model]
 	local mods: { Mod } = {}
-	local pay = (1 + 0.05 * (view.upgrades.sales or 0)) * view.moneyMult
+	local pay = (1 + 0.05 * (view.upgrades.sales or 0)) * view.moneyMult * Config.repMult(view.rep or Config.REP_START)
 	local timeK, fuelK = view.timeMult, 1
 	if pilot then
 		pay *= 1 + Config.pilotBonus(pilot.stars, pilot.level)
@@ -230,10 +235,11 @@ function Rules.quote(view: View, plane: any, load: any, pilot: any?): (number, n
 		end
 	end
 	local gross = math.floor(load.gross * pay)
-	local fuel = math.floor(load.dist * model.burn * view.fuelPrice * fuelK)
+	local litres = math.ceil(Config.fuelLitres(load.dist, model.burn) * fuelK)
+	local fuel = math.floor(litres * view.fuelPrice)
 	local fee = pilot and math.floor(gross * Config.PILOT_FEE) or 0
-	local secs = load.tutorial and 15 or Config.flightSeconds(load.dist, model.speed, timeK)
-	return gross, fuel, fee, secs, mods
+	local secs = load.tutorial and Config.MIN_FLIGHT or Config.flightSeconds(load.dist, model.speed, timeK)
+	return gross, fuel, fee, secs, mods, litres
 end
 
 return Rules

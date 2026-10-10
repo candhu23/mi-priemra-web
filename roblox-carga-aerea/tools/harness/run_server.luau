@@ -76,7 +76,7 @@ if MODE == "sin-datastore" then
 	s = lastState()
 	assert(s.boards.MAD[1].tutorial, "falta la carga del tutorial en Madrid")
 	act("dispatch", s.planes[1].id, s.boards.MAD[1].id, 0)
-	W.tick(20)
+	W.tick(32)
 	s = lastState()
 	assert(s.money > Config.START_MONEY, "debería haber cobrado el vuelo")
 	for _, n in newNotes() do print("  aviso:", n) end
@@ -97,7 +97,10 @@ act("dispatch", s.planes[1].id, s.boards.MAD[1].id, 0)
 assert(lastState().tutorial == 2, "tras despachar el tutorial debería ir al paso 2")
 act("land", s.planes[1].id, "perfect") -- demasiado pronto
 assert(not lastState().planes[1].flight.landing, "aterrizar tan pronto no debería valer")
-W.tick(11)
+local f0 = lastState().planes[1].flight
+assert(f0.endT - f0.startT >= Config.MIN_FLIGHT, "ningún vuelo debe durar menos de " .. Config.MIN_FLIGHT .. " s")
+assert(lastState().fuel < Config.FUEL_START, "el despegue debería gastar combustible del depósito")
+W.tick(f0.endT - f0.startT - 4)
 local okLand = act("land", s.planes[1].id, "perfect")
 assert(okLand, "el aterrizaje perfecto debería aceptarse en los últimos segundos")
 act("land", s.planes[1].id, "perfect") -- solo un intento
@@ -126,7 +129,14 @@ act("refreshBoard", s.planes[1].airport)
 act("refreshBoard", s.planes[1].airport) -- espera
 act("buyRegion", "CAT") -- nivel
 act("buyUpgrade", "cold") -- nivel
-act("setAuto", true) -- nivel
+act("setAuto", true) -- sin despachador
+act("hireDispatcher") -- nivel
+act("hireMechanic", 1) -- nivel
+act("buyFuel", "mucho") -- tipo incorrecto
+act("buyFuel", 0 / 0) -- NaN
+act("buyFuel", 50)
+act("buyFuel", 1e9) -- se llena lo que cabe y se puede pagar
+act("buyFuel", 10) -- lleno
 act("claimGoal", "flights_8") -- sin terminar
 act("claimMission", 1) -- sin terminar
 act("bogus")
@@ -269,7 +279,25 @@ for _ = 1, 3000 do
 	for _, r in Config.Regions do
 		if not st.regions[r.id] and st.level >= r.level then nextRegion = nextRegion or r end
 	end
-	if #st.pilots < #st.planes - 1 and cheapest and st.money >= cheapest.price then
+	-- Combustible: llenar cuando baja de la mitad
+	if st.fuel < st.fuelCap * 0.5 and st.money > 1000 then
+		act("buyFuel", st.fuelCap, nil, nil, true)
+		st = lastState()
+	end
+	local cheapMech
+	for _, m in st.mechCandidates or {} do
+		if not cheapMech or m.price < cheapMech.price then cheapMech = m end
+	end
+	local nextDispatcher = Config.Dispatcher[(st.staff.dispatcher or 0) + 1]
+	local tankCost = Config.upgradeCost("tank", st.upgrades.tank)
+	if nextDispatcher and st.level >= nextDispatcher.level and st.money >= nextDispatcher.cost * 1.2 then
+		act("hireDispatcher", nil, nil, nil, true) mark("despachador nivel " .. (st.staff.dispatcher + 1))
+	elseif st.level >= Config.MECH_LEVEL and cheapMech and #st.mechanics < math.min(Config.MAX_MECHANICS, math.floor(#st.planes / 3))
+		and st.money >= cheapMech.price * 2 then
+		act("hireMechanic", cheapMech.id, nil, nil, true) mark("mecánico contratado")
+	elseif st.upgrades.tank < 12 and st.money >= tankCost * 3 and st.fuelCap < #st.planes * 6000 then
+		act("buyUpgrade", "tank", nil, nil, true) mark("depósito ampliado")
+	elseif #st.pilots < #st.planes - 1 and cheapest and st.money >= cheapest.price then
 		act("hire", cheapest.id, nil, nil, true) mark("piloto fichado")
 	elseif nextRegion and st.money >= nextRegion.cost then
 		act("buyRegion", nextRegion.id, nil, nil, true) mark("región " .. nextRegion.id)
@@ -369,7 +397,16 @@ end
 W.fakeTime += 2
 act("buyUpgrade", "fuel") -- ya al máximo
 for _, m in Config.Planes do act("buyPlane", m.id) end
+for _ = 1, 3 do act("hireDispatcher", nil, nil, nil, true) end
+act("hireDispatcher") -- ya al máximo
 act("searchCandidates")
+for _ = 1, 2 do
+	local m = lastState().mechCandidates[1]
+	if m then act("hireMechanic", m.id, nil, nil, true) end
+end
+s = lastState()
+assert(s.dispatcher == 3 and #s.mechanics >= 1, "debería tener despachador nivel 3 y algún mecánico")
+act("fireMechanic", s.mechanics[1].id)
 for _ = 1, 3 do
 	local c = lastState().candidates[1]
 	if c then act("hire", c.id, nil, nil, true) end

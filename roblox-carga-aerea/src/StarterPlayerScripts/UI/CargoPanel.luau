@@ -26,6 +26,10 @@ function CargoPanel.build(content: Frame): () -> ()
 	local autoBtn = Kit.button(left, "", "white", UDim2.fromOffset(150, 40), function()
 		if ctx.state.autoUnlocked then
 			ctx.act("setAuto", not ctx.state.settings.auto)
+		elseif ctx.pilotsTab then
+			-- Sin despachador: se abre su pestaña para contratarlo
+			ctx.openPanel("pilots")
+			ctx.pilotsTab("dispatcher")
 		end
 	end, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 6) })
 	autoBtn.TextSize = 15
@@ -181,7 +185,12 @@ function CargoPanel.build(content: Frame): () -> ()
 		local tag = Kit.label(root, "", 14, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(84, 58), Size = UDim2.new(0.42, -84, 0, 18) })
 		local net = Kit.title(root, "", 26, C.green, { Position = UDim2.new(0.42, 0, 0, 10), Size = UDim2.new(0.32, 0, 0, 32) })
 		local detail = Kit.label(root, "", 13, C.muted, nil, { Position = UDim2.new(0.42, 0, 0, 44), Size = UDim2.new(0.32, 0, 0, 32), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top })
+		local noFuel = false
 		local fly = Kit.button(root, "✈️ " .. T("btn_fly"), ex and "gold" or "orange", UDim2.new(0.24, -12, 0, 56), function()
+			if noFuel then
+				ctx.openPanel("fuel")
+				return
+			end
 			local ok = ctx.act("dispatch", ctx.selectPlane, load.id, selectedPilot)
 			if ok then
 				Kit.playSound("takeoff")
@@ -202,11 +211,11 @@ function CargoPanel.build(content: Frame): () -> ()
 				if not plane then
 					return
 				end
-				local gross, fuel, fee, secs, mods = Kit.quote(plane, l, selectedPilot)
+				local gross, fuel, fee, secs, mods, litres = Kit.quote(plane, l, selectedPilot)
 				local n = gross - fuel - fee
 				net.Text = (n >= 0 and "+" or "") .. Kit.fmtMoney(n)
 				net.TextColor3 = n >= 0 and C.greenDark or C.red
-				detail.Text = "⏱️ " .. Kit.fmtTime(secs) .. "  ·  ⛽ −" .. Kit.fmtMoney(fuel) .. (fee > 0 and ("  ·  👨‍✈️ −" .. Kit.fmtMoney(fee)) or "")
+				detail.Text = "⏱️ " .. Kit.fmtTime(secs) .. "  ·  ⛽ " .. Kit.fmtInt(litres) .. " L" .. (fee > 0 and ("  ·  👨‍✈️ −" .. Kit.fmtMoney(fee)) or "")
 				-- Etiquetas: exprés, contrato, evento, ciudad en auge, ruta nueva, saturación, rasgo del piloto
 				local parts = {}
 				if l.express then
@@ -232,8 +241,11 @@ function CargoPanel.build(content: Frame): () -> ()
 				elseif not block and selectedPilot == 0 and Kit.pilotBusy(0) then
 					block = "err_you_busy"
 				end
-				fly.Parent.Visible = block == nil
-				reason.Visible = block ~= nil
+				-- Sin combustible: el botón lleva a comprarlo
+				noFuel = block == "err_no_fuel"
+				fly.Parent.Visible = block == nil or noFuel
+				Kit.setButton(fly, noFuel and ("⛽ " .. T("btn_buy_fuel")) or ("✈️ " .. T("btn_fly")), true)
+				reason.Visible = block ~= nil and not noFuel
 				reason.Text = block and T(block) or ""
 			end,
 		}
@@ -300,7 +312,7 @@ function CargoPanel.build(content: Frame): () -> ()
 			autoBtn.BackgroundColor3 = st.settings.auto and C.green or C.white
 			autoBtn.TextColor3 = st.settings.auto and C.white or C.ink
 		else
-			Kit.setButton(autoBtn, "🤖 🔒 " .. T("top_level", { level = Config.AUTO_DISPATCH_LEVEL }), false)
+			Kit.setButton(autoBtn, "🤖 🔒 " .. T("tab_dispatcher"), false)
 		end
 		local planes = table.clone(st.planes)
 		table.sort(planes, function(a, b)

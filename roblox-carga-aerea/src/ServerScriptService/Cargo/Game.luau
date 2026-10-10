@@ -37,7 +37,8 @@ Game.sessions = {} :: { [Player]: Session }
 
 local rng = Random.new()
 local fuelMult = 1
-local nextFuel = os.time() + 300
+local nextFuel = os.time() + Config.FUEL_PERIOD
+Game.fuelHistory = { 1, 1, 1, 1, 1, 1, 1, 1 } :: { number } -- últimos precios (multiplicador) para la gráfica
 
 -- Mundo compartido: evento de España y ciudades en auge (iguales en todos los servidores)
 Game.world = {
@@ -99,8 +100,29 @@ local function regionCount(data: any): number
 	return n
 end
 
+-- Nivel efectivo del despachador (el pase Piloto automático equivale al nivel 1)
+function Game.dispatcher(session: Session): number
+	local lvl = session.data.staff.dispatcher or 0
+	if session.passes.autopilot then
+		lvl = math.max(lvl, 1)
+	end
+	return lvl
+end
+
 function Game.autoUnlocked(session: Session): boolean
-	return session.passes.autopilot == true or Game.level(session.data) >= Config.AUTO_DISPATCH_LEVEL
+	return Game.dispatcher(session) >= 1
+end
+
+function Game.tankCapacity(data: any): number
+	return Config.tankCapacity(data.upgrades.tank or 0)
+end
+
+function Game.addRep(data: any, amount: number)
+	data.rep = math.clamp(math.floor((data.rep + amount) * 100 + 0.5) / 100, 0, 100)
+end
+
+function Game.fuelNextIn(now: number): number
+	return math.max(0, nextFuel - now)
 end
 
 function Game.maxPlanes(session: Session): number
@@ -196,6 +218,8 @@ function Game.view(session: Session): Rules.View
 		sat = Game.satMap(session),
 		album = data.album,
 		pending = Rules.pendingStamps(data.planes, data.album),
+		rep = data.rep,
+		fuel = data.fuel,
 	}
 end
 
@@ -512,7 +536,8 @@ local function newOffer(session: Session): any?
 		id = id, company = Config.CompanyByGood[good].id, good = good,
 		region = regions[rng:NextInteger(1, #regions)], count = count,
 		secs = count * Config.CONTRACT_SECS_PER_LOAD,
-		reward = math.floor(minutes * Game.incomeBase(session) / 100) * 100,
+		-- La reputación mejora (o empeora) lo que pagan las empresas
+		reward = math.floor(minutes * Game.incomeBase(session) * (0.8 + 0.4 * data.rep / 100) / 100) * 100,
 	}
 end
 
@@ -542,6 +567,7 @@ local function tickContracts(session: Session, now: number)
 		local x = c.active[i]
 		if now >= x.expires then
 			table.remove(c.active, i)
+			Game.addRep(data, Config.Rep.contractFailed)
 			Game.notify(session.player, "error", "n_contract_failed", { company = x.company })
 			session.dirty = true
 		end
@@ -561,6 +587,7 @@ local function contractDelivery(session: Session, good: string, to: string, land
 				data.money += x.reward
 				data.xp += math.floor(Config.flightXp(x.reward) * Game.xpMult(data))
 				Game.addStat(session, "contracts", 1)
+				Game.addRep(data, Config.Rep.contract)
 				Game.notify(session.player, "goal", "n_contract_done", { company = x.company, amount = x.reward })
 			end
 		end
@@ -574,20 +601,32 @@ function Game.canFly(session: Session, plane: any, load: Load): string?
 	return Rules.canFly(Game.view(session), plane, load)
 end
 
-function Game.quote(session: Session, plane: any, load: Load, pilotId: number): (number, number, number, number)
+function Game.quote(session: Session, plane: any, load: Load, pilotId: number): (number, number, number, number, number)
 	local pilot = pilotId > 0 and findPilot(session.data, pilotId) or nil
-	local gross, fuel, fee, secs = Rules.quote(Game.view(session), plane, load, pilot)
-	return gross, fuel, fee, secs
+	local gross, fuel, fee, secs, _, litres = Rules.quote(Game.view(session), plane, load, pilot)
+	return gross, fuel, fee, secs, litres
+end
+
+-- Gasta combustible del depósito y avisa si queda poco
+local function useFuel(session: Session, litres: number)
+	local data = session.data
+	local cap = Game.tankCapacity(data)
+	local before = data.fuel
+	data.fuel = math.max(0, data.fuel - litres)
+	if before >= cap * Config.FUEL_LOW and data.fuel < cap * Config.FUEL_LOW then
+		Game.notify(session.player, "error", "n_fuel_low")
+	end
 end
 
 function Game.startFlight(session: Session, plane: any, load: Load, pilotId: number)
-	local gross, fuel, fee, secs = Game.quote(session, plane, load, pilotId)
+	local gross, fuel, fee, secs, litres = Game.quote(session, plane, load, pilotId)
 	local now = os.time()
 	plane.flight = {
 		from = load.from, to = load.to, good = load.good, weight = load.weight, dist = load.dist,
 		gross = gross, fuel = fuel, fee = fee, pilot = pilotId, startT = now, endT = now + secs,
-		express = load.express ~= nil,
+		express = load.express ~= nil, litres = litres,
 	}
+	useFuel(session, litres)
 	-- Cuantos más vuelos recientes al mismo sitio, menos paga el siguiente
 	session.sat[load.to] = (session.sat[load.to] or 0) + 1
 	removeLoad(session, load.from, load.id)
@@ -640,9 +679,14 @@ function Game.finishFlight(session: Session, plane: any, offline: boolean): numb
 			Game.addStat(session, "perfect", 1)
 		end
 	end
-	local net = f.gross + bonus - f.fuel - f.fee
-	data.money += net
+	-- El combustible ya se pagó al comprarlo (depósito): se cobra el pago menos la comisión del piloto.
+	-- Para estadísticas y ritmo se descuenta el valor del combustible gastado.
+	-- (Vuelos de antes de la v0.4 sin «litres»: pagaban el combustible al aterrizar.)
+	local cash = f.gross + bonus - f.fee - (if f.litres then 0 else f.fuel)
+	local net = cash - (if f.litres then f.fuel else 0)
+	data.money += cash
 	if f.good ~= "ferry" then
+		Game.addRep(data, Config.Rep.flight + (f.express and Config.Rep.express or 0) + (f.landing == "perfect" and Config.Rep.perfect or 0))
 		data.xp += math.floor(Config.flightXp(f.gross) * Game.xpMult(data))
 		Game.addStat(session, "flights", 1)
 		Game.addStat(session, "tons", f.weight)
@@ -689,14 +733,14 @@ function Game.finishFlight(session: Session, plane: any, offline: boolean): numb
 	end
 	tutorialStep(session, 2, 3)
 	if not offline then
-		Game.notify(player, "landed", "n_landed", { code = f.to, net = net, landing = f.landing })
+		Game.notify(player, "landed", "n_landed", { code = f.to, net = cash, landing = f.landing })
 		local after = Game.level(data)
 		if after > before then
 			Game.notify(player, "level", "n_level_up", { level = after })
 		end
 	end
 	session.dirty = true
-	return net
+	return cash
 end
 
 ---------------------------------------------------------------------
@@ -745,8 +789,72 @@ function Game.refreshCandidates(session: Session)
 		c.price = Config.candidatePrice(stars, lvl)
 		table.insert(data.candidates, c)
 	end
+	-- Mecánicos candidatos (estrellas visibles antes de contratar)
+	data.mechCandidates = {}
+	for _ = 1, Config.MECH_CANDIDATES do
+		local roll, stars = rng:NextNumber(0, 100), 1
+		for st, chance in Config.MechStarChance do
+			roll -= chance
+			if roll <= 0 then
+				stars = st
+				break
+			end
+		end
+		local first = Config.FirstNames[rng:NextInteger(1, #Config.FirstNames)]
+		local last = Config.LastNames[rng:NextInteger(1, #Config.LastNames)]
+		table.insert(data.mechCandidates, {
+			id = data.nextId, name = first .. " " .. last, stars = stars,
+			avatar = Config.MechAvatars[rng:NextInteger(1, #Config.MechAvatars)], price = Config.mechPrice(stars, lvl),
+		})
+		data.nextId += 1
+	end
 	data.candidatesAt = os.time()
 	session.dirty = true
+end
+
+-- Los mecánicos reparan gratis los aviones en tierra (cada uno, el más estropeado que quede)
+function Game.tickMechanics(session: Session)
+	local data = session.data
+	if #data.mechanics == 0 then
+		return
+	end
+	local grounded = {}
+	for _, p in data.planes do
+		if not p.flight and p.condition < 100 then
+			table.insert(grounded, p)
+		end
+	end
+	table.sort(grounded, function(a, b)
+		return a.condition < b.condition
+	end)
+	local mechs = table.clone(data.mechanics)
+	table.sort(mechs, function(a: any, b: any)
+		return a.stars > b.stars
+	end)
+	for i, m in mechs do
+		local p = grounded[i]
+		if not p then
+			break
+		end
+		p.condition = math.min(100, math.floor((p.condition + Config.mechRate(m.stars)) * 100 + 0.5) / 100)
+		session.dirty = true
+	end
+end
+
+-- Compra combustible al precio de ahora: devuelve los litros comprados
+function Game.buyFuel(session: Session, litres: number): (number, number)
+	local data = session.data
+	local price = Game.fuelPrice(data)
+	local room = Game.tankCapacity(data) - data.fuel
+	local amount = math.floor(math.min(litres, room, data.money / price))
+	if amount < 1 then
+		return 0, 0
+	end
+	local cost = math.ceil(amount * price)
+	data.money -= cost
+	data.fuel += amount
+	session.dirty = true
+	return amount, cost
 end
 
 ---------------------------------------------------------------------
@@ -777,6 +885,11 @@ function Game.autoDispatch(session: Session)
 		return Config.PlaneById[a.model].cap > Config.PlaneById[b.model].cap
 	end)
 	local youFree = not pilotBusy(data, 0)
+	local dispatcher = Game.dispatcher(session)
+	-- Despachador nivel 2+: si queda poco combustible, llena el depósito
+	if dispatcher >= 2 and data.fuel < Game.tankCapacity(data) * 0.3 then
+		Game.buyFuel(session, math.huge)
+	end
 	local view = Game.view(session)
 	for _, plane in planes do
 		local pilotId
@@ -793,14 +906,29 @@ function Game.autoDispatch(session: Session)
 		for _, load in Game.board(session, plane.airport) do
 			if not Rules.canFly(view, plane, load) then
 				local gross, fuel, fee = Rules.quote(view, plane, load, pilot)
-				if gross - fuel - fee > bestNet then
-					best, bestNet = load, gross - fuel - fee
+				local value = gross - fuel - fee
+				-- Despachador nivel 3: primero contratos y exprés
+				if dispatcher >= 3 and value > 0 then
+					local dest = Config.AirportByCode[load.to]
+					for _, c in data.contracts.active do
+						if c.good == load.good and dest.region == c.region then
+							value *= 1.6
+						end
+					end
+					if load.express then
+						value *= 1.4
+					end
+				end
+				if value > bestNet then
+					best, bestNet = load, value
 				end
 			end
 		end
 		if best then
 			Game.startFlight(session, plane, best, pilotId)
 			view.sat = Game.satMap(session)
+			view.fuel = data.fuel
+			view.pending = Rules.pendingStamps(data.planes, data.album)
 		elseif pilotId == 0 then
 			youFree = true
 		else
@@ -812,6 +940,16 @@ end
 ---------------------------------------------------------------------
 -- Ganancias offline y migraciones (al entrar)
 ---------------------------------------------------------------------
+-- Parte de lo que gana tu flota mientras no juegas: 100 % con el pase, 75 % con el despachador nivel 3, si no 50 %
+function Game.offlineRate(session: Session): number
+	if session.passes.autopilot then
+		return 1
+	elseif Game.dispatcher(session) >= 3 then
+		return 0.75
+	end
+	return Config.OFFLINE_RATE
+end
+
 function Game.onJoin(session: Session)
 	local data = session.data
 	local now = os.time()
@@ -829,6 +967,16 @@ function Game.onJoin(session: Session)
 			end
 		end
 	end
+	-- Partidas anteriores a la v0.4: depósito lleno y, si ya tenían el despacho automático (nivel 5), despachador
+	if data.migrateV4 then
+		data.migrateV4 = nil
+		data.fuel = Game.tankCapacity(data)
+		if Game.level(data) >= Config.AUTO_DISPATCH_LEVEL then
+			data.staff.dispatcher = math.max(data.staff.dispatcher, 1)
+		end
+		session.dirty = true
+	end
+	data.fuel = math.min(data.fuel, Game.tankCapacity(data))
 	local landed, net = 0, 0
 	for _, plane in data.planes do
 		if plane.flight and plane.flight.endT <= now then
@@ -839,7 +987,7 @@ function Game.onJoin(session: Session)
 	local offline = 0
 	if data.lastOnline > 0 and data.settings.auto and Game.autoUnlocked(session) then
 		local seconds = math.min(now - data.lastOnline, Config.OFFLINE_MAX_HOURS * 3600)
-		offline = math.floor(data.rate * seconds * (session.passes.autopilot and 1 or Config.OFFLINE_RATE))
+		offline = math.floor(data.rate * seconds * Game.offlineRate(session))
 		data.money += offline
 	end
 	session.offlineLast = offline
@@ -890,8 +1038,10 @@ end
 local lastRate = os.time()
 function Game.tick(now: number)
 	if now >= nextFuel then
-		nextFuel = now + 300
-		fuelMult = math.clamp(fuelMult + rng:NextNumber(-0.1, 0.1), 0.75, 1.25)
+		nextFuel = now + Config.FUEL_PERIOD
+		fuelMult = math.clamp(math.floor((fuelMult + rng:NextNumber(-0.12, 0.12)) * 100 + 0.5) / 100, 0.75, 1.25)
+		table.remove(Game.fuelHistory, 1)
+		table.insert(Game.fuelHistory, fuelMult)
 	end
 	Game.updateWorld(now)
 	local rateTick = now - lastRate >= 60
@@ -916,6 +1066,7 @@ function Game.tick(now: number)
 		end
 		tickExpress(session, now)
 		tickContracts(session, now)
+		Game.tickMechanics(session)
 		Game.autoDispatch(session)
 		if now - data.candidatesAt >= Config.CANDIDATE_REFRESH then
 			Game.refreshCandidates(session)
@@ -992,6 +1143,9 @@ function Game.goPublic(session: Session): number
 		data.upgrades[id] = 0
 	end
 	data.contracts = { offers = {}, active = {}, nextAt = 0 }
+	data.staff.dispatcher = 0
+	data.mechanics = {}
+	data.fuel = math.max(Config.FUEL_START, math.min(data.fuel, Game.tankCapacity(data)))
 	data.run = { earned = 0 }
 	data.rate = 0
 	data.settings.auto = false
@@ -1070,12 +1224,17 @@ function Actions.ferry(session, planeId, to)
 	if dist > model.range then
 		return false, "err_out_of_range"
 	end
+	local litres = Config.fuelLitres(dist, model.burn)
+	if litres > data.fuel then
+		return false, "err_no_fuel"
+	end
 	local now = os.time()
 	plane.flight = {
 		from = plane.airport, to = dest.code, good = "ferry", weight = 0, dist = dist, gross = 0,
-		fuel = math.floor(dist * model.burn * Game.fuelPrice(data)), fee = 0, pilot = -1, startT = now,
-		endT = now + Config.flightSeconds(dist, model.speed, Game.timeMult(session)), express = false,
+		fuel = math.floor(litres * Game.fuelPrice(data)), fee = 0, pilot = -1, startT = now,
+		endT = now + Config.flightSeconds(dist, model.speed, Game.timeMult(session)), express = false, litres = litres,
 	}
+	useFuel(session, litres)
 	session.dirty = true
 	return true, "n_ferry", { city = dest.city }
 end
@@ -1304,6 +1463,77 @@ function Actions.buyUpgrade(session, upgradeId)
 	return true, "n_upgrade", { upgrade = up.id }, { money = true }
 end
 
+-- Compra combustible: litres = cantidad (se limita a lo que cabe y a lo que puedes pagar)
+function Actions.buyFuel(session, litres)
+	if type(litres) ~= "number" or litres ~= litres or litres <= 0 then
+		return false, "err_generic"
+	end
+	local data = session.data
+	if data.fuel >= Game.tankCapacity(data) then
+		return false, "err_tank_full"
+	end
+	local amount, cost = Game.buyFuel(session, litres)
+	if amount < 1 then
+		return false, "err_money"
+	end
+	return true, "n_fuel_bought", { n = amount, cost = cost }, { money = true }
+end
+
+-- Contrata o sube de nivel al despachador
+function Actions.hireDispatcher(session)
+	local data = session.data
+	local nextLevel = (data.staff.dispatcher or 0) + 1
+	local def = Config.Dispatcher[nextLevel]
+	if not def then
+		return false, "err_maxed"
+	elseif Game.level(data) < def.level then
+		return false, "err_level", { level = def.level }
+	elseif data.money < def.cost then
+		return false, "err_money"
+	end
+	data.money -= def.cost
+	data.staff.dispatcher = nextLevel
+	Game.addStat(session, "purchases", 1)
+	session.dirty = true
+	return true, "n_dispatcher", { n = nextLevel }, { money = true }
+end
+
+function Actions.hireMechanic(session, candidateId)
+	local data = session.data
+	if Game.level(data) < Config.MECH_LEVEL then
+		return false, "err_level", { level = Config.MECH_LEVEL }
+	end
+	for i, c in data.mechCandidates do
+		if c.id == candidateId then
+			if #data.mechanics >= Config.MAX_MECHANICS then
+				return false, "err_roster_full"
+			elseif data.money < c.price then
+				return false, "err_money"
+			end
+			data.money -= c.price
+			table.remove(data.mechCandidates, i)
+			c.price = nil
+			table.insert(data.mechanics, c)
+			Game.addStat(session, "purchases", 1)
+			session.dirty = true
+			return true, "n_hired", { name = c.name }
+		end
+	end
+	return false, "err_generic"
+end
+
+function Actions.fireMechanic(session, id)
+	local data = session.data
+	for i, m in data.mechanics do
+		if m.id == id then
+			table.remove(data.mechanics, i)
+			session.dirty = true
+			return true, "n_fired", { name = m.name }
+		end
+	end
+	return false, "err_generic"
+end
+
 function Actions.acceptContract(session, offerId)
 	local data = session.data
 	local c = data.contracts
@@ -1330,6 +1560,7 @@ function Actions.abandonContract(session, contractId)
 	for i, x in c.active do
 		if x.id == contractId then
 			table.remove(c.active, i)
+			Game.addRep(session.data, Config.Rep.contractQuit)
 			session.dirty = true
 			return true
 		end
@@ -1379,7 +1610,7 @@ end
 
 function Actions.setAuto(session, on)
 	if on and not Game.autoUnlocked(session) then
-		return false, "err_level", { level = Config.AUTO_DISPATCH_LEVEL }
+		return false, "err_need_dispatcher"
 	end
 	session.data.settings.auto = on == true
 	return true

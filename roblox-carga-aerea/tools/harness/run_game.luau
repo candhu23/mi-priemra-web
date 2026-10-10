@@ -87,9 +87,13 @@ local function encode(v)
 	elseif t == "Vector2" then return { v.X, v.Y }
 	elseif t == "Color3" then return { math.floor(v.R * 255 + 0.5), math.floor(v.G * 255 + 0.5), math.floor(v.B * 255 + 0.5) }
 	elseif t == "ColorSequence" then
-		local k = v.Keypoints
-		local a, b = k[1].Value, k[#k].Value
-		return { { math.floor(a.R * 255), math.floor(a.G * 255), math.floor(a.B * 255) }, { math.floor(b.R * 255), math.floor(b.G * 255), math.floor(b.B * 255) } }
+		-- Todos los colores con su posición: { {t, r, g, b}, ... }
+		local out = {}
+		for _, kp in v.Keypoints do
+			local c = kp.Value
+			table.insert(out, { math.floor(kp.Time * 1000 + 0.5) / 1000, math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) })
+		end
+		return out
 	elseif t == "EnumItem" then return v.Name
 	elseif t == "Font" then return { v.Family, v.Weight.Name }
 	elseif t == "number" then return v ~= v and 0 or (v == math.huge and 1e9 or v)
@@ -146,7 +150,7 @@ for _ = 1, 60 do
 		assert(ctx.panel == nil, "la ventana de CARGAS debería cerrarse sola al despegar (para ver el avión)")
 		if not landingSeen then dump("03_tutorial_vuelo", false, true) end
 		-- Minijuego de aterrizaje: aparece en los últimos segundos
-		for _ = 1, 20 do
+		for _ = 1, 40 do
 			frame()
 			local land = ctx.targets.land
 			if land and W.unwrap(land).Parent.Parent.Visible then
@@ -215,13 +219,32 @@ for _ = 1, 3 do
 	if ok then press(ok) end
 end
 dump("10_mapa")
+-- Menú ☰ con todos los apartados
+press(ctx.targets.menu, "menú ☰")
+frame()
+dump("11_menu", true, true)
+press(ctx.targets.menu_company, "menú → tu compañía")
+frame()
+assert(ctx.panel == "company", "el menú debería abrir «Tu compañía»")
+ctx.closePanel()
+-- Zoom del mapa
+press(ctx.targets.zoom_1, "zoom +")
+press(ctx.targets.zoom_1, "zoom +")
+frame()
+dump("12_mapa_zoom")
+local mapArea = playerGui:FindFirstChild("MapArea", true) :: any
+assert(mapArea and mapArea.CanvasSize.X.Scale > 1.2, "el zoom + no amplió el mapa")
+print("  zoom: lienzo ×" .. mapArea.CanvasSize.X.Scale)
+press(ctx.targets.zoom_3, "zoom normal")
+frame()
+assert(mapArea.CanvasSize.X.Scale == 1, "el zoom normal no volvió a ×1")
 
 local PANELS = {
-	fleet = { "mine", "buy", "upgrades" }, cargo = { false }, pilots = { "roster", "hire" }, contracts = { false },
+	fleet = { "mine", "buy", "upgrades" }, cargo = { false }, pilots = { "roster", "hire", "dispatcher", "mechanics" }, contracts = { false },
 	spain = { "regions", "passport" }, missions = { "missions", "goals", "daily" }, shop = { "passes", "offers", "bonus" },
-	ranking = { "week", "all" }, settings = { false }, ipo = { false },
+	ranking = { "week", "all" }, settings = { false }, ipo = { false }, company = { false }, fuel = { false }, france = { false },
 }
-local ORDER = { "fleet", "cargo", "pilots", "contracts", "spain", "missions", "shop", "ranking", "settings", "ipo" }
+local ORDER = { "company", "fleet", "cargo", "pilots", "fuel", "contracts", "spain", "france", "missions", "shop", "ranking", "settings", "ipo" }
 local pressed = 0
 local function sweep()
 	local all = playerGui:GetDescendants()
@@ -261,6 +284,22 @@ for pass = 1, 2 do
 	frame()
 end
 print("  botones pulsados:", pressed, "· objetos:", count())
+
+-- Contratar un mecánico a mano (en el barrido, pulsar otra pestaña borra las tarjetas antes de llegar a ellas)
+ctx.openPanel("pilots")
+press(ctx.targets.tab_mechanics, "pestaña mecánicos")
+frame()
+local mechBtn
+for _, d in playerGui:GetDescendants() do
+	if d:IsA("TextButton") and string.sub(d.Text, 1, #"🤝 $") == "🤝 $" and d:GetAttribute("Enabled") then
+		mechBtn = W.wrap(d)
+		break
+	end
+end
+press(mechBtn, "contratar mecánico")
+frame()
+assert(W.invoked[#W.invoked] == "hireMechanic", "el botón de mecánico no llegó al servidor")
+ctx.closePanel()
 
 -- Modales con confirmación
 ctx.act("setAuto", false) -- el barrido activó el despacho automático
@@ -362,7 +401,7 @@ print("Acciones enviadas:", table.concat(list, ", "))
 print("Compras lanzadas:", #W.prompts)
 local needed = { "dispatch", "buyPlane", "hire", "claimGoal", "tutorial", "openPanel" }
 for _, a in { "dispatch", "buyPlane", "hire", "claimGoal", "tutorial", "repair", "buyUpgrade", "buyRegion", "claimDaily", "searchCandidates", "setAuto", "setLang", "setMuted", "getTop", "refreshBoard", "sellPlane",
-	"acceptContract", "setAirline", "claimGoals", "charter", "goPublic" } do
+	"acceptContract", "setAirline", "claimGoals", "charter", "goPublic", "buyFuel", "hireDispatcher", "hireMechanic" } do
 	assert(counts[a], "la interfaz nunca envió la acción " .. a)
 end
 local _ = needed

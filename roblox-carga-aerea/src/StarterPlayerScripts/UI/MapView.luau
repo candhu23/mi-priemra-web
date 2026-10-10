@@ -1,10 +1,13 @@
 --[[
-	Mapa de España dibujado con Frames (franjas de MapData), sin imágenes.
-	Las regiones se pintan de color al desbloquearlas; las bloqueadas salen en gris con su nivel.
+	Mapa físico de España dibujado con Frames (sin imágenes): cada franja de tierra lleva un UIGradient con
+	los colores del relieve (MapData, generado desde Natural Earth) y el mar son filas con su degradado.
+	Las regiones bloqueadas salen en gris; al abrirlas se ven con sus colores. Se puede ampliar (botones +/−,
+	pellizco en móvil) y mover arrastrando. Francia sale como «próximamente».
 	Aeropuertos con el emoji de su producto, rutas punteadas, aviones volando y dinero flotante.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local Kit = require(script.Parent:WaitForChild("Kit"))
 local PlaneArt = require(script.Parent:WaitForChild("PlaneArt"))
 local MapData = require(ReplicatedStorage:WaitForChild("MapData"))
@@ -18,36 +21,95 @@ local corner = Kit.corner
 
 local MapView = {}
 
-function MapView.build(parent: Instance)
-	local area = create("Frame", { Parent = parent, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Name = "MapArea" })
-	local map = create("Frame", {
-		Parent = area, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1, Name = "Map",
-	}, { create("UIAspectRatioConstraint", { AspectRatio = MapData.aspect }) })
-	ctx.map = map
+---------------------------------------------------------------------
+-- Relieve: paleta y degradados
+---------------------------------------------------------------------
+function MapView.palette(hex: string): { Color3 }
+	local out = {}
+	for i = 1, #hex - 5, 6 do
+		table.insert(out, Color3.fromRGB(
+			tonumber(string.sub(hex, i, i + 1), 16) or 0, tonumber(string.sub(hex, i + 2, i + 3), 16) or 0, tonumber(string.sub(hex, i + 4, i + 5), 16) or 0
+		))
+	end
+	return out
+end
 
-	-- Recuadro de Canarias
-	local cb = MapData.canaryBox
-	create("Frame", {
-		Parent = map, Position = UDim2.fromScale(cb[1] - 0.008, cb[2] - 0.01), Size = UDim2.fromScale(cb[3] + 0.016, cb[4] + 0.02),
-		BackgroundColor3 = C.seaDeep, BackgroundTransparency = 0.6, BorderSizePixel = 0,
-	}, { corner(12), Kit.stroke(C.white, 2, 0.3) })
+-- Región bloqueada: el mismo relieve pero casi gris (se intuye lo que se puede abrir)
+local LOCKED_GREY = Color3.fromRGB(214, 210, 200)
+function MapView.lockedColor(c: Color3): Color3
+	local l = c.R * 0.3 + c.G * 0.59 + c.B * 0.11
+	return Color3.new(l, l, l):Lerp(c, 0.22):Lerp(LOCKED_GREY, 0.4)
+end
 
-	-- Franjas: primero la sombra (relieve) y luego la tierra
-	local rowH = 1 / MapData.rows
-	local shadowLayer = create("Frame", { Parent = map, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Position = UDim2.fromScale(0, 0.006) })
-	local landLayer = create("Frame", { Parent = map, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) })
-	local byRegion: { [number]: { Frame } } = {}
+-- ColorSequence desde «2 cifras hex por color» (colores repartidos a lo largo de la franja)
+function MapView.sequence(palette: { Color3 }, keys: string, transform: ((Color3) -> Color3)?): ColorSequence
+	local n = math.floor(#keys / 2)
+	local idx = {}
+	for i = 1, n do
+		idx[i] = (tonumber(string.sub(keys, i * 2 - 1, i * 2), 16) or 0) + 1
+	end
+	local points = {}
+	for i = 1, n do
+		-- Los colores repetidos en medio de un tramo igual sobran (el degradado queda idéntico)
+		if i == 1 or i == n or idx[i] ~= idx[i - 1] or idx[i] ~= idx[i + 1] then
+			local c = palette[idx[i]] or C.locked
+			if transform then
+				c = transform(c)
+			end
+			table.insert(points, ColorSequenceKeypoint.new((i - 1) / math.max(1, n - 1), c))
+		end
+	end
+	if #points < 2 then
+		table.insert(points, ColorSequenceKeypoint.new(1, points[1].Value))
+	end
+	return ColorSequence.new(points)
+end
+
+-- Dibuja el relieve (mar + tierra) de un MapData dentro de `map`. Devuelve las franjas por región.
+export type Strip = { gradient: UIGradient, keys: string, locked: boolean }
+function MapView.drawRelief(map: Frame, data: any): ({ [number]: { Strip } }, { [number]: { number } })
+	local palette = MapView.palette(data.palette)
+	local seaLayer = create("Frame", { Parent = map, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Name = "Sea" })
+	local seaH = 1 / data.seaRows
+	for _, s in data.sea do
+		create("Frame", {
+			Parent = seaLayer, Position = UDim2.fromScale(s[2], s[1] * seaH), Size = UDim2.fromScale(s[3] - s[2], seaH * 1.3),
+			BackgroundColor3 = C.white, BorderSizePixel = 0,
+		}, { create("UIGradient", { Color = MapView.sequence(palette, s[4]) }) })
+	end
+	-- Recuadro de Canarias (con su propio mar)
+	local cb = data.canaryBox
+	if cb then
+		local box = create("Frame", {
+			Parent = map, Position = UDim2.fromScale(cb[1], cb[2]), Size = UDim2.fromScale(cb[3], cb[4]),
+			BackgroundTransparency = 1, BorderSizePixel = 0, Name = "CanaryBox",
+		})
+		local h = 1 / data.canaryRows
+		for _, s in data.seaCanary do
+			create("Frame", {
+				Parent = box, Position = UDim2.fromScale(s[2], s[1] * h), Size = UDim2.fromScale(s[3] - s[2], h * 1.3),
+				BackgroundColor3 = C.white, BorderSizePixel = 0,
+			}, { create("UIGradient", { Color = MapView.sequence(palette, s[4]) }) })
+		end
+		create("Frame", {
+			Parent = map, Position = UDim2.fromScale(cb[1] - 0.006, cb[2] - 0.008), Size = UDim2.fromScale(cb[3] + 0.012, cb[4] + 0.016),
+			BackgroundTransparency = 1, BorderSizePixel = 0,
+		}, { corner(10), Kit.stroke(C.white, 3, 0.15) })
+	end
+	local landLayer = create("Frame", { Parent = map, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Name = "Land" })
+	local rowH = 1 / data.rows
+	local byRegion: { [number]: { Strip } } = {}
 	local centroid: { [number]: { number } } = {}
-	for _, s in MapData.spans do
-		local row, x0, x1, reg = s[1], s[2], s[3], s[4]
-		local pos = UDim2.fromScale(x0, row * rowH)
-		local size = UDim2.fromScale(x1 - x0, rowH * 1.3) -- solape para que no haya rendijas al escalar
-		create("Frame", { Parent = shadowLayer, Position = pos, Size = size, BackgroundColor3 = C.seaDeep, BorderSizePixel = 0 })
-		local f = create("Frame", { Parent = landLayer, Position = pos, Size = size, BackgroundColor3 = reg == 0 and C.foreign or C.locked, BorderSizePixel = 0 })
+	for _, s in data.spans do
+		local row, x0, x1, reg, keys = s[1], s[2], s[3], s[4], s[5]
+		local gradient = create("UIGradient", { Color = MapView.sequence(palette, keys) })
+		create("Frame", {
+			Parent = landLayer, Position = UDim2.fromScale(x0, row * rowH), Size = UDim2.fromScale(x1 - x0, rowH * 1.3), -- solape: sin rendijas
+			BackgroundColor3 = C.white, BorderSizePixel = 0,
+		}, { gradient })
 		if reg > 0 then
 			byRegion[reg] = byRegion[reg] or {}
-			table.insert(byRegion[reg], f)
+			table.insert(byRegion[reg], { gradient = gradient, keys = keys, locked = false })
 			local c = centroid[reg] or { 0, 0, 0 }
 			local w = x1 - x0
 			c[1] += (x0 + x1) / 2 * w
@@ -56,6 +118,119 @@ function MapView.build(parent: Instance)
 			centroid[reg] = c
 		end
 	end
+	return byRegion, centroid
+end
+
+-- Pinta una región bloqueada (gris) o abierta (relieve a todo color)
+function MapView.setLocked(palette: { Color3 }, strips: { Strip }, locked: boolean)
+	for _, st in strips do
+		if st.locked ~= locked then
+			st.locked = locked
+			st.gradient.Color = MapView.sequence(palette, st.keys, if locked then MapView.lockedColor else nil)
+		end
+	end
+end
+
+local inputConns: { RBXScriptConnection } = {}
+
+function MapView.build(parent: Instance)
+	-- Zona con zoom: un ScrollingFrame cuyo lienzo crece al ampliar (se mueve arrastrando)
+	local area = create("ScrollingFrame", {
+		Parent = parent, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Name = "MapArea", BorderSizePixel = 0,
+		CanvasSize = UDim2.fromScale(1, 1), ScrollBarThickness = 0, ScrollingDirection = Enum.ScrollingDirection.XY,
+		ElasticBehavior = Enum.ElasticBehavior.Never, ClipsDescendants = true,
+	})
+	local map = create("Frame", {
+		Parent = area, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(150, 196, 232), BorderSizePixel = 0, Name = "Map",
+	}, { create("UIAspectRatioConstraint", { AspectRatio = MapData.aspect }), Kit.stroke(C.white, 3, 0.25) })
+	ctx.map = map
+	local palette = MapView.palette(MapData.palette)
+	local byRegion, centroid = MapView.drawRelief(map, MapData)
+
+	-- Zoom
+	local zoom = 1
+	local function setZoom(z: number)
+		z = math.clamp(z, 1, 3.5)
+		local ok = pcall(function()
+			local win = area.AbsoluteWindowSize
+			local canvas = area.AbsoluteCanvasSize
+			local cx = (area.CanvasPosition.X + win.X / 2) / math.max(1, canvas.X)
+			local cy = (area.CanvasPosition.Y + win.Y / 2) / math.max(1, canvas.Y)
+			area.CanvasSize = UDim2.fromScale(z, z)
+			local w, h = win.X * z, win.Y * z
+			area.CanvasPosition = Vector2.new(math.clamp(cx * w - win.X / 2, 0, w - win.X), math.clamp(cy * h - win.Y / 2, 0, h - win.Y))
+		end)
+		if not ok then
+			area.CanvasSize = UDim2.fromScale(z, z)
+		end
+		zoom = z
+	end
+	ctx.mapZoom = function(delta: number)
+		setZoom(if delta == 0 then 1 else zoom * delta)
+	end
+	local zoomBar = create("Frame", {
+		Parent = parent, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 4, 0.5, 0), Size = UDim2.fromOffset(52, 172),
+		BackgroundTransparency = 1, ZIndex = 8, Name = "Zoom",
+	}, { Kit.list(false, 8, Enum.HorizontalAlignment.Center) })
+	for i, b in { { "➕", 1.5 }, { "➖", 1 / 1.5 }, { "🗺️", 0 } } do
+		local btn = create("TextButton", {
+			Parent = zoomBar, LayoutOrder = i, Size = UDim2.fromOffset(50, 50), BackgroundColor3 = C.white, Text = b[1], TextSize = 22,
+			FontFace = Kit.FONT_BODY, AutoButtonColor = false, ZIndex = 8,
+		}, { corner(), Kit.stroke(C.grey, 2) })
+		btn.Activated:Connect(function()
+			Kit.playSound("click")
+			ctx.mapZoom(b[2])
+		end)
+		ctx.targets["zoom_" .. i] = btn
+	end
+	-- Pellizco (móvil) y arrastrar con el ratón (PC). Se desconecta lo anterior al reconstruir la interfaz.
+	for _, c in inputConns do
+		c:Disconnect()
+	end
+	table.clear(inputConns)
+	pcall(function()
+		local z0 = 1
+		table.insert(inputConns, UserInputService.TouchPinch:Connect(function(_, scale: number, _, state: Enum.UserInputState)
+			if ctx.panel then
+				return
+			end
+			if state == Enum.UserInputState.Begin then
+				z0 = zoom
+			elseif state == Enum.UserInputState.Change then
+				setZoom(z0 * scale)
+			end
+		end))
+		local dragFrom: Vector3? = nil
+		local canvasFrom = Vector2.zero
+		table.insert(inputConns, area.InputBegan:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 and zoom > 1 then
+				dragFrom = input.Position
+				canvasFrom = area.CanvasPosition
+			end
+		end))
+		table.insert(inputConns, UserInputService.InputChanged:Connect(function(input: InputObject)
+			if dragFrom and input.UserInputType == Enum.UserInputType.MouseMovement then
+				local d = input.Position - dragFrom
+				area.CanvasPosition = canvasFrom - Vector2.new(d.X, d.Y)
+			elseif input.UserInputType == Enum.UserInputType.MouseWheel and not ctx.panel then
+				setZoom(zoom * (if input.Position.Z > 0 then 1.15 else 1 / 1.15))
+			end
+		end))
+		table.insert(inputConns, UserInputService.InputEnded:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragFrom = nil
+			end
+		end))
+	end)
+
+	-- Francia: próximamente (sobre su territorio, arriba a la derecha del mapa)
+	local fx, fy = MapData.project(43.75, 1.6)
+	local france = Kit.button(map, "🇫🇷 " .. T("france_soon"), "white", UDim2.fromOffset(236, 34), function()
+		ctx.openPanel("france")
+	end, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(fx, math.max(0.03, fy)), ZIndex = 2 })
+	france.TextSize = 14
+	ctx.targets.france = france
 
 	-- Etiquetas de región (nombre y candado con nivel)
 	local labelLayer = create("Frame", { Parent = map, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 2 })
@@ -313,14 +488,7 @@ function MapView.build(parent: Instance)
 		if sig ~= lastRegions then
 			lastRegions = sig
 			for i, regionId in MapData.regions do
-				local r = Config.RegionById[regionId]
-				local open = st.regions[regionId] == true
-				-- Bloqueada: su color apagado (se intuye lo que se puede abrir)
-				local color = open and r.color or r.color:Lerp(C.locked, 0.72)
-				local frames: { Frame } = byRegion[i] or {}
-				for _, f in frames do
-					f.BackgroundColor3 = color
-				end
+				MapView.setLocked(palette, byRegion[i] or {}, st.regions[regionId] ~= true)
 			end
 		end
 		for regionId, l in regionLabels do
@@ -419,6 +587,55 @@ function MapView.build(parent: Instance)
 	end
 
 	return refresh
+end
+
+---------------------------------------------------------------------
+-- Francia («próximamente»): mapa físico de adelanto con sus ciudades bloqueadas
+---------------------------------------------------------------------
+local FR_CITIES = {
+	{ "Paris", 48.86, 2.35 }, { "Lille", 50.63, 3.06 }, { "Strasbourg", 48.57, 7.75 }, { "Nantes", 47.22, -1.55 },
+	{ "Lyon", 45.76, 4.84 }, { "Bordeaux", 44.84, -0.58 }, { "Toulouse", 43.6, 1.44 }, { "Marseille", 43.3, 5.37 },
+	{ "Nice", 43.7, 7.27 }, { "Brest", 48.39, -4.49 },
+}
+
+function MapView.france(content: Frame): () -> ()
+	local built = false
+	return function()
+		if built then
+			return
+		end
+		built = true -- se dibuja la primera vez que se abre (son muchos Frames)
+		local FR = require(ReplicatedStorage:WaitForChild("MapDataFR")) :: any
+		local map = create("Frame", {
+			Parent = content, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.fromRGB(150, 196, 232), BorderSizePixel = 0, Name = "France",
+		}, { create("UIAspectRatioConstraint", { AspectRatio = FR.aspect }), Kit.stroke(C.white, 3, 0.25), corner(12) })
+		MapView.drawRelief(map, FR)
+		for _, city in FR_CITIES do
+			local x, y = FR.project(city[2], city[3])
+			local pin = create("Frame", {
+				Parent = map, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(x, y), Size = UDim2.fromOffset(24, 24),
+				BackgroundColor3 = C.white, ZIndex = 3,
+			}, { corner(), Kit.stroke(C.greyDark, 2) })
+			Kit.emoji(pin, "🔒", 12, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 3 })
+			Kit.title(map, city[1], 13, C.ink, {
+				AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(x, 0, y, 13), Size = UDim2.fromOffset(110, 16), ZIndex = 3,
+				TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, TextStrokeColor3 = C.white,
+			})
+		end
+		-- Cartel arriba a la izquierda (sobre el canal de la Mancha) para no tapar ciudades
+		local banner = create("Frame", {
+			Parent = map, Position = UDim2.fromOffset(10, 10), Size = UDim2.fromOffset(270, 116),
+			BackgroundColor3 = C.white, BackgroundTransparency = 0.08, ZIndex = 4,
+		}, { corner(20), Kit.stroke(C.orange, 4) })
+		Kit.title(banner, "🇫🇷 " .. T("france_title"), 26, C.orangeDark, {
+			Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 34), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
+		})
+		Kit.label(banner, T("france_body"), 14, C.ink, Kit.FONT_BOLD, {
+			Position = UDim2.fromOffset(12, 44), Size = UDim2.new(1, -24, 0, 64), TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4, TextTruncate = Enum.TextTruncate.None,
+		})
+	end
 end
 
 return MapView

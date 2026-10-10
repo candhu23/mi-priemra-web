@@ -1,4 +1,4 @@
-# AeroCarga España — Documento de diseño (v0.3)
+# AeroCarga España — Documento de diseño (v0.4)
 
 > En inglés: *Spain Air Cargo Tycoon*. Nombre fácil de cambiar (textos en `Lang.luau`).
 
@@ -8,6 +8,8 @@
 |---|---|
 | ![Aterrizaje](docs/03b_tutorial_aterrizaje.jpg) | ![Contratos](docs/20_contracts.jpg) |
 | ![Pasaporte](docs/20_spain_passport.jpg) | ![Bolsa](docs/42_bolsa.jpg) |
+| ![Menú](docs/11_menu.jpg) | ![Combustible](docs/20_fuel.jpg) |
+| ![Mecánicos](docs/20_pilots_mechanics.jpg) | ![Francia](docs/20_france.jpg) |
 
 ## 1. Idea
 
@@ -45,14 +47,33 @@ motivos para volver), OpenTTD (subvenciones de rutas nuevas, demanda), Mini Metr
 **El automático ya no es perfecto:** coge la carga con más beneficio, pero no persigue contratos ni hace aterrizajes
 perfectos. Jugar a mano rinde más; dejarlo en automático sigue siendo cómodo.
 
+## 1 ter. Qué cambia en la v0.4 (lista del usuario)
+
+| Pedido | Cómo está hecho | Dónde |
+|---|---|---|
+| **Mecánico** | Desde el nivel 3. 2 candidatos a la vista (1–3★, sin sorteo), máx. 6. Reparan gratis los aviones en tierra: 1★ 15 %, 2★ 21 %, 3★ 27 % de estado por minuto (`Config.mechRate`) | PERSONAL → Mecánicos |
+| **Despachador** | 3 niveles (nv 5 $50K · nv 7 $250K · nv 10 $1,5M). 1: despacho automático. 2: además compra combustible si baja del 30 %. 3: prioriza contratos (×1,6) y exprés (×1,4) y sube lo offline al 75 % | PERSONAL → Despachador |
+| **Las tres rayas (☰)** | Menú lateral con cabecera (aerolínea, nivel, dinero, combustible, reputación) y todos los apartados: mapa, compañía, flota, cargas, personal, combustible, contratos, España, Francia, misiones, bolsa, tienda, ranking, ajustes | Arriba a la izquierda |
+| **Resumen de la compañía** | Aerolínea, nivel con barra de XP, reputación y 12 cifras (dinero, ingresos, combustible, aviones, personal, despachador, acciones, sellos, vuelos, km, ganado, contratos) | ☰ → Tu compañía, o la píldora 🏅 |
+| **Reputación** | 0–100, empieza en 50. Sube con contratos (+3), exprés (+1), aterrizajes perfectos (+0,5) y cada vuelo (+0,05); baja si fallas (−6) o abandonas (−3) un contrato. Paga de ×0,9 a ×1,1 y mejora los premios de contratos (×0,8–×1,2) | Píldora 🏅 y Compañía |
+| **Comprar gasolina** | Depósito (2.000 L al empezar; mejora 🛢️ hasta 12 niveles). Cada vuelo gasta litros al despegar; sin combustible no se puede volar. El precio cambia cada 2 min (±12 %, entre ×0,75 y ×1,25) con gráfica de los 8 últimos | Píldora ⛽ y ☰ → Combustible |
+| **Mapas nuevos** | Mapa físico (relieve con colores de atlas) generado con datos de **dominio público** (Natural Earth). No se usan las fotos enviadas (tienen derechos: Depositphotos y un atlas) | Mapa |
+| **Francia «próximamente»** | Mapa de Francia con sus ciudades bloqueadas y el cartel PRÓXIMAMENTE | Botón 🇫🇷 del mapa y ☰ → Francia |
+| **Ampliar / alejar** | Botones ➕ ➖ 🗺️, rueda del ratón, arrastrar y pellizcar en móvil (×1 a ×3,5) | Mapa, abajo a la derecha |
+| **Más ciudades** | +7: Lleida, Teruel, La Seu d'Urgell, Ceuta, Fuerteventura, La Gomera y El Hierro (48 en total) | Mapa |
+| **Vuelos de 30 s mínimo** | `Config.MIN_FLIGHT = 30` (también el del tutorial) | — |
+
+Partidas viejas: al entrar reciben el depósito lleno, reputación 50 y, si ya tenían nivel 5, el despachador de nivel 1
+(para no perder el automático que ya tenían). El pase de piloto automático cuenta como despachador de nivel 1.
+
 ## 2. Por qué ya no se parece al juego de camiones
 
 | | Juego de referencia | AeroCarga España |
 |---|---|---|
 | Tema | Camiones por EE. UU. | Aviones de carga por España, con productos reales de cada zona |
 | Aspecto | Oscuro (azul marino), letra condensada | Claro y soleado, letra redondeada, botones «gruesos» de juego para móvil |
-| Estructura | Menú lateral y páginas que sustituyen la pantalla | Mapa siempre visible + barra inferior de 6 botones + ventanas encima |
-| Mapa | Imagen de satélite oscura de EE. UU. | España dibujada con código por regiones que se colorean al abrirlas |
+| Estructura | Menú lateral y páginas que sustituyen la pantalla | Mapa siempre visible + barra inferior + ventanas encima. Desde la v0.4 también hay menú ☰ (lo pidió el usuario); es un patrón de interfaz común, no un elemento propio del otro juego |
+| Mapa | Imagen de satélite oscura de EE. UU. | Mapa físico claro de España (relieve de atlas) por regiones que se colorean al abrirlas |
 | Contratar | Agencias con barras de probabilidades (sorteo) | Candidatos a la vista: ves sus estrellas y su precio, **sin sorteo** |
 | Vehículos | Fotos 3D de camiones | Aviones dibujados con código, con nombres de aves |
 | Otros | Seguro, licencias, banco | Contratos exprés, misiones diarias, premio diario, objetivos, tutorial guiado |
@@ -162,6 +183,9 @@ Mientras un artículo tenga `id = 0` no aparece en el juego publicado; en Studio
 - **Límite conocido**: la calidad del aterrizaje la decide el cliente (con lag de móvil no se puede medir bien en el
   servidor). Un tramposo solo gana +25 % en el único avión que pilota él mismo; el servidor sí comprueba el momento
   y que sea un solo intento por vuelo.
+- **v0.4**: el rendimiento real del mapa de relieve en Roblox (≈2.300 Frames con degradado en España; en móviles flojos
+  podría notarse, confianza ~70 %); que pellizcar y arrastrar el mapa vaya fino en móvil (~70 %); que el reparto
+  de combustible/reputación sea divertido para una persona (el bot sí lo supera sin atascarse).
 
 ## 8. Parecido con el otro juego (valoración, no consejo legal)
 

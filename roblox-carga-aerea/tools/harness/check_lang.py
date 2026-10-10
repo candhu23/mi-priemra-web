@@ -61,6 +61,13 @@ i = config.index("Config.IpoPerks = {")
 for perk in re.findall(r'"([a-z]+)"', config[i:config.index("}", i)]):
 	used.add("perk_" + perk)
 
+# Claves formadas en el código (menú, resumen de la compañía, niveles del despachador)
+for i in range(1, config.count("{ level = ", config.index("Config.Dispatcher = {"), config.index("} :: { DispatcherLevel }")) + 1):
+	used.add(f"dispatcher_{i}_d")
+for f in glob.glob(os.path.join(SRC, "**", "*.luau"), recursive=True):
+	txt = open(f).read()
+	used |= set(re.findall(r'key = "((?:nav|menu|ov|dispatcher|goal|mission)_[a-z0-9_]+)"', txt))
+
 missing_en = sorted(k for k in used if k not in en)
 missing_es = sorted(k for k in used if k not in es)
 if missing_en or missing_es:

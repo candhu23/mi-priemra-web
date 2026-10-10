@@ -1,6 +1,8 @@
 --[[
-	Ventana PILOTOS: plantilla (suben de nivel volando) y fichajes.
+	Ventana PERSONAL: pilotos (plantilla y fichajes), despachador y mecánicos.
 	Sin sorteos: cada candidato muestra sus estrellas y su precio ANTES de ficharlo.
+	- Despachador: manda los aviones solo; a más nivel, compra combustible y prioriza contratos.
+	- Mecánicos: reparan gratis los aviones en tierra.
 ]]
 
 local Kit = require(script.Parent:WaitForChild("Kit"))
@@ -31,6 +33,8 @@ function PilotsPanel.build(content: Frame): () -> ()
 	local _, paintTabs = Kit.tabs(content, {
 		{ id = "roster", text = "👨‍✈️ " .. T("tab_roster") },
 		{ id = "hire", text = "🤝 " .. T("tab_hire") },
+		{ id = "dispatcher", text = "🧭 " .. T("tab_dispatcher") },
+		{ id = "mechanics", text = "🧑‍🔧 " .. T("tab_mechanics") },
 	}, function() return tab end, function(id)
 		tab = id
 		render()
@@ -40,7 +44,7 @@ function PilotsPanel.build(content: Frame): () -> ()
 	local hireBar = Kit.card(content, { Position = UDim2.fromOffset(0, 58), Size = UDim2.new(1, 0, 0, 60), Visible = false })
 	Kit.padding(14, 10, 0, 0).Parent = hireBar
 	local nextText = Kit.label(hireBar, "", 17, C.ink, Kit.FONT_BOLD, { Size = UDim2.new(1, -260, 0, 30), Position = UDim2.fromOffset(0, 4) })
-	Kit.label(hireBar, T("hire_note"), 13, C.muted, nil, { Size = UDim2.new(1, -260, 0, 18), Position = UDim2.fromOffset(0, 32) })
+	local hireNote = Kit.label(hireBar, T("hire_note"), 13, C.muted, nil, { Size = UDim2.new(1, -260, 0, 18), Position = UDim2.fromOffset(0, 32) })
 	local searchBtn = Kit.button(hireBar, "", "blue", UDim2.fromOffset(240, 46), function()
 		ctx.act("searchCandidates")
 	end, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.fromScale(1, 0.5) })
@@ -111,6 +115,79 @@ function PilotsPanel.build(content: Frame): () -> ()
 		}
 	end
 
+	-- Despachador: una tarjeta por nivel
+	local function buildDispatcherLevel(def: any): Kit.Entry
+		local i = def.index
+		local root = Kit.card(area, { Size = UDim2.new(1, 0, 0, 104) })
+		Kit.padding(14).Parent = root
+		local box = create("Frame", { Parent = root, BackgroundColor3 = C.white, Size = UDim2.fromOffset(76, 76) }, { corner(18) })
+		Kit.emoji(box, "🧭", 40, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+		Kit.title(root, T("dispatcher_lv", { n = i }), 22, C.ink, { Position = UDim2.fromOffset(92, 0), Size = UDim2.new(1, -360, 0, 28) })
+		Kit.label(root, T("dispatcher_" .. i .. "_d"), 15, C.muted, nil, {
+			Position = UDim2.fromOffset(92, 30), Size = UDim2.new(1, -360, 0, 44), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+		})
+		local btn = Kit.button(root, "", "green", UDim2.fromOffset(250, 56), function()
+			ctx.act("hireDispatcher")
+		end, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.fromScale(1, 0.5) })
+		btn.TextSize = 17
+		ctx.targets["dispatcher_" .. i] = btn
+		return {
+			root = root,
+			update = function()
+				local st = ctx.state
+				local have = st.staff and st.staff.dispatcher or 0
+				if have >= i or (st.dispatcher or 0) >= i then
+					Kit.setButton(btn, "✅ " .. T("owned"), false)
+				elseif i > have + 1 then
+					Kit.setButton(btn, "🔒 " .. T("dispatcher_lv", { n = i - 1 }), false)
+				elseif st.level < def.level then
+					Kit.setButton(btn, "🔒 " .. T("req_level", { level = def.level }), false)
+				else
+					Kit.setButton(btn, "🤝 " .. Kit.fmtMoney(def.cost), st.money >= def.cost)
+				end
+			end,
+		}
+	end
+
+	-- Mecánicos: los tuyos y los candidatos en la misma cuadrícula
+	local function mechCard(m: any, candidate: boolean): Kit.Entry
+		local root = Kit.card(area)
+		Kit.padding(14).Parent = root
+		local box = create("Frame", { Parent = root, BackgroundColor3 = C.white, Size = UDim2.fromOffset(72, 72) }, {
+			corner(), Kit.stroke(m.stars >= 3 and C.purple or (m.stars >= 2 and C.blue or C.grey), 4),
+		})
+		Kit.emoji(box, m.avatar, 40, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+		Kit.title(root, m.name, 19, C.ink, { Position = UDim2.fromOffset(84, 0), Size = UDim2.new(1, -84, 0, 24) })
+		Kit.label(root, Kit.stars(m.stars), 18, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(84, 24), Size = UDim2.new(1, -84, 0, 22), RichText = true })
+		Kit.label(root, "🔧 " .. T("mech_rate", { n = math.floor(Config.mechRate(m.stars) * 60 + 0.5) }), 15, C.greenDark, Kit.FONT_BOLD, {
+			Position = UDim2.fromOffset(84, 48), Size = UDim2.new(1, -84, 0, 20),
+		})
+		Kit.pill(root, candidate and ("🆕 " .. T("mech_candidate")) or ("✅ " .. T("mech_yours")), candidate and C.blue or C.green, {
+			Position = UDim2.new(0, 0, 1, -28),
+		})
+		local btn
+		if candidate then
+			btn = Kit.button(root, "🤝 " .. Kit.fmtMoney(m.price), "green", UDim2.fromOffset(150, 40), function()
+				ctx.act("hireMechanic", m.id)
+			end, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1) })
+		else
+			btn = Kit.button(root, T("btn_fire"), "white", UDim2.fromOffset(110, 36), function()
+				ctx.act("fireMechanic", m.id)
+			end, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1) })
+		end
+		btn.TextSize = 15
+		return {
+			root = root,
+			update = function(x: any)
+				local st = ctx.state
+				if candidate then
+					local ok = st.level >= Config.MECH_LEVEL and st.money >= x.price and #(st.mechanics or {}) < Config.MAX_MECHANICS
+					Kit.setButton(btn, st.level < Config.MECH_LEVEL and ("🔒 " .. T("req_level", { level = Config.MECH_LEVEL })) or nil, ok)
+				end
+			end,
+		}
+	end
+
 	function render()
 		local st = ctx.state
 		if not st then
@@ -124,16 +201,51 @@ function PilotsPanel.build(content: Frame): () -> ()
 			end
 			table.clear(cache)
 			for _, k in area:GetChildren() do
-				if k:IsA("UIGridLayout") then
+				if k:IsA("UIGridLayout") or k:IsA("UIListLayout") then
 					k:Destroy()
 				end
 			end
-			Kit.grid(area, tab == "roster" and 150 or 300, 3)
-			hireBar.Visible = tab == "hire"
-			area.Position = UDim2.fromOffset(0, tab == "hire" and 128 or 58)
-			area.Size = UDim2.new(1, 0, 1, tab == "hire" and -128 or -58)
+			if tab == "dispatcher" then
+				Kit.list(false, 12).Parent = area
+			else
+				Kit.grid(area, (tab == "roster" and 150) or (tab == "mechanics" and 150) or 300, 3)
+			end
+			hireBar.Visible = tab == "hire" or tab == "mechanics" or tab == "dispatcher"
+			area.Position = UDim2.fromOffset(0, hireBar.Visible and 128 or 58)
+			area.Size = UDim2.new(1, 0, 1, hireBar.Visible and -128 or -58)
 		end
 		roster.Text = "👨‍✈️ " .. T("roster", { n = #st.pilots, max = Config.MAX_PILOTS })
+		searchBtn.Parent.Visible = tab == "hire"
+		if tab == "dispatcher" then
+			emptyText.Visible = false
+			local d = st.dispatcher or 0
+			nextText.Text = "🧭 " .. (d > 0 and T("dispatcher_have", { n = d }) or T("dispatcher_none"))
+			hireNote.Text = T("dispatcher_note")
+			local defs = {}
+			for i, def in Config.Dispatcher do
+				table.insert(defs, { index = i, level = def.level, cost = def.cost })
+			end
+			Kit.syncList(cache, defs, function(x) return "d" .. x.index end, buildDispatcherLevel)
+			return
+		elseif tab == "mechanics" then
+			emptyText.Visible = false
+			nextText.Text = "🧑‍🔧 " .. T("mech_count", { n = #(st.mechanics or {}), max = Config.MAX_MECHANICS })
+			hireNote.Text = T("mech_note")
+			local list = {}
+			for _, m in st.mechanics or {} do
+				table.insert(list, { key = "m" .. m.id, data = m, candidate = false })
+			end
+			for _, m in st.mechCandidates or {} do
+				table.insert(list, { key = "c" .. m.id, data = m, candidate = true })
+			end
+			Kit.syncList(cache, list, function(x) return x.key end, function(x)
+				local entry = mechCard(x.data, x.candidate)
+				local update = entry.update
+				return { root = entry.root, update = function(y: any) update(y.data) end }
+			end)
+			return
+		end
+		hireNote.Text = T("hire_note")
 		if tab == "roster" then
 			Kit.syncList(cache, st.pilots, function(p) return p.id end, buildPilot)
 			emptyText.Visible = #st.pilots == 0

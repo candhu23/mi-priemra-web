@@ -24,6 +24,8 @@ local ShopPanel = require(UI:WaitForChild("ShopPanel"))
 local SystemPanels = require(UI:WaitForChild("SystemPanels"))
 local ContractsPanel = require(UI:WaitForChild("ContractsPanel"))
 local IpoPanel = require(UI:WaitForChild("IpoPanel"))
+local CompanyPanel = require(UI:WaitForChild("CompanyPanel"))
+local FuelPanel = require(UI:WaitForChild("FuelPanel"))
 
 local remotes = ReplicatedStorage:WaitForChild("CargoRemotes")
 local actionRemote = remotes:WaitForChild("Action")
@@ -138,8 +140,10 @@ local function build()
 	Screens.buildPanels(root, {
 		fleet = FleetPanel.build, cargo = CargoPanel.build, pilots = PilotsPanel.build, spain = SpainPanel.build,
 		missions = MissionsPanel.build, shop = ShopPanel.build, ranking = SystemPanels.ranking, settings = SystemPanels.settings,
-		contracts = ContractsPanel.build, ipo = IpoPanel.build,
+		contracts = ContractsPanel.build, ipo = IpoPanel.build, company = CompanyPanel.build, fuel = FuelPanel.build,
+		france = MapView.france,
 	})
+	Screens.buildDrawer(root)
 	Screens.landing(root)
 	Screens.tutorial(root, root)
 	Screens.buildOverlay(root)

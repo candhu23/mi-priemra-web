@@ -44,7 +44,7 @@ function Data.newData(): any
 		candidates = {},
 		candidatesAt = 0,
 		regions = { CEN = true, LEV = true },
-		upgrades = { hangar = 0, sales = 0, fuel = 0, fast = 0, cold = 0 },
+		upgrades = { hangar = 0, sales = 0, fuel = 0, fast = 0, cold = 0, tank = 0 },
 		settings = { lang = "", muted = false, auto = false },
 		stats = {
 			flights = 0, km = 0, tons = 0, earned = 0, express = 0, localGoods = 0, purchases = 0,
@@ -67,6 +67,12 @@ function Data.newData(): any
 		run = { earned = 0 }, -- lo ganado desde la última salida a bolsa
 		airline = { a = math.random(1, 8), b = math.random(1, 8), c = math.random(1, 8), color = math.random(1, 9) },
 		week = { id = 0, earned = 0 }, -- ranking semanal
+		-- v0.4
+		fuel = Config.FUEL_START, -- litros en el depósito
+		rep = Config.REP_START, -- reputación 0–100
+		staff = { dispatcher = 0 }, -- nivel del despachador (0 = sin contratar)
+		mechanics = {}, -- { id, name, avatar, stars }
+		mechCandidates = {},
 	}
 end
 
@@ -96,8 +102,13 @@ function Data.load(userId: number): (any, boolean, boolean)
 		end
 	end
 	local fresh = raw == nil
+	-- Partidas anteriores a la v0.4 (sin depósito): se marcan para darles el depósito lleno y el despachador
+	local beforeV4 = raw ~= nil and raw.fuel == nil
 	local data = raw or Data.newData()
 	reconcile(data, Data.newData())
+	if beforeV4 then
+		data.migrateV4 = true
+	end
 	return data, ok, fresh
 end
 

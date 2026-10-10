@@ -17,7 +17,10 @@ local Screens = {}
 local PANELS = {
 	fleet = { emoji = "✈️", key = "nav_fleet", color = C.blue },
 	cargo = { emoji = "📦", key = "nav_cargo", color = C.orange },
-	pilots = { emoji = "👨‍✈️", key = "nav_pilots", color = C.green },
+	pilots = { emoji = "👥", key = "nav_pilots", color = C.green },
+	company = { emoji = "🏢", key = "nav_company", color = Color3.fromRGB(51, 65, 120) },
+	fuel = { emoji = "⛽", key = "nav_fuel", color = C.blueDark },
+	france = { emoji = "🇫🇷", key = "nav_france", color = Color3.fromRGB(37, 99, 235) },
 	contracts = { emoji = "📜", key = "nav_contracts", color = Color3.fromRGB(13, 148, 136) },
 	ipo = { emoji = "🏛️", key = "nav_ipo", color = Color3.fromRGB(30, 64, 120) },
 	spain = { emoji = "🗺️", key = "nav_spain", color = Color3.fromRGB(236, 72, 153) },
@@ -95,6 +98,109 @@ function Screens.buildPanels(parent: Instance, builders: { [string]: (Frame) -> 
 			ctx.tutorialRefresh()
 		end
 	end
+end
+
+---------------------------------------------------------------------
+-- ☰ Menú lateral: cabecera con tu compañía y todos los apartados
+---------------------------------------------------------------------
+Screens.MENU = {
+	{ id = "map", emoji = "🗺️", key = "menu_map" },
+	{ id = "company", emoji = "🏢", key = "nav_company" },
+	{ id = "fleet", emoji = "✈️", key = "nav_fleet" },
+	{ id = "cargo", emoji = "📦", key = "nav_cargo" },
+	{ id = "pilots", emoji = "👥", key = "nav_pilots" },
+	{ id = "fuel", emoji = "⛽", key = "nav_fuel" },
+	{ id = "contracts", emoji = "📜", key = "nav_contracts" },
+	{ id = "spain", emoji = "🇪🇸", key = "nav_spain" },
+	{ id = "france", emoji = "🇫🇷", key = "nav_france" },
+	{ id = "missions", emoji = "🎯", key = "nav_missions" },
+	{ id = "ipo", emoji = "🏛️", key = "nav_ipo" },
+	{ id = "shop", emoji = "🛒", key = "nav_shop" },
+	{ id = "ranking", emoji = "🏆", key = "nav_ranking" },
+	{ id = "settings", emoji = "⚙️", key = "nav_settings" },
+}
+
+function Screens.buildDrawer(parent: Instance)
+	local dim = create("TextButton", {
+		Parent = parent, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5, Size = UDim2.fromScale(1, 1),
+		Text = "", AutoButtonColor = false, Visible = false, ZIndex = 47, Name = "Drawer",
+	})
+	local side = create("Frame", {
+		Parent = dim, BackgroundColor3 = C.panel, Position = UDim2.fromOffset(0, 0), Size = UDim2.new(0, 380, 1, 0), ZIndex = 48, Active = true,
+	}, { corner(24) })
+	-- Cabecera: aerolínea, nivel y números clave
+	local head = create("Frame", { Parent = side, BackgroundColor3 = Color3.fromRGB(51, 65, 120), Size = UDim2.new(1, 0, 0, 138), ZIndex = 48 }, {
+		corner(24),
+	})
+	local badge = create("Frame", { Parent = head, BackgroundColor3 = C.orange, Position = UDim2.fromOffset(16, 16), Size = UDim2.fromOffset(60, 60), ZIndex = 49 }, {
+		corner(16), Kit.stroke(C.white, 3),
+	})
+	Kit.emoji(badge, "✈️", 30, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 49 })
+	local name = Kit.title(head, "", 21, C.white, { Position = UDim2.fromOffset(88, 16), Size = UDim2.new(1, -150, 0, 28), ZIndex = 49 })
+	local sub = Kit.label(head, "", 15, Color3.fromRGB(205, 214, 240), Kit.FONT_BOLD, { Position = UDim2.fromOffset(88, 46), Size = UDim2.new(1, -150, 0, 20), ZIndex = 49 })
+	local stats = Kit.label(head, "", 15, C.white, Kit.FONT_BOLD, { Position = UDim2.fromOffset(16, 90), Size = UDim2.new(1, -32, 0, 34), ZIndex = 49, TextWrapped = true })
+	local close = create("TextButton", {
+		Parent = head, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 12), Size = UDim2.fromOffset(44, 44),
+		BackgroundColor3 = C.white, Text = "✕", TextColor3 = C.ink, FontFace = Kit.FONT_TITLE, TextSize = 20, AutoButtonColor = false, ZIndex = 49,
+	}, { corner() })
+	local list = Kit.scroll(side, { Position = UDim2.fromOffset(0, 146), Size = UDim2.new(1, 0, 1, -150), ZIndex = 48 })
+	Kit.list(false, 8).Parent = list
+	local rows = {}
+	for i, item in Screens.MENU do
+		local row = create("TextButton", {
+			Parent = list, LayoutOrder = i, BackgroundColor3 = C.soft, Size = UDim2.new(1, -8, 0, 54), Text = "", AutoButtonColor = false, ZIndex = 48,
+		}, { corner(14) })
+		Kit.emoji(row, item.emoji, 26, { Position = UDim2.fromOffset(12, 10), ZIndex = 48 })
+		local label = Kit.title(row, T(item.key), 20, C.ink, { Position = UDim2.fromOffset(56, 0), Size = UDim2.new(1, -110, 1, 0), ZIndex = 48 })
+		local extra = Kit.label(row, "", 13, C.muted, Kit.FONT_BOLD, {
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 0), Size = UDim2.new(0, 120, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 48,
+		})
+		row.Activated:Connect(function()
+			Kit.playSound("click")
+			ctx.closeDrawer()
+			if item.id == "map" then
+				ctx.closePanel()
+			else
+				ctx.openPanel(item.id)
+			end
+		end)
+		rows[item.id] = { row = row, label = label, extra = extra }
+		ctx.targets["menu_" .. item.id] = row
+	end
+	local function refresh()
+		local st = ctx.state
+		if not st or not dim.Visible then
+			return
+		end
+		badge.BackgroundColor3 = Kit.airlineColor(st)
+		name.Text = Config.airlineName(st.airline)
+		sub.Text = T("top_level", { level = st.level }) .. " · " .. T("menu_company_sub")
+		stats.Text = "💵 " .. Kit.fmtMoney(st.money) .. "   ⛽ " .. Kit.fmtInt(st.fuel or 0) .. "/" .. Kit.fmtInt(st.fuelCap or 0) .. "   🏅 " .. math.floor(st.rep or 0)
+		for id, r in rows do
+			local active = (id == "map" and ctx.panel == nil) or ctx.panel == id
+			r.row.BackgroundColor3 = active and Color3.fromRGB(255, 233, 210) or C.soft
+		end
+		rows.france.extra.Text = T("soon")
+		rows.ipo.extra.Text = (st.shares or 0) > 0 and ("📈 " .. st.shares) or ""
+		rows.fuel.extra.Text = math.floor(100 * (st.fuel or 0) / math.max(1, st.fuelCap or 1)) .. " %"
+	end
+	table.insert(ctx.refreshers, refresh)
+	function ctx.openDrawer()
+		dim.Visible = true
+		side.Position = UDim2.fromOffset(-400, 0)
+		Kit.tween(side, 0.22, { Position = UDim2.fromOffset(0, 0) })
+		refresh()
+	end
+	function ctx.closeDrawer()
+		dim.Visible = false
+	end
+	close.Activated:Connect(function()
+		Kit.playSound("click")
+		ctx.closeDrawer()
+	end)
+	dim.Activated:Connect(function()
+		ctx.closeDrawer()
+	end)
 end
 
 ---------------------------------------------------------------------
@@ -224,8 +330,13 @@ function Screens.levelUp(level: number)
 			table.insert(unlocks, u.emoji .. " " .. T("up_" .. u.id))
 		end
 	end
-	if level == Config.AUTO_DISPATCH_LEVEL then
-		table.insert(unlocks, "🤖 " .. T("auto_title"))
+	for i, d in Config.Dispatcher do
+		if d.level == level then
+			table.insert(unlocks, "🧭 " .. T("dispatcher_title") .. " · " .. T("dispatcher_lv", { n = i }))
+		end
+	end
+	if level == Config.MECH_LEVEL then
+		table.insert(unlocks, "🧑‍🔧 " .. T("tab_mechanics"))
 	end
 	if level == Config.CHARTER_LEVEL then
 		table.insert(unlocks, "🌙 " .. T("charter_title"))

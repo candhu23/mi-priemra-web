@@ -39,7 +39,18 @@ Juego 2D de aerolínea de carga por España. Diseño completo en [DISENO.md](DIS
 > ✈️ Build your cargo airline and conquer Spain! Deliver local products, buy planes, hire pilots,
 > complete express contracts and paint the map of Spain with your colours. Play with friends for bonus cash!
 
-## Novedades de la v0.3 (qué probar)
+## Novedades de la v0.4 (qué probar)
+
+1. **☰ (tres rayas, arriba a la izquierda)**: menú con todos los apartados y, arriba, tu dinero, combustible y reputación.
+2. **Combustible ⛽** (píldora de arriba): los aviones gastan de tu depósito. Si se acaba, el botón de volar pasa a
+   «⛽ Comprar». Compra cuando el precio esté en verde (cambia cada 2 minutos).
+3. **Personal → Despachador** (nivel 5): es el nuevo despacho automático. Nivel 2 compra combustible solo.
+4. **Personal → Mecánicos** (nivel 3): reparan gratis los aviones en tierra.
+5. **🏅 Reputación** y **☰ → Tu compañía**: resumen de tu aerolínea.
+6. **Mapa**: nuevo mapa físico; amplíalo con ➕ ➖ (o la rueda del ratón / pellizcando en el móvil) y arrástralo.
+   Botón 🇫🇷 = Francia «próximamente». 7 ciudades nuevas. Ningún vuelo dura menos de 30 s.
+
+## Novedades de la v0.3
 
 1. **Primer vuelo**: al pulsar VOLAR la ventana se cierra y ves despegar el avión. Al final sale **ATERRIZA**:
    púlsalo con la aguja en verde (+25 %).
@@ -62,15 +73,16 @@ roblox-carga-aerea/
 │   │   ├── Config.luau         # TODOS los datos y fórmulas (aeropuertos, aviones, tienda…)
 │   │   ├── Lang.luau           # Textos EN/ES (el servidor manda claves, el cliente traduce)
 │   │   ├── Rules.luau          # Fórmula de pago, eventos, ciudades en auge y pasaporte (servidor y cliente)
-│   │   └── MapData.luau        # GENERADO por tools/assets/build_spain.py (mapa en franjas)
+│   │   ├── MapData.luau        # GENERADO por tools/assets/build_maps.py (España en franjas con relieve)
+│   │   └── MapDataFR.luau      # GENERADO: Francia («próximamente»)
 │   ├── ServerScriptService/
 │   │   ├── GameServer.server.luau   # Remotes, entrada/salida, estado, bucle
 │   │   └── Cargo/ Data.luau (guardado, todo en pcall) · Game.luau (lógica) · Shop.luau (Robux)
 │   └── StarterPlayerScripts/
 │       ├── GameClient.client.luau   # Arranque de la interfaz
-│       └── UI/ Kit · PlaneArt · MapView · Hud · Screens · *Panel (Contracts, Ipo, Spain con pasaporte…)
+│       └── UI/ Kit · PlaneArt · MapView · Hud · Screens · *Panel (Company, Fuel, Pilots, Contracts, Ipo, Spain…)
 └── tools/
     ├── check.sh                # Verificación completa + .rbxl (OBLIGATORIO antes de commit)
-    ├── assets/build_spain.py   # Regenera MapData.luau desde Natural Earth
+    ├── assets/build_maps.py    # Regenera MapData/MapDataFR desde Natural Earth (dominio público)
     └── harness/                # mock.luau, run_server.luau, run_game.luau, check_lang.py, preview.py
 ```

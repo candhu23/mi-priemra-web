@@ -9,9 +9,11 @@ Léelo entero antes de tocar nada. (El `CLAUDE.md` de la raíz habla del otro ju
 ## 1. Qué es y en qué estado está
 
 - **Juego de Roblox 2D** (todo interfaz, sin personaje) en Luau: gestionas una aerolínea de carga por
-  **España**. Llevas productos típicos de cada zona entre 41 aeropuertos reales, compras aviones, fichas
+  **España**. Llevas productos típicos de cada zona entre 48 aeropuertos reales, compras aviones, fichas
   pilotos y **pintas el mapa** al desbloquear regiones. Nombre en inglés: *Spain Air Cargo Tycoon*.
-- **Versión: 0.3** (`Config.VERSION`; súbela en cada versión). La v0.3 es la «gran mejora» tras «le falta algo, es
+- **Versión: 0.4** (`Config.VERSION`; súbela en cada versión). La v0.4 (lista del usuario, `DISENO.md` §1 ter): combustible
+  con depósito y precio cambiante, despachador (3 niveles), mecánicos, reputación, menú ☰, resumen de la compañía,
+  mapa físico nuevo con zoom, Francia «próximamente», 7 ciudades más y vuelos de 30 s mínimo. La v0.3 es la «gran mejora» tras «le falta algo, es
   muy simple»: demanda viva, eventos de España, contratos, rasgos de pilotos, aterrizaje perfecto, chárter, pasaporte,
   salir a bolsa (prestigio), tu aerolínea, tráfico de otros jugadores y ranking semanal (resumen en `DISENO.md` §1 bis).
 - **Estado: NO publicado todavía.** El usuario probó la v0.1 en Studio y no veía aviones ni podía fichar
@@ -47,7 +49,8 @@ roblox-carga-aerea/
 │   │   ├── Lang.luau      # Textos EN/ES. Lang.t(lang, clave, params) con {param}
 │   │   ├── Rules.luau     # COMPARTIDO servidor/cliente: Rules.quote/canFly (pago con todos los modificadores),
 │   │   │                  # eventAt/wantedAt (deterministas por hora), satMult, pasaporte (stamps, medals)
-│   │   └── MapData.luau   # GENERADO (no editar): mapa en franjas + MapData.project(lat, lon)
+│   │   ├── MapData.luau   # GENERADO (no editar): España en franjas con relieve + mar + MapData.project(lat, lon)
+│   │   └── MapDataFR.luau # GENERADO: Francia («próximamente»), mismo formato
 │   ├── ServerScriptService/
 │   │   ├── GameServer.server.luau  # Remotes, entrada/salida, sendState, leaderstats, ranking, bucle 1 s
 │   │   └── Cargo/
@@ -61,18 +64,22 @@ roblox-carga-aerea/
 │           ├── Kit.luau        # ctx compartido + piezas (button «grueso», card, label, tabs, syncList…)
 │           │                   # + reglas para estimar (quote, flyBlock) iguales a las del servidor
 │           ├── PlaneArt.luau   # Aviones dibujados con Frames: side() (tarjetas) y top() (mapa)
-│           ├── MapView.luau    # Mapa de España: franjas, regiones, pins, rutas, aviones, dinero flotante
+│           ├── MapView.luau    # Mapa: relieve (drawRelief), zoom/arrastre/pellizco (ScrollingFrame «MapArea»), regiones,
+│           │                   # pins, rutas, aviones, dinero flotante, botón 🇫🇷 y MapView.france()
 │           ├── Hud.luau        # Dinero (+ingresos/min), nivel, botones redondos (bolsa…), evento, contratos en marcha,
 │           │                   # «aviones esperando», monedas, objetivo, exprés y barra de 7 botones
 │           ├── Screens.luau    # Ventanas sobre el mapa, modal, avisos, confeti, título, bienvenida,
 │           │                   # subida de nivel, celebraciones y TUTORIAL con flecha
-│           ├── FleetPanel / CargoPanel / PilotsPanel / SpainPanel (regiones + pasaporte) / MissionsPanel / ShopPanel.luau
+│           ├── FleetPanel / CargoPanel / SpainPanel (regiones + pasaporte) / MissionsPanel / ShopPanel.luau
 │           ├── ContractsPanel.luau  # Contratos (en marcha + ofertas)
 │           ├── IpoPanel.luau        # Bolsa (prestigio)
+│           ├── CompanyPanel.luau    # Resumen de la compañía (v0.4)
+│           ├── FuelPanel.luau       # Combustible: depósito, precio y gráfica, comprar (v0.4)
+│           ├── PilotsPanel.luau     # PERSONAL: pilotos, fichajes, despachador, mecánicos
 │           └── SystemPanels.luau  # Ranking (semana / siempre) y Ajustes (tu aerolínea, idioma, sonido…)
 └── tools/   (bin/ y out/ en .gitignore)
     ├── setup.sh  check.sh
-    ├── assets/build_spain.py     # Natural Earth 10m → MapData.luau
+    ├── assets/build_maps.py      # Natural Earth (vectores 10m + relieve HYP_50M_SR_W) → MapData.luau y MapDataFR.luau
     └── harness/  mock.luau · run_server.luau · run_game.luau · check_lang.py · preview.py · preview_shot.js
 ```
 
@@ -96,13 +103,15 @@ las carpetas (`Cargo/`, `UI/`) son Folders.
   firePilot(id) buyRegion(id) buyUpgrade(id) setAuto(bool) setLang("", "en", "es") setMuted(bool)
   claimDaily() claimMission(i) claimGoal(id) tutorial("start"|"skip") getTop()` y, desde la v0.3:
   `charter(planeId, "c1"|"c4"|"c8") land(planeId, "perfect"|"good") acceptContract(offerId) abandonContract(id)
-  goPublic() setAirline({a,b,c}, color) claimGoals()`.
+  goPublic() setAirline({a,b,c}, color) claimGoals()` y, desde la v0.4: `buyFuel(litros) hireDispatcher() hireMechanic(id)
+  fireMechanic(id)` (`buyUpgrade("tank")` amplía el depósito).
   Límite: 10 acciones/s (getTop no cuenta). **Si añades una acción, añádela a los harness.**
 - **Estado** que llega al cliente: `money xp level planes pilots candidates candidatesIn regions upgrades
   settings stats goals missions daily{available,streak,lost} tutorial now fuelPrice boards refresh express
   maxPlanes autoUnlocked passes moneyMult social boostLeft timeMult cash starterBought rewardScale canSave version`
   + v0.3: `incomePerMin event eventLeft wanted{IATA=mult} wantedLeft sat{IATA=mult} album stamps stampsMax
-  contracts{offers,active,slots,nextIn} charterPay{c1,c4,c8} shares newShares ipoCount runEarned airline traffic[]`.
+  contracts{offers,active,slots,nextIn} charterPay{c1,c4,c8} shares newShares ipoCount runEarned airline traffic[]`
+  + v0.4: `fuel fuelCap fuelHistory[8] fuelBase fuelNextIn rep dispatcher staff mechanics[] mechCandidates[] offlineRate`.
   `boards` solo trae los aeropuertos donde hay aviones en tierra. `rewardScale` = `Game.rewardBase` (crece con los ingresos).
 - **Pago** (Rules.quote, igual en servidor y cliente): base × comercial × moneyMult (incluye acciones) × piloto (estrellas,
   nivel y rasgo) × evento × ciudad en auge × saturación × ruta nueva (×1,5) × región con todos los sellos (+3 %).
@@ -129,7 +138,8 @@ las carpetas (`Cargo/`, `UI/`) son Folders.
   stats{flights,km,tons,earned,express,localGoods,purchases,contracts,perfect,charters,newRoutes} goals{id=true}
   missions{day,list,bonusGiven} daily{last,streak} tutorial boostUntil rate receipts{} starterBought lastOnline`
   + v0.3: `album{airports{IATA=true},goods{id=n}} contracts{offers[],active[],nextAt} shares ipoCount run{earned}
-  airline{a,b,c,color} week{id,earned}`. Los pilotos llevan `trait` (en partidas viejas se pone en `Game.onJoin`).
+  airline{a,b,c,color} week{id,earned}` + v0.4: `fuel rep staff{dispatcher} mechanics[{id,name,avatar,stars}] mechCandidates[]
+  upgrades.tank` (`migrateV4` = partida anterior a la v0.4: se le llena el depósito y, si es nivel ≥5, despachador 1). Los pilotos llevan `trait` (en partidas viejas se pone en `Game.onJoin`).
 - Ranking semanal: OrderedDataStore `AeroCargaWeek_<semana>` (semana = ⌊(t − 345600) / 604800⌋, empieza el lunes UTC).
 - `flight`: `{from,to,good,weight,dist,gross,fuel,fee,pilot,startT,endT,express,landing?,city?}`; `good = "ferry"` = vuelo
   vacío; `good = "charter"` = chárter (`to = from`, `pilot = -2`, `city` = destino extranjero, no sale en el mapa);
@@ -139,13 +149,19 @@ las carpetas (`Cargo/`, `UI/`) son Folders.
 
 ## 6. Economía y sistemas (números en `Config.luau`; tablas en `DISENO.md` §5)
 
-- Pago = t × km × `RATE` 8 × producto (📦1 … 💊1,8) × (1 + 5 % comercial) × (1 + bonus piloto) × `moneyMult`
-  (amigos +10 % c/u máx 4, Premium +10 %, grupo +10 % si `GROUP_ID`≠0, VIP ×2, turbo ×2). Combustible al aterrizar.
+- Pago = t × km × `RATE` 8 × producto (📦1 … 💊1,8) × (1 + 5 % comercial) × (1 + bonus piloto) × `moneyMult` × `repMult`
+  (amigos +10 % c/u máx 4, Premium +10 %, grupo +10 % si `GROUP_ID`≠0, VIP ×2, turbo ×2).
+- **v0.4 combustible**: se compra antes (depósito `Config.tankCapacity`, 2.000 L al empezar) y se gasta al DESPEGAR
+  (`Config.fuelLitres`); `Rules.quote` resta su valor solo para comparar cargas. Precio base $2/L × `fuelMult` (±0,12 cada
+  `FUEL_PERIOD` 120 s, entre 0,75 y 1,25) × (1 − 5 %·mejora fuel). Sin litros → `err_no_fuel`.
+- **v0.4 personal**: despachador `Config.Dispatcher` (nv 5/7/10; 1 = automático, 2 = compra combustible <30 %, 3 = prioriza
+  contratos ×1,6 / exprés ×1,4 y offline 75 %). Mecánicos (nv 3, máx. 6) reparan en tierra `Config.mechRate(★)` puntos/s.
+  Reputación 0–100 (`Config.Rep`, `repMult` 0,9–1,1, premios de contrato ×0,8–1,2). `MIN_FLIGHT` 30 s.
 - 6 aviones (Gorrión→Ballena), 9 regiones (Centro y Levante gratis), 5 mejoras (la frigorífica permite 🐟 y 💊).
 - Pilotos: candidatos visibles (1–5★, sin sorteo de pago), suben de nivel volando; cobran el 10 %.
 - Exprés cada 90–150 s en un aeropuerto con avión libre: ×2,5, caduca en 80 s (solo tras el tutorial).
 - Misiones diarias (3) → x2 15 min al reclamar las 3; 41 objetivos en cadena; premio diario racha de 7.
-- XP para nivel L = `220 × (L−1)^2.35`. Autodespacho desde nivel 5 (o pase). Offline: `rate × tiempo` (máx 8 h)
+- XP para nivel L = `220 × (L−1)^2.35`. Autodespacho = despachador ≥ 1 (se contrata desde nivel 5; el pase cuenta como nivel 1). Offline: `rate × tiempo` (máx 8 h)
   × 50 % (100 % con pase), solo si el autodespacho estaba activo.
 - **v0.3**: demanda (`WANTED_*`, `SAT_*`, `NEW_ROUTE_MULT`), eventos (`Config.Events`, 7 min: 5 de evento + 2 de calma),
   contratos (`Config.Companies`, nv 3, 2 huecos), chárter (`Config.Charters`, nv 2, uno a la vez), aterrizaje
@@ -153,7 +169,7 @@ las carpetas (`Cargo/`, `UI/`) son Folders.
   `Config.IpoPerks`), aerolínea (`Config.AirlineParts/AirlineColors`, el oro exige 1 salida a bolsa).
 - Generador determinista `Config.prng(seed)` (Park-Miller): eventos y ciudades en auge iguales en todos los servidores.
   ¡No uses `Random.new(seed)` para eso! (el mock de Lune ignora la semilla).
-- **Ritmo del bot perfecto**: nv 5 ≈ 8 min, nv 10 ≈ 19 min, 1.ª salida a bolsa ≈ 40–50 min, 2.ª partida nv 10 ≈ 12–13 min
+- **Ritmo del bot perfecto (v0.4)**: nv 5 ≈ 8 min, nv 10 ≈ 21 min, 1.ª salida a bolsa ≈ 48 min, 2.ª partida nv 10 ≈ 17 min
   (una persona, 2–3 veces más).
 
 ## 7. Monetización
@@ -203,6 +219,13 @@ cd roblox-carga-aerea && tools/check.sh   # la 1.ª vez descarga las herramienta
 - Conexiones a `RenderStepped` fuera de `ctx.tickers` hay que desconectarlas al reconstruir (cambio de idioma):
   ver `landingConn` en `Screens.landing`. El mock ya desconecta de verdad.
 - En `task.delay` del cliente, comprueba `obj.Parent` antes de animar (el objeto puede haberse destruido).
+- **Mapa (v0.4)**: no subas imágenes de mapas con derechos (las fotos que mandó el usuario son de Depositphotos y de un atlas).
+  El relieve se genera con `build_maps.py` desde Natural Earth (dominio público). Cada franja = Frame + UIGradient de ≤20
+  colores (límite de Roblox). El tamaño de trozo es fracción del ANCHO del mapa (si no, salen ~20.000 Frames).
+- El zoom es un ScrollingFrame cuyo `CanvasSize` crece con el zoom; las conexiones de entrada (rueda, arrastre, pellizco)
+  van en `inputConns` del módulo y se desconectan al reconstruir.
+- En el barrido de `run_game` pulsar una pestaña borra las tarjetas antes de llegar a ellas: los botones que importan
+  (p. ej. contratar mecánico) se pulsan además a mano.
 - Cuadrículas de N columnas: usa celdas `UDim2.new(1/N, -(hueco+2), …)` para que el redondeo no pase una celda de fila.
 
 ## 10. Pendiente
@@ -213,8 +236,10 @@ cd roblox-carga-aerea && tools/check.sh   # la 1.ª vez descarga las herramienta
 - [ ] Icono y miniaturas para la página de Roblox (no hechos todavía).
 - [ ] Ajustar el ritmo cuando haya datos de personas reales.
 - [ ] Probar con personas la v0.3: ¿se entiende el minijuego de aterrizaje y las etiquetas 🔥 ✨ 📉 📜?
+- [ ] v0.4: el usuario prueba el mapa nuevo (rendimiento en móvil con ≈2.300 Frames, pellizco/arrastre), combustible y personal.
+- [ ] Abrir Francia (aeropuertos, productos y región) cuando el usuario lo pida.
 - [ ] Ideas siguientes (investigación en `DISENO.md` §1 bis): carga combinada (llenar el avión con varias cargas al mismo
-      destino), bases/hubs, combustible con depósito y precio cada 30 min, elegir 1 de 3 ventajas al subir de nivel,
+      destino), bases/hubs, elegir 1 de 3 ventajas al subir de nivel,
       pase de temporada mensual, operación cooperativa semanal, sonidos propios (IDs de audio de Roblox), Roblox Plus
       (`HasRobloxSubscription`), más aviones y pinturas.
 

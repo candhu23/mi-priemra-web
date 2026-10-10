@@ -404,6 +404,8 @@ function Kit.view(): any
 		upgrades = st.upgrades, moneyMult = st.moneyMult, fuelPrice = st.fuelPrice, timeMult = st.timeMult,
 		event = st.event, wanted = st.wanted or {}, sat = st.sat or {}, album = st.album or { airports = {}, goods = {} },
 		pending = Rules.pendingStamps(st.planes, st.album or { airports = {} }),
+		rep = st.rep,
+		fuel = st.fuel,
 	}
 end
 
@@ -411,7 +413,7 @@ function Kit.flyBlock(plane: any, load: any): string?
 	return Rules.canFly(Kit.view(), plane, load)
 end
 
-function Kit.quote(plane: any, load: any, pilotId: number): (number, number, number, number, { any })
+function Kit.quote(plane: any, load: any, pilotId: number): (number, number, number, number, { any }, number)
 	local pilot = pilotId > 0 and Kit.findPilot(pilotId) or nil
 	return Rules.quote(Kit.view(), plane, load, pilot)
 end
