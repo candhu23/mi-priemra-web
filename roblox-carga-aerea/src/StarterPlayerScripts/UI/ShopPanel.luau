@@ -132,12 +132,13 @@ function ShopPanel.build(content: Frame): () -> ()
 				local premium = bonusRow(area, "⭐", T("bonus_premium"), 2)
 				local group = Config.GROUP_ID ~= 0 and bonusRow(area, "🏢", T("bonus_group"), 3) or nil
 				local vip = bonusRow(area, "💰", T("bonus_vip"), 4)
-				local total = bonusRow(area, "📈", T("bonus_total"), 5)
+				local shares = bonusRow(area, "🏛️", T("bonus_shares"), 5)
+				local total = bonusRow(area, "📈", T("bonus_total"), 6)
 				local invite = Kit.button(area, "📨 " .. T("btn_invite"), "blue", UDim2.new(1, 0, 0, 60), function()
 					pcall(function()
 						SocialService:PromptGameInvite(Players.LocalPlayer)
 					end)
-				end, { LayoutOrder = 6 })
+				end, { LayoutOrder = 7 })
 				invite.TextSize = 22
 				table.insert(updaters, function()
 					local s = ctx.state.social
@@ -147,6 +148,8 @@ function ShopPanel.build(content: Frame): () -> ()
 						group.Text = s.group and "+10%" or "—"
 					end
 					vip.Text = ctx.state.passes.vip and "x2" or "—"
+					local n = ctx.state.shares or 0
+					shares.Text = n > 0 and ("+" .. math.floor(n * Config.SHARE_BONUS * 100 + 0.5) .. "%") or "—"
 					total.Text = "x" .. string.format("%.2f", ctx.state.moneyMult)
 				end)
 			end

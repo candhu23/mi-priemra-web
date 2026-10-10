@@ -51,6 +51,16 @@ for k in ids("Config.GamePasses = {", "} :: { ShopItem }", "key") + ids("Config.
 	if not k.startswith("cash_"):
 		used.add("item_" + k + "_d")
 
+for t in ids("Config.Traits = {", "} :: { Trait }"):
+	used |= {"trait_" + t, "trait_" + t + "_d"}
+for e in ids("Config.Events = {", "} :: { EventDef }"):
+	used |= {"ev_" + e, "ev_" + e + "_d"}
+for c in ids("Config.Companies = {", "} :: { Company }"):
+	used.add("company_" + c)
+i = config.index("Config.IpoPerks = {")
+for perk in re.findall(r'"([a-z]+)"', config[i:config.index("}", i)]):
+	used.add("perk_" + perk)
+
 missing_en = sorted(k for k in used if k not in en)
 missing_es = sorted(k for k in used if k not in es)
 if missing_en or missing_es:

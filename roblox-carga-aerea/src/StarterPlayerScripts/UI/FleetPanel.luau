@@ -17,6 +17,8 @@ local function statusOf(plane: any): (string, Color3)
 	if plane.flight then
 		if plane.flight.good == "ferry" then
 			return T("st_ferry"), C.purple
+		elseif plane.flight.good == "charter" then
+			return T("st_charter"), Color3.fromRGB(30, 64, 120)
 		end
 		return T("st_flying"), C.blue
 	elseif plane.condition < Config.REPAIR_BLOCK then
@@ -27,7 +29,9 @@ end
 FleetPanel.statusOf = statusOf
 
 function FleetPanel.where(plane: any): string
-	if plane.flight then
+	if plane.flight and plane.flight.good == "charter" then
+		return "🌙 " .. T("charter_to", { city = plane.flight.city or "?" }) .. " · " .. Kit.fmtTime(plane.flight.endT - Kit.serverNow())
+	elseif plane.flight then
 		local a, b = Config.AirportByCode[plane.flight.from], Config.AirportByCode[plane.flight.to]
 		return a.city .. " → " .. b.city .. " · " .. Kit.fmtTime(plane.flight.endT - Kit.serverNow())
 	end

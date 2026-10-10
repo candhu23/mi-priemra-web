@@ -55,7 +55,8 @@ function PilotsPanel.build(content: Frame): () -> ()
 		Kit.padding(12).Parent = root
 		avatar(root, pilot, 70)
 		Kit.title(root, pilot.name, 19, C.ink, { Position = UDim2.fromOffset(82, 0), Size = UDim2.new(1, -82, 0, 24) })
-		Kit.label(root, Kit.stars(pilot.stars), 18, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(82, 24), Size = UDim2.new(1, -82, 0, 22) })
+		Kit.label(root, Kit.stars(pilot.stars), 18, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(82, 24), Size = UDim2.new(1, -82, 0, 22), RichText = true })
+		Kit.label(root, Kit.traitName(pilot.trait), 14, C.purple, Kit.FONT_BOLD, { Position = UDim2.fromOffset(82, 82), Size = UDim2.new(1, -82, 0, 18) })
 		local lvl = Kit.label(root, "", 15, C.ink, Kit.FONT_BOLD, { Position = UDim2.fromOffset(82, 48), Size = UDim2.new(1, -82, 0, 20) })
 		local xpFill = Kit.progress(root, { Position = UDim2.new(0, 82, 0, 72), Size = UDim2.new(1, -82, 0, 8) }, C.gold)
 		local status = Kit.pill(root, "", C.green, { Position = UDim2.new(0, 0, 1, -28) })
@@ -87,7 +88,10 @@ function PilotsPanel.build(content: Frame): () -> ()
 		Kit.padding(14).Parent = root
 		avatar(root, c, 96, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0) })
 		Kit.title(root, c.name, 21, C.ink, { Position = UDim2.fromOffset(0, 104), Size = UDim2.new(1, 0, 0, 26), TextXAlignment = Enum.TextXAlignment.Center })
-		Kit.label(root, Kit.stars(c.stars), 26, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 130), Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Center })
+		Kit.label(root, Kit.stars(c.stars), 26, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 130), Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Center, RichText = true })
+		Kit.label(root, Kit.traitName(c.trait) .. ": " .. T("trait_" .. tostring(c.trait) .. "_d"), 14, C.purple, Kit.FONT_BOLD, {
+			Position = UDim2.fromOffset(0, 186), Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true,
+		})
 		Kit.label(root, T("pilot_bonus", { p = math.floor(Config.StarBonus[c.stars] * 100) }), 16, C.greenDark, Kit.FONT_BOLD, {
 			Position = UDim2.fromOffset(0, 162), Size = UDim2.new(1, 0, 0, 20), TextXAlignment = Enum.TextXAlignment.Center,
 		})
@@ -124,7 +128,7 @@ function PilotsPanel.build(content: Frame): () -> ()
 					k:Destroy()
 				end
 			end
-			Kit.grid(area, tab == "roster" and 150 or 272, 3)
+			Kit.grid(area, tab == "roster" and 150 or 300, 3)
 			hireBar.Visible = tab == "hire"
 			area.Position = UDim2.fromOffset(0, tab == "hire" and 128 or 58)
 			area.Size = UDim2.new(1, 0, 1, tab == "hire" and -128 or -58)

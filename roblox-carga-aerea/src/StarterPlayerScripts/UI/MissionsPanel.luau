@@ -13,7 +13,10 @@ local corner = Kit.corner
 
 local MissionsPanel = {}
 
-local MISSION_EMOJI = { deliveries = "📦", km = "🛫", express = "⚡", tons = "⚖️", ["local"] = "🧺", earn = "💰", upgrades = "🛠️" }
+local MISSION_EMOJI = {
+	deliveries = "📦", km = "🛫", express = "⚡", tons = "⚖️", ["local"] = "🧺", earn = "💰", upgrades = "🛠️",
+	contracts = "📜", perfect = "🎯", newroutes = "✨",
+}
 
 function MissionsPanel.build(content: Frame): () -> ()
 	local tab = "missions"
@@ -32,6 +35,7 @@ function MissionsPanel.build(content: Frame): () -> ()
 	local dailyTiles: { Frame } = {}
 	local dailyBtn: TextButton
 	local bonusLabel: TextLabel
+	local claimAll: TextButton
 
 	local function buildMission(m: any): Kit.Entry
 		local root = Kit.card(area, { Size = UDim2.new(1, 0, 0, 100) })
@@ -126,6 +130,10 @@ function MissionsPanel.build(content: Frame): () -> ()
 			Kit.list(false, 10).Parent = area
 			if tab == "daily" then
 				buildDaily()
+			elseif tab == "goals" then
+				claimAll = Kit.button(area, "", "green", UDim2.new(1, 0, 0, 54), function()
+					ctx.act("claimGoals")
+				end, { LayoutOrder = -1 })
 			elseif tab == "missions" then
 				bonusLabel = Kit.label(area, "", 16, C.goldDark, Kit.FONT_BOLD, { LayoutOrder = 99, TextWrapped = true, Size = UDim2.new(1, 0, 0, 40) })
 			end
@@ -147,6 +155,13 @@ function MissionsPanel.build(content: Frame): () -> ()
 				table.insert(list, { g = g, order = done * 1000 + i })
 			end
 			table.sort(list, function(a, b) return a.order < b.order end)
+			local ready = 0
+			for _, x in list do
+				if x.order < 1000 then
+					ready += 1
+				end
+			end
+			Kit.setButton(claimAll, "🎁 " .. T("btn_claim_all", { n = ready }), ready > 0)
 			local show = {}
 			for i = 1, math.min(#list, 30) do
 				show[i] = list[i].g

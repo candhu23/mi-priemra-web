@@ -27,7 +27,7 @@ Juego 2D de aerolínea de carga por España. Diseño completo en [DISENO.md](DIS
 
 1. Entra en **create.roblox.com → Creations → AeroCarga España → Monetization**.
 2. **Passes → Create a Pass**: crea los 4 pases (nombre, imagen y precio de la tabla de `DISENO.md` §6) y pon cada uno **On Sale**.
-3. **Developer Products → Create**: crea los 10 productos de la tabla.
+3. **Developer Products → Create**: crea los 8 productos de la tabla.
 4. Copia el **ID** de cada uno (número largo) y pásamelos indicando cuál es cuál. Yo los pongo en el código.
 
 ## Descripción para la página del juego (puedes copiarla)
@@ -38,6 +38,17 @@ Juego 2D de aerolínea de carga por España. Diseño completo en [DISENO.md](DIS
 >
 > ✈️ Build your cargo airline and conquer Spain! Deliver local products, buy planes, hire pilots,
 > complete express contracts and paint the map of Spain with your colours. Play with friends for bonus cash!
+
+## Novedades de la v0.3 (qué probar)
+
+1. **Primer vuelo**: al pulsar VOLAR la ventana se cierra y ves despegar el avión. Al final sale **ATERRIZA**:
+   púlsalo con la aguja en verde (+25 %).
+2. **Mapa**: ciudades con **🔥 ×1,5** (pagan más) y un **evento** arriba a la derecha (Fallas, San Fermín, temporal…).
+3. **Contratos** (botón 📜, desde el nivel 3): acepta uno y lleva las cargas marcadas con 📜.
+4. **Chárter** (botón 🌙 en CARGAS, desde el nivel 2): el avión se va 1–8 horas reales y vuelve con mucho dinero.
+5. **España → Pasaporte**: sellos de aeropuertos y medallas de productos.
+6. **Bolsa** (botón 🏛️, nivel 12): reinicias la partida a cambio de acciones (+20 % de pago y +25 % de XP cada una).
+7. **Ajustes → Tu aerolínea**: nombre y color de tus aviones.
 
 ## Cómo está hecho (para Claude)
 
@@ -50,13 +61,14 @@ roblox-carga-aerea/
 │   ├── ReplicatedStorage/
 │   │   ├── Config.luau         # TODOS los datos y fórmulas (aeropuertos, aviones, tienda…)
 │   │   ├── Lang.luau           # Textos EN/ES (el servidor manda claves, el cliente traduce)
+│   │   ├── Rules.luau          # Fórmula de pago, eventos, ciudades en auge y pasaporte (servidor y cliente)
 │   │   └── MapData.luau        # GENERADO por tools/assets/build_spain.py (mapa en franjas)
 │   ├── ServerScriptService/
 │   │   ├── GameServer.server.luau   # Remotes, entrada/salida, estado, bucle
 │   │   └── Cargo/ Data.luau (guardado, todo en pcall) · Game.luau (lógica) · Shop.luau (Robux)
 │   └── StarterPlayerScripts/
 │       ├── GameClient.client.luau   # Arranque de la interfaz
-│       └── UI/ Kit · PlaneArt · MapView · Hud · Screens · *Panel
+│       └── UI/ Kit · PlaneArt · MapView · Hud · Screens · *Panel (Contracts, Ipo, Spain con pasaporte…)
 └── tools/
     ├── check.sh                # Verificación completa + .rbxl (OBLIGATORIO antes de commit)
     ├── assets/build_spain.py   # Regenera MapData.luau desde Natural Earth

@@ -48,19 +48,15 @@ local function grant(session: Game.Session, key: string): boolean
 	elseif key == "boost" then
 		data.boostUntil = math.max(now, data.boostUntil) + 1800
 	elseif key == "landall" then
+		-- Los chárter no cuentan (son viajes largos que pagan minutos de ingresos)
 		for _, p in data.planes do
-			if p.flight then
+			if p.flight and p.flight.good ~= "charter" then
 				p.flight.endT = now
 			end
 		end
 	elseif key == "star_pilot" then
-		local first = Config.FirstNames[math.random(1, #Config.FirstNames)]
-		local last = Config.LastNames[math.random(1, #Config.LastNames)]
-		table.insert(data.pilots, {
-			id = data.nextId, name = first .. " " .. last, stars = 5, level = 1, flights = 0,
-			avatar = Config.Avatars[math.random(1, #Config.Avatars)],
-		})
-		data.nextId += 1
+		-- Siempre 5★ y con el rasgo fijo «As» (nada al azar que dependa del pago)
+		table.insert(data.pilots, Game.newPilot(data, 5, "ace"))
 	elseif key == "offline2x" then
 		data.money += session.offlineLast
 		session.offlineLast = 0

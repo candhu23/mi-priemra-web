@@ -78,7 +78,7 @@ local PROPS = {
 	"Image", "ImageRectOffset", "ImageRectSize", "ImageColor3", "ImageTransparency", "ScaleType", "Rotation", "ClipsDescendants", "AutomaticSize",
 	"CornerRadius", "Color", "Thickness", "Transparency", "PaddingLeft", "PaddingRight", "PaddingTop", "PaddingBottom",
 	"FillDirection", "Padding", "HorizontalAlignment", "VerticalAlignment", "CellSize", "CellPadding", "AspectRatio", "Scale", "FontFace",
-	"MaxSize",
+	"MaxSize", "RichText",
 }
 local function encode(v)
 	local t = typeof(v)
@@ -112,11 +112,13 @@ local function node(inst)
 	end
 	return n
 end
-local function dump(name)
+local function dump(name, keepModal, now)
 	if not DUMP then return end
-	if ctx.closeModal then ctx.closeModal() end
-	W.tick(4) -- que desaparezcan los avisos
-	frame()
+	if ctx.closeModal and not keepModal then ctx.closeModal() end
+	if not now then
+		W.tick(4) -- que desaparezcan los avisos
+		frame()
+	end
 	local guis = {}
 	for _, g in playerGui:GetChildren() do table.insert(guis, node(g)) end
 	fs.writeFile(DUMP .. "/" .. name .. ".json", serde.encode("json", guis))
@@ -132,6 +134,7 @@ press(findText(T("btn_start")), "¡Vamos!")
 frame()
 assert(ctx.state.tutorial == 1, "el tutorial debería empezar")
 local steps = {}
+local landingSeen = false
 for _ = 1, 60 do
 	frame()
 	local st = ctx.state
@@ -140,9 +143,20 @@ for _ = 1, 60 do
 	if st.tutorial == 1 then
 		if ctx.panel ~= "cargo" then press(ctx.targets.dock_cargo, "dock cargas") else dump("02_tutorial_cargas") press(ctx.targets.fly_first, "VOLAR primer vuelo") end
 	elseif st.tutorial == 2 then
-		if ctx.panel then ctx.closePanel() end
-		dump("03_tutorial_vuelo")
-		W.tick(5)
+		assert(ctx.panel == nil, "la ventana de CARGAS debería cerrarse sola al despegar (para ver el avión)")
+		if not landingSeen then dump("03_tutorial_vuelo", false, true) end
+		-- Minijuego de aterrizaje: aparece en los últimos segundos
+		for _ = 1, 20 do
+			frame()
+			local land = ctx.targets.land
+			if land and W.unwrap(land).Parent.Parent.Visible then
+				landingSeen = true
+				dump("03b_tutorial_aterrizaje", false, true)
+				press(land, "ATERRIZA")
+				break
+			end
+			if ctx.state.tutorial ~= 2 then break end
+		end
 	elseif st.tutorial == 3 then
 		if ctx.panel ~= "fleet" then press(ctx.targets.dock_fleet, "dock flota") else frame() press(ctx.targets.buy_sparrow, "comprar gorrión") end
 	elseif st.tutorial == 4 then
@@ -154,6 +168,7 @@ for _ = 1, 60 do
 	end
 end
 assert(ctx.state.tutorial == 99, "el tutorial no terminó (paso " .. tostring(ctx.state.tutorial) .. ")")
+assert(landingSeen, "el minijuego de aterrizaje debería salir en el primer vuelo")
 print("  tutorial completado siguiendo la flecha · pasos vistos:", (function() local n = 0 for _ in steps do n += 1 end return n end)())
 -- Cerrar ventanas emergentes (celebraciones)
 for _ = 1, 3 do
@@ -178,10 +193,11 @@ end
 dump("10_mapa")
 
 local PANELS = {
-	fleet = { "mine", "buy", "upgrades" }, cargo = { false }, pilots = { "roster", "hire" }, spain = { false },
-	missions = { "missions", "goals", "daily" }, shop = { "passes", "offers", "bonus" }, ranking = { false }, settings = { false },
+	fleet = { "mine", "buy", "upgrades" }, cargo = { false }, pilots = { "roster", "hire" }, contracts = { false },
+	spain = { "regions", "passport" }, missions = { "missions", "goals", "daily" }, shop = { "passes", "offers", "bonus" },
+	ranking = { "week", "all" }, settings = { false }, ipo = { false },
 }
-local ORDER = { "fleet", "cargo", "pilots", "spain", "missions", "shop", "ranking", "settings" }
+local ORDER = { "fleet", "cargo", "pilots", "contracts", "spain", "missions", "shop", "ranking", "settings", "ipo" }
 local pressed = 0
 local function sweep()
 	local all = playerGui:GetDescendants()
@@ -242,6 +258,57 @@ assert(W.invoked[#W.invoked] == "sellPlane", "la venta no llegó al servidor")
 frame()
 
 ---------------------------------------------------------------------
+print("-- Chárter desde CARGAS --")
+W.tick(300)
+local function charterActive()
+	for _, p in ctx.state.planes do
+		if p.flight and p.flight.good == "charter" then return true end
+	end
+	return false
+end
+if charterActive() then
+	print("  (el barrido de botones ya mandó un chárter)")
+else
+	ctx.openPanel("cargo")
+	frame()
+	press(findText("🌙 " .. T("btn_charter")), "botón Chárter")
+	frame()
+	dump("40_charter", true)
+	local fly
+	for _, d in playerGui:GetDescendants() do
+		if d:IsA("TextButton") and d.Text == "✈️" and d:GetAttribute("Style") == "blue" then fly = W.wrap(d) break end
+	end
+	press(fly, "primer chárter")
+	frame()
+	assert(W.invoked[#W.invoked] == "charter", "el chárter no llegó al servidor")
+end
+assert(charterActive(), "debería haber un avión de chárter")
+ctx.closePanel()
+
+print("-- Salir a bolsa desde la interfaz --")
+W.Players.PlayerRemoving:Fire(player)
+W.saved[key].xp = 220 * 13 ^ 2.35
+W.saved[key].stats.earned = 40e6
+W.Players.PlayerAdded:Fire(player)
+frame()
+for _ = 1, 3 do
+	local ok = findText(T("btn_collect")) or findText(T("btn_great")) or findText(T("btn_ok"))
+	if ok then press(ok) end
+end
+dump("41_mapa_bolsa")
+ctx.openPanel("ipo")
+frame()
+dump("42_bolsa")
+press(ctx.targets.ipo_go, "SALIR A BOLSA")
+frame()
+press(findText("🔔 " .. T("btn_ipo")), "confirmar salida a bolsa")
+frame()
+assert(ctx.state.ipoCount == 1 and ctx.state.level == 1, "no salió a bolsa desde la interfaz")
+dump("43_bolsa_celebracion", true)
+press(findText(T("btn_great")), "cerrar celebración")
+frame()
+
+---------------------------------------------------------------------
 print("-- Cambio de idioma --")
 ctx.openPanel("settings")
 frame()
@@ -267,7 +334,8 @@ table.sort(list)
 print("Acciones enviadas:", table.concat(list, ", "))
 print("Compras lanzadas:", #W.prompts)
 local needed = { "dispatch", "buyPlane", "hire", "claimGoal", "tutorial", "openPanel" }
-for _, a in { "dispatch", "buyPlane", "hire", "claimGoal", "tutorial", "repair", "buyUpgrade", "buyRegion", "claimDaily", "searchCandidates", "setAuto", "setLang", "setMuted", "getTop", "refreshBoard", "sellPlane" } do
+for _, a in { "dispatch", "buyPlane", "hire", "claimGoal", "tutorial", "repair", "buyUpgrade", "buyRegion", "claimDaily", "searchCandidates", "setAuto", "setLang", "setMuted", "getTop", "refreshBoard", "sellPlane",
+	"acceptContract", "setAirline", "claimGoals", "charter", "goPublic" } do
 	assert(counts[a], "la interfaz nunca envió la acción " .. a)
 end
 local _ = needed

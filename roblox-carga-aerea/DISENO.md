@@ -1,4 +1,4 @@
-# AeroCarga España — Documento de diseño (v0.2)
+# AeroCarga España — Documento de diseño (v0.3)
 
 > En inglés: *Spain Air Cargo Tycoon*. Nombre fácil de cambiar (textos en `Lang.luau`).
 
@@ -10,6 +10,35 @@ Tienes una avioneta en Madrid. Llevas los productos típicos de cada zona de Esp
 (naranjas de Valencia, jamón de Salamanca, vino de Logroño, pescado de Vigo, plátanos de Canarias…),
 compras aviones, fichas pilotos y **vas pintando el mapa de España con tus colores** al abrir regiones.
 Todo es 2D: el mapa ocupa la pantalla y las ventanas se abren encima.
+
+## 1 bis. Qué cambia en la v0.3 («le falta algo, es muy simple»)
+
+**Diagnóstico** (auditoría del código + bot que juega 6 h):
+- el dinero por segundo **no dependía del destino**: elegir carga era «pulsa la primera fila»;
+- desde el nivel 5 el **despacho automático** hacía lo mismo que el jugador;
+- en unas 2 h de bot **no quedaba nada que comprar** y no había meta a largo plazo;
+- la ventana de CARGAS **tapaba el despegue** en el primer minuto.
+
+**Inspiración** (investigación web): Pocket Planes (llenar aviones, eventos), Airline Manager 4 (precios que cambian,
+motivos para volver), OpenTTD (subvenciones de rutas nuevas, demanda), Mini Metro (elegir), juegos idle con prestigio
+(AdVenture Capitalist, Idle Miner) y Roblox (Grow a Garden: eventos para todo el servidor; Airport Tycoon: renacimiento).
+
+| Sistema nuevo | Qué decisión crea | Dónde |
+|---|---|---|
+| **Demanda viva** | 4 ciudades «🔥 en auge» cada 10 min (×1,3–1,6, iguales en todos los servidores). Si repites destino, paga menos (−8 % por vuelo reciente, mínimo −40 %, se recupera en 90 s) | Mapa (insignias 🔥, anillo rojo si saturado) y etiquetas en CARGAS |
+| **Eventos de España** | Cada 7 min: 5 min de evento (Fallas 🍊×2, San Fermín, Feria de Abril, vendimia, temporal en Galicia, niebla en Madrid…). Los de temporada salen 4× más en su mes real | Tarjeta morada arriba a la derecha y emoji en el mapa |
+| **Contratos con empresas** (nv 3) | «Frutas del Turia: lleva 4 cargas de 🍊 a Cataluña en 16 min» → premio de varios minutos de ingresos. 2 a la vez | Botón 📜 de la barra; progreso arriba a la izquierda; cargas marcadas con 📜 |
+| **Pilotos con rasgo** | Veloz, Ahorrador, Isleño, Frigorífico, Gourmet, Urgencias (se ve ANTES de ficharlo; no es sorteo de pago) | PILOTOS y el selector de CARGAS |
+| **Aterrizaje perfecto** | Cuando vuelas TÚ: aguja en los últimos 4 s; verde +25 %, amarillo +10 %. Da sentido a volar en persona | Ventana sobre el mapa |
+| **Chárter** (nv 2) | El avión se va 1, 4 u 8 horas reales y vuelve con 20, 60 o 110 min de tus ingresos. Uno a la vez, sin piloto | Botón 🌙 en CARGAS |
+| **Pasaporte** | Sello por aeropuerto (la 1.ª entrega paga ×1,5) + medallas 🥉🥈🥇 por producto (1/10/50). Región completa: +3 % allí | ESPAÑA → Pasaporte |
+| **Salir a bolsa** (nv 12) | Reinicia la partida a cambio de acciones (+20 % de pago y +25 % de XP cada una) y una ventaja fija por salida | Botón 🏛️ arriba a la derecha |
+| **Tu aerolínea** | Nombre por piezas (sin texto libre) y color de tus aviones; los demás jugadores ven tus aviones en su mapa | AJUSTES |
+| **Ranking semanal** | Se reinicia cada lunes: los nuevos pueden competir | 🏆 |
+| **Sensación** | El despegue se ve (la ventana se cierra o pasa al siguiente avión), monedas que vuelan al contador, «N aviones esperando», ganancias por minuto, estrellas vacías en gris, «Reclamar todo» | HUD |
+
+**El automático ya no es perfecto:** coge la carga con más beneficio, pero no persigue contratos ni hace aterrizajes
+perfectos. Jugar a mano rinde más; dejarlo en automático sigue siendo cómodo.
 
 ## 2. Por qué ya no se parece al juego de camiones
 
@@ -72,7 +101,15 @@ Castilla y Extremadura (nv 7, $600K) · Galicia (nv 9, $1,5M) · Baleares (nv 11
 **Pilotos**: candidatos de 1 a 5★ (42/30/17/8/3 %); bonus 0/5/10/18/30 % + 1,5 % por nivel; precio según estrellas y tu nivel.
 
 **Ritmo medido** (bot perfecto en `tools/check.sh`; una persona irá unas 2–3 veces más lenta):
-nivel 2 ≈ 1 min · nivel 3 ≈ 3 min · 1.ª región nueva ≈ 4 min · nivel 5 ≈ 10 min · nivel 10 ≈ 22 min.
+nivel 2 ≈ 0,5 min · nivel 3 ≈ 2 min · nivel 5 ≈ 8 min · nivel 10 ≈ 19 min · **1.ª salida a bolsa ≈ 40–50 min**
+(una persona: ≈ 1,5–2,5 h) · **2.ª partida: nivel 10 en ≈ 12–13 min** (1,5 veces más rápida).
+
+**Bolsa:** acciones totales = ⌊√(ganado en toda la historia / 1 M)⌋; se cobran las que aún no tienes (mínimo 5 nuevas
+y nivel 12). Ventajas por salida: 1) color oro + $100K al empezar · 2) empiezas con Cataluña y Aragón · 3) +1 contrato ·
+4) un Halcón extra · 5) +1 candidato a piloto. Se conservan acciones, pasaporte, objetivos, aerolínea, pases y lo ganado.
+
+**Premios que no se quedan pequeños:** misiones, objetivos y premio diario usan la mayor de dos cifras: la escala por
+nivel de antes o 2 minutos de tus ingresos reales.
 
 ## 6. Monetización (preparada; falta crear los artículos y poner sus IDs)
 
@@ -91,6 +128,11 @@ Todo con Robux es opcional y **sin artículos aleatorios de pago** (así no hay 
 | Producto | ⭐ Piloto estrella (5★, sin sorteo) | 99 R$ |
 | Producto | 🌙 Duplicar ganancias offline (sale al volver) | 29 R$ |
 
+Son **4 pases y 8 productos** (en la v0.2 este documento decía 10 productos por error).
+«Aterrizar todos» no afecta a los chárter. El piloto estrella trae siempre el rasgo fijo «As» (nada al azar).
+Investigación de precios: juegos parecidos de Roblox cobran el x2 de dinero entre 329 y 650 R$; el VIP a 199 R$ quizá
+se pueda subir a 299 R$ más adelante (confianza media).
+
 Mientras un artículo tenga `id = 0` no aparece en el juego publicado; en Studio se ve como muestra.
 
 ## 7. Qué se ha verificado y qué no
@@ -103,11 +145,15 @@ Mientras un artículo tenga `id = 0` no aparece en el juego publicado; en Studio
 - **Juego completo**: servidor e interfaz reales juntos. Se pulsa JUGAR, se hace el tutorial siguiendo la flecha, se abren todas las ventanas y pestañas,
   se pulsan más de 7.000 botones y se cambia de idioma.
 - Vista previa aproximada en navegador (`docs/*.jpg`).
+- **v0.3**: el bot cumple contratos, consigue sellos, sale a bolsa y mide la 2.ª partida; la prueba completa hace el
+  aterrizaje del tutorial, comprueba que CARGAS se cierra al despegar, manda un chárter y sale a bolsa pulsando botones.
 
 **No verificado**:
 - No he abierto Roblox Studio. Las fuentes, los emojis y algunos tamaños automáticos pueden verse algo distintos.
 - Que el sonido interno `rbxasset://sounds/electronicpingshort.wav` exista (confianza ~70 %; si no existe, simplemente no suena).
 - Cómo lo vive una persona real (ritmo, si el tutorial se entiende, si engancha).
+- **v0.3**: si el minijuego de aterrizaje es divertido y justo con lag de móvil (ventana de 4 s, confianza ~60 %);
+  si tantas etiquetas (🔥 ✨ 📉 📜) se entienden sin explicación (~65 %); que `os.date("!*t")` funcione igual en Roblox (~90 %).
 
 ## 8. Parecido con el otro juego (valoración, no consejo legal)
 

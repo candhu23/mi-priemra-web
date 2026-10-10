@@ -17,6 +17,8 @@ local CargoPanel = {}
 
 function CargoPanel.build(content: Frame): () -> ()
 	local selectedPilot = 0
+	local afterTakeoff: () -> ()
+	local render: () -> ()
 
 	-- Columna izquierda: aviones + interruptor automático
 	local left = Kit.card(content, { Size = UDim2.new(0, 330, 1, 0) })
@@ -33,8 +35,8 @@ function CargoPanel.build(content: Frame): () -> ()
 
 	-- Columna derecha: tablón
 	local right = create("Frame", { Parent = content, BackgroundTransparency = 1, Position = UDim2.fromOffset(346, 0), Size = UDim2.new(1, -346, 1, 0) })
-	local header = Kit.title(right, "", 24, C.ink, { Size = UDim2.new(1, -330, 0, 30) })
-	local products = Kit.label(right, "", 15, C.muted, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, -330, 0, 20) })
+	local header = Kit.title(right, "", 24, C.ink, { Size = UDim2.new(1, -450, 0, 30) })
+	local products = Kit.label(right, "", 15, C.muted, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, -450, 0, 20) })
 	local function selected(): any
 		local st = ctx.state
 		if not st then
@@ -47,14 +49,41 @@ function CargoPanel.build(content: Frame): () -> ()
 		end
 		return nil
 	end
-	local refreshBtn = Kit.button(right, "🔄 " .. T("btn_refresh"), "white", UDim2.fromOffset(150, 44), function()
+	local refreshBtn = Kit.button(right, "🔄 " .. T("btn_refresh"), "white", UDim2.fromOffset(140, 44), function()
 		local p = selected()
 		if p then
 			ctx.act("refreshBoard", p.airport)
 		end
-	end, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -166, 0, 0) })
-	refreshBtn.TextSize = 16
-	local ferryBtn = Kit.button(right, "🧭 " .. T("btn_ferry"), "white", UDim2.fromOffset(160, 44), function()
+	end, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -150, 0, 0) })
+	refreshBtn.TextSize = 15
+	-- Chárter: viaje largo de horas reales (uno a la vez)
+	local charterBtn = Kit.button(right, "🌙 " .. T("btn_charter"), "white", UDim2.fromOffset(140, 44), function()
+		local plane = selected()
+		if not plane or plane.flight then
+			return
+		end
+		ctx.openModal("🌙 " .. T("charter_title"), function(body)
+			Kit.list(false, 10).Parent = body
+			Kit.label(body, T("charter_body"), 16, C.muted, nil, { LayoutOrder = 0, Size = UDim2.new(1, 0, 0, 44), TextWrapped = true })
+			for i, c in Config.Charters do
+				local row = Kit.card(body, { LayoutOrder = i, Size = UDim2.new(1, 0, 0, 60) })
+				Kit.padding(14, 8, 0, 0).Parent = row
+				Kit.title(row, T("charter_hours", { h = c.hours }), 20, C.ink, { Size = UDim2.new(0.45, 0, 1, 0) })
+				Kit.title(row, "+" .. Kit.fmtMoney(ctx.state.charterPay and ctx.state.charterPay[c.id] or 0), 22, C.greenDark, {
+					Position = UDim2.fromScale(0.4, 0), Size = UDim2.new(0.6, -130, 1, 0),
+				})
+				Kit.button(row, "✈️", "blue", UDim2.fromOffset(110, 44), function()
+					ctx.closeModal()
+					local ok = ctx.act("charter", plane.id, c.id)
+					if ok then
+						Kit.playSound("takeoff")
+					end
+				end, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.fromScale(1, 0.5) })
+			end
+		end, { { text = T("btn_close"), style = "white" } })
+	end, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -300, 0, 0) })
+	charterBtn.TextSize = 15
+	local ferryBtn = Kit.button(right, "🧭 " .. T("btn_ferry"), "white", UDim2.fromOffset(140, 44), function()
 		local plane = selected()
 		if not plane or plane.flight then
 			return
@@ -89,7 +118,7 @@ function CargoPanel.build(content: Frame): () -> ()
 			end
 		end)
 	end, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0) })
-	ferryBtn.TextSize = 16
+	ferryBtn.TextSize = 15
 	local pilotTitle = Kit.title(right, T("cargo_who"), 15, C.muted, { Position = UDim2.fromOffset(0, 58), Size = UDim2.fromOffset(300, 20) })
 	local pilotRow = create("ScrollingFrame", {
 		Parent = right, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(0, 80), Size = UDim2.new(1, 0, 0, 48),
@@ -153,7 +182,11 @@ function CargoPanel.build(content: Frame): () -> ()
 		local net = Kit.title(root, "", 26, C.green, { Position = UDim2.new(0.42, 0, 0, 10), Size = UDim2.new(0.32, 0, 0, 32) })
 		local detail = Kit.label(root, "", 13, C.muted, nil, { Position = UDim2.new(0.42, 0, 0, 44), Size = UDim2.new(0.32, 0, 0, 32), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top })
 		local fly = Kit.button(root, "✈️ " .. T("btn_fly"), ex and "gold" or "orange", UDim2.new(0.24, -12, 0, 56), function()
-			ctx.act("dispatch", ctx.selectPlane, load.id, selectedPilot)
+			local ok = ctx.act("dispatch", ctx.selectPlane, load.id, selectedPilot)
+			if ok then
+				Kit.playSound("takeoff")
+				afterTakeoff()
+			end
 		end, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0) })
 		local reason = Kit.label(root, "", 14, C.red, Kit.FONT_BOLD, {
 			AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.new(0.24, -12, 0, 56),
@@ -169,18 +202,30 @@ function CargoPanel.build(content: Frame): () -> ()
 				if not plane then
 					return
 				end
-				local gross, fuel, fee, secs = Kit.quote(plane, l, selectedPilot)
+				local gross, fuel, fee, secs, mods = Kit.quote(plane, l, selectedPilot)
 				local n = gross - fuel - fee
 				net.Text = (n >= 0 and "+" or "") .. Kit.fmtMoney(n)
 				net.TextColor3 = n >= 0 and C.greenDark or C.red
 				detail.Text = "⏱️ " .. Kit.fmtTime(secs) .. "  ·  ⛽ −" .. Kit.fmtMoney(fuel) .. (fee > 0 and ("  ·  👨‍✈️ −" .. Kit.fmtMoney(fee)) or "")
+				-- Etiquetas: exprés, contrato, evento, ciudad en auge, ruta nueva, saturación, rasgo del piloto
+				local parts = {}
 				if l.express then
-					tag.Text = "⚡ ×" .. Config.Express.mult .. " · " .. Kit.fmtTime(l.express - Kit.serverNow())
+					table.insert(parts, "⚡ ×" .. Config.Express.mult .. " " .. Kit.fmtTime(l.express - Kit.serverNow()))
 				elseif l.tutorial then
-					tag.Text = "⭐ " .. T("first_flight")
-				else
-					tag.Text = good.mult > 1 and string.format("💰 ×%.2f", good.mult) or ""
+					table.insert(parts, "⭐ " .. T("first_flight"))
 				end
+				local dest = Config.AirportByCode[l.to]
+				for _, c in ctx.state.contracts and ctx.state.contracts.active or {} do
+					if c.good == l.good and dest.region == c.region then
+						table.insert(parts, "📜")
+						break
+					end
+				end
+				for _, m in mods do
+					table.insert(parts, Kit.modText(m))
+				end
+				tag.Text = table.concat(parts, "  ")
+				tag.TextColor3 = #mods > 0 and C.orangeDark or C.goldDark
 				local block = Kit.flyBlock(plane, l)
 				if not block and selectedPilot > 0 and Kit.pilotBusy(selectedPilot) then
 					block = "err_pilot_busy"
@@ -231,7 +276,8 @@ function CargoPanel.build(content: Frame): () -> ()
 			chip.LayoutOrder = i
 			local busy = Kit.pilotBusy(p.id)
 			local bonus = p.id > 0 and string.format(" +%d%%", math.floor(Config.pilotBonus(p.stars, p.level) * 100 + 0.5)) or ""
-			chip.Text = p.avatar .. " " .. p.name .. (p.id > 0 and (" " .. string.rep("★", p.stars)) or "") .. bonus .. (busy and " ✈️" or "")
+			local trait = p.trait and Config.TraitById[p.trait]
+			chip.Text = p.avatar .. " " .. p.name .. (p.id > 0 and (" " .. string.rep("★", p.stars)) or "") .. bonus .. (trait and (" " .. trait.emoji) or "") .. (busy and " ✈️" or "")
 			chip.TextColor3 = busy and C.greyDark or C.ink
 			chip.BackgroundColor3 = p.id == selectedPilot and Color3.fromRGB(255, 233, 220) or C.white
 			chip:FindFirstChildOfClass("UIStroke").Color = p.id == selectedPilot and C.orange or C.line
@@ -244,7 +290,7 @@ function CargoPanel.build(content: Frame): () -> ()
 		end
 	end
 
-	local function render()
+	function render()
 		local st = ctx.state
 		if not st then
 			return
@@ -286,6 +332,7 @@ function CargoPanel.build(content: Frame): () -> ()
 			Kit.syncList(loadCache, {}, function(l) return l.id end, buildLoadRow)
 			Kit.setButton(refreshBtn, nil, false)
 			Kit.setButton(ferryBtn, nil, false)
+			Kit.setButton(charterBtn, nil, false)
 			return
 		end
 		local a = Config.AirportByCode[sel.airport]
@@ -298,6 +345,14 @@ function CargoPanel.build(content: Frame): () -> ()
 		local cooldown = st.refresh[sel.airport] or 0
 		Kit.setButton(refreshBtn, cooldown > 0 and ("⏳ " .. cooldown .. " s") or ("🔄 " .. T("btn_refresh")), cooldown <= 0)
 		Kit.setButton(ferryBtn, nil, sel.condition >= Config.REPAIR_BLOCK)
+		local charterBusy = false
+		for _, p in st.planes do
+			if p.flight and p.flight.good == "charter" then
+				charterBusy = true
+			end
+		end
+		charterBtn.Parent.Visible = st.level >= Config.CHARTER_LEVEL
+		Kit.setButton(charterBtn, charterBusy and ("🌙 " .. T("charter_busy")) or nil, sel.condition >= Config.REPAIR_BLOCK and not charterBusy)
 		local loads = table.clone(st.boards[sel.airport] or {})
 		table.sort(loads, function(x, y)
 			local ex, ey = (x.express or x.tutorial) and 1 or 0, (y.express or y.tutorial) and 1 or 0
@@ -314,6 +369,23 @@ function CargoPanel.build(content: Frame): () -> ()
 		end)
 		Kit.syncList(loadCache, loads, function(l) return l.id end, buildLoadRow)
 		empty.Text = #loads == 0 and T("board_empty") or ""
+	end
+	-- Tras despegar: si quedan aviones libres se elige el siguiente; si no, se cierra para ver el despegue
+	function afterTakeoff()
+		local st = ctx.state
+		local nextPlane
+		for _, p in st.planes do
+			if not p.flight and p.id ~= ctx.selectPlane and p.condition >= Config.REPAIR_BLOCK then
+				nextPlane = p.id
+				break
+			end
+		end
+		if nextPlane then
+			ctx.selectPlane = nextPlane
+			render()
+		else
+			ctx.closePanel()
+		end
 	end
 	table.insert(ctx.tickers, function()
 		if ctx.panel == "cargo" then

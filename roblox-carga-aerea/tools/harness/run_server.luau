@@ -89,9 +89,16 @@ act("tutorial", "start")
 s = lastState()
 act("dispatch", s.planes[1].id, s.boards.MAD[1].id, 0)
 assert(lastState().tutorial == 2, "tras despachar el tutorial debería ir al paso 2")
-W.tick(16)
+act("land", s.planes[1].id, "perfect") -- demasiado pronto
+assert(not lastState().planes[1].flight.landing, "aterrizar tan pronto no debería valer")
+W.tick(11)
+local okLand = act("land", s.planes[1].id, "perfect")
+assert(okLand, "el aterrizaje perfecto debería aceptarse en los últimos segundos")
+act("land", s.planes[1].id, "perfect") -- solo un intento
+W.tick(5)
 s = lastState()
 assert(s.tutorial == 3 and not s.planes[1].flight, "tras aterrizar debería ir al paso 3")
+assert(s.stats.perfect == 1 and s.album.airports.VLC, "debería contar el aterrizaje perfecto y el sello de Valencia")
 act("buyPlane", "sparrow")
 s = lastState()
 assert(s.tutorial == 4, "tras comprar debería ir al paso 4")
@@ -123,6 +130,15 @@ act("setMuted", false) -- demasiado rápido
 W.fakeTime += 2
 act("claimDaily")
 act("claimDaily") -- ya reclamado
+act("acceptContract", 1) -- nivel
+act("charter", s.planes[1].id, "c1") -- nivel
+act("goPublic") -- nivel
+act("setAirline", { 9, 1, 1 }, 1) -- pieza que no existe
+act("setAirline", { 1, 2, 3 }, Config.GOLD_COLOR) -- oro bloqueado
+act("setAirline", { 2, 3, 4 }, 5)
+assert(lastState().airline.color == 5, "debería cambiar el color de la aerolínea")
+act("claimGoals") -- nada que reclamar
+act("land", s.planes[1].id, "perfect") -- no está volando
 
 ---------------------------------------------------------------------
 -- Bot: despacha todo lo que puede con los pilotos libres
@@ -183,6 +199,8 @@ end
 
 print("-- Partida rápida (bot) --")
 local start = W.fakeTime
+local ipoAt = nil
+local firstTen = 0
 local marks = {}
 local function mark(name)
 	if not marks[name] then
@@ -201,15 +219,37 @@ for _ = 1, 3000 do
 	for i, m in st.missions.list do
 		if not m.claimed and m.progress >= m.target then act("claimMission", i, nil, nil, true) mark("misión reclamada") end
 	end
+	-- Objetivos: todos de golpe (el botón «Reclamar todo»)
+	local claimable = false
 	for _, g in Config.Goals do
 		if not st.goals[g.id] then
 			local v = g.stat == "planes" and #st.planes or g.stat == "pilots" and #st.pilots or g.stat == "level" and st.level
-				or g.stat == "regions" and (function() local n = 0 for _ in st.regions do n += 1 end return n end)() or st.stats[g.stat]
-			if v >= g.target then act("claimGoal", g.id, nil, nil, true) end
+				or g.stat == "regions" and (function() local n = 0 for _ in st.regions do n += 1 end return n end)()
+				or g.stat == "stamps" and st.stamps or g.stat == "ipo" and st.ipoCount or st.stats[g.stat]
+			if v >= g.target then claimable = true end
 		end
 	end
+	if claimable then act("claimGoals", nil, nil, nil, true) end
 	st = lastState()
 	if st.stats.express > 0 then mark("primer exprés") end
+	-- Contratos: acepta la primera oferta si hay hueco
+	if st.contracts and #st.contracts.offers > 0 and #st.contracts.active < st.contracts.slots and st.level >= Config.CONTRACT_LEVEL then
+		act("acceptContract", st.contracts.offers[1].id, nil, nil, true)
+		st = lastState()
+	end
+	if st.stats.contracts > 0 then mark("primer contrato cumplido") end
+	if st.event then mark("primer evento: " .. st.event) end
+	-- Salir a bolsa en cuanto se pueda (una vez) y medir la segunda partida
+	if not ipoAt and st.level >= Config.IPO_LEVEL and st.newShares >= Config.IPO_MIN_SHARES then
+		mark("ganado al salir a bolsa: " .. money(st.stats.earned))
+		local ok = act("goPublic", nil, nil, nil, true)
+		assert(ok, "debería poder salir a bolsa")
+		ipoAt = W.fakeTime
+		st = lastState()
+		assert(st.ipoCount == 1 and st.shares >= Config.IPO_MIN_SHARES and #st.planes == 1 and st.level == 1, "salir a bolsa debería reiniciar la partida")
+		assert(st.money == Config.START_MONEY + Config.IPO_START_MONEY, "la ventaja 1 da dinero inicial extra")
+		mark("salida a bolsa (+" .. st.shares .. " acciones)")
+	end
 	-- Compras sencillas por prioridad
 	local nextModel
 	for _, m in Config.Planes do
@@ -232,19 +272,48 @@ for _ = 1, 3000 do
 	elseif nextModel and #st.planes < st.maxPlanes and st.money >= nextModel.price * 1.1 then
 		act("buyPlane", nextModel.id, nil, nil, true) mark("compra " .. nextModel.id)
 	end
-	for _, lvl in { 2, 3, 5, 7, 10 } do
-		if st.level >= lvl then mark("nivel " .. lvl) end
+	for _, lvl in { 2, 3, 5, 7, 10, 12 } do
+		if st.level >= lvl then mark((ipoAt and "2ª partida: " or "") .. "nivel " .. lvl) end
 	end
-	if st.level >= 10 or W.fakeTime - start > 3 * 3600 then break end
+	if ipoAt and st.level >= 10 then
+		print(string.format("  2ª partida: nivel 10 en %.1f min (la 1ª tardó %.1f min)", (W.fakeTime - ipoAt) / 60, firstTen / 60))
+		break
+	end
+	if st.level >= 10 and firstTen == 0 then firstTen = W.fakeTime - start end
+	if W.fakeTime - start > 4 * 3600 then break end
 end
+assert(ipoAt, "el bot debería haber salido a bolsa en menos de 4 h")
 s = lastState()
-print(string.format("  tras %.1f min: %s · nivel %d · vuelos %d · exprés %d", (W.fakeTime - start) / 60, money(s.money), s.level, s.stats.flights, s.stats.express))
+print(string.format("  tras %.1f min: %s · nivel %d · vuelos %d · exprés %d · contratos %d · sellos %d/%d · perfectos %d",
+	(W.fakeTime - start) / 60, money(s.money), s.level, s.stats.flights, s.stats.express, s.stats.contracts, s.stamps, s.stampsMax, s.stats.perfect))
+assert(s.stats.contracts > 0, "el bot debería haber cumplido algún contrato")
 newNotes()
 
 ---------------------------------------------------------------------
-print("-- Salir con el piloto automático y volver 2 horas después --")
+print("-- Salir con el piloto automático y un chárter, y volver 2 horas después --")
 act("setAuto", true)
 W.tick(130) -- para que se mida el ritmo de ganancias
+s = lastState()
+local charterPlane
+for _, p in s.planes do
+	if not p.flight and p.condition >= Config.REPAIR_BLOCK then charterPlane = p break end
+end
+if not charterPlane then
+	W.tick(60)
+	for _, p in lastState().planes do
+		if not p.flight and p.condition >= Config.REPAIR_BLOCK then charterPlane = p break end
+	end
+end
+act("setAuto", false)
+W.tick(120)
+for _, p in lastState().planes do
+	if not p.flight and p.condition >= Config.REPAIR_BLOCK then charterPlane = p break end
+end
+assert(charterPlane, "debería haber un avión libre para el chárter")
+local okCharter = act("charter", charterPlane.id, "c1")
+assert(okCharter, "el chárter debería despegar")
+act("charter", charterPlane.id, "c4") -- ya está volando
+act("setAuto", true)
 dispatchAll()
 W.Players.PlayerRemoving:Fire(player)
 assert(W.saved["AeroCarga_v1/player_42"], "debería haberse guardado")
@@ -257,6 +326,7 @@ for _, n in newNotes() do
 end
 assert(welcome, "debería haber aviso de bienvenida con ganancias offline")
 for _, p in lastState().planes do assert(not p.flight, "los vuelos deberían haber aterrizado") end
+assert(lastState().stats.charters == 1, "el chárter debería haber vuelto")
 
 ---------------------------------------------------------------------
 print("-- Compras con Robux (simuladas) --")
@@ -320,7 +390,7 @@ assert(inAir >= 4, "el despacho automático debería mandar varios aviones")
 act("setLang", "en")
 act("setLang", "fr")
 local ok, _, extra = act("getTop")
-assert(ok and extra and extra.top, "getTop debería devolver la clasificación")
+assert(ok and extra and extra.top and extra.week, "getTop debería devolver la clasificación de siempre y la semanal")
 -- Estado para el harness del juego: mitad en el aire y mitad en tierra
 act("setAuto", false)
 W.tick(400)

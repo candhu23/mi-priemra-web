@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Rules = require(ReplicatedStorage:WaitForChild("Rules"))
 local cargo = script.Parent:WaitForChild("Cargo")
 local Data = require(cargo:WaitForChild("Data"))
 local Game = require(cargo:WaitForChild("Game"))
@@ -31,8 +32,9 @@ Game.notifyAll = function(kind: string, key: string, params: { [string]: any }?)
 	notifyRemote:FireAllClients(kind, key, params or {})
 end
 
--- Clasificación global (se refresca cada 2 min) con nombres en caché
+-- Clasificación global y semanal (se refrescan cada 2 min) con nombres en caché
 local top: { any } = {}
+local weekTop: { any } = {}
 local names: { [number]: string } = {}
 local function nameOf(userId: number): string
 	if not names[userId] then
@@ -68,6 +70,25 @@ local function sendState(player: Player)
 		cash[key] = Game.cashPack(session, key)
 	end
 	local s = session.social
+	local world = Game.world
+	-- Contratos (solo lo que necesita la interfaz)
+	local contracts = data.contracts
+	-- Aviones de los demás jugadores del servidor (para verlos en el mapa)
+	local traffic = {}
+	for other, os2 in Game.sessions do
+		if other ~= player then
+			for _, p in os2.data.planes do
+				local f = p.flight
+				if f and f.good ~= "charter" and #traffic < 24 then
+					table.insert(traffic, {
+						name = os2.player.DisplayName, model = p.model, from = f.from, to = f.to, startT = f.startT,
+						endT = f.endT, color = os2.data.airline.color,
+					})
+				end
+			end
+		end
+	end
+	local stamps, stampsMax = Rules.stamps(data.album)
 	stateRemote:FireClient(player, {
 		money = data.money,
 		xp = data.xp,
@@ -102,9 +123,30 @@ local function sendState(player: Player)
 		timeMult = Game.timeMult(session),
 		cash = cash,
 		starterBought = data.starterBought,
-		rewardScale = Config.rewardScale(level),
+		rewardScale = Game.rewardBase(session),
 		canSave = session.canSave,
 		version = Config.VERSION,
+		-- v0.3
+		incomePerMin = math.floor(session.incomePerMin),
+		event = world.event and world.event.id or nil,
+		eventLeft = world.eventLeft,
+		wanted = world.wanted,
+		wantedLeft = world.wantedLeft,
+		sat = Game.satMap(session),
+		album = data.album,
+		stamps = stamps,
+		stampsMax = stampsMax,
+		contracts = {
+			offers = contracts.offers, active = contracts.active, slots = Game.contractSlots(data),
+			nextIn = math.max(0, contracts.nextAt - now),
+		},
+		charterPay = { c1 = Game.charterPay(session, "c1"), c4 = Game.charterPay(session, "c4"), c8 = Game.charterPay(session, "c8") },
+		shares = data.shares,
+		newShares = Game.newShares(data),
+		ipoCount = data.ipoCount,
+		runEarned = data.run.earned,
+		airline = data.airline,
+		traffic = traffic,
 	})
 end
 
@@ -151,7 +193,7 @@ local function onPlayerAdded(player: Player)
 		player = player, data = data, canSave = canSave, boards = {}, refreshAt = {}, nextLoadId = 0,
 		passes = {}, social = { friends = 0, premium = false, group = false }, express = nil,
 		nextExpress = os.time() + 60, dirty = false, actionWindow = 0, actionCount = 0,
-		earnedWindow = 0, incomePerMin = 0, offlineLast = 0,
+		earnedWindow = 0, incomePerMin = 0, offlineLast = 0, sat = {},
 	}
 	Game.sessions[player] = session
 	Shop.loadPasses(session)
@@ -173,7 +215,7 @@ local function save(player: Player)
 		if Data.save(player.UserId, session.data) then
 			session.dirty = false
 		end
-		Data.submitScore(player.UserId, session.data.stats.earned)
+		Data.submitScore(player.UserId, session.data)
 	end
 end
 
@@ -202,7 +244,7 @@ actionRemote.OnServerInvoke = function(player: Player, action: any, a: any, b: a
 		return false, "err_generic"
 	end
 	if action == "getTop" then
-		return true, nil, nil, { top = top }
+		return true, nil, nil, { top = top, week = weekTop }
 	end
 	local now = os.clock()
 	if now - session.actionWindow > 1 then
@@ -247,7 +289,7 @@ while true do
 		task.spawn(function()
 			for player, session in Game.sessions do
 				if session.canSave then
-					Data.submitScore(player.UserId, session.data.stats.earned)
+					Data.submitScore(player.UserId, session.data)
 				end
 			end
 			local list = {}
@@ -255,6 +297,11 @@ while true do
 				list[i] = { name = nameOf(entry.userId), earned = entry.earned }
 			end
 			top = list
+			local week = {}
+			for i, entry in Data.fetchTop(20, true) do
+				week[i] = { name = nameOf(entry.userId), earned = entry.earned }
+			end
+			weekTop = week
 		end)
 	end
 end

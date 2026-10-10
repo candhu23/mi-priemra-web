@@ -11,10 +11,28 @@ local Data = {}
 
 local store: DataStore? = nil
 local topStore: OrderedDataStore? = nil
+local weekStores: { [number]: OrderedDataStore } = {}
 pcall(function()
 	store = DataStoreService:GetDataStore("AeroCarga_v1")
 	topStore = DataStoreService:GetOrderedDataStore("AeroCargaTop_v1")
 end)
+
+-- Semana actual (empieza el lunes a las 00:00 UTC)
+function Data.weekId(now: number): number
+	return math.floor((now - 345600) / 604800)
+end
+
+local function weekStore(id: number): OrderedDataStore?
+	if not topStore then
+		return nil
+	end
+	if not weekStores[id] then
+		pcall(function()
+			weekStores[id] = DataStoreService:GetOrderedDataStore("AeroCargaWeek_" .. id)
+		end)
+	end
+	return weekStores[id]
+end
 
 function Data.newData(): any
 	return {
@@ -28,7 +46,10 @@ function Data.newData(): any
 		regions = { CEN = true, LEV = true },
 		upgrades = { hangar = 0, sales = 0, fuel = 0, fast = 0, cold = 0 },
 		settings = { lang = "", muted = false, auto = false },
-		stats = { flights = 0, km = 0, tons = 0, earned = 0, express = 0, localGoods = 0, purchases = 0 },
+		stats = {
+			flights = 0, km = 0, tons = 0, earned = 0, express = 0, localGoods = 0, purchases = 0,
+			contracts = 0, perfect = 0, charters = 0, newRoutes = 0,
+		},
 		goals = {}, -- id = true → reclamado
 		missions = { day = 0, list = {}, bonusGiven = false },
 		daily = { last = 0, streak = 0 },
@@ -38,6 +59,14 @@ function Data.newData(): any
 		receipts = {},
 		starterBought = false,
 		lastOnline = 0,
+		-- v0.3
+		album = { airports = {}, goods = {} }, -- pasaporte: aeropuertos visitados y entregas por producto
+		contracts = { offers = {}, active = {}, nextAt = 0 },
+		shares = 0, -- acciones cobradas (+10 % de pago cada una)
+		ipoCount = 0, -- veces que has salido a bolsa
+		run = { earned = 0 }, -- lo ganado desde la última salida a bolsa
+		airline = { a = math.random(1, 8), b = math.random(1, 8), c = math.random(1, 8), color = math.random(1, 9) },
+		week = { id = 0, earned = 0 }, -- ranking semanal
 	}
 end
 
@@ -89,22 +118,34 @@ function Data.save(userId: number, data: any): boolean
 end
 
 -- Clasificación: el valor guardado comprime cifras enormes (log10) para que quepan
-function Data.submitScore(userId: number, earned: number)
+local function encode(earned: number): number
+	return math.floor(math.log10(1 + math.max(0, earned)) * 1e12)
+end
+
+function Data.submitScore(userId: number, data: any)
 	if not topStore then
 		return
 	end
 	pcall(function()
-		(topStore :: OrderedDataStore):SetAsync(tostring(userId), math.floor(math.log10(1 + earned) * 1e12))
+		(topStore :: OrderedDataStore):SetAsync(tostring(userId), encode(data.stats.earned))
 	end)
+	local ws = data.week and data.week.earned > 0 and weekStore(data.week.id)
+	if ws then
+		pcall(function()
+			ws:SetAsync(tostring(userId), encode(data.week.earned))
+		end)
+	end
 end
 
-function Data.fetchTop(count: number): { { userId: number, earned: number } }
+-- weekly = true → ranking de esta semana; si no, el de siempre
+function Data.fetchTop(count: number, weekly: boolean?): { { userId: number, earned: number } }
 	local out = {}
-	if not topStore then
+	local source = if weekly then weekStore(Data.weekId(os.time())) else topStore
+	if not source then
 		return out
 	end
 	pcall(function()
-		local page = (topStore :: OrderedDataStore):GetSortedAsync(false, count):GetCurrentPage()
+		local page = (source :: OrderedDataStore):GetSortedAsync(false, count):GetCurrentPage()
 		for _, entry in page do
 			table.insert(out, { userId = tonumber(entry.key) or 0, earned = 10 ^ (entry.value / 1e12) - 1 })
 		end

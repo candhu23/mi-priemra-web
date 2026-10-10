@@ -22,6 +22,8 @@ local SpainPanel = require(UI:WaitForChild("SpainPanel"))
 local MissionsPanel = require(UI:WaitForChild("MissionsPanel"))
 local ShopPanel = require(UI:WaitForChild("ShopPanel"))
 local SystemPanels = require(UI:WaitForChild("SystemPanels"))
+local ContractsPanel = require(UI:WaitForChild("ContractsPanel"))
+local IpoPanel = require(UI:WaitForChild("IpoPanel"))
 
 local remotes = ReplicatedStorage:WaitForChild("CargoRemotes")
 local actionRemote = remotes:WaitForChild("Action")
@@ -66,6 +68,12 @@ local function translate(params: { [string]: any }?): { [string]: any }
 			out[k] = T("up_" .. tostring(v))
 		elseif k == "item" then
 			out[k] = T("item_" .. tostring(v))
+		elseif k == "company" then
+			out[k] = T("company_" .. tostring(v))
+		elseif k == "good" then
+			out[k] = Kit.goodName(tostring(v))
+		elseif k == "event" then
+			out[k] = Kit.eventName(tostring(v))
 		else
 			out[k] = v
 		end
@@ -130,7 +138,9 @@ local function build()
 	Screens.buildPanels(root, {
 		fleet = FleetPanel.build, cargo = CargoPanel.build, pilots = PilotsPanel.build, spain = SpainPanel.build,
 		missions = MissionsPanel.build, shop = ShopPanel.build, ranking = SystemPanels.ranking, settings = SystemPanels.settings,
+		contracts = ContractsPanel.build, ipo = IpoPanel.build,
 	})
+	Screens.landing(root)
 	Screens.tutorial(root, root)
 	Screens.buildOverlay(root)
 
@@ -198,7 +208,7 @@ notifyRemote.OnClientEvent:Connect(function(kind: string, key: string, params: {
 	local p = params or {}
 	if kind == "landed" then
 		if ctx.floatMoney then
-			ctx.floatMoney(p.code, p.net)
+			ctx.floatMoney(p.code, p.net, p)
 		end
 		Kit.playSound("money")
 	elseif kind == "level" then

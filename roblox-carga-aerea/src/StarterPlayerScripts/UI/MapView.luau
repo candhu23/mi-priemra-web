@@ -60,9 +60,11 @@ function MapView.build(parent: Instance)
 	-- Etiquetas de región (nombre y candado con nivel)
 	local labelLayer = create("Frame", { Parent = map, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 2 })
 	local regionLabels = {}
+	local regionCenter: { [string]: { number } } = {}
 	for i, regionId in MapData.regions do
 		local c = centroid[i]
 		if c then
+			regionCenter[regionId] = { c[1] / c[3], c[2] / c[3] }
 			local holder = create("TextButton", {
 				Parent = labelLayer, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(c[1] / c[3], c[2] / c[3]),
 				Size = UDim2.fromOffset(160, 44), BackgroundTransparency = 1, Text = "", ZIndex = 2,
@@ -107,6 +109,16 @@ function MapView.build(parent: Instance)
 			if not st.regions[a.region] then
 				Kit.label(body, "🔒 " .. T("map_locked"), 17, C.red, Kit.FONT_BOLD, { LayoutOrder = 3 })
 			end
+			local stamped = st.album and st.album.airports[a.code]
+			Kit.label(body, stamped and ("🛂 " .. T("map_stamped")) or ("✨ " .. T("map_new_route")), 17, stamped and C.greenDark or C.goldDark, Kit.FONT_BOLD, {
+				LayoutOrder = 4, TextWrapped = true, Size = UDim2.new(1, 0, 0, 44),
+			})
+			local w = st.wanted and st.wanted[a.code]
+			if w then
+				Kit.label(body, T("map_wanted", { mult = Kit.modText({ kind = "wanted", icon = "🔥", mult = w }) }), 17, C.orangeDark, Kit.FONT_BOLD, {
+					LayoutOrder = 5, TextWrapped = true, Size = UDim2.new(1, 0, 0, 44),
+				})
+			end
 		end, #here > 0 and {
 			{ text = T("btn_close"), style = "white" },
 			{ text = T("btn_see_loads"), style = "orange", onClick = function()
@@ -150,22 +162,32 @@ function MapView.build(parent: Instance)
 			Parent = pinLayer, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(x, y), Size = UDim2.fromOffset(46, 46),
 			BackgroundColor3 = C.gold, BackgroundTransparency = 0.4, Visible = false, ZIndex = 3,
 		}, { corner() })
+		-- Insignia arriba a la derecha: ciudad en auge 🔥 y/o evento
+		local badge = Kit.pill(pinLayer, "", C.orange, {
+			AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(x, 6, y, -6), Size = UDim2.fromOffset(0, 20), TextSize = 12,
+			ZIndex = 5, Visible = false,
+		})
 		pin.Activated:Connect(function()
 			Kit.playSound("click")
 			airportInfo(a)
 		end)
-		pins[a.code] = { pin = pin, ring = ring, icon = icon, name = name, count = count, glow = glow, airport = a, x = x, y = y }
+		pins[a.code] = { pin = pin, ring = ring, icon = icon, name = name, count = count, glow = glow, badge = badge, airport = a, x = x, y = y }
 		ctx.targets["pin_" .. a.code] = pin
 	end
+
+	-- Emoji grande del evento sobre su región (tormenta, niebla, turistas…)
+	local eventMark = Kit.emoji(fxLayer, "", 40, { AnchorPoint = Vector2.new(0.5, 0.5), Visible = false, ZIndex = 6 })
 
 	-- Aviones en vuelo
 	local DOTS = 12
 	local flights: { [number]: any } = {}
 	local function flightVisual(plane: any, left: boolean)
 		local f = flights[plane.id]
-		if f and f.left == left and f.model == plane.model then
+		local tint = Kit.airlineColor(ctx.state)
+		if f and f.left == left and f.model == plane.model and f.tint == tint and f.startT == plane.flight.startT then
 			return f
 		end
+		local fresh = not f or f.startT ~= plane.flight.startT
 		if f then
 			for _, d in f.dots do
 				d:Destroy()
@@ -179,9 +201,35 @@ function MapView.build(parent: Instance)
 				BackgroundColor3 = C.white, BorderSizePixel = 0, ZIndex = 3,
 			}, { corner() })
 		end
-		f = { dots = dots, art = PlaneArt.top(planeLayer, plane.model, 34, left, { ZIndex = 5 }), left = left, model = plane.model }
+		local art = PlaneArt.top(planeLayer, plane.model, 34, left, { ZIndex = 5 }, tint)
+		-- Despegue: el avión «crece» desde la pista
+		if fresh and Kit.serverNow() - plane.flight.startT < 3 then
+			local grow = create("UIScale", { Parent = art, Scale = 0.2 })
+			Kit.tween(grow, 0.6, { Scale = 1 }, Enum.EasingStyle.Back)
+		end
+		f = { dots = dots, art = art, left = left, model = plane.model, tint = tint, startT = plane.flight.startT }
 		flights[plane.id] = f
 		return f
+	end
+
+	-- Aviones de otros jugadores del servidor (semitransparentes, con su nombre)
+	local others: { [string]: any } = {}
+	local function trafficVisual(key: string, t: any, left: boolean)
+		local v = others[key]
+		if v and v.left == left then
+			return v
+		end
+		if v then
+			v.art:Destroy()
+		end
+		local art = PlaneArt.top(planeLayer, t.model, 28, left, { ZIndex = 5 }, Config.AirlineColors[t.color] or C.grey, true)
+		Kit.title(art, t.name, 11, C.ink, {
+			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 0), Size = UDim2.fromOffset(90, 14),
+			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.3, TextStrokeColor3 = C.white, ZIndex = 5,
+		})
+		v = { art = art, left = left }
+		others[key] = v
+		return v
 	end
 
 	local function animate()
@@ -193,7 +241,7 @@ function MapView.build(parent: Instance)
 		local alive = {}
 		for _, p in st.planes do
 			local fl = p.flight
-			if fl then
+			if fl and fl.good ~= "charter" then
 				alive[p.id] = true
 				local a, b = pins[fl.from], pins[fl.to]
 				local v = flightVisual(p, b.x < a.x)
@@ -216,6 +264,27 @@ function MapView.build(parent: Instance)
 				v.art:Destroy()
 				flights[id] = nil
 			end
+		end
+		-- Tráfico de los demás
+		local seen = {}
+		for _, t in st.traffic or {} do
+			local a, b = pins[t.from], pins[t.to]
+			if a and b then
+				local key = t.name .. ":" .. t.startT .. ":" .. t.from
+				seen[key] = true
+				local v = trafficVisual(key, t, b.x < a.x)
+				local k = math.clamp((now - t.startT) / math.max(1, t.endT - t.startT), 0, 1)
+				v.art.Position = UDim2.fromScale(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k - math.sin(k * math.pi) * 0.02)
+			end
+		end
+		for key, v in others do
+			if not seen[key] then
+				v.art:Destroy()
+				others[key] = nil
+			end
+		end
+		if eventMark.Visible then
+			eventMark.Rotation = math.sin(os.clock() * 2) * 8
 		end
 		-- Pulso del contrato exprés
 		local ex = st.express
@@ -269,6 +338,7 @@ function MapView.build(parent: Instance)
 				idleAt[p.airport] = (idleAt[p.airport] or 0) + 1
 			end
 		end
+		local ev = st.event and Config.EventById[st.event]
 		for code, p in pins do
 			local open = st.regions[p.airport.region] == true
 			local r = Config.RegionById[p.airport.region]
@@ -282,25 +352,70 @@ function MapView.build(parent: Instance)
 			local n = idleAt[code] or 0
 			p.count.Visible = n > 0
 			p.count.Text = tostring(n)
+			-- Saturado (has volado mucho allí hace poco): anillo rojo
+			local sat = st.sat and st.sat[code]
+			if open and sat and sat < 0.85 then
+				p.ring.Color = C.red
+			end
+			-- Insignia: 🔥 en auge y/o emoji del evento que le afecta
+			local parts = {}
+			if ev then
+				local hit = (ev.to and table.find(ev.to, code)) or (ev.region == p.airport.region)
+				if ev.goods then
+					for _, g in p.airport.goods do
+						if table.find(ev.goods, g) then
+							hit = true
+						end
+					end
+				end
+				if hit then
+					table.insert(parts, ev.emoji)
+				end
+			end
+			local w = st.wanted and st.wanted[code]
+			if w then
+				table.insert(parts, Kit.modText({ kind = "wanted", icon = "🔥", mult = w }))
+			end
+			p.badge.Visible = open and #parts > 0
+			p.badge.Text = table.concat(parts, " ")
+			p.badge.BackgroundColor3 = w and C.orange or C.purple
+		end
+		-- Emoji grande del evento (solo los de una región)
+		local center = ev and ev.region and regionCenter[ev.region]
+		eventMark.Visible = center ~= nil
+		if center then
+			eventMark.Text = (ev :: any).emoji
+			eventMark.Position = UDim2.fromScale(center[1], center[2] - 0.12)
 		end
 		animate()
 	end
 	table.insert(ctx.refreshers, refresh)
 
 	-- Dinero que sube desde el aeropuerto al aterrizar
-	function ctx.floatMoney(code: string, amount: number)
+	function ctx.floatMoney(code: string, amount: number, extra: any?)
 		local p = pins[code]
 		if not p then
 			return
 		end
-		local text = Kit.title(fxLayer, (amount >= 0 and "+" or "") .. Kit.fmtMoney(amount), 22, amount >= 0 and C.green or C.red, {
-			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(p.x, 0, p.y, -16), Size = UDim2.fromOffset(160, 26),
+		local note = ""
+		if extra and extra.landing == "perfect" then
+			note = "🎯 " .. T("landing_perfect") .. "  "
+		elseif extra and extra.landing == "good" then
+			note = "👍 " .. T("landing_good") .. "  "
+		elseif extra and extra.charter then
+			note = "🌙 "
+		end
+		local text = Kit.title(fxLayer, note .. (amount >= 0 and "+" or "") .. Kit.fmtMoney(amount), 22, amount >= 0 and C.green or C.red, {
+			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(p.x, 0, p.y, -16), Size = UDim2.fromOffset(260, 26),
 			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0, TextStrokeColor3 = C.white, ZIndex = 6,
 		})
 		Kit.tween(text, 1.6, { Position = UDim2.new(p.x, 0, p.y, -70), TextTransparency = 1, TextStrokeTransparency = 1 })
 		task.delay(1.7, function()
 			text:Destroy()
 		end)
+		if amount > 0 and ctx.coinsFrom then
+			ctx.coinsFrom(p.pin)
+		end
 	end
 
 	return refresh

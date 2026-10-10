@@ -103,29 +103,35 @@ end
 -- Avión visto desde arriba para el mapa. `size` en unidades de diseño.
 -- No se gira: mira a la derecha o, con `left = true`, a la izquierda (más fiable que Rotation
 -- en un contenedor con hijos).
-function PlaneArt.top(parent: Instance, modelId: string, size: number, left: boolean, props: { [string]: any }?): Frame
+-- tint = color de tu aerolínea (cola y franja) · ghost = semitransparente (aviones de otros jugadores)
+function PlaneArt.top(parent: Instance, modelId: string, size: number, left: boolean, props: { [string]: any }?, tint: Color3?, ghost: boolean?): Frame
 	local m = Config.PlaneById[modelId]
+	local livery = tint or m.livery
 	local holder = create("Frame", Kit.merge({
 		Parent = parent, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(size, size * 0.8),
 	}, props))
 	local z = holder.ZIndex
+	local fade = ghost and 0.45 or 0
 	local function x(v: number): number
 		return left and 1 - v or v
 	end
-	local shadow = part(holder, x(0.55), 0.62, 0.9, 0.18, Color3.new(0, 0, 0), { BackgroundTransparency = 0.78, ZIndex = z })
+	local function t(v: number): number
+		return math.min(1, v + fade * (1 - v))
+	end
+	local shadow = part(holder, x(0.55), 0.62, 0.9, 0.18, Color3.new(0, 0, 0), { BackgroundTransparency = t(0.78), ZIndex = z })
 	corner().Parent = shadow
-	local wing = part(holder, x(0.52), 0.5, 0.22, 0.96, C.white, { ZIndex = z })
+	local wing = part(holder, x(0.52), 0.5, 0.22, 0.96, C.white, { ZIndex = z, BackgroundTransparency = t(0) })
 	corner(4).Parent = wing
-	local wingTip = part(holder, x(0.52), 0.5, 0.22, 0.96, m.livery, { ZIndex = z, BackgroundTransparency = 0.7 })
+	local wingTip = part(holder, x(0.52), 0.5, 0.22, 0.96, livery, { ZIndex = z, BackgroundTransparency = t(0.7) })
 	corner(4).Parent = wingTip
-	local stab = part(holder, x(0.12), 0.5, 0.12, 0.42, m.livery, { ZIndex = z })
+	local stab = part(holder, x(0.12), 0.5, 0.12, 0.42, livery, { ZIndex = z, BackgroundTransparency = t(0) })
 	corner(3).Parent = stab
-	local body = part(holder, 0.5, 0.5, 0.94, 0.2, C.white, { ZIndex = z })
+	local body = part(holder, 0.5, 0.5, 0.94, 0.2, C.white, { ZIndex = z, BackgroundTransparency = t(0) })
 	corner().Parent = body
-	create("UIStroke", { Parent = body, Color = Color3.fromRGB(150, 160, 180), Thickness = 1 })
-	local stripe = part(holder, 0.5, 0.5, 0.7, 0.07, m.livery, { ZIndex = z })
+	create("UIStroke", { Parent = body, Color = Color3.fromRGB(150, 160, 180), Thickness = 1, Transparency = fade })
+	local stripe = part(holder, 0.5, 0.5, 0.7, 0.07, livery, { ZIndex = z, BackgroundTransparency = t(0) })
 	corner().Parent = stripe
-	local glass = part(holder, x(0.87), 0.5, 0.08, 0.12, GLASS, { ZIndex = z })
+	local glass = part(holder, x(0.87), 0.5, 0.08, 0.12, GLASS, { ZIndex = z, BackgroundTransparency = t(0) })
 	corner().Parent = glass
 	return holder
 end

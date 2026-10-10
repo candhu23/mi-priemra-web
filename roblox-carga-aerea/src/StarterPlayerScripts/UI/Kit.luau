@@ -8,12 +8,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Lang = require(ReplicatedStorage:WaitForChild("Lang"))
+local Rules = require(ReplicatedStorage:WaitForChild("Rules"))
 
 local Kit = {}
 local C = Config.Colors
 Kit.C = C
 Kit.Config = Config
 Kit.Lang = Lang
+Kit.Rules = Rules
 Kit.FONT_TITLE = Font.fromEnum(Enum.Font.FredokaOne)
 Kit.FONT_BODY = Font.new("rbxasset://fonts/families/BuilderSans.json", Enum.FontWeight.Medium)
 Kit.FONT_BOLD = Font.new("rbxasset://fonts/families/BuilderSans.json", Enum.FontWeight.Bold)
@@ -88,8 +90,9 @@ function Kit.fmtTons(t: number): string
 	return s .. " t"
 end
 
+-- Estrellas con las vacías en gris (usar en etiquetas con RichText = true)
 function Kit.stars(n: number): string
-	return string.rep("★", n) .. string.rep("☆", 5 - n)
+	return '<font color="#F5B000">' .. string.rep("★", n) .. '</font><font color="#C4CBD7">' .. string.rep("★", 5 - n) .. "</font>"
 end
 
 ---------------------------------------------------------------------
@@ -226,7 +229,11 @@ end
 ---------------------------------------------------------------------
 local sounds: { [string]: Sound } = {}
 function Kit.setupSounds(parent: Instance)
-	for kind, info in { click = { 1.5, 0.25 }, money = { 1.2, 0.5 }, error = { 0.6, 0.4 }, level = { 0.9, 0.6 }, express = { 1.8, 0.5 } } do
+	local kinds = {
+		click = { 1.5, 0.25 }, money = { 1.2, 0.5 }, error = { 0.6, 0.4 }, level = { 0.9, 0.6 }, express = { 1.8, 0.5 },
+		takeoff = { 0.75, 0.35 }, coin = { 2.2, 0.2 }, perfect = { 1.35, 0.6 },
+	}
+	for kind, info in kinds do
 		sounds[kind] = create("Sound", { Parent = parent, SoundId = "rbxasset://sounds/electronicpingshort.wav", PlaybackSpeed = info[1], Volume = info[2] })
 	end
 end
@@ -382,36 +389,54 @@ function Kit.pilotBusy(id: number): boolean
 	return false
 end
 
-function Kit.flyBlock(plane: any, load: any): string?
-	local model = Config.PlaneById[plane.model]
-	local good = Config.GoodById[load.good]
-	if plane.flight then
-		return "err_plane_busy"
-	elseif plane.condition < Config.REPAIR_BLOCK then
-		return "err_needs_repair"
-	elseif load.weight > model.cap then
-		return "err_too_heavy"
-	elseif load.dist > model.range then
-		return "err_out_of_range"
-	elseif good.cold and (ctx.state.upgrades.cold or 0) < 1 then
-		return "err_cold"
-	end
-	return nil
+-- Datos para Rules.quote sacados del estado (el servidor usa la misma función)
+function Kit.view(): any
+	local st = ctx.state
+	return {
+		upgrades = st.upgrades, moneyMult = st.moneyMult, fuelPrice = st.fuelPrice, timeMult = st.timeMult,
+		event = st.event, wanted = st.wanted or {}, sat = st.sat or {}, album = st.album or { airports = {}, goods = {} },
+	}
 end
 
-function Kit.quote(plane: any, load: any, pilotId: number): (number, number, number, number)
-	local st = ctx.state
-	local model = Config.PlaneById[plane.model]
-	local bonus = 0
-	local pilot = pilotId > 0 and Kit.findPilot(pilotId)
-	if pilot then
-		bonus = Config.pilotBonus(pilot.stars, pilot.level)
+function Kit.flyBlock(plane: any, load: any): string?
+	return Rules.canFly(Kit.view(), plane, load)
+end
+
+function Kit.quote(plane: any, load: any, pilotId: number): (number, number, number, number, { any })
+	local pilot = pilotId > 0 and Kit.findPilot(pilotId) or nil
+	return Rules.quote(Kit.view(), plane, load, pilot)
+end
+
+-- Texto corto de un modificador de pago: «🔥 ×1,5», «📉 −16%», «⚡»
+function Kit.modText(m: any): string
+	if m.kind == "sat" then
+		return m.icon .. " −" .. math.floor((1 - m.mult) * 100 + 0.5) .. "%"
+	elseif m.kind == "trait" then
+		return m.icon
 	end
-	local gross = math.floor(load.gross * (1 + 0.05 * st.upgrades.sales) * (1 + bonus) * st.moneyMult)
-	local fuel = math.floor(load.dist * model.burn * st.fuelPrice)
-	local fee = pilot and math.floor(gross * Config.PILOT_FEE) or 0
-	local secs = load.tutorial and 15 or Config.flightSeconds(load.dist, model.speed, st.timeMult)
-	return gross, fuel, fee, secs
+	local v = string.format("%.1f", m.mult)
+	if ctx.lang == "es" then
+		v = string.gsub(v, "%.", ",")
+	end
+	return m.icon .. " ×" .. v
+end
+
+function Kit.traitName(id: string?): string
+	local t = id and Config.TraitById[id]
+	if not t then
+		return ""
+	end
+	return t.emoji .. " " .. T("trait_" .. t.id)
+end
+
+function Kit.eventName(id: string): string
+	local e = Config.EventById[id]
+	return e and (e.emoji .. " " .. T("ev_" .. id)) or ""
+end
+
+function Kit.airlineColor(st: any): Color3
+	local a = st and st.airline
+	return Config.AirlineColors[a and a.color or 1] or C.orange
 end
 
 function Kit.planeName(model: string): string

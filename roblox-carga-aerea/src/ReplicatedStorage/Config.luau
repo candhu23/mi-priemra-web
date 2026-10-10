@@ -5,7 +5,7 @@
 
 local Config = {}
 
-Config.VERSION = "0.2"
+Config.VERSION = "0.3"
 Config.TIME_SCALE = 120 -- 1 segundo real = 2 minutos de vuelo
 Config.START_MONEY = 20000
 Config.RATE = 8 -- $ por tonelada·km
@@ -15,7 +15,7 @@ Config.AUTO_DISPATCH_LEVEL = 5
 Config.BOARD_SIZE = 7 -- cargas por aeropuerto
 Config.BOARD_TTL = 90 -- segundos hasta renovar un tablón
 Config.REFRESH_COOLDOWN = 20
-Config.MAX_PILOTS = 20
+Config.MAX_PILOTS = 25
 Config.REPAIR_BLOCK = 25 -- con menos estado (%) el avión no vuela
 Config.OFFLINE_MAX_HOURS = 8
 Config.OFFLINE_RATE = 0.5 -- 50 % de lo que gana tu flota con despacho automático (100 % con el pase)
@@ -238,6 +238,25 @@ end
 function Config.pilotBonus(stars: number, level: number): number
 	return Config.StarBonus[stars] + Config.PILOT_LEVEL_BONUS * (level - 1)
 end
+-- Rasgos: cada piloto tiene uno, visible ANTES de ficharlo (no es un sorteo de pago).
+-- pay/time/fuel = multiplicadores cuando el rasgo se aplica a esa carga
+export type Trait = {
+	id: string, emoji: string, pay: number?, time: number?, fuel: number?,
+	goods: { [string]: boolean }?, regions: { [string]: boolean }?, express: boolean?, special: boolean?,
+}
+Config.Traits = {
+	{ id = "fast", emoji = "⚡", time = 0.88 }, -- vuelos un 12 % más cortos
+	{ id = "saver", emoji = "⛽", fuel = 0.75 }, -- −25 % de combustible
+	{ id = "island", emoji = "🏝️", pay = 1.25, regions = { BAL = true, CAN = true } }, -- +25 % si sale o llega a las islas
+	{ id = "cold", emoji = "❄️", pay = 1.25, goods = { fish = true, medicine = true } },
+	{ id = "gourmet", emoji = "🍷", pay = 1.15, goods = { wine = true, cheese = true, ham = true, oil = true, nougat = true } },
+	{ id = "express", emoji = "⏱️", pay = 1.3, express = true }, -- +30 % en contratos exprés
+	{ id = "ace", emoji = "🎖️", pay = 1.1, special = true }, -- solo el piloto estrella de la tienda
+} :: { Trait }
+Config.TraitById = {} :: { [string]: Trait }
+for _, t in Config.Traits do
+	Config.TraitById[t.id] = t
+end
 Config.Avatars = { "👨‍✈️", "👩‍✈️", "🧑‍✈️", "👨🏽‍✈️", "👩🏽‍✈️", "👨🏿‍✈️", "👩🏻‍✈️", "🧑🏾‍✈️" }
 Config.FirstNames = {
 	"Lucía", "Mateo", "Sofía", "Hugo", "Martina", "Leo", "Valeria", "Pablo", "Carmen", "Álvaro",
@@ -253,6 +272,159 @@ Config.LastNames = {
 -- Contratos exprés: aparecen cada cierto tiempo, pagan mucho y caducan
 ---------------------------------------------------------------------
 Config.Express = { every = { 90, 150 }, lasts = 80, mult = 2.5 }
+
+---------------------------------------------------------------------
+-- Generador pseudoaleatorio determinista (Park-Miller): con la misma semilla da lo mismo
+-- en todos los servidores (eventos y ciudades en auge iguales para todo el mundo).
+---------------------------------------------------------------------
+function Config.prng(seed: number): (number?, number?) -> number
+	local s = math.floor(seed) % 2147483646 + 1
+	local function nextValue(a: number?, b: number?): number
+		s = (s * 16807) % 2147483647
+		local f = (s - 1) / 2147483646
+		if a and b then
+			return a + math.floor(f * (b - a + 1))
+		end
+		return f
+	end
+	for _ = 1, 4 do -- calentar: semillas seguidas dan resultados muy distintos
+		nextValue()
+	end
+	return nextValue
+end
+
+---------------------------------------------------------------------
+-- Demanda viva: ciudades en auge (iguales en todos los servidores) y saturación
+---------------------------------------------------------------------
+Config.WANTED_PERIOD = 600 -- cada 10 min cambian las ciudades en auge
+Config.WANTED_COUNT = 4
+Config.WANTED_MULTS = { 1.3, 1.4, 1.5, 1.6 }
+Config.SAT_STEP = 0.08 -- cada vuelo reciente al mismo destino paga un 8 % menos…
+Config.SAT_MIN = 0.6 -- …hasta un mínimo del 60 %
+Config.SAT_DECAY = 90 -- segundos para que se recupere un «vuelo» de saturación
+Config.NEW_ROUTE_MULT = 1.5 -- primera entrega en un aeropuerto (sello nuevo del pasaporte)
+Config.REGION_STAMP_BONUS = 0.03 -- región con todos sus sellos: +3 % al volar allí
+
+---------------------------------------------------------------------
+-- Eventos de España (iguales en todos los servidores). Cada 7 min: 5 min de evento y 2 de calma.
+-- goods = productos afectados · to = aeropuertos de destino · region = sale o llega a esa región
+-- months = meses en los que sale 4 veces más (fiestas reales)
+---------------------------------------------------------------------
+Config.EVENT_PERIOD = 420
+Config.EVENT_LENGTH = 300
+export type EventDef = {
+	id: string, emoji: string, pay: number, time: number?, goods: { string }?, to: { string }?, region: string?, months: { number }?,
+}
+Config.Events = {
+	{ id = "fallas", emoji = "🎆", pay = 2, goods = { "oranges" }, months = { 3 } },
+	{ id = "sanfermin", emoji = "🐂", pay = 1.8, to = { "PNA" }, months = { 7 } },
+	{ id = "feria", emoji = "💃", pay = 1.8, to = { "SVQ" }, months = { 4 } },
+	{ id = "vendimia", emoji = "🍇", pay = 2, goods = { "wine" }, months = { 9, 10 } },
+	{ id = "navidad", emoji = "🎄", pay = 2.2, goods = { "nougat" }, months = { 12 } },
+	{ id = "rebajas", emoji = "🛍️", pay = 1.8, goods = { "fashion" }, months = { 1, 7 } },
+	{ id = "calor", emoji = "🥵", pay = 1.6, goods = { "fish", "medicine" }, months = { 7, 8 } },
+	{ id = "tormenta", emoji = "⛈️", pay = 1.5, time = 1.3, region = "GAL", months = { 11, 12, 1, 2 } },
+	{ id = "niebla", emoji = "🌫️", pay = 1.3, time = 1.25, region = "CEN", months = { 11, 12, 1 } },
+	{ id = "turistas", emoji = "🏖️", pay = 1.6, region = "BAL", months = { 6, 7, 8 } },
+	{ id = "carnaval", emoji = "🎭", pay = 1.6, region = "CAN", months = { 2 } },
+	{ id = "puente", emoji = "🏙️", pay = 1.4, to = { "MAD", "BCN" } },
+	{ id = "motor", emoji = "🏁", pay = 1.7, goods = { "cars", "steel" } },
+	{ id = "tecno", emoji = "📱", pay = 1.8, goods = { "tech" }, months = { 11 } },
+	{ id = "cosecha", emoji = "🧺", pay = 1.7, goods = { "veggies", "bananas" } },
+	{ id = "ibericos", emoji = "🍖", pay = 1.6, goods = { "ham", "cheese", "oil" } },
+} :: { EventDef }
+Config.EventById = {} :: { [string]: EventDef }
+for _, e in Config.Events do
+	Config.EventById[e.id] = e
+end
+
+---------------------------------------------------------------------
+-- Contratos con empresas (inventadas): «lleva N cargas de X a la región R antes de T»
+---------------------------------------------------------------------
+Config.CONTRACT_LEVEL = 3
+Config.CONTRACT_OFFERS = 3
+Config.CONTRACT_SLOTS = 2
+Config.CONTRACT_REFRESH = 480 -- ofertas nuevas cada 8 min
+Config.CONTRACT_SECS_PER_LOAD = 240 -- 4 min por entrega
+export type Company = { id: string, good: string }
+Config.Companies = {
+	{ id = "turia", good = "oranges" }, { id = "huerta", good = "veggies" }, { id = "ceramica", good = "tiles" },
+	{ id = "betica", good = "oil" }, { id = "ribera", good = "wine" }, { id = "queseria", good = "cheese" },
+	{ id = "xixona", good = "nougat" }, { id = "acero", good = "steel" }, { id = "platano", good = "bananas" },
+	{ id = "sierra", good = "ham" }, { id = "galaica", good = "fashion" }, { id = "ebro", good = "cars" },
+	{ id = "tecno", good = "tech" }, { id = "cantabrica", good = "fish" }, { id = "farma", good = "medicine" },
+} :: { Company }
+Config.CompanyById = {} :: { [string]: Company }
+Config.CompanyByGood = {} :: { [string]: Company }
+for _, c in Config.Companies do
+	Config.CompanyById[c.id] = c
+	Config.CompanyByGood[c.good] = c
+end
+function Config.contractSize(level: number): number
+	return math.min(7, 3 + math.floor(level / 6))
+end
+
+---------------------------------------------------------------------
+-- Vuelos chárter: el avión se va fuera de España horas REALES y vuelve con mucho dinero
+-- (paga minutos de tus ingresos). Sin piloto (lleva la tripulación del cliente). Uno a la vez.
+---------------------------------------------------------------------
+Config.CHARTER_LEVEL = 2
+export type Charter = { id: string, hours: number, minutes: number }
+Config.Charters = {
+	{ id = "c1", hours = 1, minutes = 20 },
+	{ id = "c4", hours = 4, minutes = 60 },
+	{ id = "c8", hours = 8, minutes = 110 },
+} :: { Charter }
+Config.CharterById = {} :: { [string]: Charter }
+for _, c in Config.Charters do
+	Config.CharterById[c.id] = c
+end
+Config.CharterCities = { "Lisboa", "Paris", "London", "Roma", "Berlin", "Marrakech", "Amsterdam", "Dublin" }
+
+---------------------------------------------------------------------
+-- Aterrizaje perfecto (solo cuando vuelas TÚ): en los últimos segundos sale una aguja
+---------------------------------------------------------------------
+Config.LANDING = { window = 4, minSecs = 12, perfect = 1.25, good = 1.1 }
+
+---------------------------------------------------------------------
+-- Salir a bolsa (prestigio): se reinicia la partida y ganas acciones (+20 % de pago y +25 % de XP cada una)
+-- Acciones totales = √(ganado en toda la historia / 1 M); se cobran las que aún no tienes
+---------------------------------------------------------------------
+Config.IPO_LEVEL = 12
+Config.IPO_MIN_SHARES = 5
+Config.SHARE_BONUS = 0.2 -- +20 % de pago por acción
+Config.SHARE_XP_BONUS = 0.25 -- +25 % de XP por acción (cada partida nueva sube de nivel mucho más rápido)
+function Config.sharesTotal(lifetimeEarned: number): number
+	return math.floor(math.sqrt(math.max(0, lifetimeEarned) / 1e6))
+end
+-- Ventajas permanentes según las veces que has salido a bolsa (la n.º i se activa en la salida i)
+Config.IpoPerks = { "gold", "region", "contract", "hawk", "candidate" }
+Config.IPO_START_MONEY = 100_000
+
+---------------------------------------------------------------------
+-- Tu aerolínea: nombre por piezas (sin texto libre, no hace falta filtro) y color
+---------------------------------------------------------------------
+Config.AirlineParts = {
+	{ "Aero", "Vuela", "Cielo", "Sol", "Iber", "Ala", "Nube", "Rumbo" },
+	{ "Toro", "Olivo", "Flamenco", "Brisa", "Faro", "Lince", "Cometa", "Naranja" },
+	{ "Cargo", "Express", "Air", "Jet", "Fly", "Line", "Go", "Max" },
+}
+Config.AirlineColors = {
+	Color3.fromRGB(255, 107, 53), Color3.fromRGB(45, 127, 249), Color3.fromRGB(34, 177, 92), Color3.fromRGB(139, 92, 246),
+	Color3.fromRGB(235, 68, 68), Color3.fromRGB(236, 72, 153), Color3.fromRGB(20, 184, 166), Color3.fromRGB(31, 42, 68),
+	Color3.fromRGB(132, 204, 22), Color3.fromRGB(255, 196, 46), -- el último (oro) se gana saliendo a bolsa
+}
+Config.GOLD_COLOR = #Config.AirlineColors
+function Config.airlineName(a: any): string
+	local P = Config.AirlineParts
+	local i, j, k = a and a.a or 1, a and a.b or 1, a and a.c or 1
+	return (P[1][i] or P[1][1]) .. " " .. (P[2][j] or P[2][1]) .. " " .. (P[3][k] or P[3][1])
+end
+
+---------------------------------------------------------------------
+-- Pasaporte: un sello por aeropuerto (primera entrega) y medallas por producto (1/10/50 entregas)
+---------------------------------------------------------------------
+Config.MEDALS = { 1, 10, 50 }
 
 ---------------------------------------------------------------------
 -- Progresión
@@ -302,7 +474,7 @@ Config.DailyRewards = { 1, 1.5, 2, 2.5, 3, 4, 6 } -- × rewardScale; el día 7 a
 ---------------------------------------------------------------------
 -- Misiones diarias (3 al día: fácil, media, difícil)
 ---------------------------------------------------------------------
-export type MissionDef = { id: string, stat: string, goal: { number }, reward: number }
+export type MissionDef = { id: string, stat: string, goal: { number }, reward: number, level: number? }
 Config.MissionPool = {
 	{ id = "deliveries", stat = "flights", goal = { 5, 12, 25 }, reward = 1 },
 	{ id = "km", stat = "km", goal = { 2000, 6000, 15000 }, reward = 1 },
@@ -311,6 +483,9 @@ Config.MissionPool = {
 	{ id = "local", stat = "localGoods", goal = { 3, 8, 15 }, reward = 1.1 },
 	{ id = "earn", stat = "earned", goal = { 1, 3, 8 }, reward = 1.2 }, -- × rewardScale
 	{ id = "upgrades", stat = "purchases", goal = { 1, 2, 4 }, reward = 1 },
+	{ id = "contracts", stat = "contracts", goal = { 1, 2, 3 }, reward = 1.4, level = 3 }, -- level = desde ese nivel
+	{ id = "perfect", stat = "perfect", goal = { 1, 3, 6 }, reward = 1.1 },
+	{ id = "newroutes", stat = "newRoutes", goal = { 1, 2, 3 }, reward = 1.2, level = 3 },
 } :: { MissionDef }
 Config.MISSIONS_BOOST_MIN = 15 -- completar las 3 → x2 15 min
 
@@ -319,25 +494,32 @@ Config.MISSIONS_BOOST_MIN = 15 -- completar las 3 → x2 15 min
 ---------------------------------------------------------------------
 export type GoalDef = { id: string, stat: string, target: number, reward: number }
 Config.Goals = {} :: { GoalDef }
-local GOAL_TRACKS: { { stat: string, targets: { number } } } = {
+-- start = ronda de la cadena en la que aparece el primer objetivo del grupo
+local GOAL_TRACKS: { { stat: string, targets: { number }, start: number? } } = {
 	{ stat = "flights", targets = { 1, 5, 15, 40, 100, 250, 600, 1500 } },
 	{ stat = "planes", targets = { 2, 3, 5, 8, 12, 18 } },
 	{ stat = "pilots", targets = { 1, 3, 6, 10, 15 } },
 	{ stat = "regions", targets = { 3, 4, 5, 6, 7, 8, 9 } },
 	{ stat = "level", targets = { 3, 5, 8, 12, 16, 20 } },
 	{ stat = "express", targets = { 1, 5, 20, 60 } },
-	{ stat = "earned", targets = { 50_000, 500_000, 5_000_000, 50_000_000, 500_000_000 } },
+	{ stat = "earned", targets = { 50_000, 500_000, 5_000_000, 50_000_000, 500_000_000, 5_000_000_000 } },
+	{ stat = "perfect", targets = { 1, 10, 40, 100 } },
+	{ stat = "contracts", targets = { 1, 5, 15, 40 }, start = 2 },
+	{ stat = "stamps", targets = { 10, 30, 60, 92 }, start = 2 },
+	{ stat = "charters", targets = { 1, 5, 20 }, start = 2 },
+	{ stat = "ipo", targets = { 1, 2, 3, 5 }, start = 5 },
 }
--- Cadena: primero el objetivo 1 de cada grupo (en el orden de arriba), luego el 2, etc.
-local maxLen = 0
+-- Cadena: primero la ronda 1 de cada grupo (en el orden de arriba), luego la 2, etc.
+local maxRound = 0
 for _, track in GOAL_TRACKS do
-	maxLen = math.max(maxLen, #track.targets)
+	maxRound = math.max(maxRound, #track.targets + (track.start or 1) - 1)
 end
-for i = 1, maxLen do
+for round = 1, maxRound do
 	for _, track in GOAL_TRACKS do
+		local i = round - (track.start or 1) + 1
 		local target = track.targets[i]
 		if target then
-			table.insert(Config.Goals, { id = track.stat .. "_" .. i, stat = track.stat, target = target, reward = 0.6 + i * 0.4 })
+			table.insert(Config.Goals, { id = track.stat .. "_" .. i, stat = track.stat, target = target, reward = 0.6 + round * 0.4 })
 		end
 	end
 end

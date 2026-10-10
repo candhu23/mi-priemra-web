@@ -38,7 +38,10 @@ function M.new(placePath: string, opts: { [string]: any }?)
 		local s = { handlers = {} }
 		function s:Connect(fn)
 			table.insert(self.handlers, fn)
-			return { Disconnect = function() end }
+			return { Disconnect = function()
+				local i = table.find(self.handlers, fn)
+				if i then table.remove(self.handlers, i) end
+			end }
 		end
 		function s:Fire(...)
 			for _, fn in table.clone(self.handlers) do
@@ -148,11 +151,13 @@ function M.new(placePath: string, opts: { [string]: any }?)
 				signalFor(idOf(inst), "OnClientEvent"):Fire(table.unpack(args))
 			end
 		elseif key == "InvokeServer" then
+			-- table.pack/n: Roblox conserva los nil en medio de los argumentos y de las respuestas
 			return function(_, ...)
-				local args = serialize({ ... })
+				local args = serialize(table.pack(...))
 				table.insert(W.invoked, args[1])
 				local cb = assert(W.callbacks[inst.Name], "nadie escucha " .. inst.Name)
-				return table.unpack(serialize({ cb(W.player, table.unpack(args)) }))
+				local results = serialize(table.pack(cb(W.player, table.unpack(args, 1, args.n))))
+				return table.unpack(results, 1, results.n)
 			end
 		elseif key == "WaitForChild" then
 			return function(_, name)

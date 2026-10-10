@@ -9,6 +9,7 @@ Uso: python3 -I preview.py <carpeta con los .json> <ancho> <alto> [escala]
 import html
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -151,7 +152,12 @@ def render(node, parent_layout=None):
 		sk = node.get("TextStrokeTransparency", 1)
 		if sk is not None and sk < 1:
 			span += f";-webkit-text-stroke:1.5px {rgba(node.get('TextStrokeColor3', [0, 0, 0]), sk)};paint-order:stroke fill"
-		text = f'<div style="{tstyle}"><span style="{span};max-width:100%">{html.escape(node["Text"])}</span></div>'
+		content = html.escape(node["Text"])
+		# RichText (solo <font color="#..."> que usa el juego)
+		if node.get("RichText") and "&lt;font" in content:
+			content = re.sub(r'&lt;font color=&quot;(#[0-9A-Fa-f]{6})&quot;&gt;', r'<span style="color:\1">', content)
+			content = content.replace("&lt;/font&gt;", "</span>")
+		text = f'<div style="{tstyle}"><span style="{span};max-width:100%">{content}</span></div>'
 	kids = "".join(render(k, kids_layout) for k in sorted(node["children"], key=lambda k: k.get("LayoutOrder", 0)))
 	inner = f'<div style="{";".join(inner_style)}">{text}{kids}</div>'
 	return f'<div class="g {cls}" style="{";".join(style)}" {" ".join(attrs)}>{inner}</div>'

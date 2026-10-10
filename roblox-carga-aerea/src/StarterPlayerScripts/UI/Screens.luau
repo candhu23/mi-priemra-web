@@ -18,6 +18,8 @@ local PANELS = {
 	fleet = { emoji = "✈️", key = "nav_fleet", color = C.blue },
 	cargo = { emoji = "📦", key = "nav_cargo", color = C.orange },
 	pilots = { emoji = "👨‍✈️", key = "nav_pilots", color = C.green },
+	contracts = { emoji = "📜", key = "nav_contracts", color = Color3.fromRGB(13, 148, 136) },
+	ipo = { emoji = "🏛️", key = "nav_ipo", color = Color3.fromRGB(30, 64, 120) },
 	spain = { emoji = "🗺️", key = "nav_spain", color = Color3.fromRGB(236, 72, 153) },
 	missions = { emoji = "🎯", key = "nav_missions", color = C.goldDark },
 	shop = { emoji = "🛒", key = "nav_shop", color = C.purple },
@@ -101,6 +103,7 @@ end
 local KIND = {
 	success = { C.green, "✅" }, money = { C.green, "💰" }, error = { C.red, "⚠️" }, info = { C.blue, "💬" },
 	goal = { C.goldDark, "🎯" }, express = { C.gold, "⚡" }, feed = { C.purple, "📣" }, level = { C.orange, "⭐" },
+	event = { C.purple, "🎉" },
 }
 
 function Screens.buildOverlay(parent: Instance)
@@ -120,7 +123,7 @@ function Screens.buildOverlay(parent: Instance)
 			Kit.playSound("error")
 		elseif kind == "money" then
 			Kit.playSound("money")
-		elseif kind == "express" then
+		elseif kind == "express" or kind == "event" then
 			Kit.playSound("express")
 		end
 		local kids = toastHolder:GetChildren()
@@ -224,8 +227,22 @@ function Screens.levelUp(level: number)
 	if level == Config.AUTO_DISPATCH_LEVEL then
 		table.insert(unlocks, "🤖 " .. T("auto_title"))
 	end
+	if level == Config.CHARTER_LEVEL then
+		table.insert(unlocks, "🌙 " .. T("charter_title"))
+	end
+	if level == Config.CONTRACT_LEVEL then
+		table.insert(unlocks, "📜 " .. T("nav_contracts"))
+	end
+	if level == Config.IPO_LEVEL then
+		table.insert(unlocks, "🏛️ " .. T("nav_ipo"))
+	end
 	ctx.confetti()
 	Kit.playSound("level")
+	-- Sin novedades: solo un aviso (no interrumpe con una ventana)
+	if #unlocks == 0 then
+		ctx.toast("⭐ " .. T("level_up_title", { level = level }), "level")
+		return
+	end
 	ctx.openModal("⭐ " .. T("level_up_title", { level = level }), function(body)
 		Kit.list(false, 6).Parent = body
 		Kit.label(body, #unlocks > 0 and T("level_up_unlocks") or T("level_up_keep"), 18, C.muted, nil, { LayoutOrder = 0, TextWrapped = true })
@@ -244,7 +261,28 @@ function ctx.celebratePilot(pilot: any)
 		local holder = create("Frame", { Parent = body, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 110) })
 		PilotsPanel.avatar(holder, pilot, 100)
 		Kit.title(holder, pilot.name, 26, C.ink, { Position = UDim2.fromOffset(116, 10), Size = UDim2.new(1, -116, 0, 32) })
-		Kit.label(holder, Kit.stars(pilot.stars), 28, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(116, 46), Size = UDim2.new(1, -116, 0, 32) })
+		Kit.label(holder, Kit.stars(pilot.stars), 28, C.goldDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(116, 40), Size = UDim2.new(1, -116, 0, 32), RichText = true })
+		Kit.label(holder, Kit.traitName(pilot.trait) .. " · " .. T("trait_" .. tostring(pilot.trait) .. "_d"), 16, C.muted, Kit.FONT_BOLD, {
+			Position = UDim2.fromOffset(116, 74), Size = UDim2.new(1, -116, 0, 22),
+		})
+	end, { { text = T("btn_great"), style = "green" } })
+end
+
+function ctx.celebrateIpo(extra: any)
+	ctx.confetti()
+	Kit.playSound("level")
+	local perk = Config.IpoPerks[extra.count]
+	ctx.openModal("🔔 " .. T("ipo_done_title"), function(body)
+		Kit.list(false, 8).Parent = body
+		Kit.title(body, T("ipo_done", {
+			n = extra.ipo, total = extra.total, p = math.floor(extra.total * Config.SHARE_BONUS * 100 + 0.5),
+			x = math.floor(extra.total * Config.SHARE_XP_BONUS * 100 + 0.5),
+		}), 22, C.ink, {
+			LayoutOrder = 1, TextWrapped = true, Size = UDim2.new(1, 0, 0, 60),
+		})
+		if perk then
+			Kit.title(body, "🎁 " .. T("perk_" .. perk), 20, C.greenDark, { LayoutOrder = 2, TextWrapped = true, Size = UDim2.new(1, 0, 0, 52) })
+		end
 	end, { { text = T("btn_great"), style = "green" } })
 end
 
@@ -272,6 +310,101 @@ function Screens.welcomeBack(params: any)
 			Kit.title(body, T("welcome_offline", { amount = Kit.fmtMoney(params.offline) }), 22, C.greenDark, { LayoutOrder = 2, TextWrapped = true, Size = UDim2.new(1, 0, 0, 56) })
 		end
 	end, buttons)
+end
+
+---------------------------------------------------------------------
+-- Aterrizaje perfecto: cuando vuelas TÚ, en los últimos segundos sale una aguja.
+-- Pulsa ATERRIZA con la aguja en verde (+25 %) o en amarillo (+10 %). Un intento por vuelo.
+---------------------------------------------------------------------
+local landingConn: RBXScriptConnection? = nil
+function Screens.landing(parent: Instance)
+	local RunService = game:GetService("RunService")
+	local body = Kit.float(parent, {
+		-- A la izquierda (sobre el mar): no tapa el aeropuerto donde aterrizas ni la tarjeta de objetivo
+		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 16, 0.5, 6), Size = UDim2.fromOffset(400, 104), Name = "Landing", ZIndex = 45,
+	})
+	local holder = body.Parent :: Frame
+	for _, d in holder:GetChildren() do
+		(d :: GuiObject).ZIndex = 45
+	end
+	Kit.stroke(C.green, 3).Parent = body
+	local title = Kit.title(body, "", 17, C.ink, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -160, 0, 24), ZIndex = 46 })
+	local bar = create("Frame", {
+		Parent = body, BackgroundColor3 = C.line, Position = UDim2.fromOffset(14, 40), Size = UDim2.new(1, -160, 0, 26), ZIndex = 46,
+	}, { corner(8) })
+	create("Frame", { Parent = bar, BackgroundColor3 = C.gold, Position = UDim2.fromScale(0.25, 0), Size = UDim2.fromScale(0.5, 1), ZIndex = 46, BorderSizePixel = 0 })
+	create("Frame", { Parent = bar, BackgroundColor3 = C.green, Position = UDim2.fromScale(0.4, 0), Size = UDim2.fromScale(0.2, 1), ZIndex = 46, BorderSizePixel = 0 })
+	local needle = create("Frame", {
+		Parent = bar, AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = C.ink, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 6, 1, 12), ZIndex = 47,
+	}, { corner(3) })
+	local hint = Kit.label(body, T("landing_hint"), 13, C.muted, Kit.FONT_BOLD, {
+		Position = UDim2.fromOffset(14, 70), Size = UDim2.new(1, -160, 0, 28), ZIndex = 46, TextWrapped = true, TextTruncate = Enum.TextTruncate.None,
+	})
+	local active: number? = nil
+	local tried: { [number]: boolean } = {}
+	local phase = 0
+	local btn = Kit.button(body, "🛬\n" .. T("btn_land"), "green", UDim2.fromOffset(134, 84), function()
+		local id = active
+		if not id or tried[id] then
+			return
+		end
+		tried[id] = true
+		local x = 0.5 + 0.5 * math.sin(phase)
+		local off = math.abs(x - 0.5)
+		local quality = if off <= 0.1 then "perfect" elseif off <= 0.25 then "good" else nil
+		if quality then
+			ctx.act("land", id, quality)
+			Kit.playSound(quality == "perfect" and "perfect" or "money")
+			hint.Text = quality == "perfect" and ("🎯 " .. T("landing_perfect") .. " +25%") or ("👍 " .. T("landing_good") .. " +10%")
+		else
+			Kit.playSound("error")
+			hint.Text = "😅 " .. T("landing_miss")
+		end
+	end, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), ZIndex = 46 })
+	btn.ZIndex = 47
+	btn.TextSize = 17
+	btn.TextWrapped = true
+	ctx.targets.land = btn
+	holder.Visible = false
+	-- Al reconstruir la interfaz (cambio de idioma) se desconecta la aguja anterior
+	if landingConn then
+		landingConn:Disconnect()
+	end
+	landingConn = RunService.RenderStepped:Connect(function(dt: number)
+		if holder.Visible then
+			phase += dt * 3.6
+			needle.Position = UDim2.fromScale(0.5 + 0.5 * math.sin(phase), 0.5)
+		end
+	end)
+	table.insert(ctx.tickers, function()
+		local st = ctx.state
+		if not st or not ctx.started then
+			holder.Visible = false
+			return
+		end
+		local now = Kit.serverNow()
+		local pick, left = nil, math.huge
+		for _, p in st.planes do
+			local f = p.flight
+			if f and f.pilot == 0 and f.good ~= "ferry" and f.good ~= "charter" and f.endT - f.startT >= Config.LANDING.minSecs then
+				local rest = f.endT - now
+				-- Se queda visible un momento tras pulsar para ver el resultado
+				if rest > 0 and rest <= Config.LANDING.window + 0.5 and rest < left and (not f.landing or tried[p.id]) then
+					pick, left = p, rest
+				end
+			end
+		end
+		local was = active
+		active = pick and pick.id or nil
+		if active and active ~= was and not tried[active] then
+			hint.Text = T("landing_hint")
+		end
+		holder.Visible = active ~= nil
+		if pick then
+			title.Text = "🛬 " .. T("landing_title", { city = Config.AirportByCode[pick.flight.to].city })
+			Kit.setButton(btn, nil, not tried[pick.id] and left > 0.6)
+		end
+	end)
 end
 
 ---------------------------------------------------------------------
