@@ -36,7 +36,15 @@ function Kit.T(key: string, params: { [string]: any }?): string
 end
 local T = Kit.T
 
+local Workspace = game:GetService("Workspace")
 function Kit.serverNow(): number
+	-- Hora del servidor con decimales (misma base que os.time() del servidor)
+	local ok, t = pcall(function()
+		return Workspace:GetServerTimeNow()
+	end)
+	if ok and type(t) == "number" and t > 1e9 then
+		return t
+	end
 	if not ctx.state then
 		return os.time()
 	end

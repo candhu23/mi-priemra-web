@@ -328,6 +328,7 @@ function Screens.landing(parent: Instance)
 		(d :: GuiObject).ZIndex = 45
 	end
 	Kit.stroke(C.green, 3).Parent = body
+	body.Active = true -- un toque fallado no pasa a los botones de debajo
 	local title = Kit.title(body, "", 17, C.ink, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -160, 0, 24), ZIndex = 46 })
 	local bar = create("Frame", {
 		Parent = body, BackgroundColor3 = C.line, Position = UDim2.fromOffset(14, 40), Size = UDim2.new(1, -160, 0, 26), ZIndex = 46,
@@ -341,21 +342,28 @@ function Screens.landing(parent: Instance)
 		Position = UDim2.fromOffset(14, 70), Size = UDim2.new(1, -160, 0, 28), ZIndex = 46, TextWrapped = true, TextTruncate = Enum.TextTruncate.None,
 	})
 	local active: number? = nil
-	local tried: { [number]: boolean } = {}
+	local activeKey = ""
+	local tried: { [string]: boolean } = {} -- por vuelo (avión + hora de salida), no por avión
 	local phase = 0
 	local btn = Kit.button(body, "🛬\n" .. T("btn_land"), "green", UDim2.fromOffset(134, 84), function()
 		local id = active
-		if not id or tried[id] then
+		if not id or tried[activeKey] then
 			return
 		end
-		tried[id] = true
+		tried[activeKey] = true
 		local x = 0.5 + 0.5 * math.sin(phase)
 		local off = math.abs(x - 0.5)
 		local quality = if off <= 0.1 then "perfect" elseif off <= 0.25 then "good" else nil
 		if quality then
-			ctx.act("land", id, quality)
-			Kit.playSound(quality == "perfect" and "perfect" or "money")
-			hint.Text = quality == "perfect" and ("🎯 " .. T("landing_perfect") .. " +25%") or ("👍 " .. T("landing_good") .. " +10%")
+			-- Solo se celebra si el servidor lo acepta (si llega tarde, el avión ya ha aterrizado)
+			local ok = ctx.act("land", id, quality)
+			if ok then
+				Kit.playSound(quality == "perfect" and "perfect" or "money")
+				hint.Text = quality == "perfect" and ("🎯 " .. T("landing_perfect") .. " +25%") or ("👍 " .. T("landing_good") .. " +10%")
+			else
+				Kit.playSound("error")
+				hint.Text = "⏱️ " .. T("landing_late")
+			end
 		else
 			Kit.playSound("error")
 			hint.Text = "😅 " .. T("landing_miss")
@@ -388,21 +396,23 @@ function Screens.landing(parent: Instance)
 			local f = p.flight
 			if f and f.pilot == 0 and f.good ~= "ferry" and f.good ~= "charter" and f.endT - f.startT >= Config.LANDING.minSecs then
 				local rest = f.endT - now
+				local key = p.id .. ":" .. f.startT
 				-- Se queda visible un momento tras pulsar para ver el resultado
-				if rest > 0 and rest <= Config.LANDING.window + 0.5 and rest < left and (not f.landing or tried[p.id]) then
+				if rest > 0 and rest <= Config.LANDING.window + 0.5 and rest < left and (not f.landing or tried[key]) then
 					pick, left = p, rest
 				end
 			end
 		end
-		local was = active
+		local wasKey = activeKey
 		active = pick and pick.id or nil
-		if active and active ~= was and not tried[active] then
+		activeKey = pick and (pick.id .. ":" .. pick.flight.startT) or ""
+		if active and activeKey ~= wasKey and not tried[activeKey] then
 			hint.Text = T("landing_hint")
 		end
 		holder.Visible = active ~= nil
 		if pick then
 			title.Text = "🛬 " .. T("landing_title", { city = Config.AirportByCode[pick.flight.to].city })
-			Kit.setButton(btn, nil, not tried[pick.id] and left > 0.6)
+			Kit.setButton(btn, nil, not tried[activeKey] and left > 0.6)
 		end
 	end)
 end

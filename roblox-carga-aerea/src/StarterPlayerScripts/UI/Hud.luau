@@ -121,7 +121,7 @@ function Hud.build(parent: Instance)
 		local scale = ctx.scale or 1
 		local origin = (parent :: GuiObject).AbsolutePosition
 		local a = (from.AbsolutePosition + from.AbsoluteSize / 2 - origin) / scale
-		local b = (moneyHolder.AbsolutePosition + Vector2.new(24, 26) - origin) / scale
+		local b = (moneyHolder.AbsolutePosition - origin) / scale + Vector2.new(24, 26)
 		for i = 1, 4 do
 			local coin = Kit.emoji(parent, "🪙", 22, {
 				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(a.X + (i - 2.5) * 10, a.Y), ZIndex = 35,
@@ -209,14 +209,17 @@ function Hud.build(parent: Instance)
 
 	-- Evento de España (arriba a la derecha, bajo los botones redondos)
 	local evBody = Kit.float(parent, {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 76), Size = UDim2.fromOffset(330, 62), Name = "EventCard",
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 76), Size = UDim2.fromOffset(330, 76), Name = "EventCard",
 	})
 	evBody.BackgroundColor3 = Color3.fromRGB(243, 237, 255)
 	Kit.stroke(C.purple, 3).Parent = evBody
 	local evRoot = evBody.Parent :: Frame
 	local evEmoji = Kit.emoji(evBody, "", 32, { Position = UDim2.fromOffset(8, 12) })
 	local evTitle = Kit.title(evBody, "", 17, C.purple, { Position = UDim2.fromOffset(52, 6), Size = UDim2.new(1, -60, 0, 22) })
-	local evText = Kit.label(evBody, "", 14, C.ink, Kit.FONT_BOLD, { Position = UDim2.fromOffset(52, 30), Size = UDim2.new(1, -60, 0, 24), TextWrapped = true })
+	local evText = Kit.label(evBody, "", 14, C.ink, Kit.FONT_BOLD, {
+		Position = UDim2.fromOffset(52, 30), Size = UDim2.new(1, -60, 0, 38), TextWrapped = true, TextTruncate = Enum.TextTruncate.None,
+		TextYAlignment = Enum.TextYAlignment.Top,
+	})
 	evRoot.Visible = false
 	local nextEvent = Kit.pill(parent, "", C.purple, {
 		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 80), Size = UDim2.fromOffset(0, 26), TextSize = 14, Visible = false,
@@ -237,7 +240,7 @@ function Hud.build(parent: Instance)
 			end
 		end
 		ctx.openPanel("cargo")
-	end, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -112), Name = "Waiting" })
+	end, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -112), Name = "Waiting" })
 	local waitingRoot = waiting.Parent :: Frame
 	waiting.TextSize = 19
 	ctx.targets.waiting = waiting
@@ -330,6 +333,7 @@ function Hud.build(parent: Instance)
 				row = { root = body.Parent, label = label, time = time, fill = fill }
 				contractRows[c.id] = row
 			end
+			row.root.LayoutOrder = i
 			local g = Config.GoodById[c.good]
 			row.label.Text = "📜 " .. g.emoji .. " → " .. T("r_" .. c.region) .. "  " .. c.progress .. "/" .. c.count
 			row.time.Text = "⏱️ " .. Kit.fmtTime(c.expires - Kit.serverNow())
@@ -349,6 +353,8 @@ function Hud.build(parent: Instance)
 			end
 		end
 		waitingRoot.Visible = ready > 0 and not (st.settings.auto and st.autoUnlocked) and st.tutorial == 99 and ctx.panel == nil
+		-- Si está el aviso de exprés (mismo rincón), el botón va encima
+		waitingRoot.Position = UDim2.new(1, -16, 1, st.express and -204 or -112)
 		waiting.Text = "🛫 " .. T(ready == 1 and "waiting_one" or "waiting_many", { n = ready })
 		-- Insignias de la barra
 		local idle, repair, regions = 0, 0, 0

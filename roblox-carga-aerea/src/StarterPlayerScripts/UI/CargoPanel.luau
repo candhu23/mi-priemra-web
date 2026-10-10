@@ -352,7 +352,7 @@ function CargoPanel.build(content: Frame): () -> ()
 			end
 		end
 		charterBtn.Parent.Visible = st.level >= Config.CHARTER_LEVEL
-		Kit.setButton(charterBtn, charterBusy and ("🌙 " .. T("charter_busy")) or nil, sel.condition >= Config.REPAIR_BLOCK and not charterBusy)
+		Kit.setButton(charterBtn, "🌙 " .. T(charterBusy and "charter_busy" or "btn_charter"), sel.condition >= Config.REPAIR_BLOCK and not charterBusy)
 		local loads = table.clone(st.boards[sel.airport] or {})
 		table.sort(loads, function(x, y)
 			local ex, ey = (x.express or x.tutorial) and 1 or 0, (y.express or y.tutorial) and 1 or 0

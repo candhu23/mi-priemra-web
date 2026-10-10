@@ -160,7 +160,7 @@ Lang.en = {
 	charter_hours = "{h} h", charter_busy = "On a trip", charter_to = "Charter to {city}",
 	-- Aterrizaje
 	landing_title = "Landing in {city}", landing_hint = "Tap LAND when the needle is in the green!",
-	landing_perfect = "Perfect landing!", landing_good = "Good landing", landing_miss = "Bumpy landing… next time!",
+	landing_perfect = "Perfect landing!", landing_good = "Good landing", landing_miss = "Bumpy landing… next time!", landing_late = "Too late: it already landed",
 	-- Mapa y pasaporte
 	map_stamped = "Passport stamp collected", map_new_route = "New route: your first delivery here pays ×1.5!",
 	map_wanted = "Booming city: everything here pays {mult}",
@@ -335,7 +335,7 @@ Lang.es = {
 	charter_hours = "{h} h", charter_busy = "De viaje", charter_to = "Chárter a {city}",
 	-- Aterrizaje
 	landing_title = "Aterrizaje en {city}", landing_hint = "¡Pulsa ATERRIZA cuando la aguja esté en verde!",
-	landing_perfect = "¡Aterrizaje perfecto!", landing_good = "Buen aterrizaje", landing_miss = "Aterrizaje movido… ¡a la próxima!",
+	landing_perfect = "¡Aterrizaje perfecto!", landing_good = "Buen aterrizaje", landing_miss = "Aterrizaje movido… ¡a la próxima!", landing_late = "Tarde: ya había aterrizado",
 	-- Mapa y pasaporte
 	map_stamped = "Sello del pasaporte conseguido", map_new_route = "Ruta nueva: ¡tu primera entrega aquí paga ×1,5!",
 	map_wanted = "Ciudad en auge: todo lo que llega aquí paga {mult}",

@@ -169,6 +169,30 @@ for _ = 1, 60 do
 end
 assert(ctx.state.tutorial == 99, "el tutorial no terminó (paso " .. tostring(ctx.state.tutorial) .. ")")
 assert(landingSeen, "el minijuego de aterrizaje debería salir en el primer vuelo")
+-- Segundo vuelo tuyo con el MISMO avión: el minijuego tiene que volver a estar disponible
+do
+	local plane = ctx.state.planes[1]
+	local board = ctx.state.boards[plane.airport] or {}
+	local chosen
+	for _, l in board do
+		local _, _, _, secs = Kit.quote(plane, l, 0)
+		if not Kit.flyBlock(plane, l) and secs >= 14 then chosen = l break end
+	end
+	assert(chosen, "no hay carga para el segundo vuelo de prueba")
+	assert(ctx.act("dispatch", plane.id, chosen.id, 0), "no despegó el segundo vuelo")
+	local ready = false
+	for _ = 1, 60 do
+		frame()
+		local land = ctx.targets.land
+		if land and W.unwrap(land).Parent.Parent.Visible and W.unwrap(land):GetAttribute("Enabled") then
+			ready = true
+			press(land, "ATERRIZA (2.º vuelo)")
+			break
+		end
+	end
+	assert(ready, "el minijuego de aterrizaje no vuelve a funcionar en el segundo vuelo del mismo avión")
+	W.tick(10)
+end
 print("  tutorial completado siguiendo la flecha · pasos vistos:", (function() local n = 0 for _ in steps do n += 1 end return n end)())
 -- Cerrar ventanas emergentes (celebraciones)
 for _ = 1, 3 do

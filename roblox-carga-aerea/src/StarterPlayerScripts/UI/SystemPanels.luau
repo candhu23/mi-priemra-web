@@ -67,7 +67,8 @@ function SystemPanels.ranking(content: Frame): () -> ()
 		local st = ctx.state
 		if st then
 			local airline = Config.airlineName(st.airline)
-			mineText.Text = "✈️ " .. airline .. " · " .. T("ranking_you", { amount = Kit.fmtMoney(st.stats.earned) })
+			local amount = tab == "week" and (st.weekEarned or 0) or st.stats.earned
+			mineText.Text = "✈️ " .. airline .. " · " .. T("ranking_you", { amount = Kit.fmtMoney(amount) })
 			if ctx.panel == "ranking" then
 				load()
 			end

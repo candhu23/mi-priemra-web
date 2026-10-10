@@ -81,7 +81,7 @@ local function sendState(player: Player)
 				local f = p.flight
 				if f and f.good ~= "charter" and #traffic < 24 then
 					table.insert(traffic, {
-						name = os2.player.DisplayName, model = p.model, from = f.from, to = f.to, startT = f.startT,
+						id = p.id, name = os2.player.DisplayName, model = p.model, from = f.from, to = f.to, startT = f.startT,
 						endT = f.endT, color = os2.data.airline.color,
 					})
 				end
@@ -145,6 +145,7 @@ local function sendState(player: Player)
 		newShares = Game.newShares(data),
 		ipoCount = data.ipoCount,
 		runEarned = data.run.earned,
+		weekEarned = data.week.id == math.floor((now - 345600) / 604800) and data.week.earned or 0,
 		airline = data.airline,
 		traffic = traffic,
 	})

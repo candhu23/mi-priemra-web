@@ -164,7 +164,7 @@ function MapView.build(parent: Instance)
 		}, { corner() })
 		-- Insignia arriba a la derecha: ciudad en auge 🔥 y/o evento
 		local badge = Kit.pill(pinLayer, "", C.orange, {
-			AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(x, 6, y, -6), Size = UDim2.fromOffset(0, 20), TextSize = 12,
+			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(x, 0, y, -15), Size = UDim2.fromOffset(0, 20), TextSize = 12,
 			ZIndex = 5, Visible = false,
 		})
 		pin.Activated:Connect(function()
@@ -270,7 +270,7 @@ function MapView.build(parent: Instance)
 		for _, t in st.traffic or {} do
 			local a, b = pins[t.from], pins[t.to]
 			if a and b then
-				local key = t.name .. ":" .. t.startT .. ":" .. t.from
+				local key = t.name .. ":" .. tostring(t.id) .. ":" .. t.startT
 				seen[key] = true
 				local v = trafficVisual(key, t, b.x < a.x)
 				local k = math.clamp((now - t.startT) / math.max(1, t.endT - t.startT), 0, 1)
@@ -380,8 +380,8 @@ function MapView.build(parent: Instance)
 			p.badge.Text = table.concat(parts, " ")
 			p.badge.BackgroundColor3 = w and C.orange or C.purple
 		end
-		-- Emoji grande del evento (solo los de una región)
-		local center = ev and ev.region and regionCenter[ev.region]
+		-- Emoji grande del evento: solo para una región aún bloqueada (si está abierta, ya lo dicen las insignias)
+		local center = ev and ev.region and not st.regions[ev.region] and regionCenter[ev.region]
 		eventMark.Visible = center ~= nil
 		if center then
 			eventMark.Text = (ev :: any).emoji
