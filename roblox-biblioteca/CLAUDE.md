@@ -37,14 +37,29 @@ roblox-biblioteca/
 ├── default.project.json   # Rojo: LockFirstPerson, sin salto (CharacterJumpHeight 0), andar 12,
 │                          # StreamingEnabled=false, Lighting.Technology=Future (un script NO puede)
 ├── Biblioteca.rbxl        # Lo genera tools/check.sh (súbelo en cada commit)
+├── docs/plan_planta1.png, plan_planta2.png   # planta vista desde arriba (la genera check.sh)
 ├── src/ReplicatedStorage/
 │   ├── Config.luau        # TODOS los números (supuestos marcados): velocidades, capacidad, puntos,
 │   │                      # hechizos por nivel, rangos, pizza, definitiva, guardado, luz, audio, insignias
 │   ├── Lang.luau          # Textos ES/EN. Lang.t(lang, clave, params) con {param}; Lang.time()
-│   └── BookData.luau      # 31 secciones (paletas) + 400 series con títulos ES/EN y portadas. asserts de totales
+│   ├── BookData.luau      # 31 secciones (paletas) + 400 series con títulos ES/EN y portadas. asserts de totales
+│   ├── Layout.luau        # Geometría DETERMINISTA (generador propio con semilla): Layout.get("main"|"special")
+│   │                      # → secciones, filas, huecos (slotCF), libros, montones iniciales, piezas del edificio,
+│   │                      # cajas sólidas (solids) y puntos de interacción. Layout.face() en vez de CFrame.lookAt
+│   ├── Rules.luau         # Fila correcta y brillos, puntos por récord, valores de hechizos, rango y final
+│   ├── Codec.luau         # 8 caracteres por libro (guardado y foto inicial)
+│   └── Geo.luau           # Rayos y superficies contra cajas (soltar/lanzar sin física)
+├── src/ServerScriptService/
+│   ├── LibraryServer.server.luau   # Fase 2: construye la biblioteca y el Archivo
+│   └── Lib/Building.luau           # Piezas del edificio a partir de Layout (luces, puerta, spawn)
+├── src/StarterPlayerScripts/
+│   ├── LibraryClient.client.luau   # Fase 2: dibuja los libros en sus montones iniciales
+│   └── Client/Books.luau           # Libros del cliente: cuerpo + franja, brillos, placas, etiquetas
+│                                   # reutilizables (36), Revelar (Neón), Guía (SelectionBox), animaciones
 └── tools/   (bin/ y out/ en .gitignore)
     ├── setup.sh  check.sh
-    └── harness/  dump_data.luau (BookData+Lang → JSON) · check_books.py
+    └── harness/  mock.luau (Roblox simulado para Lune) · run_world.luau · dump_data.luau · check_books.py
+                  · plan.py + svg2png.js (planos)
 ```
 
 Rojo: `src/<Servicio>` → servicio; `*.server.luau` = Script, `*.client.luau` = LocalScript, resto = ModuleScript.
@@ -68,10 +83,23 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
 2. `luau-lsp analyze` con la API de Roblox → **0 avisos**.
 3. `dump_data.luau` + `check_books.py`: recuentos de la tabla, títulos únicos ES/EN, ≤ 70 caracteres,
    **palabra clave de su sección** en cada título, portadas distintas, **palabras prohibidas** (también en Lang).
-4. Mundo (fase 2) · 5. Servidor con bots (fase 3+) · 6. Cliente (fase 3+): se saltan con «pendiente» hasta que existan.
+4. `run_world.luau`: edificio real + libros del cliente: 31 secciones, 400 filas con sus huecos ordenados de
+   izquierda a derecha, 3.072 libros con sitio inicial, **ninguno dentro de paredes/muebles**, ninguno flotando,
+   nunca dos tomos de la misma serie juntos, llaves (roja de pie; amarilla y azul solo saltando; verde tapada),
+   salto a la planta 2, **piezas totales < 15.000** (hoy 10.562 en el peor caso) y codec de ida y vuelta.
+   Después dibuja los planos (`plan.py` + Playwright).
+5. Servidor con bots (fase 3+) · 6. Cliente (fase 3+): se saltan con «pendiente» hasta que existan.
 7. Copia el lugar a `Biblioteca.rbxl`. **Súbelo en el commit.**
 
 ## 6. Trampas encontradas (no las repitas)
+
+- **Lune: `CFrame.lookAt` mirando exactamente a +Z devuelve la orientación al revés.** Usa `Layout.face(pos, dir)`
+  (giro en Y) en todo lo que se pruebe con Lune.
+- **Lune: `Part.Position` no existe** («missing default value»): usa `part.CFrame.Position`.
+- Libros tumbados en escalones: alinéalos con el escalón (si no, asoman dentro del siguiente; `run_world` lo detecta).
+- El analizador no «ensancha» una variable tras `if not x then x = … end`: usa una variable nueva
+  (`local existing = t[k]; if existing then return existing end; local x = Instance.new(…)`).
+- `assert(x, msg)` devuelve 2 valores: no lo pases como último argumento de una función.
 
 - Tablas literales con un campo que se rellena después (p. ej. `series`) no encajan con su tipo exportado:
   conviértelas con `(… :: any) :: Tipo`.

@@ -37,6 +37,10 @@ echo "== 4/7 Mundo: biblioteca real, 31 secciones, 400 filas, 3.072 libros, piez
 if [ -f "$H/run_world.luau" ]; then
 	if "$BIN/lune" run "$H/run_world.luau" test.rbxl > "$OUT/world.txt" 2>&1 && grep -q "MUNDO OK" "$OUT/world.txt"; then
 		grep -E "^\s+·" "$OUT/world.txt"; echo "OK (detalle en tools/out/world.txt)"
+		# Planos vistos desde arriba (opcional: necesita Chromium + Playwright)
+		if python3 -I "$H/plan.py" "$OUT/world.json" "$OUT" > /dev/null 2>&1 && command -v node > /dev/null && NODE_PATH=$(npm root -g 2> /dev/null) node "$H/svg2png.js" "$OUT" 2> /dev/null; then
+			echo "Planos: tools/out/plan_planta1.png y plan_planta2.png"
+		fi
 	else
 		tail -25 "$OUT/world.txt"; status=1
 	fi
