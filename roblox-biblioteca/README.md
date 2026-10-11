@@ -3,7 +3,7 @@
 Juego de Roblox para ordenar, en primera persona, los **3.072 libros** de una biblioteca mágica.
 El diseño completo está en [`DISENO.md`](DISENO.md).
 
-> **Estado:** en construcción (fase 3 de 6: ya se puede jugar a ordenar). Todavía no hay magia, llaves,
+> **Estado:** en construcción (fase 4 de 6: ordenar, puntos, magia, llaves, cofres y cristal). Todavía no hay
 > guardado ni menú: cada vez que pulsas Play empiezas de cero. Esta guía se completará en la fase 6.
 
 ## Probar en Roblox Studio
@@ -20,6 +20,9 @@ El diseño completo está en [`DISENO.md`](DISENO.md).
      Cada libro bien puesto brilla **dorado**; mal puesto en su sección, **rojo**.
    - Arriba verás «Filas correctas», abajo «Libros en estanterías». **R** suelta un libro (mantén R: todos),
      **F** lo lanza, **clic derecho** pasa el de arriba al fondo, **Tab** abre la lista, **M** el mapa.
+   - Con 2 filas correctas ganas tu primer **punto**: pulsa **B** (manual) y aprende un hechizo; se lanza con **1–5**.
+   - **Llave roja** junto a la puerta → su **cofre** está en la esquina delantera izquierda → ya puedes **saltar** (Espacio).
+   - El **cristal** del rellano de la escalera devuelve libros perdidos (por ejemplo, los lanzados encima de una estantería).
 5. Si algo falla, abre **View → Output** y mándame una captura de los mensajes en rojo.
 
 ## Publicar (importante)

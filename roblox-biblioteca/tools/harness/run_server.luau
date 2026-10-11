@@ -273,6 +273,191 @@ check(lib():posOf(dropped) == def.initial[dropped].pos, "un libro fuera del mapa
 lib():flush()
 
 ---------------------------------------------------------------------
+print("-- Magia menor: llaves y cofres --")
+local Building = W.require(W.wrap(SSS:FindFirstChild("Lib"):FindFirstChild("Building")))
+local libModel = W.game:GetService("Workspace"):FindFirstChild("Library")
+local function partVisible(name)
+	for _, d in libModel:GetDescendants() do
+		if d.Name == name and d:IsA("BasePart") then
+			return d.Transparency < 1
+		end
+	end
+	return nil
+end
+local function hum()
+	return W.unwrap(player.Character):FindFirstChildOfClass("Humanoid")
+end
+check(hum().JumpHeight == 0, "al empezar no se puede saltar")
+ok, key = act("openChest", "red")
+check(not ok and key == "err_need_key", "abrir un cofre sin su llave")
+-- Roja: junto al escudo de la entrada, se coge de pie
+stand(Vector3.new(5.4, 3, -1.8), Vector3.new(0, 0, 1))
+ok = act("takeKey", "red")
+check(ok and partVisible("Key_red") == false, "coger la llave roja (y desaparece)")
+stand(Vector3.new(-12, 3, -6), Vector3.new(0, 0, 1))
+ok = act("openChest", "red")
+s = lastState()
+check(ok and s.jump == true and hum().JumpHeight == Config.JUMP_HEIGHT, "el cofre rojo da el salto alto")
+check(partVisible("ChestLid_red") == false, "el cofre abierto pierde la tapa")
+-- Verde: bajo un montón en el banco; hay que quitar los libros de encima
+local gk = def.interact.key_green
+stand(gk + Vector3.new(1.5, 1.5, 0))
+ok, key = act("takeKey", "green")
+check(not ok and key == "err_key_covered", "la llave verde está tapada")
+quiet = true
+act("dropAll")
+for id = 1, #def.books do
+	local p = lib():posOf(id)
+	if p and lib():isLoose(id) and math.abs(p.X - gk.X) < 1 and math.abs(p.Z - gk.Z) < 1 and p.Y > gk.Y - 0.3 then
+		pick(id)
+	end
+end
+quiet = false
+stand(gk + Vector3.new(1.5, 1.5, 0))
+ok = act("takeKey", "green")
+check(ok, "coger la llave verde tras quitar los libros")
+stand(Vector3.new(12, 3, -6), Vector3.new(0, 0, 1))
+act("openChest", "green")
+check(lastState().run == true, "el cofre verde da correr")
+-- Amarilla: en el jarrón del pilar del rellano: de pie no llega; saltando sí
+local yk = def.interact.key_yellow
+stand(Vector3.new(4.5, 10, -85.6))
+ok, key = act("takeKey", "yellow")
+check(not ok and key == "err_key_high", "la llave amarilla no se alcanza de pie")
+stand(Vector3.new(4.5, 13.5, -85.2)) -- en mitad del salto
+ok = act("takeKey", "yellow")
+check(ok, "la llave amarilla se coge saltando")
+stand(Vector3.new(-10, 17, -6), Vector3.new(0, 0, 1))
+act("openChest", "yellow")
+check(lastState().cap == 13, "el cofre amarillo da +3 de capacidad")
+-- Azul: encima de las estanterías del fondo de la planta 2
+local bk = def.interact.key_blue
+stand(Vector3.new(bk.X, 17, -116.5))
+ok, key = act("takeKey", "blue")
+check(not ok, "la llave azul no se alcanza de pie")
+stand(Vector3.new(bk.X, 21.5, -117.5))
+ok = act("takeKey", "blue")
+check(ok, "la llave azul se coge saltando")
+stand(Vector3.new(10, 17, -6), Vector3.new(0, 0, 1))
+act("openChest", "blue")
+s = lastState()
+check(s.cap == 15 and s.chests.red and s.chests.green and s.chests.yellow and s.chests.blue, "con los 4 cofres: capacidad 15")
+check(s.magic == false, "la magia menor no cuenta como magia")
+print("  [llaves] roja de pie · verde tras despejar el banco · amarilla y azul saltando · capacidad 10 → 15")
+
+---------------------------------------------------------------------
+print("-- Cristal de recuperación --")
+-- Un libro lanzado encima de una estantería queda «perdido»
+local lostId
+for id = 1, #def.books do
+	if lib():isLoose(id) then
+		lostId = id
+		break
+	end
+end
+lib():take(lostId)
+local caseTop = def.sectionByCode["1C"].box
+lib():dropBook(lostId, (caseTop.min.X + caseTop.max.X) / 2, (caseTop.min.Z + caseTop.max.Z) / 2, 40, 0)
+lib():flush()
+stand(Vector3.new(0, 3, -20))
+ok, key = act("useCrystal")
+check(not ok and key == "err_reach", "el cristal se usa en el rellano")
+stand(Vector3.new(-3, 10, -88), Vector3.new(-1, 0, 0))
+ok = act("useCrystal")
+local lp = lib():posOf(lostId)
+check(ok and lp and (Vector3.new(lp.X, 0, lp.Z) - Vector3.new(-5, 0, -90.6)).Magnitude < 3 and lp.Y > 7, "el cristal trae el libro perdido al podio (" .. tostring(lp) .. ")")
+ok, key = act("useCrystal")
+check(not ok and key == "err_crystal_none", "sin libros perdidos")
+check(lastState().magic == false, "el cristal no cuenta como magia")
+
+---------------------------------------------------------------------
+print("-- Magia mayor: manual y hechizos --")
+s = lastState()
+check(s.points == 1, "tras el tutorial hay 1 punto")
+ok = act("buySkill", "sort")
+check(ok and lastState().skills.sort == 1 and lastState().points == 0 and lastState().magic == true, "aprender Ordenar gasta el punto y marca magia")
+ok, key = act("buySkill", "guide")
+check(not ok and key == "err_no_points", "sin puntos no se aprende")
+ok, key = act("cast", "guide")
+check(not ok and key == "err_not_learned", "no se lanza lo no aprendido")
+-- Ordenar
+quiet = true
+local some = {}
+for id = 1, #def.books do
+	if lib():isLoose(id) and #some < 6 then
+		table.insert(some, id)
+	end
+end
+for _, id in some do pick(id) end
+quiet = false
+act("cast", "sort")
+local h = lib().hand
+for i = 2, #h do
+	local a, b = def.books[h[i - 1]], def.books[h[i]]
+	check(a.series > b.series or (a.series == b.series and a.vol > b.vol), "Ordenar: pila por serie y tomo (el de arriba primero)")
+end
+ok, key = act("cast", "sort")
+check(not ok and key == "err_cooldown", "enfriamiento de Ordenar")
+-- Para probarlo todo: el bot «tiene» el récord de 200 filas (45 puntos) y lo sube todo al máximo
+session.slot.best = 200
+quiet = true
+for _, sk in Config.Skills do
+	for _ = 1, sk.max do
+		act("buySkill", sk.id)
+	end
+end
+quiet = false
+s = lastState()
+for _, sk in Config.Skills do
+	check(s.skills[sk.id] == sk.max, sk.id .. " al máximo")
+end
+check(s.points == 0, "subirlo todo al máximo cuesta exactamente los 45 puntos")
+ok, key = act("buySkill", "guide")
+check(not ok and key == "err_maxed", "no se pasa del máximo")
+-- Guía y Revelar: duran y luego enfrían
+ok = act("cast", "guide")
+s = lastState()
+check(ok and s.active.guide > 59 and s.cd.guide > 64, "Guía nivel 10: 60 s activa + 5 s de enfriamiento")
+ok, key = act("cast", "guide")
+check(not ok and key == "err_active", "no se relanza mientras dura")
+ok = act("cast", "reveal")
+check(ok and lastState().active.reveal > 39, "Revelar nivel 10: 40 s")
+-- Reunir: con un tomo en la mano, atrae los demás de su serie que estén sueltos
+quiet = true
+act("dropAll")
+quiet = false
+local gs
+for _, sid in def.seriesList do
+	local loose = 0
+	for v = 1, BookData.Series[sid].volumes do
+		if lib():isLoose(def.seriesFirst[sid] + v - 1) then loose += 1 end
+	end
+	if loose == 10 then gs = sid break end
+end
+pick(def.seriesFirst[gs])
+ok = act("cast", "gather")
+s = lastState()
+check(ok and #s.hand == 10, "Reunir nivel 10 atrae 9 tomos más (" .. #s.hand .. ")")
+for _, id in s.hand do
+	check(def.books[id].series == gs, "Reunir solo atrae tomos de la misma serie")
+end
+-- Autocolocar: activo + apuntar a la sección coloca todo lo de esa sección
+ok, key = act("autoPlace", def.seriesSection[gs])
+check(not ok, "Autocolocar sin activar falla")
+ok = act("cast", "auto")
+check(ok and lastState().active.auto > 54, "Autocolocar nivel 10: 55 s")
+local sec = def.sectionByCode[def.seriesSection[gs]]
+stand((sec.box.min + sec.box.max) / 2 + Vector3.new(0, 3, 0) + sec.facing * 8)
+ok = act("autoPlace", def.seriesSection[gs])
+s = lastState()
+check(ok and #s.hand == 0, "Autocolocar coloca los 10 tomos")
+local first = lib().locs[def.seriesFirst[gs]]
+check(first.k == 1 and lib().rowOk[def.slotRow[first.s]], "Autocolocar deja la fila correcta")
+ok, key = act("autoPlace", def.seriesSection[gs])
+check(not ok and key == "err_no_section_books", "Autocolocar sin libros de esa sección")
+print("  [magia] Ordenar, Guía, Revelar, Reunir (9 libros) y Autocolocar (fila correcta) · 45 puntos = todo al máximo")
+
+---------------------------------------------------------------------
 print("-- Partida entera: el bot coloca bien los 3.072 libros --")
 quiet = true
 local t0 = os.clock()

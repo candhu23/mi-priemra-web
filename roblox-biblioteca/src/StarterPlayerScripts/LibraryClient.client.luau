@@ -19,6 +19,8 @@ local Hud = require(Client:WaitForChild("Hud"))
 local Panels = require(Client:WaitForChild("Panels"))
 local Input = require(Client:WaitForChild("Input"))
 local MapArt = require(Client:WaitForChild("MapArt"))
+local Spells = require(Client:WaitForChild("Spells"))
+local Lang = require(ReplicatedStorage:WaitForChild("Lang"))
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("LibRemotes")
@@ -76,6 +78,22 @@ end
 ---------------------------------------------------------------------
 -- Acciones y ventanas
 ---------------------------------------------------------------------
+-- Los parámetros que son claves de texto («sk_sort», «key_red») se traducen; «B» = tecla del manual
+local function translateParams(params: { [string]: any }?): { [string]: any }
+	local out: { [string]: any } = {}
+	local given: { [string]: any } = params or {}
+	for k, v in given do
+		if type(v) == "string" and (Lang :: any).es[v] ~= nil then
+			out[k] = T(v)
+		elseif k == "key" and v == "B" then
+			out[k] = ctx.keyName("manual")
+		else
+			out[k] = v
+		end
+	end
+	return out
+end
+
 ctx.act = function(name: string, a: any?, b: any?, c: any?): (boolean, { [string]: any }?)
 	local ok, okRes, key, params, extra = pcall(function()
 		return Action:InvokeServer(name, a, b, c)
@@ -84,7 +102,7 @@ ctx.act = function(name: string, a: any?, b: any?, c: any?): (boolean, { [string
 		return false, nil
 	end
 	if key then
-		ctx.toast(T(key, params), if okRes then "success" else "error")
+		ctx.toast(T(key, translateParams(params)), if okRes then "success" else "error")
 	end
 	if extra and extra.sound then
 		Kit.sound(extra.sound)
@@ -124,6 +142,7 @@ Books.init()
 Input.build(ctx)
 Hud.build(ctx)
 Panels.build(ctx)
+Spells.build(ctx)
 UserInputService.MouseIconEnabled = false
 
 local function refreshAll()
@@ -136,6 +155,47 @@ end
 -- Tablones con el mapa en la pared
 ---------------------------------------------------------------------
 local boardGuis: { SurfaceGui } = {}
+-- Cuadros encima de los cofres: dibujos sencillos que insinúan dónde está cada llave
+local PAINTING: { [string]: { any } } = {
+	red = { "🛡️", "🚪", "◆", Color3.fromRGB(230, 60, 60) },
+	green = { "📚📚", "▬▬▬", "🍃", Color3.fromRGB(70, 200, 90) },
+	yellow = { "🏺", "▮", "☀", Color3.fromRGB(250, 210, 60) },
+	blue = { "💧", "▮▮▮▮", "📚📚📚", Color3.fromRGB(70, 140, 250) },
+}
+local function drawPaintings()
+	local lib = Workspace:FindFirstChild("Library")
+	local folder = lib and lib:FindFirstChild("paintings")
+	if not folder then
+		return
+	end
+	for color, art in PAINTING do
+		local part = folder:FindFirstChild("Painting_" .. color)
+		if part and part:IsA("BasePart") then
+			local sg = Instance.new("SurfaceGui")
+			sg.Name = "PaintingGui_" .. color
+			sg.Face = Enum.NormalId.Front
+			sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			sg.PixelsPerStud = 40
+			sg.LightInfluence = 0.6
+			sg.ResetOnSpawn = false
+			sg.Adornee = part
+			for i = 1, 3 do
+				local t = Instance.new("TextLabel")
+				t.BackgroundTransparency = 1
+				t.Size = UDim2.fromScale(1, 0.3)
+				t.Position = UDim2.fromScale(0, 0.04 + (i - 1) * 0.31)
+				t.Text = art[i] :: string
+				t.TextScaled = true
+				t.Font = Enum.Font.GothamBlack
+				t.TextColor3 = if i == 3 then art[4] :: Color3 else Kit.C.ink
+				t.Parent = sg
+			end
+			sg.Parent = player:FindFirstChild("PlayerGui")
+			table.insert(boardGuis, sg)
+		end
+	end
+end
+
 local function drawBoards()
 	for _, g in boardGuis do
 		g:Destroy()
@@ -146,6 +206,7 @@ local function drawBoards()
 	if not maps or not Books.def or Books.def.name ~= "main" then
 		return
 	end
+	drawPaintings()
 	for floor = 1, 2 do
 		local board = maps:FindFirstChild("MapBoard" .. floor)
 		if board and board:IsA("BasePart") then
@@ -227,10 +288,7 @@ end)
 
 local onNotify = remotes:WaitForChild("Notify") :: RemoteEvent
 onNotify.OnClientEvent:Connect(function(kind: string, key: string, params: { [string]: any }?)
-	local p: { [string]: any } = params or {}
-	if p.key == "B" then
-		p.key = ctx.keyName("manual")
-	end
+	local p = translateParams(params)
 	if kind == "popup" then
 		Panels.message(T(p.title or key), T(key, p))
 	else

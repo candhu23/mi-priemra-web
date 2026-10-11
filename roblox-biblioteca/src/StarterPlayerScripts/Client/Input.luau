@@ -68,7 +68,12 @@ function Input.build(ctx: Kit.Ctx)
 			elseif string.sub(what, 1, 4) == "key_" then
 				ctx.act("takeKey", string.sub(what, 5))
 			elseif string.sub(what, 1, 6) == "chest_" then
-				ctx.act("openChest", string.sub(what, 7))
+				local color = string.sub(what, 7)
+				local ok, extra = ctx.act("openChest", color)
+				if ok and extra and extra.reward then
+					-- Nota de la rectora y lo que da el cofre
+					Panels.message(T("note_title"), T("note_" .. color) .. "\n\n" .. T("reward_" .. extra.reward, { cap = extra.cap }))
+				end
 			elseif string.sub(what, 1, 9) == "painting_" then
 				ctx.toast(T("painting_" .. string.sub(what, 10)), "info")
 			end
@@ -145,8 +150,11 @@ function Input.build(ctx: Kit.Ctx)
 	local K = Enum.KeyCode
 	local dropDown: number? = nil
 	local dropAllDone = false
-	local NUMBERS = { [K.One] = 1, [K.Two] = 2, [K.Three] = 3, [K.Four] = 4, [K.Five] = 5 }
-	local PAD_SPELL = { [K.DPadUp] = 1, [K.DPadRight] = 2, [K.DPadDown] = 3, [K.DPadLeft] = 4, [K.ButtonL1] = 5 }
+	-- Por nombre de tecla (los Enum no sirven como clave de tabla en las pruebas con Lune)
+	local SPELL_KEYS: { [string]: number } = {
+		One = 1, Two = 2, Three = 3, Four = 4, Five = 5,
+		DPadUp = 1, DPadRight = 2, DPadDown = 3, DPadLeft = 4, ButtonL1 = 5,
+	}
 
 	UserInputService.InputBegan:Connect(function(io: InputObject, processed: boolean)
 		local key = io.KeyCode
@@ -179,8 +187,8 @@ function Input.build(ctx: Kit.Ctx)
 			dropAllDone = false
 		elseif key == K.F or key == K.ButtonY then
 			ctx.input.throw()
-		elseif NUMBERS[key] or PAD_SPELL[key] then
-			ctx.input.cast(NUMBERS[key] or PAD_SPELL[key])
+		elseif SPELL_KEYS[key.Name] then
+			ctx.input.cast(SPELL_KEYS[key.Name])
 		elseif key == K.Z then
 			ctx.input.ultimate()
 		elseif key == K.LeftShift or key == K.RightShift then
@@ -188,6 +196,8 @@ function Input.build(ctx: Kit.Ctx)
 			Input.applySpeed()
 		elseif key == K.ButtonL3 then
 			ctx.input.toggleRun()
+		elseif key == K.ButtonL2 then
+			ctx.input.manual()
 		end
 	end)
 
@@ -222,7 +232,7 @@ function Input.build(ctx: Kit.Ctx)
 			local names = { use = T("btn_use"), map = T("btn_map"), list = T("btn_list"), manual = T("btn_manual"), menu = T("btn_menu"), ultimate = "Z" }
 			return names[action] or action
 		elseif ctx.gamepad then
-			local names = { use = "RT", map = "Select", list = "B", manual = "Start", menu = "Start", ultimate = "Z" }
+			local names = { use = "RT", map = "Select", list = "B", manual = "LT", menu = "Start", ultimate = "Z" }
 			return names[action] or action
 		end
 		local names = { use = "E", map = "M", list = "Tab", manual = "B", menu = "P", ultimate = "Z" }

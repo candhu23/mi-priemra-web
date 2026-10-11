@@ -55,7 +55,8 @@ roblox-biblioteca/
 │       ├── Building.luau           # Piezas del edificio a partir de Layout (luces, puerta, spawn)
 │       ├── Library.luau            # Estado de los libros de UNA biblioteca: sitios, mano, filas correctas,
 │       │                           # récord, coger/colocar/soltar/lanzar (parábola contra cajas), deltas
-│       └── Game.luau               # Sesión, acciones validadas (distancia, capacidad, 25/s), estado, tutorial
+│       ├── Game.luau               # Sesión, acciones validadas (distancia, capacidad, 25/s), estado, tutorial
+│       └── Magic.luau              # Manual (buySkill), hechizos (cast, autoPlace), llaves, cofres, cristal
 ├── src/StarterPlayerScripts/
 │   ├── LibraryClient.client.luau   # Arranque: interfaz, remotes, tablones del mapa, bucle de cruceta
 │   └── Client/
@@ -66,6 +67,7 @@ roblox-biblioteca/
 │       ├── Input.luau              # Teclado/ratón/mando y ctx.input.* (usar, soltar, lanzar, rotar…)
 │       ├── Hud.luau                # Contadores, cruceta, pila en mano, pistas, avisos, botones táctiles
 │       ├── Panels.luau             # Carta/mensajes, lista de la mano (▲▼), mapa
+│       ├── Spells.luau             # Barra de hechizos (1–5, enfriamientos), manual (B), efectos Guía/Revelar
 │       └── MapArt.luau             # Dibujo del mapa de una planta (tablones y ventana)
 └── tools/   (bin/ y out/ en .gitignore)
     ├── setup.sh  check.sh
@@ -86,7 +88,12 @@ Rojo: `src/<Servicio>` → servicio; `*.server.luau` = Script, `*.client.luau` =
     earned, nextAt, tut, time, door…) tras cada acción y cada 10 s.
   - `Notify` (RemoteEvent): `(tipo, clave, params)`; el cliente traduce (`popup` = ventana).
 - **Acciones** (`Game.Actions`): `ready pick place drop dropAll throw cycle reorder readLetter exitDoor`
-  (fase 4–5 añaden magia, llaves, cofres, cristal, menú, ranuras, opciones, definitiva). Límite 25/s.
+  + (Magic) `buySkill cast autoPlace takeKey openChest useCrystal` (fase 5 añade menú, ranuras, opciones,
+  definitiva). Límite 25/s. `extra` puede traer `sound`, `spell`, `chest`/`reward`/`cap` (nota del cofre).
+- Estado extra de la magia (`Game.stateHooks`): `skills{id=nivel} cd{id=s} active{id=s} keys chests jump run magic`.
+  Los hechizos no guardan sus tiempos (al volver a entrar están listos). El enfriamiento empieza al acabar el efecto.
+- Llaves cogidas y cofres abiertos: el servidor oculta las piezas (`Building.setVisible`, también la luz de la llave).
+- Parámetros de avisos que son claves de texto (`sk_sort`, `key_red`) los traduce el cliente; `key = "B"` = tecla del manual.
   **Si añades una acción, añádela a `run_server.luau`.**
 - Los **libros los crea el cliente** (cuerpo + franja, anclados, sin colisión); el edificio lo crea el servidor.
   Las filas y placas las calcula también el cliente con `Rules` (mismas reglas) para los brillos y sonidos.
@@ -132,6 +139,9 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
 - Ventanas: la tarjeta lleva `Active = true`; si no, el clic atraviesa al fondo (que cierra la ventana).
 - Los RemoteEvent disparados antes de que el cliente conecte se pierden en las pruebas: el cliente pide la foto
   con la acción `ready` cuando ya está escuchando.
+- **Lune: los `Enum` no sirven como clave de tabla** (cada acceso es un objeto nuevo): usa `key.Name`.
+- El simulador de remotes conserva los `nil` en medio de lo que devuelve una acción (como Roblox): `(true, nil, nil, extra)`.
+- El reloj de las pruebas no avanza solo: suma `W.fakeTime` entre pulsaciones o salta el límite de 25 acciones/s.
 - En móvil: abajo a la izquierda está el joystick y abajo a la derecha el botón de saltar de Roblox; arriba a la
   izquierda, los botones de Roblox. No pongas nada ahí.
 

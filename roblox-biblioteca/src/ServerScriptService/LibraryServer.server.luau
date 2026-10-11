@@ -12,9 +12,25 @@ local Layout = require(ReplicatedStorage:WaitForChild("Layout"))
 local Lib = script.Parent:WaitForChild("Lib")
 local Building = require(Lib:WaitForChild("Building"))
 local Game = require(Lib:WaitForChild("Game"))
+local Magic = require(Lib:WaitForChild("Magic"))
 
-Building.build(Layout.get("main"), Workspace)
+local library = Building.build(Layout.get("main"), Workspace)
 Building.build(Layout.get("special"), Workspace)
+
+-- Llaves cogidas y cofres abiertos desaparecen del mundo (1 jugador por servidor: vale para todos)
+local function showProgress(slot: any)
+	for _, color in { "red", "green", "yellow", "blue" } do
+		Building.setVisible(library, "Key_" .. color, not slot.keys[color])
+		Building.setVisible(library, "ChestLid_" .. color, not slot.chests[color])
+		Building.setVisible(library, "ChestLock_" .. color, not slot.chests[color])
+	end
+end
+Magic.onKey = function(s: any)
+	showProgress(s.slot)
+end
+Magic.onChest = function(s: any)
+	showProgress(s.slot)
+end
 
 -- Remotes
 local folder = Instance.new("Folder")
@@ -52,8 +68,9 @@ local function start(player: Player)
 		end)
 	end
 	player.CharacterAdded:Connect(onCharacter)
-	-- Fase 3: se empieza directamente una partida nueva (el menú y el guardado llegan en la fase 5)
+	-- Fase 4: se empieza directamente una partida nueva (el menú y el guardado llegan en la fase 5)
 	Game.startMain(s, Game.newSlot())
+	showProgress(s.slot)
 end
 
 local function onPlayerAdded(player: Player)

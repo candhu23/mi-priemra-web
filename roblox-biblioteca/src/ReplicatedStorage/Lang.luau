@@ -83,6 +83,7 @@ Lang.es = {
 	err_need_key = "Necesitas la llave {color}.", err_crystal_none = "No hay libros perdidos.",
 	err_door_locked = "La puerta no se abre: aún hay {n} libro(s) fuera de las estanterías.", err_not_owner = "Esta biblioteca es de otra persona.",
 	err_menu = "Primero elige una partida.", err_ultimate = "La definitiva aún no está cargada.", err_no_jump = "Aún no sabes saltar.",
+	err_auto_off = "Primero activa Autocolocar (tecla {key}).",
 
 	-- Historia
 	letter_title = "Carta de la rectora",
@@ -146,7 +147,7 @@ Lang.es = {
 	opt_controls = "Controles",
 	help_pc = "WASD: andar · Ratón: mirar · E o clic: coger / colocar · R: soltar (mantén: soltar todo) · F: lanzar · Clic derecho: el de arriba pasa abajo · Tab: lista · 1–5: magia · M: mapa · B: manual · P: menú · Espacio: saltar · Mayús: correr",
 	help_touch = "Joystick: andar · Arrastra: mirar · USAR: coger / colocar · Soltar (mantén: todo) · Lanzar · Lista · 1–5: magia",
-	help_pad = "RT: coger / colocar · X: soltar (mantén: todo) · Y: lanzar · RB: rotar pila · B: lista · Cruceta y LB: magia 1–5 · Select: mapa · L3: correr · A: saltar",
+	help_pad = "RT: coger / colocar · X: soltar (mantén: todo) · Y: lanzar · RB: rotar pila · B: lista · Cruceta y LB: magia 1–5 · LT: manual · Select: mapa · L3: correr · A: saltar",
 	time_fmt = "{h} h {m} min",
 }
 
@@ -220,6 +221,7 @@ Lang.en = {
 	err_need_key = "You need the {color} key.", err_crystal_none = "There are no lost books.",
 	err_door_locked = "The door won't open: {n} book(s) still need a shelf.", err_not_owner = "This library belongs to someone else.",
 	err_menu = "Pick a game first.", err_ultimate = "The ultimate isn't charged yet.", err_no_jump = "You can't jump yet.",
+	err_auto_off = "Turn on Auto-Shelve first (key {key}).",
 
 	letter_title = "A letter from the Headmistress",
 	letter_body = "Hello, library helper:\n\nScribble, the academy's winged cat, has done it again: last night it knocked EVERY book in the Mistmoon Library onto the floor. All 3,072 of them.\n\nThe door is enchanted and won't open until every book is back on a shelf.\n\n• Every book has a section (1A, 1B… 2Q). Trust the words in the title; the cover color helps, but sometimes it lies.\n• A whole series goes together in a single row, from volume 1 (left) to the last one (right).\n• 10-volume series go on long shelves; 5- and 3-volume series on short ones.\n• Golden glow: well placed. Red glow: right section, but something's off.\n• When every row of a section is right, its plate turns blue.\n\nGet it all perfect and there will be pizza. Lots of pizza.\n\nP.S.: On the table next to you there are two series to practice with. They go in 1A.\n\n— Ophelia Inkwell, Headmistress of Mistmoon Academy",
@@ -276,7 +278,7 @@ Lang.en = {
 	opt_controls = "Controls",
 	help_pc = "WASD: walk · Mouse: look · E or click: pick up / place · R: drop (hold: drop all) · F: throw · Right click: top book goes to the bottom · Tab: list · 1–5: magic · M: map · B: handbook · P: menu · Space: jump · Shift: run",
 	help_touch = "Joystick: walk · Drag: look · USE: pick up / place · Drop (hold: all) · Throw · List · 1–5: magic",
-	help_pad = "RT: pick up / place · X: drop (hold: all) · Y: throw · RB: rotate stack · B: list · D-pad and LB: magic 1–5 · Select: map · L3: run · A: jump",
+	help_pad = "RT: pick up / place · X: drop (hold: all) · Y: throw · RB: rotate stack · B: list · D-pad and LB: magic 1–5 · LT: handbook · Select: map · L3: run · A: jump",
 	time_fmt = "{h} h {m} min",
 }
 

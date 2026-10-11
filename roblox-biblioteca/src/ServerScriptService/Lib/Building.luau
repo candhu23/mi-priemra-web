@@ -51,7 +51,7 @@ function Building.build(def: Layout.Def, parent: Instance): Model
 	end
 	for i, l in def.lights do
 		local holder = Instance.new("Part")
-		holder.Name = "Light" .. i
+		holder.Name = l.name or ("Light" .. i)
 		holder.Anchored = true
 		holder.CanCollide = false
 		holder.CanQuery = false
@@ -84,13 +84,18 @@ function Building.build(def: Layout.Def, parent: Instance): Model
 	return model
 end
 
--- Quita del mundo las piezas de un objeto (llave cogida, tapa de cofre abierta…)
+-- Quita (o devuelve) al mundo las piezas de un objeto: llave cogida (y su luz), tapa de cofre abierta…
 function Building.setVisible(model: Model, name: string, visible: boolean)
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") and d.Name == name then
+			if d:GetAttribute("Collide0") == nil then
+				d:SetAttribute("Collide0", d.CanCollide)
+			end
 			d.Transparency = if visible then 0 else 1
 			d.CanQuery = visible
-			d.CanCollide = false
+			d.CanCollide = visible and d:GetAttribute("Collide0") == true
+		elseif d:IsA("PointLight") and d.Parent and d.Parent.Name == name .. "_Light" then
+			d.Enabled = visible
 		end
 	end
 end

@@ -30,6 +30,7 @@ export type Session = {
 Game.sessions = {} :: { [Player]: Session }
 Game.remotes = nil :: any
 -- Ganchos que rellenan otros módulos (magia, guardado, evaluación)
+Game.stateHooks = {} :: { (any, { [string]: any }) -> () }
 Game.onEvents = nil :: ((Session, { any }) -> ())?
 Game.onExit = nil :: ((Session) -> (boolean, string?, { [string]: any }?, { [string]: any }?))?
 
@@ -96,7 +97,7 @@ function Game.state(s: Session): { [string]: any }
 	local lib = s.lib
 	local slot = s.slot
 	local earned = Rules.points(slot.best)
-	return {
+	local st = {
 		mode = s.mode,
 		lib = lib.def.name,
 		hand = table.clone(lib.hand),
@@ -113,6 +114,10 @@ function Game.state(s: Session): { [string]: any }
 		time = Game.playTime(s),
 		door = lib.shelved >= #lib.def.books,
 	}
+	for _, hook in Game.stateHooks do
+		hook(s, st)
+	end
+	return st
 end
 
 function Game.sendState(s: Session)

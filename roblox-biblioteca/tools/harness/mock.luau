@@ -149,11 +149,21 @@ function M.new(placePath: string, opts: { [string]: any }?)
 				signalFor(idOf(inst), "OnClientEvent"):Fire(table.unpack(args))
 			end
 		elseif key == "InvokeServer" then
+			-- Como Roblox: los nil en medio de los argumentos o de lo devuelto conservan su posición
 			return function(_, ...)
-				local args = serialize({ ... })
+				local packed = table.pack(...)
+				local args = {}
+				for i = 1, packed.n do
+					args[i] = serialize(packed[i])
+				end
 				table.insert(W.invoked, args[1])
 				local cb = assert(W.callbacks[inst.Name], "nadie escucha " .. inst.Name)
-				return table.unpack(serialize({ cb(W.player, table.unpack(args)) }))
+				local res = table.pack(cb(W.player, table.unpack(args, 1, packed.n)))
+				local outs = {}
+				for i = 1, res.n do
+					outs[i] = serialize(res[i])
+				end
+				return table.unpack(outs, 1, res.n)
 			end
 		elseif key == "WaitForChild" then
 			return function(_, name)

@@ -57,6 +57,7 @@ local function frame(n)
 	end
 end
 local function key(code)
+	W.fakeTime += 0.1 -- (el servidor limita a 25 acciones por segundo)
 	local io = { KeyCode = code, UserInputType = Enum.UserInputType.Keyboard }
 	W.UIS.InputBegan:Fire(io, false)
 	W.UIS.InputEnded:Fire(io)
@@ -202,6 +203,7 @@ local pressed = 0
 local function pressAll(container)
 	for _, b in container:GetDescendants() do
 		if (b:IsA("TextButton") or b:IsA("ImageButton")) and b.Parent then
+			W.fakeTime += 0.1
 			W.signalFor(W.idOf(W.unwrap(b)), "Activated"):Fire()
 			pressed += 1
 			frame(1)
@@ -221,9 +223,50 @@ for _, name in { "list", "map", "message" } do
 	pressAll(shell)
 	ctx.closePanel()
 end
--- Botones del HUD (en móvil: USAR, Soltar, Lanzar, Rotar, Correr, Lista, Mapa…)
-for _, b in gui:FindFirstChild("Root"):GetChildren() do
-	if b:IsA("TextButton") then
+-- Magia: el bot «tiene» 45 puntos; el manual permite aprender y la barra lanza
+session.slot.best = 200
+Game.sendState(session)
+frame(1)
+key(Enum.KeyCode.B)
+check(ctx.panel == "manual", "B abre el manual")
+dump("05_manual")
+local manualShell = gui:FindFirstChild("Root"):FindFirstChild("Panel_manual")
+for _ = 1, 3 do
+	for _, b in manualShell:GetDescendants() do
+		if b:IsA("TextButton") and b.Name == "Buy" then
+			W.fakeTime += 0.1
+			W.signalFor(W.idOf(W.unwrap(b)), "Activated"):Fire()
+			pressed += 1
+		end
+	end
+end
+check(ctx.state.skills.sort == 3 and ctx.state.skills.gather == 3 and ctx.state.points == 30, "los botones del manual aprenden y suben niveles")
+ctx.closePanel()
+local paintings = 0
+for _, g in player:FindFirstChild("PlayerGui"):GetChildren() do
+	if string.sub(g.Name, 1, 12) == "PaintingGui_" then paintings += 1 end
+end
+check(paintings == 4, "los 4 cuadros con pistas deben tener su dibujo")
+-- Cofre rojo con su llave: E abre el cofre y sale la nota de la rectora
+session.slot.keys.red = true
+Game.sendState(session)
+local chest = def.interact.chest_red
+look(chest + Vector3.new(0, 2.5, -3), chest)
+check(Aim.target and Aim.target.interact == "chest_red" and Aim.target.ok, "la cruceta marca el cofre rojo")
+key(Enum.KeyCode.E)
+check(ctx.panel == "message" and session.slot.chests.red, "abrir el cofre muestra la nota de la rectora (panel " .. tostring(ctx.panel) .. ", abierto " .. tostring(session.slot.chests.red) .. ")")
+dump("06_cofre")
+ctx.closePanel()
+-- Hechizos con la tecla y con la barra
+key(Enum.KeyCode.Two)
+check(ctx.state.active.guide > 0, "la tecla 2 lanza Guía")
+frame(15)
+dump("07_hechizos")
+
+-- Botones del HUD (en móvil: USAR, Soltar, Lanzar, Rotar, Correr, Lista, Mapa…) y de la barra de hechizos
+for _, b in gui:FindFirstChild("Root"):GetDescendants() do
+	if b:IsA("TextButton") and not string.find(b:GetFullName(), "Panel_") then
+		W.fakeTime += 0.1
 		W.signalFor(W.idOf(W.unwrap(b)), "Activated"):Fire()
 		W.signalFor(W.idOf(W.unwrap(b)), "MouseButton1Down"):Fire()
 		W.signalFor(W.idOf(W.unwrap(b)), "MouseButton1Up"):Fire()
@@ -257,5 +300,5 @@ local top = gui:FindFirstChild("Root"):FindFirstChild("TopCounter")
 check(string.find(top:FindFirstChild("Rows").Text, "Filas correctas"), "el contador de filas debe estar en español")
 local books = gui:FindFirstChild("Root"):FindFirstChild("BottomCounter"):FindFirstChild("Books")
 check(string.find(books.Text, "3.072"), "el contador de libros debe mostrar 3.072 (" .. books.Text .. ")")
-print(string.format("  [botones] %d botones pulsados (%s) · ventanas: lista, mapa, carta", pressed, DEVICE))
+print(string.format("  [botones] %d botones pulsados (%s) · ventanas: lista, mapa, carta, manual, nota del cofre", pressed, DEVICE))
 print("CLIENTE OK")

@@ -75,7 +75,7 @@ export type Def = {
 	spots: { Spot },
 	initial: { { pos: Vector3, yaw: number } },
 	interact: { [string]: Vector3 },
-	lights: { { pos: Vector3, range: number, brightness: number, color: Color3, shadows: boolean } },
+	lights: { { pos: Vector3, range: number, brightness: number, color: Color3, shadows: boolean, name: string? } },
 	bounds: Box,
 	floors: { number },
 	spawn: CFrame,
@@ -427,7 +427,7 @@ local function key(def: Def, color: string, pos: Vector3, lying: boolean)
 	end
 	PC(def, base * CFrame.new(0.13, -0.5, 0), Vector3.new(0.14, 0.1, 0.12), kc, Enum.Material.Neon, opts)
 	def.interact["key_" .. color] = pos
-	table.insert(def.lights, { pos = pos, range = 5, brightness = 1.4, color = kc, shadows = false })
+	table.insert(def.lights, { pos = pos, range = 5, brightness = 1.4, color = kc, shadows = false, name = "Key_" .. color .. "_Light" })
 end
 
 -- Tablón con el mapa de una planta (el cliente le dibuja el mapa)
