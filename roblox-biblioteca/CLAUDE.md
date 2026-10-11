@@ -12,14 +12,15 @@ Léelo entero antes de tocar nada. (El `CLAUDE.md` de la raíz explica cómo tra
   31 secciones / 400 filas. Réplica fiel de las **mecánicas y números** de un simulador de Steam de 2026
   (ver `DISENO.md`); todo lo que tiene derechos de autor es **nuestro**. Nombre: *Estanterías Hechizadas* /
   *Spellbound Shelves* (`Config.GAME_NAME`). **No menciones el juego original ni a su estudio en la ficha.**
-- **Versión: 0.1** (`Config.VERSION`; súbela en cada versión). **No publicado.**
+- **Versión: 0.9** (`Config.VERSION`; súbela en cada versión). **Juego completo (fases 1–6), NO publicado y
+  pendiente de que el usuario lo pruebe en Studio.** Pídele capturas (sobre todo de *Output* si sale algo rojo).
 - **Rama de trabajo:** `claude/biblioteca-arcana` (repo `candhu23/mi-priemra-web`). Si empiezas en `main` y
   la carpeta no existe: `git fetch origin claude/biblioteca-arcana && git checkout claude/biblioteca-arcana`.
 - **Descarga directa del lugar:**
   `https://github.com/candhu23/mi-priemra-web/raw/claude/biblioteca-arcana/roblox-biblioteca/Biblioteca.rbxl`
-- **Fases** (cada una con commit + push y aviso al usuario): 1 datos y documentos ✅ · 2 edificio y libros ·
-  3 bucle principal jugable · 4 progresión · 5 partida completa · 6 plataforma y pulido · 7 monetización
-  (**solo si el usuario la aprueba**; el original es de pago y no vende ventajas: nada aleatorio de pago).
+- **Fases**: 1 datos ✅ · 2 edificio ✅ · 3 bucle jugable ✅ · 4 progresión ✅ · 5 partida completa ✅ ·
+  6 plataforma y pulido ✅ · 7 monetización (**solo si el usuario la aprueba**; el original es de pago y no vende
+  ventajas: solo cosas cosméticas o de apoyo, nada aleatorio de pago).
   El estado al día está en `DISENO.md` §18.
 
 ## 2. Documentos de esta carpeta
@@ -27,7 +28,8 @@ Léelo entero antes de tocar nada. (El `CLAUDE.md` de la raíz explica cómo tra
 | Archivo | Para qué |
 |---|---|
 | `DISENO.md` | Todas las reglas y números, tabla original → nuestra versión, **supuestos** marcados, estado por fase |
-| `README.md` | Guía para el usuario: probar en Studio, publicar como experiencia NUEVA, insignias, cuestionario |
+| `README.md` | Guía para el usuario: probar en Studio, publicar como experiencia NUEVA, Max players 1, insignias (tabla con nombres/descripciones/imágenes), cuestionario, descripción ES/EN |
+| `docs/` | Planos vistos desde arriba, `icono_juego.png` y `insignias/*.png` (512 × 512, los genera `tools/harness/icons.py`) |
 | `CLAUDE.md` | Este archivo |
 
 ## 3. Estructura
@@ -155,6 +157,7 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
 - Ventanas: la tarjeta lleva `Active = true`; si no, el clic atraviesa al fondo (que cierra la ventana).
 - Los RemoteEvent disparados antes de que el cliente conecte se pierden en las pruebas: el cliente pide la foto
   con la acción `ready` cuando ya está escuchando.
+- Mando: al abrir una ventana, `selectFirst` pone `GuiService.SelectedObject` en su primer botón; **B** cierra.
 - **Lune: los `Enum` no sirven como clave de tabla** (cada acceso es un objeto nuevo): usa `key.Name`.
 - El simulador de remotes conserva los `nil` en medio de lo que devuelve una acción (como Roblox): `(true, nil, nil, extra)`.
 - En el simulador, `task.wait` en el hilo de la prueba solo avanza el reloj (si durmiera, la prueba se pararía sin
@@ -172,9 +175,12 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
 
 ## 7. Pendiente
 
-- [ ] Fase 6 (ver `DISENO.md` §18). Fase 7 (monetización) solo con aprobación del usuario.
-- [ ] Elegir música con licencia en la Creator Store y poner los IDs en `Config.Music`.
-- [ ] Crear las 12 insignias (5 gratis cada 24 h) y poner sus IDs en `Config.Badges`.
+- [ ] El usuario prueba en Studio (PC y móvil simulado) y manda capturas. Lo no verificado está en `DISENO.md` §18.
+- [ ] Publicar como **experiencia nueva**, Max players = 1, API Services, icono (`docs/icono_juego.png`).
+- [ ] Crear las 12 insignias (5 gratis cada 24 h, imágenes en `docs/insignias/`) y poner sus IDs en `Config.Badges`.
+- [ ] Opcional: música con licencia de la Creator Store → `Config.Music` (4 tramos).
+- [ ] Fase 7 (monetización) solo si el usuario la aprueba: propuestas en la conversación (pase de mecenas
+      cosmético, mascota Garabato que te sigue, temas de luz, propinas). Nada que acelere el reto.
 
 ## 8. Convenciones
 

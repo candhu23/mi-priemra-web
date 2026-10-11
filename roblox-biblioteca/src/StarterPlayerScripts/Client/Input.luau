@@ -168,7 +168,11 @@ function Input.build(ctx: Kit.Ctx)
 			ctx.gamepad = true
 		end
 		-- Tab y P funcionan aunque haya una ventana abierta (para cerrarla)
-		if key == K.Tab or key == K.ButtonB then
+		if key == K.ButtonB and ctx.panel then
+			-- B en el mando: atrás (cierra la ventana)
+			ctx.closePanel()
+			return
+		elseif key == K.Tab or key == K.ButtonB then
 			ctx.input.list()
 			return
 		elseif key == K.P then

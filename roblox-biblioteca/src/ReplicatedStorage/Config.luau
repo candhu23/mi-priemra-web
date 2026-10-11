@@ -4,7 +4,7 @@
 
 local Config = {}
 
-Config.VERSION = "0.1"
+Config.VERSION = "0.9" -- juego completo, pendiente de probar en Studio (1.0 al publicar)
 -- Nombre del juego (fácil de cambiar): no usar el nombre del juego original
 Config.GAME_NAME = { es = "Estanterías Hechizadas", en = "Spellbound Shelves" }
 
@@ -128,6 +128,7 @@ Config.LIGHT_HOURS = 3 -- a las 3 h de juego ya es de noche («horas extra»)
 ---------------------------------------------------------------------
 -- Audio. Solo audio con licencia: de la Creator Store de Roblox o los sonidos que trae Roblox
 -- (rbxasset://). "" = sin sonido. Música por tramos según el % de filas correctas.
+-- Si en Studio sale «Failed to load sound» en Output, cambia ese sonido por "" o por un ID de la Creator Store.
 ---------------------------------------------------------------------
 Config.Music = {
 	{ from = 0, id = "" },
@@ -139,7 +140,7 @@ Config.Sounds = {
 	pick = "rbxasset://sounds/clickfast.wav",
 	place = "rbxasset://sounds/clickfast.wav",
 	thud = "rbxasset://sounds/action_jump_land.mp3",
-	throw = "rbxasset://sounds/swoosh.wav",
+	throw = "rbxasset://sounds/swordlunge.wav",
 	row = "rbxasset://sounds/electronicpingshort.wav",
 	plate = "rbxasset://sounds/electronicpingshort.wav",
 	ui = "rbxasset://sounds/button.wav",

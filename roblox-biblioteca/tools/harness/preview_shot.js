@@ -6,9 +6,9 @@ const { chromium } = require("playwright");
 	const page = await browser.newPage({ viewport: { width: +w, height: +h }, deviceScaleFactor: +scale });
 	for (const f of files) {
 		await page.goto("file://" + f);
-		await page.waitForSelector("body[data-ready]", { timeout: 15000, state: "attached" });
+		await page.waitForSelector("body[data-ready]", { timeout: 3000, state: "attached" }).catch(() => {});
 		await page.evaluate(() => document.fonts.ready);
-		await page.screenshot({ path: f.replace(/\.html$/, ".png") });
+		await page.screenshot({ path: f.replace(/\.html$/, ".png"), omitBackground: true });
 		console.log(f.replace(/\.html$/, ".png"));
 	}
 	await browser.close();

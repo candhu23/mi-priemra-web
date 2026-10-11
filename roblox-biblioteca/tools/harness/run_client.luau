@@ -385,6 +385,19 @@ if DEVICE == "movil" then
 		check(ctx.targets["touch_" .. name], "falta el botón táctil " .. name)
 	end
 end
+-- Mando: al abrir una ventana se selecciona un botón; B cierra
+ctx.gamepad = true
+W.fakeTime += 0.1
+W.UIS.InputBegan:Fire({ KeyCode = Enum.KeyCode.ButtonL2, UserInputType = Enum.UserInputType.Gamepad1 }, false)
+check(ctx.panel == "manual", "LT abre el manual con el mando")
+local sel = W.mocks.GuiService.SelectedObject
+check(sel and W.unwrap(sel):IsA("TextButton"), "con mando se selecciona un botón de la ventana")
+W.UIS.InputBegan:Fire({ KeyCode = Enum.KeyCode.ButtonB, UserInputType = Enum.UserInputType.Gamepad1 }, false)
+check(ctx.panel == nil, "B cierra la ventana")
+W.UIS.InputBegan:Fire({ KeyCode = Enum.KeyCode.DPadUp, UserInputType = Enum.UserInputType.Gamepad1 }, false)
+ctx.gamepad = DEVICE == "mando"
+print("  [mando] LT manual · botón seleccionado · B atrás · cruceta = hechizos")
+
 -- Lanzar y soltar con teclado (con un libro en la mano)
 look(target + Vector3.new(2.2, 2.2, 0), target)
 if Aim.target and Aim.target.ok then

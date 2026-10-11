@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
+local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -81,6 +82,8 @@ end
 -- Acciones y ventanas
 ---------------------------------------------------------------------
 -- Los parámetros que son claves de texto («sk_sort», «key_red») se traducen; «B» = tecla del manual
+local selectFirst: (string) -> ()
+
 local function translateParams(params: { [string]: any }?): { [string]: any }
 	local out: { [string]: any } = {}
 	local given: { [string]: any } = params or {}
@@ -112,6 +115,33 @@ ctx.act = function(name: string, a: any?, b: any?, c: any?): (boolean, { [string
 	return okRes == true, extra
 end
 
+-- Mando: al abrir una ventana (o el título) se selecciona su primer botón para moverse con la cruceta y pulsar A
+function selectFirst(container: string)
+	if not (ctx.gamepad or UserInputService.GamepadEnabled) then
+		return
+	end
+	local frame = ctx.root:FindFirstChild(container)
+	if not frame then
+		return
+	end
+	local best: GuiObject? = nil
+	for _, d in frame:GetDescendants() do
+		if d:IsA("TextButton") and d.Visible and d.Name ~= "Backdrop" and d.Name ~= "Modal" then
+			if not best or d.Name == "Ok" or d.Name == "ToMenu" or string.sub(d.Name, 1, 5) == "Menu_" or string.sub(d.Name, 1, 6) == "Pause_" then
+				best = d
+				if d.Name ~= "Close" then
+					break
+				end
+			end
+		end
+	end
+	if best then
+		pcall(function()
+			GuiService.SelectedObject = best
+		end)
+	end
+end
+
 ctx.openPanel = function(name: string)
 	if ctx.panel and ctx.panel ~= name then
 		ctx.closePanel()
@@ -124,6 +154,7 @@ ctx.openPanel = function(name: string)
 	Aim.hide()
 	p.open()
 	UserInputService.MouseIconEnabled = true
+	selectFirst("Panel_" .. name)
 end
 
 ctx.closePanel = function()
@@ -136,7 +167,14 @@ ctx.closePanel = function()
 	if p and p.close then
 		p.close()
 	end
-	UserInputService.MouseIconEnabled = false
+	UserInputService.MouseIconEnabled = ctx.state.mode == "menu"
+	if ctx.state.mode == "menu" then
+		selectFirst("Title")
+	else
+		pcall(function()
+			GuiService.SelectedObject = nil
+		end)
+	end
 end
 
 Books.lang = ctx.lang
@@ -337,6 +375,11 @@ onState.OnClientEvent:Connect(function(state: { [string]: any })
 			ctx.closePanel()
 		end
 		UserInputService.MouseIconEnabled = state.mode == "menu" or ctx.panel ~= nil
+		if state.mode == "menu" and not ctx.panel then
+			task.defer(function()
+				selectFirst("Title")
+			end)
+		end
 	end
 	refreshAll()
 	Input.applySpeed()

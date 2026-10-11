@@ -319,5 +319,14 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 | 3 | Bucle principal jugable | ✅ bot de servidor (partida entera 400/400) y cliente PC/móvil |
 | 4 | Puntos, manual, magias, llaves, cristal | ✅ bot: 4 llaves (altas solo saltando), cofres, cristal, 5 hechizos al máximo con 45 puntos |
 | 5 | Guardado, menú, opciones, luz, música, puerta, finales, insignias, fase especial | ✅ bot: guardar/salir/entrar idéntico, 4 finales, 6 rangos, 12 insignias, definitiva |
-| 6 | Táctil, mando, rendimiento, revisión ES/EN, README | pendiente |
+| 6 | Táctil, mando, rendimiento, revisión ES/EN, README | ✅ mando con selección de botones, móvil sin tapar los controles de Roblox, 10.562 piezas, guía de publicación, 12 imágenes de insignias |
 | 7 | Monetización (solo si el usuario la aprueba) | sin empezar |
+
+### Lo que NO se ha podido verificar (no hay Studio en el entorno de trabajo)
+
+- Cómo se ve de verdad: luz *Future*, brillos de neón, legibilidad de los lomos y placas, tamaño de los textos.
+- Rendimiento real en móvil con ~10.500 piezas (el presupuesto se mide, pero no los FPS).
+- Sensación de la cámara en primera persona, el salto alto al reloj y a las llaves, y los botones táctiles.
+- Que existan los sonidos `rbxasset://` elegidos (si Output dice «Failed to load sound», se ponen a "").
+- DataStore, insignias y teletransporte reales (en las pruebas son simulados).
+- Si «Max players = 1» se puede poner (el juego aguanta un 2.º jugador si no).
