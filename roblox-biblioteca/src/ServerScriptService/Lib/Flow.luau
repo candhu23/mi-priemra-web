@@ -255,7 +255,17 @@ local OPTIONS: { [string]: (any) -> any } = {
 	left = function(v)
 		return if type(v) == "boolean" then v else nil
 	end,
+	glow = function(v)
+		return if type(v) == "string" and Config.GLOW_COLORS[v] then v else nil
+	end,
+	pet = function(v)
+		return if type(v) == "boolean" then v else nil
+	end,
+	theme = function(v)
+		return if type(v) == "string" and table.find(Config.THEMES, v) then v else nil
+	end,
 }
+Flow.checkOption = nil :: ((any, string) -> (boolean, string?, { [string]: any }?))?
 
 A.setOption = function(s, key, value)
 	local check = if type(key) == "string" then OPTIONS[key] else nil
@@ -265,6 +275,12 @@ A.setOption = function(s, key, value)
 	local v = check(value)
 	if v == nil then
 		return false, "err_generic"
+	end
+	if Flow.checkOption then
+		local ok, err, params = Flow.checkOption(s, key)
+		if not ok then
+			return false, err, params
+		end
 	end
 	s.profile.settings[key] = v
 	s.dirty = true

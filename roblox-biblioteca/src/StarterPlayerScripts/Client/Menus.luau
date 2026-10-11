@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Lang = require(ReplicatedStorage:WaitForChild("Lang"))
 local Kit = require(script.Parent:WaitForChild("Kit"))
+local Shop = require(script.Parent:WaitForChild("Shop"))
 
 local Menus = {}
 local C = Kit.C
@@ -14,6 +15,7 @@ local C = Kit.C
 function Menus.build(ctx: Kit.Ctx)
 	local T = Kit.T
 	local root = ctx.root
+	Shop.build(ctx)
 
 	-------------------------------------------------------------------
 	-- Confirmación (Sí / No)
@@ -203,17 +205,21 @@ function Menus.build(ctx: Kit.Ctx)
 			ctx.closePanel()
 			ctx.act("toMenu")
 		end },
+		{ id = "shop", text = T("btn_shop"), f = function()
+			ctx.openPanel("shop")
+		end },
 	}
 	for i, b in pauseButtons do
 		ctx.targets["pause_" .. b.id] = Kit.button(pause.body, b.text, UDim2.new(1, 0, 0, 52), UDim2.fromOffset(0, (i - 1) * 60), b.f, {
 			ZIndex = 23, Name = "Pause_" .. b.id, TextSize = 20,
 		})
 	end
-	local help = Kit.label(pause.body, "", UDim2.new(1, 0, 0, 200), UDim2.fromOffset(0, 4 * 60 + 6), {
+	local help = Kit.label(pause.body, "", UDim2.new(1, 0, 0, 200), UDim2.fromOffset(0, 5 * 60 + 6), {
 		TextSize = 13, TextColor3 = C.muted, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 23, Name = "Help",
 	})
 	ctx.panels.menu = {
 		open = function()
+			ctx.targets.pause_shop.Visible = Shop.available(ctx.state)
 			help.Text = T("opt_controls") .. "\n" .. (if ctx.touch then T("help_touch") elseif ctx.gamepad then T("help_pad") else T("help_pc"))
 			pause.shell.Visible = true
 		end,
@@ -342,6 +348,9 @@ function Menus.build(ctx: Kit.Ctx)
 	mb(5, "options", T("menu_options"), function()
 		ctx.openPanel("options")
 	end)
+	mb(6, "shop", T("btn_shop"), function()
+		ctx.openPanel("shop")
+	end)
 	-- Ranuras
 	local slotsBox = Kit.frame(title, UDim2.fromOffset(520, 3 * 150), UDim2.new(1, -560, 0.5, -225), C.ink, 1)
 	slotsBox.ZIndex = 11
@@ -399,6 +408,7 @@ function Menus.build(ctx: Kit.Ctx)
 		local slots = st.slots or {}
 		local last = st.lastSlot or 0
 		menuButtons.continue.Visible = last > 0 and slots[last] ~= nil and slots[last] ~= false
+		menuButtons.shop.Visible = Shop.available(ctx.state)
 		menuButtons.special.Text = if st.specialUnlocked then T("menu_special") else "🔒 " .. T("menu_special")
 		menuButtons.special.AutoButtonColor = st.specialUnlocked == true
 		menuButtons.new.Text = if choosing then "✕ " .. T("menu_new") else T("menu_new")

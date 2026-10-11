@@ -34,6 +34,8 @@ export type Session = {
 	lastSave: number,
 	special: any,
 	spells: any,
+	passes: any,
+	studio: boolean,
 }
 
 Game.sessions = {} :: { [Player]: Session }
@@ -450,6 +452,8 @@ function Game.newSession(player: Player): Session
 		lastSave = now(),
 		special = nil,
 		spells = nil,
+		passes = {},
+		studio = false,
 	}
 	Game.sessions[player] = s
 	return s

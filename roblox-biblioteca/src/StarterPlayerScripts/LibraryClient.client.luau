@@ -13,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 local Layout = require(ReplicatedStorage:WaitForChild("Layout"))
 local Codec = require(ReplicatedStorage:WaitForChild("Codec"))
 local Client = script.Parent:WaitForChild("Client")
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Kit = require(Client:WaitForChild("Kit"))
 local Books = require(Client:WaitForChild("Books"))
 local Aim = require(Client:WaitForChild("Aim"))
@@ -23,6 +24,7 @@ local MapArt = require(Client:WaitForChild("MapArt"))
 local Spells = require(Client:WaitForChild("Spells"))
 local Menus = require(Client:WaitForChild("Menus"))
 local Ambience = require(Client:WaitForChild("Ambience"))
+local Pet = require(Client:WaitForChild("Pet"))
 local Lang = require(ReplicatedStorage:WaitForChild("Lang"))
 
 local player = Players.LocalPlayer
@@ -182,6 +184,7 @@ Books.init()
 -- Controles y ambiente se crean una vez; la interfaz se rehace entera al cambiar de idioma
 Input.build(ctx)
 Ambience.build(ctx)
+Pet.build(ctx)
 local coreTickers = table.clone(ctx.tickers)
 local function buildUI()
 	Hud.build(ctx)
@@ -371,7 +374,7 @@ onState.OnClientEvent:Connect(function(state: { [string]: any })
 	if modeChanged then
 		lastMode = state.mode
 		-- Al cambiar entre menú y biblioteca se cierran las ventanas del otro sitio
-		if ctx.panel and ctx.panel ~= "options" and ctx.panel ~= "achievements" and ctx.panel ~= "confirm" and ctx.panel ~= "message" and ctx.panel ~= "results" then
+		if ctx.panel and ctx.panel ~= "options" and ctx.panel ~= "achievements" and ctx.panel ~= "shop" and ctx.panel ~= "confirm" and ctx.panel ~= "message" and ctx.panel ~= "results" then
 			ctx.closePanel()
 		end
 		UserInputService.MouseIconEnabled = state.mode == "menu" or ctx.panel ~= nil
@@ -381,6 +384,9 @@ onState.OnClientEvent:Connect(function(state: { [string]: any })
 			end)
 		end
 	end
+	-- Brillo del mecenas (con el pase; si no, dorado)
+	local glow = if state.passes and state.passes.patron and state.settings then state.settings.glow else nil
+	Books.setGlowColor(Config.GLOW_COLORS[glow or "gold"] or Config.GLOW_COLORS.gold)
 	refreshAll()
 	Input.applySpeed()
 end)

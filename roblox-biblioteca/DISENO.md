@@ -288,6 +288,21 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 - **El principio es lento** (sin saltar ni correr, 10 libros) → opción: llave verde más a la vista, o
   capacidad inicial 12.
 
+## 16 bis. Tienda (fase 7, aprobada por el usuario)
+
+Solo cosas **decorativas o de apoyo**: nada hace el reto más fácil y nada es aleatorio. `Config.GamePasses` /
+`Config.Products` (precios recomendados, **supuesto**):
+
+| Artículo | Tipo | Qué hace | Precio |
+|---|---|---|---|
+| Mecenas de la biblioteca | Pase | Color del brillo «bien colocado»: dorado, verde o violeta | 99 |
+| Garabato de mascota | Pase | El gato alado vuela a tu lado (solo decorativo, no choca) | 149 |
+| Temas de luz | Pase | Noche estrellada (23:00 fija) u otoño (tono cálido sobre la luz normal) | 79 |
+| Un café para la rectora | Producto | Propina; solo un aviso de gracias | 25 |
+| Pizza para el claustro | Producto | Propina grande; solo un aviso de gracias | 100 |
+
+El color rojo (sección correcta, algo falla) **no cambia**: es información del juego. La placa azul tampoco.
+
 ## 17. Lista de supuestos (todos en `Config.luau`)
 
 | Dato desconocido | Valor elegido |
@@ -320,7 +335,7 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 | 4 | Puntos, manual, magias, llaves, cristal | ✅ bot: 4 llaves (altas solo saltando), cofres, cristal, 5 hechizos al máximo con 45 puntos |
 | 5 | Guardado, menú, opciones, luz, música, puerta, finales, insignias, fase especial | ✅ bot: guardar/salir/entrar idéntico, 4 finales, 6 rangos, 12 insignias, definitiva |
 | 6 | Táctil, mando, rendimiento, revisión ES/EN, README | ✅ mando con selección de botones, móvil sin tapar los controles de Roblox, 10.562 piezas, guía de publicación, 12 imágenes de insignias |
-| 7 | Monetización (solo si el usuario la aprueba) | sin empezar |
+| 7 | Tienda aprobada: pase de mecenas (brillo verde/violeta), mascota Garabato, temas de luz (noche estrellada, otoño), 2 propinas | ✅ bot: opciones bloqueadas sin pase, compra en directo, recibos sin duplicar; cliente: panel, mascota (13 piezas, sin colisión), brillo y temas |
 
 ### Lo que NO se ha podido verificar (no hay Studio en el entorno de trabajo)
 
@@ -330,3 +345,5 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 - Que existan los sonidos `rbxasset://` elegidos (si Output dice «Failed to load sound», se ponen a "").
 - DataStore, insignias y teletransporte reales (en las pruebas son simulados).
 - Si «Max players = 1» se puede poner (el juego aguanta un 2.º jugador si no).
+- Compras reales (ventana de Roblox, `UserOwnsGamePassAsync`, `ProcessReceipt`): simuladas en las pruebas.
+- Cómo se ven Garabato volando, el cielo de la noche estrellada (depende del cielo por defecto) y el tono de otoño.

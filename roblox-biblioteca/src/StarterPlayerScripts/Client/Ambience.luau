@@ -19,6 +19,17 @@ local Ambience = {}
 
 Ambience.COZY_CLOCK = 16.5 -- (supuesto) hora fija del modo acogedor
 Ambience.MENU_CLOCK = 17.2
+Ambience.STARS_CLOCK = 23 -- tema «noche estrellada» (pase de temas)
+Ambience.AUTUMN_TINT = Color3.fromRGB(255, 222, 180) -- tema «otoño»: tono cálido sobre la luz normal
+
+-- Tema de luz activo (solo con el pase de temas)
+function Ambience.theme(st: { [string]: any }): string
+	local set = st.settings or {}
+	if st.passes and st.passes.themes and type(set.theme) == "string" then
+		return set.theme
+	end
+	return "normal"
+end
 
 -- Hora del día según el tiempo de juego
 function Ambience.clockFor(seconds: number): number
@@ -55,6 +66,12 @@ function Ambience.build(ctx: Kit.Ctx)
 	local wasMenu = false
 	local menuT = 0
 	local lightT = 0
+	local tint = Instance.new("ColorCorrectionEffect")
+	tint.Name = "ThemeTint"
+	tint.Enabled = false
+	tint.TintColor = Ambience.AUTUMN_TINT
+	tint.Saturation = 0.15
+	tint.Parent = Lighting
 
 	table.insert(ctx.tickers, function(dt: number)
 		local st = ctx.state
@@ -87,8 +104,12 @@ function Ambience.build(ctx: Kit.Ctx)
 		if lightT >= 0.5 then
 			lightT = 0
 			local clock
+			local theme = if inMenu then "normal" else Ambience.theme(st)
+			tint.Enabled = theme == "autumn"
 			if inMenu then
 				clock = Ambience.MENU_CLOCK
+			elseif theme == "stars" then
+				clock = Ambience.STARS_CLOCK
 			elseif st.mode == "special" or set.cozy then
 				clock = Ambience.COZY_CLOCK
 			else

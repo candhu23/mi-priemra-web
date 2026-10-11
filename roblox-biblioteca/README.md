@@ -77,7 +77,7 @@ Para copiar el ID: *Engagement → Badges* → **⋯ → Copy Asset ID**. **Mán
   Los títulos de los libros son humorísticos y aptos para todos. Hay una sección de «Novela romántica» con
   títulos inocentes (p. ej. *El dragón que quería un abrazo*); si el cuestionario pregunta por temas románticos,
   **elige la opción más baja**: no hay escenas ni imágenes.
-- Artículos aleatorios de pago: **No** (el juego no vende nada).
+- Artículos aleatorios de pago: **No** (la tienda solo vende cosas decorativas y propinas, nada aleatorio).
 - Recuerda (normas de 2026): las experiencias nuevas salen limitadas a 16+ hasta llegar a 250 jugadores activos.
 
 ### 2.3 Descripción para la página (sin mencionar ningún otro juego)
@@ -101,6 +101,32 @@ Para copiar el ID: *Engagement → Badges* → **⋯ → Copy Asset ID**. **Mán
 El juego no trae música (solo sonidos incluidos en Roblox). Si quieres: en la **Creator Store** busca *Audio*
 con licencia (música tranquila: «calm», «ambient», «library»), copia de 1 a 4 IDs y mándamelos: sonarán por tramos
 según avanzas (0 %, 25 %, 50 % y 85 % de filas correctas).
+
+### 2.5 Tienda (pases y propinas)
+
+Todo es **decorativo o propina**: nada hace el juego más fácil. Mientras un artículo tenga ID 0 **no sale** en el
+juego publicado (en Studio sale como «Muestra» y desbloqueado, para que lo pruebes: **P → Tienda**).
+
+**Pases** (Creator Hub → *Creations* → tu experiencia → **Monetization → Passes → Create a Pass**): imagen (512 × 512),
+nombre y descripción → *Create Pass*. Luego entra en el pase → **Sales** → activa *Item for Sale*, pon el precio →
+*Save*. Copia el ID (el número de la dirección del pase o ⋯ → *Copy Asset ID*).
+
+| Clave | Nombre (EN / ES) | Descripción | Precio recomendado |
+|---|---|---|---|
+| `patron` | Library Patron / Mecenas de la biblioteca | Well-placed books glow in green or violet instead of gold. | 99 |
+| `pet` | Scribble Pet / Garabato de mascota | Scribble the winged cat flies beside you. Cosmetic only. | 149 |
+| `themes` | Light Themes / Temas de luz | Tidy up under a starry night or an autumn afternoon. | 79 |
+
+**Propinas** (**Monetization → Developer Products → Create a Developer Product**): nombre, precio → *Create*;
+copia el ID.
+
+| Clave | Nombre (EN / ES) | Precio recomendado |
+|---|---|---|
+| `tip_s` | A Coffee for the Headmistress / Un café para la rectora | 25 |
+| `tip_l` | Pizza for the Faculty / Pizza para el claustro | 100 |
+
+**Mándame los 5 IDs** y los pongo en el juego. Los precios son una recomendación: elige los que quieras al crearlos
+(dímelos para que el botón muestre el mismo precio).
 
 ---
 

@@ -707,6 +707,57 @@ ok = act("setOption", "lang", "fr")
 check(not ok, "idioma no válido")
 ok = act("setOption", "bogus", 1)
 check(not ok, "opción desconocida")
+
+print("-- Tienda (fase 7) --")
+s = lastState()
+check(s.studio == true and s.passes.patron and s.passes.pet and s.passes.themes, "en Studio todos los pases están de muestra")
+check(#s.shop.passes == 3 and #s.shop.products == 2, "la tienda lleva 3 pases y 2 propinas")
+check(act("setOption", "glow", "green") and lastState().settings.glow == "green", "brillo verde con el pase")
+check(act("setOption", "pet", true) and lastState().settings.pet == true, "mascota con el pase")
+check(act("setOption", "theme", "stars") and lastState().settings.theme == "stars", "tema noche estrellada")
+check(not act("setOption", "glow", "pink"), "color no válido")
+check(not act("setOption", "theme", "lava"), "tema no válido")
+-- Sin el pase (juego publicado sin comprar): no se puede elegir
+local savedPasses = session.passes
+session.passes = {}
+local okP, keyP = act("setOption", "glow", "violet")
+check(not okP and keyP == "err_need_pass" and lastState().settings.glow == "green", "sin pase no cambia el brillo")
+check(act("setOption", "sfx", 0.3), "las opciones normales no piden pase")
+-- Compra de un pase durante la partida
+for _, p in Config.GamePasses do
+	p.id = 9000 + #p.key
+end
+W.MarketplaceService.PromptGamePassPurchaseFinished:Fire(player, 9000 + #"patron", true)
+check(session.passes.patron == true and lastState().passes.patron == true, "al comprar el pase se activa al momento")
+check(act("setOption", "glow", "violet"), "con el pase recién comprado ya se puede")
+session.passes = savedPasses
+-- Propinas: idempotente (el mismo recibo no se cuenta dos veces)
+for i, p in Config.Products do
+	p.id = 8000 + i
+end
+local MS = W.MarketplaceService
+check(type(MS.ProcessReceipt) == "function", "hay ProcessReceipt")
+local granted = "PurchaseGranted"
+local tips0 = session.profile.tips
+check(MS.ProcessReceipt({ PlayerId = 42, ProductId = 8001, PurchaseId = "R1" }).Name == granted, "propina cobrada")
+check(MS.ProcessReceipt({ PlayerId = 42, ProductId = 8001, PurchaseId = "R1" }).Name == granted, "recibo repetido: se confirma")
+check(session.profile.tips == tips0 + 25, "el recibo repetido no se cuenta dos veces")
+check(MS.ProcessReceipt({ PlayerId = 42, ProductId = 7777, PurchaseId = "R2" }).Name ~= granted, "producto desconocido: no se confirma")
+check(MS.ProcessReceipt({ PlayerId = 999, ProductId = 8001, PurchaseId = "R3" }).Name ~= granted, "jugador que no está: no se confirma")
+local thanked = false
+for _, line in notes() do
+	if string.find(line, "Gracias por tu apoyo") then
+		thanked = true
+	end
+end
+check(thanked, "aviso de gracias por la propina")
+for _, p in Config.GamePasses do
+	p.id = 0
+end
+for _, p in Config.Products do
+	p.id = 0
+end
+print("  [tienda] pases de muestra en Studio, opciones con pase, compra en directo y propinas sin duplicar")
 act("deleteSlot", 2)
 check(lastState().slots[2] == false, "borrar la ranura 2")
 -- Todo se guarda al salir

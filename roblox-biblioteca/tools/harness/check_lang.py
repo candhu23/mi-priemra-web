@@ -18,7 +18,7 @@ def table_keys(name):
 
 
 es, en = table_keys("es"), table_keys("en")
-PREFIX = r"(?:err|n|tut|aim|btn|hud|menu|slot|sk|res|rank|end|ach|sp|map|list|opt|help|note|reward|key|painting|warn|letter|door|confirm|best|manual|special|time)_[a-z0-9_]+"
+PREFIX = r"(?:err|n|tut|aim|btn|hud|menu|slot|sk|res|rank|end|ach|sp|map|list|opt|help|note|reward|key|painting|warn|letter|door|confirm|best|manual|special|time|shop|item|glow|theme)_[a-z0-9_]+"
 used = set()
 for f in glob.glob(os.path.join(SRC, "**", "*.luau"), recursive=True):
 	if f.endswith("Lang.luau"):
@@ -40,6 +40,12 @@ for i in range(1, 7):
 	used.add(f"rank_{i}")
 for e in ("normal", "pizza", "nomagic", "fired", "partial"):
 	used |= {"end_" + e, "end_" + e + "_d"}
+for k in re.findall(r"\{ key = \"([a-z_]+)\", id = ", config):
+	used |= {"item_" + k, "item_" + k + "_d"}
+for g in ("gold", "green", "violet"):
+	used.add("glow_" + g)
+for t in ("normal", "stars", "autumn"):
+	used.add("theme_" + t)
 ach = re.search(r"Config.Achievements = \{([^}]*)\}", config).group(1)
 for a in re.findall(r"\"([a-z0-9_]+)\"", ach):
 	used |= {"ach_" + a, "ach_" + a + "_d"}

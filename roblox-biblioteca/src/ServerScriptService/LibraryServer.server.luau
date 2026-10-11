@@ -14,6 +14,8 @@ local Building = require(Lib:WaitForChild("Building"))
 local Game = require(Lib:WaitForChild("Game"))
 local Magic = require(Lib:WaitForChild("Magic"))
 local Flow = require(Lib:WaitForChild("Flow"))
+local Shop = require(Lib:WaitForChild("Shop"))
+Flow.checkOption = Shop.checkOption
 
 local library = Building.build(Layout.get("main"), Workspace)
 Building.build(Layout.get("special"), Workspace)
@@ -79,6 +81,7 @@ local function start(player: Player)
 		end)
 	end
 	player.CharacterAdded:Connect(onCharacter)
+	Shop.join(s)
 	Flow.join(s)
 end
 

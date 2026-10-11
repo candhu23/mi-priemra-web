@@ -148,6 +148,19 @@ Lang.es = {
 	help_pc = "WASD: andar · Ratón: mirar · E o clic: coger / colocar · R: soltar (mantén: soltar todo) · F: lanzar · Clic derecho: el de arriba pasa abajo · Tab: lista · 1–5: magia · M: mapa · B: manual · P: menú · Espacio: saltar · Mayús: correr",
 	help_touch = "Joystick: andar · Arrastra: mirar · USAR: coger / colocar · Soltar (mantén: todo) · Lanzar · Lista · 1–5: magia",
 	help_pad = "RT: coger / colocar · X: soltar (mantén: todo) · Y: lanzar · RB: rotar pila · B: lista · Cruceta y LB: magia 1–5 · LT: manual · Select: mapa · L3: correr · A: saltar",
+	-- Tienda
+	btn_shop = "Tienda", shop_title = "Tienda de la academia", shop_hint = "Todo es decorativo o de apoyo: nada hace el juego más fácil.",
+	shop_buy = "Comprar · {price} R$", shop_on = "Que vuele", shop_off = "A dormir", shop_owned = "✔ Lo tienes", shop_sample = "Muestra (sin ID todavía)", shop_studio = "En Studio todo está desbloqueado para probarlo.",
+	item_patron = "Mecenas de la biblioteca", item_patron_d = "Los libros bien colocados brillan del color que elijas.",
+	item_pet = "Garabato de mascota", item_pet_d = "El gato alado culpable de todo vuela a tu lado (y se hace el inocente).",
+	item_themes = "Temas de luz", item_themes_d = "Ordena bajo una noche estrellada o una tarde de otoño.",
+	item_tip_s = "Un café para la rectora", item_tip_s_d = "Propina: apoya el juego. No da nada dentro.",
+	item_tip_l = "Pizza para el claustro", item_tip_l_d = "Propina grande: apoya el juego. No da nada dentro.",
+	glow_gold = "Dorado", glow_green = "Verde", glow_violet = "Violeta",
+	theme_normal = "Normal", theme_stars = "Noche estrellada", theme_autumn = "Otoño",
+	opt_glow = "Color del brillo", opt_pet = "Mascota", opt_theme = "Tema de luz",
+	n_pass = "¡Gracias! Ya tienes: {item}", n_tip = "¡Gracias por tu apoyo! La rectora brinda con chocolate caliente.",
+	err_need_pass = "Necesitas el pase «{item}» (Tienda).",
 	time_fmt = "{h} h {m} min",
 }
 
@@ -279,6 +292,18 @@ Lang.en = {
 	help_pc = "WASD: walk · Mouse: look · E or click: pick up / place · R: drop (hold: drop all) · F: throw · Right click: top book goes to the bottom · Tab: list · 1–5: magic · M: map · B: handbook · P: menu · Space: jump · Shift: run",
 	help_touch = "Joystick: walk · Drag: look · USE: pick up / place · Drop (hold: all) · Throw · List · 1–5: magic",
 	help_pad = "RT: pick up / place · X: drop (hold: all) · Y: throw · RB: rotate stack · B: list · D-pad and LB: magic 1–5 · LT: handbook · Select: map · L3: run · A: jump",
+	btn_shop = "Shop", shop_title = "Academy shop", shop_hint = "Everything is cosmetic or a tip: nothing makes the game easier.",
+	shop_buy = "Buy · {price} R$", shop_on = "Fly with me", shop_off = "Nap time", shop_owned = "✔ Owned", shop_sample = "Sample (no ID yet)", shop_studio = "In Studio everything is unlocked for testing.",
+	item_patron = "Library Patron", item_patron_d = "Well-placed books glow in the color you choose.",
+	item_pet = "Scribble Pet", item_pet_d = "The winged cat who caused all this flies beside you (looking innocent).",
+	item_themes = "Light Themes", item_themes_d = "Tidy up under a starry night or an autumn afternoon.",
+	item_tip_s = "A Coffee for the Headmistress", item_tip_s_d = "Tip: supports the game. Gives nothing in-game.",
+	item_tip_l = "Pizza for the Faculty", item_tip_l_d = "Big tip: supports the game. Gives nothing in-game.",
+	glow_gold = "Gold", glow_green = "Green", glow_violet = "Violet",
+	theme_normal = "Normal", theme_stars = "Starry night", theme_autumn = "Autumn",
+	opt_glow = "Glow color", opt_pet = "Pet", opt_theme = "Light theme",
+	n_pass = "Thank you! You now own: {item}", n_tip = "Thanks for your support! The Headmistress raises a mug of hot cocoa.",
+	err_need_pass = "You need the «{item}» pass (Shop).",
 	time_fmt = "{h} h {m} min",
 }
 

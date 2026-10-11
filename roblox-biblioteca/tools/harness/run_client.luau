@@ -20,6 +20,7 @@ local RS = W.game:GetService("ReplicatedStorage")
 local SSS = W.game:GetService("ServerScriptService")
 local Layout = W.require(W.wrap(RS:FindFirstChild("Layout")))
 local Lang = W.require(W.wrap(RS:FindFirstChild("Lang")))
+local Config = W.require(W.wrap(RS:FindFirstChild("Config")))
 
 local function check(cond, msg)
 	if not cond then
@@ -321,6 +322,52 @@ key(Enum.KeyCode.P)
 press(ctx.targets.pause_achievements)
 check(ctx.panel == "achievements", "pausa → logros")
 dump("13_logros")
+ctx.closePanel()
+-- Tienda (fase 7): en Studio todo de muestra; elegir brillo, mascota y tema
+key(Enum.KeyCode.P)
+check(W.unwrap(ctx.targets.pause_shop).Visible, "en Studio sale el botón Tienda")
+press(ctx.targets.pause_shop)
+check(ctx.panel == "shop", "pausa → tienda")
+dump("15_tienda")
+press(ctx.targets.shop_patron_green)
+check(ctx.state.settings.glow == "green", "brillo verde")
+local greenSeen, goodSeen = false, 0
+for _, d in W.game:GetService("Workspace"):GetDescendants() do
+	if d:IsA("BasePart") and d:GetAttribute("Good") == true then
+		goodSeen += 1
+		if d.Color == Config.GLOW_COLORS.green then
+			greenSeen = true
+		end
+	end
+end
+check(goodSeen > 0 and greenSeen, "los libros bien colocados brillan en verde (" .. goodSeen .. ")")
+press(ctx.targets.shop_pet_true)
+check(ctx.state.settings.pet == true, "mascota activada")
+frame(20)
+local pet = W.game:GetService("Workspace"):FindFirstChild("Garabato")
+check(pet and #pet:GetChildren() == 13, "Garabato vuela a tu lado (13 piezas)")
+for _, part in pet:GetChildren() do
+	check(part.CanCollide == false and part.CanQuery == false, "la mascota no choca ni la alcanza la cruceta")
+end
+press(ctx.targets.shop_themes_stars)
+frame(40)
+local Lighting = W.game:GetService("Lighting")
+check(ctx.state.settings.theme == "stars" and math.abs(Lighting.ClockTime - 23) < 0.01, "noche estrellada")
+press(ctx.targets.shop_themes_autumn)
+frame(40)
+check(Lighting:FindFirstChild("ThemeTint").Enabled == true, "otoño: tono cálido")
+press(ctx.targets.shop_themes_normal)
+press(ctx.targets.shop_patron_gold)
+-- Propina con ID: abre la compra de Roblox
+local ConfigC = W.require(W.wrap(RS:FindFirstChild("Config")))
+ConfigC.Products[1].id = 8001
+local n0 = #W.prompts
+press(ctx.targets.shop_tip_s)
+check(#W.prompts == n0 + 1 and W.prompts[#W.prompts] == "product:8001", "la propina abre la compra de Roblox")
+ConfigC.Products[1].id = 0
+press(ctx.targets.shop_pet_false)
+frame(2)
+check(W.game:GetService("Workspace"):FindFirstChild("Garabato") == nil, "mascota desactivada")
 ctx.closePanel()
 -- Cambio de idioma: toda la interfaz se rehace en inglés
 key(Enum.KeyCode.P)

@@ -4,7 +4,7 @@
 
 local Config = {}
 
-Config.VERSION = "0.9" -- juego completo, pendiente de probar en Studio (1.0 al publicar)
+Config.VERSION = "0.9.1" -- juego completo + tienda, pendiente de probar en Studio (1.0 al publicar)
 -- Nombre del juego (fácil de cambiar): no usar el nombre del juego original
 Config.GAME_NAME = { es = "Estanterías Hechizadas", en = "Spellbound Shelves" }
 
@@ -157,5 +157,27 @@ Config.Badges = {
 	first_row = 0, rows_50 = 0, rows_200 = 0, rows_400 = 0, first_spell = 0, all_spells = 0,
 	chests = 0, spells_max = 0, ultimate = 0, fired = 0, pizza = 0, nomagic = 0,
 } :: { [string]: number }
+
+---------------------------------------------------------------------
+-- Tienda (fase 7). SOLO cosas decorativas o de apoyo: nada hace el juego más fácil ni es aleatorio.
+-- id = 0 → no aparece en el juego publicado (en Studio se enseña como «Muestra» para probarlo).
+-- Precios en Robux: recomendación (supuesto); el precio real lo pones al crear el pase en el Creator Hub.
+---------------------------------------------------------------------
+export type ShopItem = { key: string, id: number, price: number }
+Config.GamePasses = {
+	{ key = "patron", id = 0, price = 99 }, -- Mecenas: brillo de otro color (verde o violeta)
+	{ key = "pet", id = 0, price = 149 }, -- Garabato, el gato alado, vuela a tu lado
+	{ key = "themes", id = 0, price = 79 }, -- Temas de luz: noche estrellada y otoño
+} :: { ShopItem }
+Config.Products = {
+	{ key = "tip_s", id = 0, price = 25 }, -- Propina: un café para la rectora
+	{ key = "tip_l", id = 0, price = 100 }, -- Propina grande: pizza para todo el claustro
+} :: { ShopItem }
+Config.GLOW_COLORS = {
+	gold = Color3.fromRGB(255, 196, 60),
+	green = Color3.fromRGB(70, 235, 140),
+	violet = Color3.fromRGB(190, 120, 255),
+} :: { [string]: Color3 }
+Config.THEMES = { "normal", "stars", "autumn" }
 
 return Config

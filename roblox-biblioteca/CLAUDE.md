@@ -19,8 +19,9 @@ Léelo entero antes de tocar nada. (El `CLAUDE.md` de la raíz explica cómo tra
 - **Descarga directa del lugar:**
   `https://github.com/candhu23/mi-priemra-web/raw/claude/biblioteca-arcana/roblox-biblioteca/Biblioteca.rbxl`
 - **Fases**: 1 datos ✅ · 2 edificio ✅ · 3 bucle jugable ✅ · 4 progresión ✅ · 5 partida completa ✅ ·
-  6 plataforma y pulido ✅ · 7 monetización (**solo si el usuario la aprueba**; el original es de pago y no vende
-  ventajas: solo cosas cosméticas o de apoyo, nada aleatorio de pago).
+  6 plataforma y pulido ✅ · 7 tienda ✅ (aprobada por el usuario: pase de mecenas = color del brillo, mascota
+  Garabato, temas de luz y 2 propinas; **solo cosmético o de apoyo, nada aleatorio ni que facilite el reto**).
+  IDs en `Config.GamePasses` / `Config.Products` (0 = oculto; en Studio salen de «Muestra» y desbloqueados).
   El estado al día está en `DISENO.md` §18.
 
 ## 2. Documentos de esta carpeta
@@ -53,7 +54,7 @@ roblox-biblioteca/
 │   └── Geo.luau           # Rayos y superficies contra cajas (soltar/lanzar sin física)
 ├── src/ServerScriptService/
 │   ├── LibraryServer.server.luau   # Construye el mundo, remotes (LibRemotes), jugador/invitados, bucle 1 s
-│   └── Lib/
+│   └── Lib/                    # (Shop.luau: pases, propinas con ProcessReceipt idempotente, opciones con pase)
 │       ├── Building.luau           # Piezas del edificio a partir de Layout (luces, puerta, spawn)
 │       ├── Library.luau            # Estado de los libros de UNA biblioteca: sitios, mano, filas correctas,
 │       │                           # récord, coger/colocar/soltar/lanzar (parábola contra cajas), deltas
@@ -179,8 +180,8 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
 - [ ] Publicar como **experiencia nueva**, Max players = 1, API Services, icono (`docs/icono_juego.png`).
 - [ ] Crear las 12 insignias (5 gratis cada 24 h, imágenes en `docs/insignias/`) y poner sus IDs en `Config.Badges`.
 - [ ] Opcional: música con licencia de la Creator Store → `Config.Music` (4 tramos).
-- [ ] Fase 7 (monetización) solo si el usuario la aprueba: propuestas en la conversación (pase de mecenas
-      cosmético, mascota Garabato que te sigue, temas de luz, propinas). Nada que acelere el reto.
+- [ ] Tienda: el usuario crea los 3 pases y 2 productos (README §2.5) y manda los IDs → `Config.GamePasses` /
+      `Config.Products`. No añadir nada que acelere el reto ni nada aleatorio de pago.
 
 ## 8. Convenciones
 

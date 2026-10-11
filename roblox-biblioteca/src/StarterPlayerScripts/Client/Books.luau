@@ -33,7 +33,7 @@ Books.lang = "es"
 Books.onRow = nil :: ((rowId: number, correct: boolean) -> ())?
 Books.onSection = nil :: ((code: string, done: boolean) -> ())?
 
-local GOLD = Color3.fromRGB(255, 196, 60)
+local GOLD = Color3.fromRGB(255, 196, 60) -- cambia con el pase de mecenas (Books.setGlowColor)
 local RED = Color3.fromRGB(205, 70, 60)
 local PLATE_DONE = Color3.fromRGB(70, 140, 255)
 local LABELS = 36 -- etiquetas reutilizables
@@ -207,6 +207,7 @@ function Books.refreshRow(rowId: number, quiet: boolean?)
 		else
 			local part = glowPart(slot)
 			part.Color = if g == Rules.GLOW_GOLD then GOLD else RED
+			part:SetAttribute("Good", g == Rules.GLOW_GOLD)
 			part.Transparency = if g == Rules.GLOW_GOLD then 0 else 0.45
 		end
 	end
@@ -678,6 +679,19 @@ end
 
 function Books.rowPart(rowId: number): Part?
 	return rowHit[rowId]
+end
+
+-- Color del brillo «bien colocado» (pase de mecenas). Repinta los que ya brillan.
+function Books.setGlowColor(color: Color3)
+	if color == GOLD then
+		return
+	end
+	GOLD = color
+	for _, part in glows do
+		if part:GetAttribute("Good") == true then
+			part.Color = color
+		end
+	end
 end
 
 return Books

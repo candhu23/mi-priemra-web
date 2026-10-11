@@ -33,13 +33,18 @@ end
 function Data.newProfile(): any
 	return {
 		v = 1,
-		settings = { lang = "", sens = 1, fov = 70, bob = true, music = 0.5, sfx = 0.6, cozy = false, left = false },
+		settings = {
+			lang = "", sens = 1, fov = 70, bob = true, music = 0.5, sfx = 0.6, cozy = false, left = false,
+			glow = "gold", pet = false, theme = "normal", -- decorativas (con pase)
+		},
 		achievements = {}, -- id = true
 		bestTime = 0, -- 0 = sin récord (solo partidas con la biblioteca entera bien)
 		special = false, -- fase especial desbloqueada
 		slots = { false, false, false }, -- false = vacía
 		lastSlot = 0,
 		lastOnline = 0,
+		receipts = {}, -- propinas ya cobradas (PurchaseId = hora)
+		tips = 0,
 	}
 end
 
