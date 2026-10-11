@@ -113,6 +113,24 @@ local function dump(name)
 end
 
 ---------------------------------------------------------------------
+-- Menú de título → nueva partida en la ranura 1
+---------------------------------------------------------------------
+local function press(b)
+	check(b, "botón inexistente")
+	W.fakeTime += 0.1
+	W.signalFor(W.idOf(W.unwrap(b)), "Activated"):Fire()
+	frame(1)
+end
+check(ctx.state.mode == "menu", "el cliente empieza en el menú de título")
+local titleFrame = gui:FindFirstChild("Root"):FindFirstChild("Title")
+check(titleFrame and titleFrame.Visible, "se ve la pantalla de título")
+check(W.unwrap(ctx.targets.menu_continue).Visible == false, "sin partidas no se ofrece Continuar")
+dump("10_titulo")
+press(ctx.targets.menu_new)
+press(ctx.targets.slot_play_1)
+check(ctx.state.mode == "main" and not titleFrame.Visible, "«Empezar aquí» abre la biblioteca")
+
+---------------------------------------------------------------------
 -- Carta, coger y colocar con la cruceta
 ---------------------------------------------------------------------
 local letter = def.interact.letter
@@ -210,7 +228,7 @@ local function pressAll(container)
 		end
 	end
 end
-for _, name in { "list", "map", "message" } do
+for _, name in { "list", "map", "message", "menu", "achievements", "results", "confirm" } do
 	if name == "message" then
 		ctx.toast("prueba", "info")
 		local Panels = W.require(W.wrap(Client:FindFirstChild("Panels")))
@@ -220,8 +238,13 @@ for _, name in { "list", "map", "message" } do
 	end
 	local shell = gui:FindFirstChild("Root"):FindFirstChild("Panel_" .. name)
 	check(shell and shell.Visible, "la ventana " .. name .. " debe abrirse")
-	pressAll(shell)
+	if name ~= "results" and name ~= "menu" and name ~= "confirm" then
+		pressAll(shell)
+	end
 	ctx.closePanel()
+	if ctx.state.mode ~= "main" then
+		ctx.act("selectSlot", 1)
+	end
 end
 -- Magia: el bot «tiene» 45 puntos; el manual permite aprender y la barra lanza
 session.slot.best = 200
@@ -263,6 +286,88 @@ check(ctx.state.active.guide > 0, "la tecla 2 lanza Guía")
 frame(15)
 dump("07_hechizos")
 
+-- Pausa, opciones y logros
+key(Enum.KeyCode.P)
+check(ctx.panel == "menu", "P abre la pausa")
+dump("11_pausa")
+press(ctx.targets.pause_options)
+check(ctx.panel == "options", "pausa → opciones")
+local fov0 = ctx.state.settings.fov
+press(ctx.targets.opt_fov_up)
+check(ctx.state.settings.fov == fov0 + 5, "subir el campo de visión")
+press(ctx.targets.opt_cozy)
+check(ctx.state.settings.cozy == true, "activar el modo acogedor")
+frame(2)
+check(not gui:FindFirstChild("Root"):FindFirstChild("Timer").Visible, "el modo acogedor oculta el cronómetro")
+dump("12_opciones")
+-- (el botón de zurdos rehace la interfaz: se prueba aparte)
+local leftToggle = W.unwrap(ctx.targets.opt_left)
+for _, b in gui:FindFirstChild("Root"):FindFirstChild("Panel_options"):GetDescendants() do
+	if b:IsA("TextButton") and b.Name ~= "Close" and not string.find(b.Name, "Lang_") and b.Name ~= "Backdrop" and b ~= leftToggle then
+		press(b)
+		pressed += 1
+	end
+end
+press(ctx.targets.opt_cozy)
+press(ctx.targets.opt_left)
+check(ctx.state.settings.left == true, "botones para zurdos")
+gui = player:FindFirstChild("PlayerGui"):FindFirstChild("LibraryGui")
+ctx.openPanel("options")
+press(ctx.targets.opt_left)
+check(ctx.state.settings.left == false, "quitar botones para zurdos")
+gui = player:FindFirstChild("PlayerGui"):FindFirstChild("LibraryGui")
+ctx.closePanel()
+key(Enum.KeyCode.P)
+press(ctx.targets.pause_achievements)
+check(ctx.panel == "achievements", "pausa → logros")
+dump("13_logros")
+ctx.closePanel()
+-- Cambio de idioma: toda la interfaz se rehace en inglés
+key(Enum.KeyCode.P)
+press(ctx.targets.pause_options)
+press(ctx.targets.opt_lang_en)
+check(ctx.lang == "en", "el idioma cambia a inglés")
+gui = player:FindFirstChild("PlayerGui"):FindFirstChild("LibraryGui")
+local rowsEn = gui:FindFirstChild("Root"):FindFirstChild("TopCounter"):FindFirstChild("Rows").Text
+check(string.find(rowsEn, "Correct rows"), "el contador sale en inglés tras rehacer la interfaz (" .. rowsEn .. ")")
+dump("14_ingles")
+ctx.openPanel("options")
+press(ctx.targets.opt_lang_es)
+check(ctx.lang == "es", "vuelta al español")
+ctx.closePanel()
+-- Evaluación: el servidor lo coloca todo (atajo de prueba) y se sale por la puerta
+local targets = {}
+for id = 1, #def.books do targets[id] = id end
+session.lib:solveAll(targets)
+Game.flush(session)
+Game.sendState(session)
+frame(2)
+check(Books.countCorrect() == 400 and ctx.state.door, "con todo colocado, el cliente ve 400 filas y la puerta abierta")
+local door = def.interact.door
+look(door + Vector3.new(0, 0, -3.5), door)
+check(Aim.target and Aim.target.interact == "door" and Aim.target.ok, "la cruceta marca la puerta abierta")
+key(Enum.KeyCode.E)
+check(ctx.panel == "results", "salir por la puerta muestra la evaluación")
+dump("15_evaluacion")
+press(ctx.targets.results_menu)
+titleFrame = gui:FindFirstChild("Root"):FindFirstChild("Title")
+check(ctx.state.mode == "menu" and titleFrame.Visible, "«Volver al menú» lleva al título")
+dump("16_titulo_terminada")
+-- Fase especial (desbloqueada al terminar)
+press(ctx.targets.menu_special)
+check(ctx.state.mode == "special" and Books.def.name == "special" and #Books.def.books == 300, "Fase especial: el Archivo con 300 libros")
+session.special.charge = 600
+Game.sendState(session)
+frame(2)
+dump("17_especial")
+key(Enum.KeyCode.Z)
+frame(2)
+check(ctx.state.rows == 30, "Z coloca todo el Archivo")
+press(ctx.targets.pause_tomenu or ctx.targets.results_menu)
+ctx.act("toMenu")
+press(ctx.targets.menu_continue)
+check(ctx.state.mode == "main", "Continuar vuelve a la última partida")
+
 -- Botones del HUD (en móvil: USAR, Soltar, Lanzar, Rotar, Correr, Lista, Mapa…) y de la barra de hechizos
 for _, b in gui:FindFirstChild("Root"):GetDescendants() do
 	if b:IsA("TextButton") and not string.find(b:GetFullName(), "Panel_") then
@@ -300,5 +405,5 @@ local top = gui:FindFirstChild("Root"):FindFirstChild("TopCounter")
 check(string.find(top:FindFirstChild("Rows").Text, "Filas correctas"), "el contador de filas debe estar en español")
 local books = gui:FindFirstChild("Root"):FindFirstChild("BottomCounter"):FindFirstChild("Books")
 check(string.find(books.Text, "3.072"), "el contador de libros debe mostrar 3.072 (" .. books.Text .. ")")
-print(string.format("  [botones] %d botones pulsados (%s) · ventanas: lista, mapa, carta, manual, nota del cofre", pressed, DEVICE))
+print(string.format("  [botones] %d botones pulsados (%s) · ventanas: título, lista, mapa, carta, manual, cofre, pausa, opciones, logros, evaluación, especial", pressed, DEVICE))
 print("CLIENTE OK")

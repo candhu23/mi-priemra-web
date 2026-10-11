@@ -49,6 +49,8 @@ export type Ctx = {
 	closePanel: () -> (),
 	keyName: (string) -> string,
 	targets: { [string]: GuiObject },
+	showResults: ({ [string]: any }) -> (),
+	rebuild: () -> (),
 }
 
 Kit.ctx = {

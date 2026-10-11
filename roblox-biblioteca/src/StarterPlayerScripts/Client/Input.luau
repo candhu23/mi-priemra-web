@@ -60,7 +60,10 @@ function Input.build(ctx: Kit.Ctx)
 				ctx.act("readLetter")
 				Panels.message(T("letter_title"), T("letter_body"))
 			elseif what == "door" then
-				ctx.act("exitDoor")
+				local ok, extra = ctx.act("exitDoor")
+				if ok and extra and extra.results then
+					ctx.showResults(extra.results)
+				end
 			elseif what == "map1" or what == "map2" then
 				Panels.openMap(if what == "map2" then 2 else 1)
 			elseif what == "crystal" then
@@ -124,6 +127,9 @@ function Input.build(ctx: Kit.Ctx)
 		toggle("manual")
 	end
 	ctx.input.menu = function()
+		if ctx.state.mode == "menu" then
+			return
+		end
 		toggle("menu")
 	end
 	ctx.input.cast = function(i: number)

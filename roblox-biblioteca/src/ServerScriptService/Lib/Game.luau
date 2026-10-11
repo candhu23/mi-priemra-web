@@ -10,6 +10,7 @@ local Layout = require(ReplicatedStorage:WaitForChild("Layout"))
 local Rules = require(ReplicatedStorage:WaitForChild("Rules"))
 local Codec = require(ReplicatedStorage:WaitForChild("Codec"))
 local Library = require(script.Parent:WaitForChild("Library"))
+local Data = require(script.Parent:WaitForChild("Data"))
 
 local Game = {}
 
@@ -25,6 +26,14 @@ export type Session = {
 	lastState: number,
 	dirty: boolean,
 	booksSinceSave: number,
+	-- Partida completa (Flow): perfil guardado, ranura activa, guardado y fase especial
+	profile: any,
+	canSave: boolean,
+	loadFailed: boolean,
+	slotIndex: number,
+	lastSave: number,
+	special: any,
+	spells: any,
 }
 
 Game.sessions = {} :: { [Player]: Session }
@@ -42,14 +51,7 @@ end
 -- Partida nueva (ranura)
 ---------------------------------------------------------------------
 function Game.newSlot(): any
-	return {
-		books = "", hand = {}, best = 0, spent = 0,
-		skills = { sort = 0, guide = 0, reveal = 0, auto = 0, gather = 0 },
-		keys = { red = false, green = false, yellow = false, blue = false },
-		chests = { red = false, green = false, yellow = false, blue = false },
-		time = 0, magic = false, tut = 0, pos = nil, finished = false, ending = nil, rank = nil,
-		rows = 0, shelved = 0,
-	}
+	return Data.newSlot()
 end
 
 local function rootOf(s: Session): BasePart?
@@ -310,9 +312,7 @@ end
 
 -- El cliente está listo: le manda la foto de la biblioteca (y, tras la acción, el estado)
 A.ready = function(s)
-	if inWorld(s) then
-		Game.sendSnapshot(s)
-	end
+	Game.sendSnapshot(s) -- también en el menú: la biblioteca se ve de fondo
 	return true
 end
 
@@ -374,9 +374,10 @@ function Game.applyCharacter(s: Session)
 	local char = s.player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if hum then
-		hum.WalkSpeed = Config.WALK_SPEED
+		local menu = s.mode == "menu"
+		hum.WalkSpeed = if menu then 0 else Config.WALK_SPEED
 		hum.UseJumpPower = false
-		hum.JumpHeight = if s.slot.chests.red then Config.JUMP_HEIGHT else 0
+		hum.JumpHeight = if s.slot.chests.red and not menu then Config.JUMP_HEIGHT else 0
 	end
 end
 
@@ -442,6 +443,13 @@ function Game.newSession(player: Player): Session
 		lastState = 0,
 		dirty = false,
 		booksSinceSave = 0,
+		profile = Data.newProfile(),
+		canSave = false,
+		loadFailed = false,
+		slotIndex = 0,
+		lastSave = now(),
+		special = nil,
+		spells = nil,
 	}
 	Game.sessions[player] = s
 	return s

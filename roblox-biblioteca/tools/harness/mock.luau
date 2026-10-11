@@ -210,9 +210,11 @@ function M.new(placePath: string, opts: { [string]: any }?)
 	---------------------------------------------------------------------
 	local sleeping = {}
 	local delayed = {}
+	local ours = setmetatable({}, { __mode = "k" }) -- corrutinas creadas con task.spawn
 	local task = {
 		spawn = function(fn, ...)
 			local co = coroutine.create(fn)
+			ours[co] = true
 			local ok, err = coroutine.resume(co, ...)
 			if not ok then error(debug.traceback(co, tostring(err))) end
 			if coroutine.status(co) == "suspended" then table.insert(sleeping, co) end
@@ -220,8 +222,14 @@ function M.new(placePath: string, opts: { [string]: any }?)
 		delay = function(t, fn, ...)
 			table.insert(delayed, { at = W.fakeTime + (t or 0), fn = fn, args = table.pack(...) })
 		end,
-		wait = function()
-			if coroutine.isyieldable() then coroutine.yield() end
+		wait = function(t)
+			-- En una corrutina del juego (bucle del servidor) se duerme hasta el siguiente tick;
+			-- en el hilo de la prueba solo avanza el reloj falso (no se puede dormir)
+			if ours[coroutine.running()] then
+				coroutine.yield()
+			else
+				W.fakeTime += (t or 0)
+			end
 		end,
 		defer = function(fn, ...)
 			table.insert(delayed, { at = W.fakeTime, fn = fn, args = table.pack(...) })

@@ -166,7 +166,7 @@ function Hud.build(ctx: Kit.Ctx)
 	-------------------------------------------------------------------
 	-- Avisos
 	-------------------------------------------------------------------
-	local toasts = Kit.frame(root, UDim2.fromOffset(520, 200), UDim2.new(0.5, -260, 0, 100), C.ink, 1)
+	local toasts = Kit.frame(root, UDim2.fromOffset(520, 200), UDim2.new(0.5, -260, 0, 120), C.ink, 1)
 	toasts.Name = "Toasts"
 	Kit.list(toasts, true, 6, Enum.HorizontalAlignment.Center)
 	local order = 0
@@ -208,7 +208,7 @@ function Hud.build(ctx: Kit.Ctx)
 	-------------------------------------------------------------------
 	local runButton: TextButton? = nil
 	if ctx.touch then
-		local left = ctx.state.leftHanded == true
+		local left = ctx.state.settings ~= nil and ctx.state.settings.left == true
 		-- (dx, dy) = centro del botón medido desde la esquina de abajo a la derecha (o a la izquierda para zurdos)
 		local function round(name: string, text: string, size: number, dx: number, dy: number, onClick: () -> ()): TextButton
 			local x = if left then UDim2.new(0, dx - size / 2, 1, -dy - size / 2) else UDim2.new(1, -dx - size / 2, 1, -dy - size / 2)
@@ -265,6 +265,7 @@ function Hud.build(ctx: Kit.Ctx)
 		local inWorld = st.mode == "main" or st.mode == "special"
 		top.Visible = inWorld
 		bottom.Visible = inWorld
+		handBox.Visible = inWorld
 		rowsLabel.Text = T("hud_rows", { n = Kit.num(st.rows or 0), total = Kit.num(st.rowsTotal or 400) })
 		booksLabel.Text = T("hud_books", { n = Kit.num(st.shelved or 0), total = Kit.num(st.total or 3072) })
 		local nextAt = st.nextAt or 0

@@ -306,6 +306,8 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 | Capacidad inicial | 10 (las reseñas dicen 10) |
 | Tecla de lanzar | F |
 | «Libro perdido» para el cristal | fuera del edificio, > 4 studs sobre su suelo o en hueco inaccesible |
+| Hora del modo acogedor | 16:30 fija (también en la fase especial) |
+| Magia en la fase especial | toda la menor (salto, correr, 15 libros); sin magia mayor |
 | Fila que elige Autocolocar | la que ya tiene la serie; si no, una vacía de la longitud correcta |
 
 ## 18. Estado y verificación
@@ -316,6 +318,6 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 | 2 | Edificio y 3.072 libros en sus montones iniciales | ✅ comprobado con `run_world.luau` (planos en `docs/`) |
 | 3 | Bucle principal jugable | ✅ bot de servidor (partida entera 400/400) y cliente PC/móvil |
 | 4 | Puntos, manual, magias, llaves, cristal | ✅ bot: 4 llaves (altas solo saltando), cofres, cristal, 5 hechizos al máximo con 45 puntos |
-| 5 | Guardado, menú, opciones, luz, música, puerta, finales, insignias, fase especial | pendiente |
+| 5 | Guardado, menú, opciones, luz, música, puerta, finales, insignias, fase especial | ✅ bot: guardar/salir/entrar idéntico, 4 finales, 6 rangos, 12 insignias, definitiva |
 | 6 | Táctil, mando, rendimiento, revisión ES/EN, README | pendiente |
 | 7 | Monetización (solo si el usuario la aprueba) | sin empezar |

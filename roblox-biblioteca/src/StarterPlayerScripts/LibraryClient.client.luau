@@ -20,6 +20,8 @@ local Panels = require(Client:WaitForChild("Panels"))
 local Input = require(Client:WaitForChild("Input"))
 local MapArt = require(Client:WaitForChild("MapArt"))
 local Spells = require(Client:WaitForChild("Spells"))
+local Menus = require(Client:WaitForChild("Menus"))
+local Ambience = require(Client:WaitForChild("Ambience"))
 local Lang = require(ReplicatedStorage:WaitForChild("Lang"))
 
 local player = Players.LocalPlayer
@@ -139,16 +141,50 @@ end
 
 Books.lang = ctx.lang
 Books.init()
+-- Controles y ambiente se crean una vez; la interfaz se rehace entera al cambiar de idioma
 Input.build(ctx)
-Hud.build(ctx)
-Panels.build(ctx)
-Spells.build(ctx)
+Ambience.build(ctx)
+local coreTickers = table.clone(ctx.tickers)
+local function buildUI()
+	Hud.build(ctx)
+	Panels.build(ctx)
+	Spells.build(ctx)
+	Menus.build(ctx)
+end
+buildUI()
 UserInputService.MouseIconEnabled = false
 
 local function refreshAll()
 	for _, f in ctx.refreshers do
 		f()
 	end
+end
+
+local drawBoards: () -> ()
+ctx.rebuild = function()
+	ctx.closePanel()
+	for _, c in root:GetChildren() do
+		if not c:IsA("UIScale") then
+			c:Destroy()
+		end
+	end
+	ctx.refreshers = {}
+	ctx.tickers = table.clone(coreTickers)
+	ctx.panels = {}
+	ctx.targets = {}
+	buildUI()
+	refreshAll()
+	Books.setLang(ctx.lang)
+	drawBoards()
+end
+
+-- Idioma efectivo: el elegido en opciones o, en «Automático», el de Roblox
+local function wantedLang(st: { [string]: any }): string
+	local chosen = st.settings and st.settings.lang or ""
+	if chosen == "es" or chosen == "en" then
+		return chosen
+	end
+	return if string.sub(locale, 1, 2) == "es" then "es" else "en"
 end
 
 ---------------------------------------------------------------------
@@ -196,7 +232,7 @@ local function drawPaintings()
 	end
 end
 
-local function drawBoards()
+function drawBoards()
 	for _, g in boardGuis do
 		g:Destroy()
 	end
@@ -280,8 +316,28 @@ onDelta.OnClientEvent:Connect(function(moves: { any })
 end)
 
 local onState = remotes:WaitForChild("State") :: RemoteEvent
+local lastMode: string? = nil
+local lastLeft: boolean? = nil
 onState.OnClientEvent:Connect(function(state: { [string]: any })
+	local modeChanged = state.mode ~= lastMode
 	ctx.state = state
+	-- Cambio de idioma o de mano (zurdos): se rehace la interfaz
+	local lang = wantedLang(state)
+	local left = state.settings and state.settings.left == true
+	if lang ~= ctx.lang or (lastLeft ~= nil and left ~= lastLeft) then
+		ctx.lang = lang
+		lastLeft = left
+		ctx.rebuild()
+	end
+	lastLeft = left
+	if modeChanged then
+		lastMode = state.mode
+		-- Al cambiar entre menú y biblioteca se cierran las ventanas del otro sitio
+		if ctx.panel and ctx.panel ~= "options" and ctx.panel ~= "achievements" and ctx.panel ~= "confirm" and ctx.panel ~= "message" and ctx.panel ~= "results" then
+			ctx.closePanel()
+		end
+		UserInputService.MouseIconEnabled = state.mode == "menu" or ctx.panel ~= nil
+	end
 	refreshAll()
 	Input.applySpeed()
 end)

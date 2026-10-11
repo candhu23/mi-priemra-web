@@ -13,6 +13,7 @@ local Lib = script.Parent:WaitForChild("Lib")
 local Building = require(Lib:WaitForChild("Building"))
 local Game = require(Lib:WaitForChild("Game"))
 local Magic = require(Lib:WaitForChild("Magic"))
+local Flow = require(Lib:WaitForChild("Flow"))
 
 local library = Building.build(Layout.get("main"), Workspace)
 Building.build(Layout.get("special"), Workspace)
@@ -27,8 +28,16 @@ local function showProgress(slot: any)
 end
 Magic.onKey = function(s: any)
 	showProgress(s.slot)
+	Flow.onKey(s)
 end
 Magic.onChest = function(s: any)
+	showProgress(s.slot)
+	Flow.onChest(s)
+end
+Magic.onLearn = function(s: any)
+	Flow.onLearn(s)
+end
+Flow.onProgress = function(s: any)
 	showProgress(s.slot)
 end
 
@@ -64,13 +73,13 @@ local function start(player: Player)
 			Game.applyCharacter(s)
 			if s.mode == "main" and s.slot.pos then
 				Game.moveTo(s, CFrame.new(s.slot.pos[1], s.slot.pos[2], s.slot.pos[3]))
+			elseif s.mode == "special" then
+				Game.moveTo(s, Layout.get("special").spawn)
 			end
 		end)
 	end
 	player.CharacterAdded:Connect(onCharacter)
-	-- Fase 4: se empieza directamente una partida nueva (el menú y el guardado llegan en la fase 5)
-	Game.startMain(s, Game.newSlot())
-	showProgress(s.slot)
+	Flow.join(s)
 end
 
 local function onPlayerAdded(player: Player)
@@ -103,7 +112,9 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		table.remove(guests, idx)
 		return
 	end
-	if Game.sessions[player] then
+	local s = Game.sessions[player]
+	if s then
+		Flow.leave(s)
 		Game.removeSession(player)
 		-- Si se va el dueño y queda alguien mirando, pasa a ser el dueño
 		local nextPlayer = table.remove(guests, 1)
@@ -113,9 +124,17 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	end
 end)
 
+-- Al cerrar el servidor se guarda todo (esperando lo que pida el límite de DataStore)
+game:BindToClose(function()
+	for _, s in Game.sessions do
+		Flow.leave(s)
+	end
+end)
+
 task.spawn(function()
 	while true do
 		task.wait(1)
 		Game.tick()
+		Flow.tick()
 	end
 end)

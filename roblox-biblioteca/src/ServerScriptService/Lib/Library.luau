@@ -151,7 +151,7 @@ end
 
 local function setLoc(self: Lib, id: number, loc: Codec.Loc, anim: string?, from: Vector3?)
 	local old = self.locs[id]
-	if old.k == 1 then
+	if old.k == 1 and self.slotBook[old.s :: number] == id then
 		local s = old.s :: number
 		self.slotBook[s] = nil
 		self.shelved -= 1
@@ -349,6 +349,24 @@ end
 function Library.isLoose(self: Lib, id: number): boolean
 	local k = self.locs[id].k
 	return k == 0 or k == 2
+end
+
+-- Coloca cada libro en el hueco que se indica (habilidad definitiva). targets[libro] = hueco.
+function Library.solveAll(self: Lib, targets: { [number]: number }, from: Vector3?)
+	self.hand = {}
+	for slot in self.slotBook do
+		self.slotBook[slot] = nil
+	end
+	self.shelved = 0
+	for id, slot in targets do
+		self.locs[id] = { k = 1, s = slot }
+		self.slotBook[slot] = id
+		self.shelved += 1
+		record(self, id, "fly", from)
+	end
+	for rowId in self.def.rows do
+		touchRow(self, rowId)
+	end
 end
 
 function Library.flush(self: Lib): ({ Move }, { Event })

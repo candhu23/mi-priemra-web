@@ -1,8 +1,11 @@
 --[[
 	Prueba del SERVIDOR real con un jugador falso (bot) que juega sin interfaz.
 	Uso: lune run run_server.luau <test.rbxl> [normal|sin-datastore]
-	- Tutorial (carta, montón de inicio, primeras filas), errores esperados, soltar/lanzar/rotar/reordenar,
-	  y una partida ENTERA: el bot coloca bien los 3.072 libros (teletransportándose cerca) → 400/400.
+	- normal: menú → ranura 1: tutorial, errores, soltar/lanzar/rotar/reordenar, llaves y cofres, cristal, magia;
+	  guarda a mitad, SALE y VUELVE A ENTRAR (el estado cargado debe ser idéntico); termina la partida ENTERA
+	  (3.072 libros bien) y sale por la puerta (rango y final). Ranura 2: todo MAL → «¡Despedido!». Ranura 3:
+	  sin magia → «A la antigua». Fase especial con la definitiva. Insignias, opciones y borrar ranura.
+	- sin-datastore: GetDataStore da error (Studio sin publicar): se juega igual, sin guardar y con aviso.
 	Termina con «TODO OK»; cualquier fallo lanza un error.
 ]]
 
@@ -27,15 +30,27 @@ local function check(cond, msg)
 	end
 end
 
+-- IDs de prueba para las insignias (antes de que arranque el servidor)
+for i, id in Config.Achievements do
+	Config.Badges[id] = 5000 + i
+end
 W.runScript(SSS:FindFirstChild("LibraryServer"))
 local Game = W.require(W.wrap(SSS:FindFirstChild("Lib"):FindFirstChild("Game")))
-local player = W.addPlayer(42, "Jorge")
-W.player = player
 local def = Layout.get("main")
-W.addCharacter(player, def.spawn.Position + Vector3.new(0, 3, 0))
-W.Players.PlayerAdded:Fire(player)
+local player, session
+local function join()
+	player = W.addPlayer(42, "Jorge")
+	W.player = player
+	W.addCharacter(player, def.spawn.Position + Vector3.new(0, 3, 0))
+	W.Players.PlayerAdded:Fire(player)
+	session = assert(Game.sessions[player], "no hay sesión")
+end
+local function leave()
+	W.Players.PlayerRemoving:Fire(player)
+	check(Game.sessions[player] == nil, "al salir se cierra la sesión")
+end
+join()
 local invoke = assert(W.callbacks.Action, "el servidor no creó la acción")
-local session = assert(Game.sessions[player], "no hay sesión")
 
 local function lastState()
 	for i = #W.fired, 1, -1 do
@@ -59,6 +74,7 @@ local function notes()
 	return out
 end
 local quiet = false
+local ok0
 local function act(name, a, b, c)
 	W.fakeTime += 0.05
 	local ok, key, params, extra = invoke(player, name, a, b, c)
@@ -90,8 +106,39 @@ local function place(slot)
 end
 
 ---------------------------------------------------------------------
-print("-- Inicio y tutorial --")
+print("-- Menú de título --")
 local s = lastState()
+check(s.mode == "menu" and #s.slots == 3 and s.slots[1] == false, "se entra al menú de título con 3 ranuras vacías")
+if MODE == "sin-datastore" then
+	check(s.canSave == false, "sin DataStore no se puede guardar")
+	local warned = false
+	for _, line in notes() do
+		if string.find(line, "NO se guardará") then
+			warned = true
+		end
+	end
+	check(warned, "debe avisar de que no se guardará")
+	act("newGame", 1)
+	act("readLetter")
+	local first = def.seriesFirst[def.tutorialSeries[1]]
+	local p = session.lib:posOf(first)
+	W.teleport(p + Vector3.new(1, 2, 0))
+	act("pick", first)
+	check(#lastState().hand == 1, "sin DataStore se juega igual")
+	leave()
+	join()
+	check(lastState().slots[1] == false, "sin DataStore no queda nada guardado")
+	print("  [sin-datastore] se juega sin guardar y con aviso")
+	print("TODO OK")
+	process.exit(0)
+end
+ok0 = act("selectSlot", 1)
+check(not ok0, "no se puede continuar una ranura vacía")
+act("newGame", 1)
+
+---------------------------------------------------------------------
+print("-- Inicio y tutorial --")
+s = lastState()
 check(s.mode == "main" and s.shelved == 0 and s.rows == 0 and #s.hand == 0 and s.tut == 0, "estado inicial incorrecto")
 check(s.cap == 10 and s.total == 3072 and s.rowsTotal == 400, "capacidad 10, 3.072 libros, 400 filas")
 act("readLetter")
@@ -458,43 +505,214 @@ check(not ok and key == "err_no_section_books", "Autocolocar sin libros de esa s
 print("  [magia] Ordenar, Guía, Revelar, Reunir (9 libros) y Autocolocar (fila correcta) · 45 puntos = todo al máximo")
 
 ---------------------------------------------------------------------
-print("-- Partida entera: el bot coloca bien los 3.072 libros --")
+print("-- Guardar, salir y volver a entrar --")
 quiet = true
-local t0 = os.clock()
-local placed = 0
--- Primero vacía la mano
 stand(Vector3.new(6, 3, -40), Vector3.new(0, 0, -1))
-act("dropAll")
-for _, sid in def.seriesList do
-	local code = def.seriesSection[sid]
-	local len = BookData.Series[sid].volumes
-	-- ¿ya está bien?
-	local first = def.seriesFirst[sid]
-	local loc = lib().locs[first]
-	local done = loc.k == 1 and lib().rowOk[def.slotRow[loc.s]]
-	if not done then
-		for v = 1, len do
-			local id = first + v - 1
-			if lib().locs[id].k ~= 3 then
-				local okP, keyP = pick(id)
-				check(okP, "no pudo coger " .. id .. " (" .. tostring(keyP) .. ")")
+for i = 1, 3 do
+	pick(some[i] or loose[i])
+end
+quiet = false
+local Flow = W.require(W.wrap(SSS:FindFirstChild("Lib"):FindFirstChild("Flow")))
+W.fakeTime += 40
+local beforeBooks = session.lib:encode()
+local beforeHand = table.clone(session.lib.hand)
+local beforeSlot = session.slot
+local snap = {
+	best = beforeSlot.best, spent = beforeSlot.spent, rows = session.lib.correct, shelved = session.lib.shelved,
+	skills = table.clone(beforeSlot.skills), keys = table.clone(beforeSlot.keys), chests = table.clone(beforeSlot.chests),
+	magic = beforeSlot.magic, tut = beforeSlot.tut,
+}
+local timeBefore = Game.playTime(session)
+leave()
+check(W.saved["EstanteriasHechizadas_v1/player_42"], "al salir se guarda en DataStore")
+local savedSize = #require("@lune/serde").encode("json", W.saved["EstanteriasHechizadas_v1/player_42"])
+join()
+s = lastState()
+check(s.mode == "menu" and s.slots[1] and s.slots[1].rows == snap.rows and s.lastSlot == 1, "al volver, el menú muestra la ranura 1")
+act("selectSlot", 1)
+check(session.lib:encode() == beforeBooks, "los 3.072 libros cargados están EXACTAMENTE donde estaban")
+for i, id in beforeHand do
+	check(session.lib.hand[i] == id, "la mano cargada es la misma, en el mismo orden")
+end
+local sl = session.slot
+check(sl.best == snap.best and sl.spent == snap.spent and session.lib.correct == snap.rows and session.lib.shelved == snap.shelved, "récord, puntos y filas iguales")
+for k, v in snap.skills do check(sl.skills[k] == v, "nivel de " .. k) end
+for k, v in snap.keys do check(sl.keys[k] == v and sl.chests[k] == snap.chests[k], "llaves y cofres") end
+check(sl.magic == snap.magic and sl.tut == snap.tut and math.abs(sl.time - timeBefore) < 1, "magia usada, tutorial y tiempo iguales")
+check(lastState().cap == 15, "la capacidad de los cofres se conserva")
+print(string.format("  [guardado] salir y volver: estado idéntico (perfil guardado: %.0f KB)", savedSize / 1024))
+
+---------------------------------------------------------------------
+print("-- Partida entera: el bot coloca bien los 3.072 libros --")
+local function sortAll()
+	quiet = true
+	stand(Vector3.new(6, 3, -40), Vector3.new(0, 0, -1))
+	act("dropAll")
+	local t0 = os.clock()
+	local placed = 0
+	for _, sid in def.seriesList do
+		local code = def.seriesSection[sid]
+		local len = BookData.Series[sid].volumes
+		local first = def.seriesFirst[sid]
+		local loc = lib().locs[first]
+		local done = loc.k == 1 and lib().rowOk[def.slotRow[loc.s]]
+		if not done then
+			for v = 1, len do
+				local id = first + v - 1
+				if lib().locs[id].k ~= 3 then
+					local okP, keyP = pick(id)
+					check(okP, "no pudo coger " .. id .. " (" .. tostring(keyP) .. ")")
+				end
 			end
+			local row = freeRow(code, len)
+			check(row, "no hay fila libre de " .. len .. " en " .. code)
+			placeHandInRow(row)
+			placed += len
 		end
-		local row = freeRow(code, len)
-		check(row, "no hay fila libre de " .. len .. " en " .. code)
-		placeHandInRow(row)
-		placed += len
+		if #W.fired > 2000 then
+			table.clear(W.fired)
+			seen = 0
+		end
+	end
+	quiet = false
+	return placed, os.clock() - t0
+end
+local placed, took = sortAll()
+s = lastState()
+print(string.format("  colocados %d libros en %.1f s de prueba", placed, took))
+check(s.rows == 400 and s.shelved == 3072 and #s.hand == 0, string.format("deberían ser 400/400 filas y 3.072 libros (%d, %d)", s.rows, s.shelved))
+check(s.door == true and s.earned == 45, "con todo en estanterías la puerta se abre y hay 45 puntos")
+print("  [partida] 400/400 filas · 3.072/3.072 libros · " .. s.earned .. " puntos ganados · puerta abierta")
+
+-- Salir por la puerta: evaluación
+stand(def.interact.door + Vector3.new(0, -1, -3), Vector3.new(0, 0, 1))
+local okE, _, extra = act("exitDoor")
+local r = extra and extra.results
+check(okE and r and r.rows == 400 and r.ending == "pizza" and r.rank == 6 and r.magic == true and r.keys == 4, "salida: 400/400 en < 3 h con magia → final Pizza, rango 6 (" .. tostring(r and r.ending) .. ", " .. tostring(r and r.rank) .. ")")
+check(r.newBest and r.best > 0, "primer récord de tiempo")
+local ach = session.profile.achievements
+for _, id in { "first_row", "rows_50", "rows_200", "rows_400", "first_spell", "all_spells", "chests", "spells_max", "pizza" } do
+	check(ach[id], "logro " .. id)
+end
+check(not ach.nomagic and not ach.fired, "ni «sin magia» ni «despedido»")
+print(string.format("  [final] Pizza · rango 6 «%s» · tiempo %s · llaves 4/4 · logros %d/12", Lang.t("es", "rank_6"), Lang.time("es", r.time), (function() local n = 0 for _ in ach do n += 1 end return n end)()))
+act("toMenu")
+s = lastState()
+check(s.mode == "menu" and s.specialUnlocked and s.slots[1].finished and s.slots[1].rank == 6 and s.bestTime > 0, "en el menú: ranura 1 terminada, fase especial desbloqueada y mejor tiempo")
+
+---------------------------------------------------------------------
+print("-- Ranura 2: todo MAL → ¡Despedido! --")
+act("newGame", 2)
+check(lastState().slotIndex == 2 and lastState().shelved == 0, "partida nueva en la ranura 2")
+-- Cada libro va al hueco del siguiente: ninguna fila queda bien (siempre se cuela el último de otra serie)
+quiet = true
+local batch = {}
+local function flushBatch()
+	for i = #batch, 1, -1 do
+		local id = batch[i]
+		local target = id % 3072 + 1
+		check(lib().hand[#lib().hand] == id, "orden de la mano")
+		place(target)
+	end
+	table.clear(batch)
+end
+for id = 1, 3072 do
+	local okP = pick(id)
+	check(okP, "no pudo coger " .. id)
+	table.insert(batch, id)
+	if #batch == 10 then
+		flushBatch()
 	end
 	if #W.fired > 2000 then
 		table.clear(W.fired)
+		seen = 0
 	end
 end
+flushBatch()
 quiet = false
 s = lastState()
-print(string.format("  colocados %d libros en %.1f s de prueba", placed, os.clock() - t0))
-check(s.rows == 400 and s.shelved == 3072 and #s.hand == 0, string.format("deberían ser 400/400 filas y 3.072 libros (%d, %d)", s.rows, s.shelved))
-check(s.door == true, "con todo en estanterías la puerta se abre")
-check(s.points == 45 - 0 or s.earned == 45, "con 400 filas se ganan los 45 puntos")
-print("  [partida] 400/400 filas · 3.072/3.072 libros · " .. s.earned .. " puntos ganados · puerta abierta")
+check(s.shelved == 3072 and s.rows == 0, "todo colocado y 0 filas correctas (" .. s.rows .. ")")
+stand(def.interact.door + Vector3.new(0, -1, -3), Vector3.new(0, 0, 1))
+okE, _, extra = act("exitDoor")
+r = extra and extra.results
+check(okE and r.ending == "fired" and r.rank == 1, "todo mal → final «¡Despedido!» y rango 1")
+check(session.profile.achievements.fired, "logro ¡Despedido!")
+print("  [final] ¡Despedido! · rango 1 · logro conseguido")
+act("toMenu")
+
+---------------------------------------------------------------------
+print("-- Ranura 3: sin magia mayor → A la antigua --")
+act("newGame", 3)
+sortAll()
+session.slot.time = 4 * 3600 -- 4 h de juego (más de 3 h: no hay pizza)
+session.timeT = os.clock()
+stand(def.interact.door + Vector3.new(0, -1, -3), Vector3.new(0, 0, 1))
+okE, _, extra = act("exitDoor")
+r = extra and extra.results
+check(okE and r.ending == "nomagic" and r.rank == 6 and r.magic == false, "400/400 sin magia en 4 h → final «A la antigua», rango 6")
+check(session.profile.achievements.nomagic, "logro sin magia")
+check(session.profile.bestTime < 4 * 3600, "el récord sigue siendo el mejor tiempo")
+print("  [final] A la antigua · rango 6 · logro sin magia")
+act("toMenu")
+
+---------------------------------------------------------------------
+print("-- Fase especial: el Archivo y la definitiva --")
+act("startSpecial")
+s = lastState()
+check(s.mode == "special" and s.total == 300 and s.rowsTotal == 30 and s.cap == 15 and s.jump and s.run, "Archivo: 300 libros, 30 filas, toda la magia menor")
+ok, key = act("ultimate")
+check(not ok and key == "err_ultimate", "la definitiva empieza descargada")
+ok, key = act("cast", "sort")
+check(not ok, "en el Archivo no hay magia mayor")
+local sdef = Layout.get("special")
+-- Colocar libros la carga más deprisa
+local id1 = 1
+local p1 = lib():posOf(id1)
+stand(p1 + Vector3.new(1, 2, 0))
+act("pick", id1)
+local row1 = sdef.rows[sdef.sectionByCode[sdef.seriesSection[sdef.books[id1].series]].rows[1]]
+local cf1 = sdef.slotCF[row1.first]
+stand(cf1.Position + cf1.LookVector * 3, -cf1.LookVector)
+act("place", row1.first)
+check(lastState().ult > 0, "colocar un libro carga la definitiva")
+W.tick(Config.ULTIMATE_CHARGE)
+s = lastState()
+check(s.ult >= 1, "a los 10 min la definitiva está cargada (" .. s.ult .. ")")
+ok = act("ultimate")
+s = lastState()
+check(ok and s.shelved == 300 and s.rows == 30, "Z: todos los libros vuelan a su sitio (" .. s.rows .. "/30)")
+stand(sdef.interact.door + Vector3.new(0, -1, -3), Vector3.new(0, 0, 1))
+okE, _, extra = act("exitDoor")
+r = extra and extra.results
+check(okE and r.kind == "special" and r.used, "al salir del Archivo tras usar la definitiva")
+check(session.profile.achievements.ultimate, "logro «Sin horas extra»")
+check(session.profile.bestTime < 4 * 3600, "la fase especial no cuenta como récord")
+act("toMenu")
+print("  [especial] definitiva cargada en 10 min · 300 libros a su sitio · logro «Sin horas extra»")
+
+---------------------------------------------------------------------
+print("-- Insignias, opciones y borrar --")
+local nAch = 0
+for _ in session.profile.achievements do nAch += 1 end
+check(nAch == 12, "los 12 logros (" .. nAch .. ")")
+local badges = {}
+for _, b in W.badges or {} do badges[b] = true end
+for i in Config.Achievements do
+	check(badges[5000 + i], "insignia " .. i .. " concedida")
+end
+check(act("setOption", "lang", "en") and lastState().settings.lang == "en", "opción idioma")
+check(act("setOption", "fov", 300) and lastState().settings.fov == 100, "opción campo de visión (limitada)")
+check(act("setOption", "cozy", true) and lastState().settings.cozy == true, "modo acogedor")
+ok = act("setOption", "lang", "fr")
+check(not ok, "idioma no válido")
+ok = act("setOption", "bogus", 1)
+check(not ok, "opción desconocida")
+act("deleteSlot", 2)
+check(lastState().slots[2] == false, "borrar la ranura 2")
+-- Todo se guarda al salir
+leave()
+local saved = W.saved["EstanteriasHechizadas_v1/player_42"]
+check(saved and saved.achievements.ultimate and saved.settings.cozy and saved.slots[2] == false and saved.slots[3].finished, "al salir se guarda todo")
+print("  [perfil] 12 logros = 12 insignias · opciones · ranura borrada · guardado al salir")
 
 print("TODO OK")
