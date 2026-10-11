@@ -5,18 +5,20 @@ repositorio. Léelo entero antes de tocar nada.
 
 ## 0. Índice: ¿en qué juego vas a trabajar?
 
-El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web personal sin relación):
+El repo tiene **tres juegos de Roblox** independientes (y `index.html`, una web personal sin relación):
 
 | Juego | Carpeta | Rama de trabajo | Contexto que debes leer |
 |---|---|---|---|
 | **Web Empire Tycoon** (3D, publicado) | `roblox-imperio-web/` | `claude/roblox-game-h5olkl` | Este archivo, §1–§13 |
 | **AeroCarga España** (2D, sin publicar) | `roblox-carga-aerea/` | `claude/zealous-dirac-ejfljx` | **`roblox-carga-aerea/CLAUDE.md`** + §2 y §11 de este archivo |
+| **Estanterías Hechizadas** (3D 1.ª persona, ordenar libros; sin publicar) | `roblox-biblioteca/` | `claude/biblioteca-arcana` | **`roblox-biblioteca/CLAUDE.md`** + `DISENO.md` + §2, §8–§11 de este archivo |
 
-- Si el usuario habla de aviones, carga aérea, España, mapa o «el juego nuevo» → es **AeroCarga España**.
+- Si el usuario habla de aviones, carga aérea, España o mapa → es **AeroCarga España**.
+- Si habla de libros, biblioteca, estanterías, ordenar, hechizos o «el tercer juego» → es **Estanterías Hechizadas**.
 - Si la carpeta del juego no existe en tu rama (p. ej. empezaste en `main`), cámbiate a su rama:
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).
-- Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para los dos juegos.
+- Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para todos los juegos.
 
 ---
 
@@ -273,3 +275,8 @@ al harness del servidor**.
 
 Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación, trampas y pendientes) está en
 **`roblox-carga-aerea/CLAUDE.md`**. Léelo antes de tocar esa carpeta. Rama: `claude/zealous-dirac-ejfljx`.
+
+## 15. Tercer juego: «Estanterías Hechizadas»
+
+Todo su contexto está en **`roblox-biblioteca/CLAUDE.md`** y el diseño completo (reglas, números, supuestos,
+tabla original → nuestra versión) en **`roblox-biblioteca/DISENO.md`**. Rama: `claude/biblioteca-arcana`.
