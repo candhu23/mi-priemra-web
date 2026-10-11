@@ -475,7 +475,7 @@ function M.new(placePath: string, opts: { [string]: any }?)
 		ps.Parent = real
 		local p = wrap(real)
 		overrides[p] = {
-			UserId = userId, DisplayName = name, Name = name,
+			UserId = userId, DisplayName = name, Name = name, LocaleId = options.locale or "es-es",
 			MembershipType = roblox.Enum.MembershipType.None,
 			IsFriendsWithAsync = function() return true end,
 			IsInGroupAsync = function() return false end,
@@ -505,9 +505,15 @@ function M.new(placePath: string, opts: { [string]: any }?)
 		hum.Parent = model
 		model.PrimaryPart = rootPart
 		model.Parent = W.game:GetService("Workspace")
-		overrides[p].Character = wrap(model)
+		local mp = wrap(model)
+		overrides[mp] = {
+			PivotTo = function(_, cf)
+				rootPart.CFrame = cf
+			end,
+		}
+		overrides[p].Character = mp
 		W.root = rootPart
-		return wrap(model), rootPart
+		return mp, rootPart
 	end
 	function W.teleport(pos)
 		W.root.CFrame = roblox.CFrame.new(pos)

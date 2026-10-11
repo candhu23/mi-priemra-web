@@ -331,7 +331,7 @@ function Books.updateLabels(camCF: CFrame)
 	for id, gui in labelOf do
 		if not wanted[id] then
 			gui.Enabled = false
-			gui.Adornee = nil :: any
+			-- (en Lune no se puede poner Adornee = nil; desactivarla basta)
 			labelOf[id] = nil
 			table.insert(labelPool, gui)
 		end
@@ -527,7 +527,7 @@ function Books.clear()
 	end
 	for id, gui in labelOf do
 		gui.Enabled = false
-		gui.Adornee = nil :: any
+		-- (en Lune no se puede poner Adornee = nil; desactivarla basta)
 		table.insert(labelPool, gui)
 		labelOf[id] = nil
 	end
@@ -564,7 +564,7 @@ function Books.move(id: number, loc: Codec.Loc, anim: string?, from: Vector3?)
 	end
 	if labelOf[id] then
 		labelOf[id].Enabled = false
-		labelOf[id].Adornee = nil :: any
+		-- (desactivada basta)
 		table.insert(labelPool, labelOf[id])
 		labelOf[id] = nil
 	end

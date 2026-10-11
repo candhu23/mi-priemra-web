@@ -63,10 +63,17 @@ fi
 
 echo "== 6/7 Cliente: se crea la interfaz y se pulsan todos los botones (PC y móvil)"
 if [ -f "$H/run_client.luau" ]; then
-	if "$BIN/lune" run "$H/run_client.luau" test.rbxl > "$OUT/client.txt" 2>&1 && grep -q "CLIENTE OK" "$OUT/client.txt"; then
-		grep -E "^\s+\[" "$OUT/client.txt"; echo "OK (detalle en tools/out/client.txt)"
-	else
-		tail -25 "$OUT/client.txt"; status=1
+	mkdir -p "$OUT/preview"
+	for device in pc movil; do
+		if "$BIN/lune" run "$H/run_client.luau" test.rbxl $device "$OUT/preview" > "$OUT/client_$device.txt" 2>&1 && grep -q "CLIENTE OK" "$OUT/client_$device.txt"; then
+			grep -E "^\s+\[" "$OUT/client_$device.txt"; echo "$device: OK (detalle en tools/out/client_$device.txt)"
+		else
+			tail -25 "$OUT/client_$device.txt"; status=1
+		fi
+	done
+	# Vista previa aproximada de la interfaz (opcional: necesita Chromium + Playwright)
+	if command -v node > /dev/null && NODE_PATH=$(npm root -g 2> /dev/null) node -e "require('playwright')" 2> /dev/null; then
+		python3 -I "$H/preview.py" "$OUT/preview" 1280 720 1 pc_ > /dev/null && python3 -I "$H/preview.py" "$OUT/preview" 844 390 2 movil_ > /dev/null && echo "Vista previa: tools/out/preview/*.png"
 	fi
 else
 	echo "(pendiente: fase 3)"

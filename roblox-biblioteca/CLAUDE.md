@@ -50,28 +50,50 @@ roblox-biblioteca/
 │   ├── Codec.luau         # 8 caracteres por libro (guardado y foto inicial)
 │   └── Geo.luau           # Rayos y superficies contra cajas (soltar/lanzar sin física)
 ├── src/ServerScriptService/
-│   ├── LibraryServer.server.luau   # Fase 2: construye la biblioteca y el Archivo
-│   └── Lib/Building.luau           # Piezas del edificio a partir de Layout (luces, puerta, spawn)
+│   ├── LibraryServer.server.luau   # Construye el mundo, remotes (LibRemotes), jugador/invitados, bucle 1 s
+│   └── Lib/
+│       ├── Building.luau           # Piezas del edificio a partir de Layout (luces, puerta, spawn)
+│       ├── Library.luau            # Estado de los libros de UNA biblioteca: sitios, mano, filas correctas,
+│       │                           # récord, coger/colocar/soltar/lanzar (parábola contra cajas), deltas
+│       └── Game.luau               # Sesión, acciones validadas (distancia, capacidad, 25/s), estado, tutorial
 ├── src/StarterPlayerScripts/
-│   ├── LibraryClient.client.luau   # Fase 2: dibuja los libros en sus montones iniciales
-│   └── Client/Books.luau           # Libros del cliente: cuerpo + franja, brillos, placas, etiquetas
-│                                   # reutilizables (36), Revelar (Neón), Guía (SelectionBox), animaciones
+│   ├── LibraryClient.client.luau   # Arranque: interfaz, remotes, tablones del mapa, bucle de cruceta
+│   └── Client/
+│       ├── Kit.luau                # ctx compartido + piezas (panel con botón Modal, botón, etiqueta, sonido)
+│       ├── Books.luau              # Libros del cliente: cuerpo + franja, brillos, placas, etiquetas
+│       │                           # reutilizables (36), Revelar (Neón), Guía (SelectionBox), animaciones
+│       ├── Aim.luau                # Rayo de la cruceta → objetivo (libro, hueco, objeto) verde/rojo
+│       ├── Input.luau              # Teclado/ratón/mando y ctx.input.* (usar, soltar, lanzar, rotar…)
+│       ├── Hud.luau                # Contadores, cruceta, pila en mano, pistas, avisos, botones táctiles
+│       ├── Panels.luau             # Carta/mensajes, lista de la mano (▲▼), mapa
+│       └── MapArt.luau             # Dibujo del mapa de una planta (tablones y ventana)
 └── tools/   (bin/ y out/ en .gitignore)
     ├── setup.sh  check.sh
-    └── harness/  mock.luau (Roblox simulado para Lune) · run_world.luau · dump_data.luau · check_books.py
-                  · plan.py + svg2png.js (planos)
+    └── harness/  mock.luau (Roblox simulado para Lune) · run_world.luau · run_server.luau · run_client.luau
+                  · dump_data.luau · check_books.py · check_lang.py · plan.py + svg2png.js (planos)
+                  · preview.py + preview_shot.js (vista previa APROXIMADA de la interfaz)
 ```
 
 Rojo: `src/<Servicio>` → servicio; `*.server.luau` = Script, `*.client.luau` = LocalScript, resto = ModuleScript.
 
-## 4. Arquitectura prevista (se completa en las fases 2–6)
+## 4. Arquitectura
 
-- **El servidor manda** y guarda dónde está cada libro. El cliente pide acciones por `RemoteFunction`
-  (lista en `DISENO.md` §15) y recibe **una foto** (misma cadena que el guardado) + **deltas**.
-- Módulos compartidos previstos: `Layout.luau` (geometría determinista: secciones, filas, huecos, montones
-  iniciales con semilla propia, cajas sólidas), `Rules.luau` (validación de filas, brillos, puntos, rangos),
-  `Codec.luau` (8 caracteres por libro), `Geo.luau` (rayos contra cajas para soltar y lanzar).
+- **El servidor manda** y guarda dónde está cada libro (`Lib/Library.luau`). Remotes en `ReplicatedStorage.LibRemotes`:
+  - `Action` (RemoteFunction): `InvokeServer(acción, a, b, c)` → `(ok, claveTexto?, params?, extra?)`; `extra.sound`.
+  - `Snapshot` (RemoteEvent): `(lib, cadena)` = foto de los libros (8 caracteres/libro, `Codec`). Se pide con `ready`.
+  - `Delta` (RemoteEvent): lista de `{ id, código8, anim ("fly"|"throw"|""), desde: Vector3? }`.
+  - `State` (RemoteEvent): estado pequeño (mode, lib, hand, cap, rows, best, rowsTotal, shelved, total, points,
+    earned, nextAt, tut, time, door…) tras cada acción y cada 10 s.
+  - `Notify` (RemoteEvent): `(tipo, clave, params)`; el cliente traduce (`popup` = ventana).
+- **Acciones** (`Game.Actions`): `ready pick place drop dropAll throw cycle reorder readLetter exitDoor`
+  (fase 4–5 añaden magia, llaves, cofres, cristal, menú, ranuras, opciones, definitiva). Límite 25/s.
+  **Si añades una acción, añádela a `run_server.luau`.**
 - Los **libros los crea el cliente** (cuerpo + franja, anclados, sin colisión); el edificio lo crea el servidor.
+  Las filas y placas las calcula también el cliente con `Rules` (mismas reglas) para los brillos y sonidos.
+- **Tutorial** (`slot.tut`): 0 leer carta · 1 coger del montón · 2 colocar en 1A · 3 una serie bien · 4 las dos
+  (pista libre hasta 60 libros en estanterías).
+- Cliente: `Kit.ctx` (state, lang, panel, act, toast, openPanel, closePanel, input, keyName, targets,
+  refreshers, tickers). Diseño en 1280 × 720 con `UIScale`; en táctil hay botones y la pila va arriba a la izquierda.
 
 ## 5. Verificación (OBLIGATORIO antes de cada commit)
 
@@ -88,7 +110,13 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
    nunca dos tomos de la misma serie juntos, llaves (roja de pie; amarilla y azul solo saltando; verde tapada),
    salto a la planta 2, **piezas totales < 15.000** (hoy 10.562 en el peor caso) y codec de ida y vuelta.
    Después dibuja los planos (`plan.py` + Playwright).
-5. Servidor con bots (fase 3+) · 6. Cliente (fase 3+): se saltan con «pendiente» hasta que existan.
+5. `run_server.luau` (modos `sin-datastore` y `normal`): bot que hace el tutorial, provoca los errores
+   (manos vacías/llenas, hueco ocupado, lejos, 25 acciones/s), suelta, suelta todo (montón ordenado), coge del
+   medio de un montón (los de encima bajan), lanza por la barandilla y contra una estantería, y **coloca bien los
+   3.072 libros** → 400/400, 45 puntos, puerta abierta.
+6. `run_client.luau` (`pc` y `movil`): servidor + cliente reales; cruceta (rayo simulado) sobre la carta, un libro y
+   su hueco; E/Tab/M/F/R/clic dcho.; abre ventanas y pulsa todos los botones. Vuelca la interfaz y `preview.py`
+   saca `tools/out/preview/*.png` (aproximado: mira los PNG tras cambios visuales).
 7. Copia el lugar a `Biblioteca.rbxl`. **Súbelo en el commit.**
 
 ## 6. Trampas encontradas (no las repitas)
@@ -100,6 +128,12 @@ cd roblox-biblioteca && tools/check.sh   # la 1.ª vez descarga las herramientas
 - El analizador no «ensancha» una variable tras `if not x then x = … end`: usa una variable nueva
   (`local existing = t[k]; if existing then return existing end; local x = Instance.new(…)`).
 - `assert(x, msg)` devuelve 2 valores: no lo pases como último argumento de una función.
+- **Lune: no se puede asignar `nil` a una propiedad de referencia** (`gui.Adornee = nil` falla): desactiva el objeto.
+- Ventanas: la tarjeta lleva `Active = true`; si no, el clic atraviesa al fondo (que cierra la ventana).
+- Los RemoteEvent disparados antes de que el cliente conecte se pierden en las pruebas: el cliente pide la foto
+  con la acción `ready` cuando ya está escuchando.
+- En móvil: abajo a la izquierda está el joystick y abajo a la derecha el botón de saltar de Roblox; arriba a la
+  izquierda, los botones de Roblox. No pongas nada ahí.
 
 - Tablas literales con un campo que se rellena después (p. ej. `series`) no encajan con su tipo exportado:
   conviértelas con `(… :: any) :: Tipo`.

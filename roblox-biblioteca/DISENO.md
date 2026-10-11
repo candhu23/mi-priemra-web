@@ -314,7 +314,7 @@ para las series de 10 y estantes cortos de 5 o 3 huecos para las demás. Las bal
 |---|---|---|
 | 1 | Documentos, herramientas, `Config`, `Lang`, `BookData` (400 títulos) | ✅ comprobado con `check_books.py` |
 | 2 | Edificio y 3.072 libros en sus montones iniciales | ✅ comprobado con `run_world.luau` (planos en `docs/`) |
-| 3 | Bucle principal jugable | pendiente |
+| 3 | Bucle principal jugable | ✅ bot de servidor (partida entera 400/400) y cliente PC/móvil |
 | 4 | Puntos, manual, magias, llaves, cristal | pendiente |
 | 5 | Guardado, menú, opciones, luz, música, puerta, finales, insignias, fase especial | pendiente |
 | 6 | Táctil, mando, rendimiento, revisión ES/EN, README | pendiente |

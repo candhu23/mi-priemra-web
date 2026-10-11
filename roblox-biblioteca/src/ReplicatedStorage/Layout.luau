@@ -432,16 +432,17 @@ end
 
 -- Tablón con el mapa de una planta (el cliente le dibuja el mapa)
 local function mapBoard(def: Def, floor: number, pos: Vector3, look: Vector3)
-	local cf = face(pos + Vector3.new(0, 3.6, 0), look)
-	PC(def, cf, Vector3.new(5.2, 3.8, 0.25), C.caseDark, Enum.Material.Wood)
-	PC(def, cf * CFrame.new(0, 0, -0.14), Vector3.new(4.8, 3.4, 0.05), Color3.fromRGB(240, 230, 205), Enum.Material.SmoothPlastic,
+	-- Tablón vertical (el mapa es más alto que ancho: 64 × 120 studs)
+	local cf = face(pos + Vector3.new(0, 4, 0), look)
+	PC(def, cf, Vector3.new(3.8, 6, 0.25), C.caseDark, Enum.Material.Wood)
+	PC(def, cf * CFrame.new(0, 0, -0.14), Vector3.new(3.4, 5.6, 0.05), Color3.fromRGB(240, 230, 205), Enum.Material.SmoothPlastic,
 		{ name = "MapBoard" .. floor, interact = "map" .. floor, group = "maps" })
-	for _, sx in { -2.1, 2.1 } do
-		local leg = cf * CFrame.new(sx, -2.6, 0.1)
-		PC(def, CFrame.new(leg.Position.X, pos.Y + 0.85, leg.Position.Z), Vector3.new(0.3, 1.7, 0.3), C.caseDark, Enum.Material.Wood)
+	for _, sx in { -1.5, 1.5 } do
+		local leg = cf * CFrame.new(sx, 0, 0.1)
+		PC(def, CFrame.new(leg.Position.X, pos.Y + 0.5, leg.Position.Z), Vector3.new(0.3, 1, 0.3), C.caseDark, Enum.Material.Wood)
 	end
 	local right = cf.RightVector
-	S(def, pos - right * 2.7 - Vector3.new(0.3, 0, 0.3), pos + right * 2.7 + Vector3.new(0.3, 5.6, 0.3), "deco")
+	S(def, pos - right * 2 - Vector3.new(0.3, 0, 0.3), pos + right * 2 + Vector3.new(0.3, 7, 0.3), "deco")
 	def.interact["map" .. floor] = cf.Position
 	keep(def, pos - right * 3 - Vector3.new(1.5, 0, 1.5), pos + right * 3 + Vector3.new(1.5, 4, 1.5))
 end
