@@ -17,6 +17,8 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).
 - Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para los dos juegos.
+- **Herramientas de Claude para los dos juegos** (`.claude/`, ver §15): `/publicar` (sacar versión) y
+  `roblox-nube` (publicar, probar en servidor real, pases/productos con la API Open Cloud).
 
 ---
 
@@ -249,6 +251,7 @@ al harness del servidor**.
 ## 12. Pendiente / ideas siguientes
 
 - [ ] Crear Developer Products y poner sus IDs (sin Headhunters si se sigue el consejo).
+      Con la clave Open Cloud lo hace Claude (`roblox_cloud.py crear-producto`, escribe el ID solo).
 - [ ] Publicar la versión con tutorial, misiones, ofertas de empleo y botón único (v1.2).
 - [ ] Imágenes de los Game Passes (4 en Canva + `docs/iconos/mentor_x2_xp.png`).
 - [ ] **Sistema de idiomas ES/EN** (la ficha del juego está en inglés pero la interfaz en
@@ -273,3 +276,19 @@ al harness del servidor**.
 
 Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación, trampas y pendientes) está en
 **`roblox-carga-aerea/CLAUDE.md`**. Léelo antes de tocar esa carpeta. Rama: `claude/zealous-dirac-ejfljx`.
+
+---
+
+## 15. Herramientas de Claude en `.claude/` (para los dos juegos)
+
+| Pieza | Qué hace |
+|---|---|
+| `settings.json` + `hooks/preparar-sesion.sh` | Al empezar cada sesión en la nube instala las herramientas de `tools/bin` de cada juego (~8 s; la 2ª vez nada) y avisa si hay `ROBLOX_API_KEY` |
+| `skills/publicar/` (`/publicar`) | Flujo completo de versión: rama → `Config.VERSION` → `tools/check.sh` → commit/push → prueba real → publicar (o pasos de Studio) → notas ES/EN |
+| `skills/roblox-nube/` | `roblox_cloud.py` (Open Cloud): `estado`, `pases`, `productos`, `guardar`, `probar`, `publicar`, `reiniciar`, `crear-producto`, `crear-pase`, `precio`. `juegos.json` = IDs de cada juego. `prueba_real.luau` = prueba en un servidor real de Roblox |
+
+- Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
+- Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
+  `skills/roblox-nube/SKILL.md` §4.
+- Si añades un juego nuevo, añádelo a `juegos.json` y al bucle de `hooks/preparar-sesion.sh`.
+
