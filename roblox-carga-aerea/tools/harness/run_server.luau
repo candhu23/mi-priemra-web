@@ -411,6 +411,26 @@ for _ = 1, 3 do
 	local c = lastState().candidates[1]
 	if c then act("hire", c.id, nil, nil, true) end
 end
+-- Despedir un piloto libre y abandonar un contrato (acciones que antes no probaba nadie)
+s = lastState()
+assert(not act("firePilot", -1, nil, nil, true), "despedir un piloto inventado no debería funcionar")
+local nPilots = #s.pilots
+assert(act("firePilot", s.pilots[#s.pilots].id), "debería poder despedir al último piloto fichado (está libre)")
+assert(#lastState().pilots == nPilots - 1, "el piloto despedido debería desaparecer")
+s = lastState()
+if #s.contracts.active == 0 and #s.contracts.offers > 0 then
+	act("acceptContract", s.contracts.offers[1].id, nil, nil, true)
+	s = lastState()
+end
+assert(not act("abandonContract", -1, nil, nil, true), "abandonar un contrato inventado no debería funcionar")
+if #s.contracts.active > 0 then
+	local nActive = #s.contracts.active
+	assert(act("abandonContract", s.contracts.active[1].id), "debería poder abandonar un contrato")
+	assert(#lastState().contracts.active == nActive - 1, "el contrato abandonado debería desaparecer")
+	print("  despedir piloto y abandonar contrato: OK")
+else
+	print("  despedir piloto: OK (no había contrato que abandonar)")
+end
 s = lastState()
 local regions = 0
 for _ in s.regions do regions += 1 end
