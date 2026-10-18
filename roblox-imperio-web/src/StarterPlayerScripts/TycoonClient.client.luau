@@ -291,6 +291,7 @@ end
 
 -- Escala toda la interfaz según el tamaño de la pantalla (móvil, tablet, PC)
 local scaledObjects: { UIScale } = {}
+local windowRef: Frame? = nil -- la ventana del ordenador (se asigna al crearla, más abajo)
 local function autoScale(guiObject: GuiObject)
 	local scale = create("UIScale", { Parent = guiObject })
 	table.insert(scaledObjects, scale)
@@ -303,8 +304,20 @@ local function updateScale()
 	end
 	local size = camera.ViewportSize
 	local value = math.clamp(math.min(size.X / 1150, size.Y / 720), 0.55, 1.15)
+	-- Móvil (pantalla baja): mínimo 0,75 para que el texto se lea, y la ventana se acorta
+	-- para caber en el alto disponible (su contenido ya va con scroll)
+	local small = size.Y < 520
+	if small then
+		-- sin pasarse del ancho (Android de 640×360: la ventana mide 880 de diseño)
+		value = math.max(value, math.min(0.75, (size.X - 16) / 880))
+	end
 	for _, scale in scaledObjects do
 		scale.Scale = value
+	end
+	if windowRef then
+		local height = if small then math.min(560, math.floor((size.Y - 66) / value)) else 560
+		windowRef.Size = UDim2.fromOffset(880, height)
+		windowRef.Position = if small then UDim2.new(0.5, 0, 0.5, 4) else UDim2.fromScale(0.5, 0.53)
 	end
 end
 
@@ -467,6 +480,7 @@ local window = create("Frame", {
 	ZIndex = 5,
 }, { corner(16), stroke(Color3.fromRGB(96, 165, 250), 3) })
 autoScale(window)
+windowRef = window
 
 local header = create("Frame", {
 	Parent = window,
