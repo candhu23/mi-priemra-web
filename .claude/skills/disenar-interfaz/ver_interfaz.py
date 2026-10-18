@@ -102,13 +102,17 @@ def render(node, ruta, parent_layout=None):
 	grad = mod(node, "UIGradient")
 	es_texto = cls in ("TextLabel", "TextButton", "TextBox")
 	if bt < 1 and grad and isinstance(grad.get("Color"), list) and len(grad["Color"]) >= 2:
+		# Roblox MULTIPLICA el degradado por BackgroundColor3 (y también por el color del texto)
+		base = node.get("BackgroundColor3") or [255, 255, 255]
+		con_color = any(max(k[1:4]) - min(k[1:4]) > 30 for k in grad["Color"])
+		grad = {**grad, "Color": [[k[0]] + [round(k[i + 1] * base[i] / 255) for i in range(3)] for k in grad["Color"]]}
 		stops = ",".join(f"{rgba(k[1:4], bt)} {k[0] * 100:.1f}%" for k in grad["Color"])
 		style.append(f"background:linear-gradient({grad.get('Rotation', 0) + 90}deg,{stops})")
 		medio = grad["Color"][len(grad["Color"]) // 2]
 		if bt < 0.15:
 			attrs.append(f'data-bg="{medio[1]},{medio[2]},{medio[3]}"')
 		# Solo es problema si el degradado tiene COLOR (uno gris/blanco, como shade() de Imperio, no tiñe)
-		if es_texto and any(max(k[1:4]) - min(k[1:4]) > 30 for k in grad["Color"]):
+		if es_texto and con_color:
 			attrs.append('data-gradiente-texto="1"')
 	elif bt < 1 and node.get("BackgroundColor3"):
 		style.append("background:" + rgba(node["BackgroundColor3"], bt))
@@ -176,6 +180,10 @@ def render(node, ruta, parent_layout=None):
 		ya = {"Top": "flex-start", "Center": "center", "Bottom": "flex-end"}[node.get("TextYAlignment", "Center")]
 		ta = {"Left": "left", "Center": "center", "Right": "right"}[node.get("TextXAlignment", "Center")]
 		fg = node.get("TextColor3", [0, 0, 0])
+		g0 = mod(node, "UIGradient")
+		if g0 and isinstance(g0.get("Color"), list) and g0["Color"]:
+			medio = g0["Color"][len(g0["Color"]) // 2]
+			fg = [round(fg[i] * medio[i + 1] / 255) for i in range(3)]
 		escalado = bool(node.get("TextScaled"))
 		wrap = node.get("TextWrapped") or escalado
 		tsc = mod(node, "UITextSizeConstraint")
@@ -284,6 +292,7 @@ def main():
 	p.add_argument("--barra", type=int, default=58)
 	p.add_argument("--estricto", action="store_true", help="sale con error si hay problemas graves")
 	a = p.parse_args()
+	a.carpeta = os.path.abspath(a.carpeta)
 	if a.movil and a.ancho == 1280:
 		a.ancho, a.alto = 844, 390
 	paginas = []

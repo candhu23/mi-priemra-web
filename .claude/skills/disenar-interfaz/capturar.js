@@ -206,6 +206,7 @@ function marcar(problemas) {
 	const context = await browser.newContext({ viewport: { width: +w, height: +h }, deviceScaleFactor: +scale, ignoreHTTPSErrors: true });
 	const page = await context.newPage();
 	for (const f of files) {
+		try {
 		await page.goto("file://" + f, { waitUntil: "load", timeout: 30000 }).catch(() => {});
 		await page.evaluate(() => document.fonts.ready);
 		await page.evaluate(maquetar);
@@ -218,6 +219,10 @@ function marcar(problemas) {
 			await page.screenshot({ path: f.replace(/\.html$/, "_problemas.png") });
 		}
 		console.log(`${png}  (${res.problemas.length} problemas)`);
+		} catch (e) {
+			console.log(`⚠️ ${f}: ${e.message.split("\n")[0]}`);
+			fs.writeFileSync(f.replace(/\.html$/, ".auditoria.json"), JSON.stringify({ problemas: [], textos: 0, botones: 0, colores: 0, error: String(e) }));
+		}
 	}
 	await browser.close();
 })();
