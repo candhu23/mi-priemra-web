@@ -60,10 +60,11 @@ roblox-imperio-web/
 ├── ImperioWeb.rbxl             # Lugar generado con rojo build (lo que se publica)
 ├── README.md                   # Guía para el usuario (en español)
 ├── docs/                       # Imágenes: rascacielos.png, ciudad.png, iconos/mentor_x2_xp.png
+│   └── arte/                   # encargo.json (skill arte-roblox) → iconos de 4 pases, icono del juego, miniatura, hoja.png
 ├── tools/                      # Verificación (ver §8). bin/ y out/ están en .gitignore
 │   ├── setup.sh                # Descarga luau-lsp, luau, rojo 7.4.4, lune 0.10.4
 │   ├── check.sh                # Verificación completa + rojo build
-│   ├── harness/                # run_world / run_server / run_client (.luau para Lune) + render.py
+│   ├── harness/                # run_world / run_server / run_client (.luau para Lune) + render.py + volcado.luau
 │   └── sim/sim.luau            # Simulador de economía (bot)
 └── src/
     ├── ReplicatedStorage/
@@ -199,6 +200,9 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    que recorre todas las acciones, compras, guardado, salida y reentrada. Debe acabar en `TODO OK`.
 5. `run_client.luau`: crea toda la interfaz, le pasa el estado real del servidor
    (`tools/out/state.json`) y **pulsa todos los botones** + recorre el tutorial. Debe dar `CLIENTE OK`.
+   Con carpeta y tamaño (`run_client.luau <src> <carpeta> [ancho alto]`) vuelca el HUD y las 10 pestañas;
+   `check.sh` lo hace en PC (1280×720) y móvil (844×390) y, si existe `.claude/`, dibuja y audita las
+   pantallas (informativo: `tools/out/vista*/informe_diseno.md`, skill `disenar-interfaz`).
 6. `sim.luau`: bot de economía 6 h (ritmo actual: $1M ≈ 11 min, Metaverso ≈ 56 min
    para un bot perfecto; un humano va bastante más lento).
 7. `rojo build` → regenera `ImperioWeb.rbxl` (solo si todo lo anterior pasa). **Súbelo en el commit.**
@@ -223,6 +227,9 @@ al harness del servidor**.
 - `Lighting.Technology` no se puede cambiar por script → va en `default.project.json`.
 - Los cilindros de Roblox van a lo largo del eje X: girar 90° en Z para ponerlos de pie.
 - Usa `IsFriendsWithAsync` / `IsInGroupAsync` (las versiones sin Async están obsoletas).
+- **Móvil**: la ventana mide 880×560 de diseño; en un móvil horizontal (~390 px de alto) la escala bajaba
+  a 0,55 y el texto quedaba en 6–7 px. `updateScale` usa mínimo **0,75** (o lo que quepa a lo ancho) si el alto < 520 y acorta la
+  ventana (`windowRef`) para que quepa. Comprueba cualquier cambio de interfaz con las capturas de móvil.
 
 ## 10. Publicar una versión nueva (flujo del usuario)
 
@@ -253,7 +260,10 @@ al harness del servidor**.
 - [ ] Crear Developer Products y poner sus IDs (sin Headhunters si se sigue el consejo).
       Con la clave Open Cloud lo hace Claude (`roblox_cloud.py crear-producto`, escribe el ID solo).
 - [ ] Publicar la versión con tutorial, misiones, ofertas de empleo y botón único (v1.2).
-- [ ] Imágenes de los Game Passes (4 en Canva + `docs/iconos/mentor_x2_xp.png`).
+- [ ] Subir las imágenes de los Game Passes: hechas en `docs/arte/` (x2 Money, Turbo Coder, +3 Websites,
+      Agency Pro; Mentor ya estaba en `docs/iconos/`) + icono del juego y miniatura. Con clave Open Cloud:
+      `roblox_cloud.py imagen imperio pase <id> <png> --confirmo`; sin ella, a mano (skill `arte-roblox`).
+- [ ] Textos de descripción de las tarjetas (12 px) aún pequeños en móvil (~9 px reales): subir a 14.
 - [ ] **Sistema de idiomas ES/EN** (la ficha del juego está en inglés pero la interfaz en
       español): módulo de traducciones y detectar `LocaleId` del jugador.
 - [ ] Conseguir los 250 jugadores 16+ (TikTok/Discord) para abrir a todas las edades.

@@ -8,6 +8,11 @@ local serde = require("@lune/serde")
 local process = require("@lune/process")
 
 local SRC = process.args[1]
+-- Opcional: carpeta para volcar la interfaz (skill disenar-interfaz) y tamaño de pantalla
+local DUMP = process.args[2]
+local VIEW_W = tonumber(process.args[3]) or 1280
+local VIEW_H = tonumber(process.args[4]) or 720
+local volcar = require("./volcado")
 local configSource = fs.readFile(SRC .. "/ReplicatedStorage/TycoonConfig.luau")
 local careerSource = fs.readFile(SRC .. "/ReplicatedStorage/CareerConfig.luau")
 local clientSource = fs.readFile(SRC .. "/StarterPlayerScripts/TycoonClient.client.luau")
@@ -183,7 +188,7 @@ overrides[player] = { UserId = 42, Character = false }
 
 overrides[wrap(services.Workspace)] = {
 	CurrentCamera = {
-		ViewportSize = roblox.Vector2.new(1280, 720),
+		ViewportSize = roblox.Vector2.new(VIEW_W, VIEW_H),
 		GetPropertyChangedSignal = function() return newSignal() end,
 	},
 }
@@ -289,6 +294,50 @@ s2.career.jobOffers = {
 }
 s2.career.cvLeft = 0
 fireState(s2)
+
+-- Capturas de cada pantalla (solo con carpeta de volcado)
+if DUMP then
+	for _, item in delayed do -- que se vayan los avisos
+		item[1](table.unpack(item[2], 1, item[2].n))
+	end
+	table.clear(delayed)
+	volcar(playerGui, DUMP .. "/00_hud.json")
+	signalFor(idOf(openRemote), "OnClientEvent"):Fire()
+	-- Pestañas del ordenador (mismos nombres que TABS en el cliente)
+	local NOMBRES = { "Crear", "Webs", "Clientes", "Anuncios", "Empresas", "Carrera", "Agencia", "Misiones", "Bolsa", "Tienda" }
+	local barra = nil
+	for _, d in playerGui:GetDescendants() do
+		if d:IsA("TextButton") and string.find(d.Text, " Crear$") then
+			barra = d.Parent
+		end
+	end
+	assert(barra, "no encuentro la barra de pestañas")
+	local tabs = {}
+	for _, nombre in NOMBRES do
+		for _, b in barra:GetChildren() do
+			if b:IsA("TextButton") and string.find(b.Text, " " .. nombre .. "$") then
+				table.insert(tabs, { b, nombre })
+			end
+		end
+	end
+	-- Sin ventanas emergentes encima (la recompensa diaria se abre sola con s2)
+	local sinDiario = serde.decode("json", serde.encode("json", s2))
+	sinDiario.dailyAvailable = false
+	local modal = playerGui:FindFirstChild("ImperioWebModal")
+	local tutorial = playerGui:FindFirstChild("ImperioWebTutorial")
+	if tutorial then
+		tutorial.Enabled = false
+	end
+	for i, par in tabs do
+		signalFor(idOf(par[1]), "Activated"):Fire()
+		fireState(sinDiario)
+		if modal then
+			modal.Enabled = false
+		end
+		volcar(playerGui, string.format("%s/%02d_%s.json", DUMP, 10 + i, string.lower(par[2])))
+	end
+	print("Capturas volcadas:", #tabs + 1, "pantallas en", DUMP)
+end
 
 -- Avisos y ventanas emergentes
 signalFor(idOf(notifyRemote), "OnClientEvent"):Fire("Hola", "money")
