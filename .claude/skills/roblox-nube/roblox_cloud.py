@@ -20,6 +20,7 @@ Juegos: los de juegos.json ("imperio", "aerocarga").
   crear-producto <juego> --clave K --nombre N --precio P [--descripcion D] [--imagen F] --confirmo
   crear-pase     <juego> --clave K --nombre N --precio P [--descripcion D] [--imagen F] --confirmo
   precio <juego> pase|producto <id> <robux> --confirmo
+  imagen <juego> pase|producto <id> <archivo.png> --confirmo   (icono hecho con arte-roblox)
 
 La clave se lee de la variable de entorno ROBLOX_API_KEY. Nunca se imprime.
 """
@@ -463,6 +464,22 @@ def orden_precio(args):
     print(f"✅ Precio de {args.tipo} {args.id} cambiado a {args.robux} R$.")
 
 
+def orden_imagen(args):
+    j = juego(args.juego)
+    if not os.path.isfile(args.archivo):
+        sys.exit(f"No existe {args.archivo}")
+    exigir_confirmacion(args, "cambia el icono de un artículo de la tienda en vivo")
+    cuerpo, ctype = multipart({}, args.archivo)
+    try:
+        if args.tipo == "pase":
+            peticion("PATCH", f"/game-passes/v1/universes/{j['universeId']}/game-passes/{args.id}", cuerpo, ctype, PERMISOS["pase-escribir"])
+        else:
+            peticion("PATCH", f"/developer-products/v2/universes/{j['universeId']}/developer-products/{args.id}", cuerpo, ctype, PERMISOS["producto-escribir"])
+    except ErrorApi as e:
+        sys.exit(e.explicar())
+    print(f"✅ Icono de {args.tipo} {args.id} subido (Roblox lo revisa antes de mostrarlo; puede tardar).")
+
+
 def main():
     p = argparse.ArgumentParser(description="Roblox Open Cloud para los juegos de este repo")
     sub = p.add_subparsers(dest="orden", required=True)
@@ -500,6 +517,12 @@ def main():
     s.add_argument("robux", type=int)
     s.add_argument("--confirmo", action="store_true")
 
+    s = con_juego("imagen", "subir el icono de un pase o producto")
+    s.add_argument("tipo", choices=["pase", "producto"])
+    s.add_argument("id", type=int)
+    s.add_argument("archivo")
+    s.add_argument("--confirmo", action="store_true")
+
     args = p.parse_args()
     {
         "estado": orden_estado,
@@ -512,6 +535,7 @@ def main():
         "crear-producto": lambda a: orden_crear(a, "producto"),
         "crear-pase": lambda a: orden_crear(a, "pase"),
         "precio": orden_precio,
+        "imagen": orden_imagen,
     }[args.orden](args)
 
 

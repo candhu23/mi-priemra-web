@@ -11,9 +11,10 @@ fi
 RAIZ="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$RAIZ" || exit 0
 
-for juego in roblox-imperio-web roblox-carga-aerea; do
-	setup="$juego/tools/setup.sh"
+# Cualquier carpeta de juego con tools/setup.sh (también los creados con la skill nuevo-juego)
+for setup in */tools/setup.sh; do
 	[ -f "$setup" ] || continue
+	juego="${setup%%/*}"
 	if [ -x "$juego/tools/bin/lune" ] && [ -x "$juego/tools/bin/rojo" ]; then
 		echo "[$juego] herramientas ya instaladas"
 	elif bash "$setup" > "/tmp/setup-$juego.log" 2>&1; then

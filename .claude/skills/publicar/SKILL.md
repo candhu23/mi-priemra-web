@@ -19,6 +19,11 @@ hay duda, pregunta con una sola pregunta de opciones.
    documenta. Cambio pequeño → +0.1; si el usuario lo llama «gran actualización» → siguiente entero.
 3. **Verificación completa:** `cd <carpeta> && tools/check.sh` → tiene que acabar en `TODO CORRECTO ✅`
    (regenera el `.rbxl`). Si no, arregla y repite. No sigas con fallos.
+3b. **Revisión antes de subir** (automático, no lo saltes):
+   - Agente `revisor-juego` sobre el diff de esta versión → arregla lo 🔴 y 🟠 antes de seguir.
+   - Si cambió algo visible: capturas y auditoría con la skill `disenar-interfaz` (PC y móvil); mira las
+     capturas y corrige lo grave (texto cortado/tapado, fuera de pantalla).
+   - `python3 -I .claude/skills/disenar-juego/mapa_juego.py <carpeta>`: ninguna acción nueva sin probar (❌).
 4. **Commit y push** del código + `.rbxl` (mensaje en español, atribución del sistema; nunca identificadores
    de modelo). `git push -u origin <rama>`.
 5. **¿Hay clave Open Cloud?** `python3 -I .claude/skills/roblox-nube/roblox_cloud.py estado <juego>`.
@@ -34,6 +39,7 @@ hay duda, pregunta con una sola pregunta de opciones.
    - 3–5 viñetas en **español** y lo mismo en **inglés** (la ficha del juego está en inglés), para la
      descripción del juego / Discord.
    - Una línea tipo «🆕 v1.3: …» para poner al principio de la descripción.
+   - Si es una actualización grande: miniatura nueva con etiqueta «🆕 UPDATE» (skill `arte-roblox`).
 7. **Resumen final al usuario** (formato de CLAUDE.md §13): qué cambia para el jugador, qué verificaste
    (check.sh, prueba real), qué NO pudiste verificar (no hay Studio aquí: aspecto visual exacto, móvil,
    compras reales), tu % de confianza y cómo volver atrás si algo sale mal (skill `roblox-nube` §3).

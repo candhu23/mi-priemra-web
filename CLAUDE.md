@@ -17,8 +17,8 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).
 - Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para los dos juegos.
-- **Herramientas de Claude para los dos juegos** (`.claude/`, ver §15): `/publicar` (sacar versión) y
-  `roblox-nube` (publicar, probar en servidor real, pases/productos con la API Open Cloud).
+- **Herramientas de Claude para los juegos** (`.claude/`, ver §15): `/publicar`, `roblox-nube`,
+  `disenar-interfaz`, `arte-roblox`, `nuevo-juego`, `disenar-juego`, el guardián y el agente `revisor-juego`.
 
 ---
 
@@ -283,12 +283,18 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 
 | Pieza | Qué hace |
 |---|---|
-| `settings.json` + `hooks/preparar-sesion.sh` | Al empezar cada sesión en la nube instala las herramientas de `tools/bin` de cada juego (~8 s; la 2ª vez nada) y avisa si hay `ROBLOX_API_KEY` |
+| `settings.json` + `hooks/preparar-sesion.sh` | Al empezar cada sesión en la nube instala las herramientas de `tools/bin` de cada juego (cualquier carpeta con `tools/setup.sh`; ~8 s, la 2ª vez nada) y avisa si hay `ROBLOX_API_KEY` |
 | `skills/publicar/` (`/publicar`) | Flujo completo de versión: rama → `Config.VERSION` → `tools/check.sh` → commit/push → prueba real → publicar (o pasos de Studio) → notas ES/EN |
-| `skills/roblox-nube/` | `roblox_cloud.py` (Open Cloud): `estado`, `pases`, `productos`, `guardar`, `probar`, `publicar`, `reiniciar`, `crear-producto`, `crear-pase`, `precio`. `juegos.json` = IDs de cada juego. `prueba_real.luau` = prueba en un servidor real de Roblox |
+| `skills/roblox-nube/` | `roblox_cloud.py` (Open Cloud): `estado`, `pases`, `productos`, `guardar`, `probar`, `publicar`, `reiniciar`, `crear-producto`, `crear-pase`, `precio`, `imagen`. `juegos.json` = IDs de cada juego. `prueba_real.luau` = prueba en un servidor real de Roblox |
+| `skills/disenar-interfaz/` | **Ver la interfaz**: `volcado.luau` (desde los harness) → `ver_interfaz.py` → PNG en PC/móvil + `informe_diseno.md` (texto pequeño/cortado/tapado, contraste, botones pequeños, fuera de pantalla, UIGradient sobre texto). Guía de estilo para Roblox |
+| `skills/arte-roblox/` | `arte.py encargo.json carpeta` → iconos de pases/productos (512, revisados en círculo), icono del juego y miniaturas 1920×1080 + `hoja.png` |
+| `skills/nuevo-juego/` | `crear_juego.py` + `plantilla/`: juego nuevo jugable y verificado (servidor seguro, guardado a prueba de fallos, ES/EN, UI para móvil, bot de pruebas, ritmo de economía, capturas) |
+| `skills/disenar-juego/` | Método de diseño (bucle, primeros 5 min, metas, economía medida, monetización legítima) + `mapa_juego.py` (resumen del juego y acciones **sin probar**) |
+| `hooks/revisar-luau.py` (guardián) | Tras cada edición de un `.luau`: lo compila (si falla, Claude tiene que arreglarlo ya) y avisa de trampas conocidas (§9, DataStore sin pcall, APIs obsoletas) |
+| `agents/revisor-juego.md` | Revisor de solo lectura antes de cada commit/publicación: trampas, seguridad, guardado, normas de Roblox, pruebas, textos, diseño |
 
 - Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
   `skills/roblox-nube/SKILL.md` §4.
-- Si añades un juego nuevo, añádelo a `juegos.json` y al bucle de `hooks/preparar-sesion.sh`.
+- Los juegos nuevos se crean con la skill `nuevo-juego` (se registran solos en `juegos.json`).
 

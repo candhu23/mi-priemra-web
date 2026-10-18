@@ -27,6 +27,7 @@ publicación es el manual de Studio (CLAUDE.md raíz §10).
 | `reiniciar <juego> --confirmo [--minutos N] [--todas]` | Cierra servidores con versión antigua (con `--minutos` los vacía poco a poco, 1–60) | Medio: echa a jugadores |
 | `crear-producto` / `crear-pase <juego> --clave K --nombre N --precio P [--descripcion D] [--imagen F.png] --confirmo` | Crea el artículo a la venta y **escribe su ID** en el archivo de config (solo si allí era `id = 0`) | Medio: aparece en la tienda |
 | `precio <juego> pase\|producto <id> <robux> --confirmo` | Cambia el precio | Medio |
+| `imagen <juego> pase\|producto <id> <archivo.png> --confirmo` | Sube el icono (hecho con la skill `arte-roblox`) | Bajo: Roblox lo modera antes |
 
 `--confirmo` es obligatorio en las órdenes que cambian cosas: **antes de ponerlo, pide un «sí» explícito
 al usuario** diciendo exactamente qué vas a hacer (juego, versión, precio). Un «sí» vale para esa acción, no
