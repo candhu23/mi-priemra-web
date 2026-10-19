@@ -17,6 +17,7 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).
 - Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para los dos juegos.
+- **Escritura de libros** (no son juegos): carpeta `libros/` y skills `libro-*` (ver §16 y `libros/README.md`).
 - **Herramientas de Claude para los juegos** (`.claude/`, ver §15): `/publicar`, `roblox-nube`,
   `disenar-interfaz`, `arte-roblox`, `nuevo-juego`, `disenar-juego`, el guardián y el agente `revisor-juego`.
 
@@ -307,4 +308,14 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
   `skills/roblox-nube/SKILL.md` §4.
 - Los juegos nuevos se crean con la skill `nuevo-juego` (se registran solos en `juegos.json`).
+
+---
+
+## 16. Escritura de libros (`libros/` y skills `libro-*`)
+
+El usuario también me pide **libros** (en español). Cada libro va en `libros/<titulo>/` (BIBLIA, PLAN, ESTADO,
+`capitulos/`, `revision/`). Flujo obligatorio: `libro-biblia` → `libro-plan` → por capítulo `libro-escribir` →
+`libro-revisar` (con `analizar_texto.py`) → actualizar BIBLIA + `comprobar_continuidad.py` → cada 3–5 capítulos
+`libro-lector` (agente `lector-beta`, que solo lee los capítulos). Validar la voz con el usuario tras los
+3 primeros capítulos. Versiones .zip para claude.ai en `libros/skills-para-claude-ai/` (regenerarlas si cambian).
 
