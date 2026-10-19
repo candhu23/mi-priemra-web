@@ -13,7 +13,7 @@ import os
 import re
 import sys
 
-LETRAS = "A-Za-zÁÉÍÓÚÜÑáéíóúüñ"
+LETRAS = "A-Za-zÁÉÍÓÚÜÑáéíóúüñÆæØøÅåÄäÖöÐðÞþ"
 
 
 def sin_tilde(c):
@@ -27,7 +27,7 @@ cap_dir = os.path.join(libro, "capitulos")
 if not os.path.isfile(biblia_ruta) or not os.path.isdir(cap_dir):
 	sys.exit(f"No encuentro BIBLIA.md y capitulos/ en {libro}")
 biblia = open(biblia_ruta, encoding="utf-8").read()
-en_biblia = set(re.findall(rf"\b[A-ZÁÉÍÓÚÑ][{LETRAS}]+", biblia))
+en_biblia = set(re.findall(rf"\b[A-ZÁÉÍÓÚÑÆØÅÄÖÐÞ][{LETRAS}]+", biblia))
 
 todas = set()  # cualquier palabra en mayúscula (también a principio de frase)
 usos = {}    # nombre -> capítulos donde sale
@@ -38,7 +38,7 @@ for f in sorted(os.listdir(cap_dir)):
 	for linea in open(os.path.join(cap_dir, f), encoding="utf-8"):
 		if linea.lstrip().startswith("#"):
 			continue
-		for m in re.finditer(rf"\b[A-ZÁÉÍÓÚÑ][{LETRAS}]+", linea):
+		for m in re.finditer(rf"\b[A-ZÁÉÍÓÚÑÆØÅÄÖÐÞ][{LETRAS}]+", linea):
 			todas.add(m.group(0))
 			antes = linea[: m.start()].rstrip()
 			if not antes or antes[-1] in ".!?…—«\"(:¿¡":
@@ -73,5 +73,5 @@ if m:
 			personajes.append(nombre)
 	print("\n## Personajes de la BIBLIA que aún no salen en ningún capítulo")
 	# Sale si aparece cualquiera de las palabras de su nombre (Abuela Rosa → «Rosa» o «Abuela»)
-	olvidados = [p for p in personajes if not any(w in todas for w in re.findall(rf"[A-ZÁÉÍÓÚÑ][{LETRAS}]+", p))]
+	olvidados = [p for p in personajes if not any(w in todas for w in re.findall(rf"[A-ZÁÉÍÓÚÑÆØÅÄÖÐÞ][{LETRAS}]+", p))]
 	print("\n".join(f"- {p}" for p in olvidados) or "Ninguno")

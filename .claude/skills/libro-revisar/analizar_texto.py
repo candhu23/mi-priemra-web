@@ -24,7 +24,7 @@ import statistics
 import sys
 import unicodedata
 
-LETRAS = "A-Za-zÁÉÍÓÚÜÑáéíóúüñ"
+LETRAS = "A-Za-zÁÉÍÓÚÜÑáéíóúüñÆæØøÅåÄäÖöÐðÞþ"
 RE_PALABRA = re.compile(rf"[{LETRAS}]+")
 FUERTES = set("aeoáéó")
 VOCALES = set("aeiouáéíóúü")
@@ -141,8 +141,8 @@ def analizar(texto, nombre=""):
 	dialogos = 0
 	for i, l in enumerate(lineas):
 		s = l.strip()
-		if not s or s.startswith(("#", "<!--", ">")):
-			continue
+		if not s or s.startswith(("#", "<!--", ">")) or re.fullmatch(r"[-*_]{3,}", s):
+			continue  # vacía, cabecera, comentario o separador de escena (---)
 		bajo = s.lower()
 		# Diálogos
 		if s.startswith("—"):
@@ -179,6 +179,12 @@ def analizar(texto, nombre=""):
 				marcar("larga", i, f"frase de {n} palabras: «{f[:60]}…»")
 
 	# Repeticiones cercanas (por tronco, ignorando palabras vacías y nombres propios)
+	# Nombre propio = palabra que aparece en mayúscula en mitad de una frase en algún sitio del texto
+	propios = set()
+	for l in lineas:
+		for m in RE_PALABRA.finditer(l):
+			if m.group(0)[0].isupper() and m.start() > 0 and not re.search(r"[.!?…—«\"¿¡]\s*$", l[: m.start()]):
+				propios.add(m.group(0))
 	vistos = {}
 	pos = 0
 	repes = set()
@@ -188,12 +194,12 @@ def analizar(texto, nombre=""):
 		for m in RE_PALABRA.finditer(l):
 			w = m.group(0)
 			pos += 1
-			if len(w) < 5 or w.lower() in STOP:
+			if len(w) < 6 or w.lower() in STOP:
 				continue
-			if w[0].isupper() and m.start() > 0 and not re.search(r"[.!?…—«\"]\s*$", l[: m.start()]):
-				continue  # nombre propio en mitad de frase
+			if w in propios:
+				continue  # nombre propio
 			t = tronco(w)
-			if t in vistos and pos - vistos[t][0] <= 40 and (t, vistos[t][1]) not in repes:
+			if t in vistos and pos - vistos[t][0] <= 30 and (t, vistos[t][1]) not in repes:
 				repes.add((t, vistos[t][1]))
 				marcar("repeticion", i, f"«{w}» repetida (antes en la línea {vistos[t][1] + 1})")
 			vistos[t] = (pos, i)
