@@ -306,6 +306,9 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 | `hooks/revisar-luau.py` (guardián) | Tras cada edición de un `.luau`: lo compila (si falla, Claude tiene que arreglarlo ya) y avisa de trampas conocidas (§9, DataStore sin pcall, APIs obsoletas) |
 | `agents/revisor-juego.md` | Revisor de solo lectura antes de cada commit/publicación: trampas, seguridad, guardado, normas de Roblox, pruebas, textos, diseño |
 
+| `skills/roblox-dev-*` + `agents/roblox-reviewer.md` | Copia del plugin **roblox-dev** (licencia MIT en `licencias/`): seguridad de remotes, DataStores, tipos estrictos, rendimiento, arquitectura, UI, pruebas. Están en el repo para que funcionen también en el Claude Code del ordenador del usuario |
+| `skills/roblox-debugging`, `roblox-level-design`, `roblox-studio-plugins` | Skills propias del usuario (de su cuenta de claude.ai), copiadas aquí por el mismo motivo |
+
 - Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
   `skills/roblox-nube/SKILL.md` §4.
