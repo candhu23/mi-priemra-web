@@ -2,7 +2,7 @@
 
 ## Capítulo 1: El hijo escondido
 
-*Soy Uhtred, hijo de Uhtred. Durante treinta años soñé con Bebbanburg. Soñé con el olor del mar en la puerta de las murallas, con el salón de mi padre, con el viento que no se calla nunca. Cuando por fin la recuperé, la fortaleza olía a humo y a carne quemada, y el viento traía los gritos de los heridos. Le había prometido al rey de Wessex que estas tierras no serían parte de su Inglaterra mientras él viviera. Él me había mirado como se mira a un perro que te muerde la mano que le da de comer. Yo creía que lo difícil ya estaba hecho. Los dioses debieron de reírse mucho aquella mañana.*
+*Soy Uhtred, hijo de Uhtred. Toda mi vida soñé con Bebbanburg. Soñé con el olor del mar en la puerta de las murallas, con el salón de mi padre, con el viento que no se calla nunca. Cuando por fin la recuperé, la fortaleza olía a humo y a carne quemada, y el viento traía los gritos de los heridos. Le había prometido al rey de Wessex que estas tierras no serían parte de su Inglaterra mientras él viviera. Él me había mirado como se mira a un perro que te muerde la mano que le da de comer. Yo creía que lo difícil ya estaba hecho. Los dioses debieron de reírse mucho aquella mañana.*
 
 ---
 
@@ -94,9 +94,9 @@ Se dio la vuelta y se fue hacia sus daneses, con la espalda recta y el paso larg
 
 En la capilla de Bebbanburg, que no había ardido porque era de piedra y porque, según el padre Uhtred, Dios cuida de lo suyo, el rey Eduardo de Wessex escuchaba misa con la mandíbula apretada.
 
-No escuchaba, en realidad. Movía los labios en los sitios donde había que moverlos y se santiguaba cuando se santiguaban los demás, pero tenía la cabeza en otra parte: en una sala llena de humo, en una mesa de banquete, en un hombre de pie con una copa en la mano diciéndole delante de todos sus señores que estas tierras no serían parte de Inglaterra mientras él viviera.
+No escuchaba, en realidad. Movía los labios en los sitios donde había que moverlos y se santiguaba cuando se santiguaban los demás, pero tenía la cabeza en otra parte: en una sala llena de humo, en una mesa de banquete, en un hombre de pie con una copa en la mano diciéndole delante de todos sus señores que estas tierras no serían parte de Inglaterra mientras viviera el rey.
 
-*Mientras yo viva.* Lo había dicho como quien constata que mañana lloverá. Sin desprecio, casi con cariño. Eso era lo peor.
+*No serán parte de Inglaterra mientras tú vivas.* Se lo había dicho a él, al rey, mirándole a los ojos, con la misma calma con que se anuncia que mañana lloverá. Sin desprecio, casi con cariño. Eso era lo peor.
 
 A su lado, la reina Eadgifu rezaba de verdad, o fingía tan bien que daba igual. Tenía las manos cruzadas sobre el vientre, que empezaba a notarse bajo el vestido verde, y de vez en cuando miraba a su marido de reojo con esa atención tranquila con la que miraba todo. Eduardo se había casado con ella deprisa y mal, con un hijo en camino y otro huido, y aún no sabía si había hecho la cosa más sensata o la más estúpida de su vida. Sospechaba que las dos.
 
@@ -152,7 +152,7 @@ La puerta de la capilla se abrió con un chirrido. Entró un hombre de mediana e
 
 —Vuestro hijo, mi rey.
 
-Eduardo se quedó muy quieto.
+Eduardo dejó de respirar un instante.
 
 —Aelfweard huyó hacia el sur con un puñado de los hombres de su abuelo —dijo Wulfric—. Está asustado. Ha visto morir a Aethelhelm, ha oído lo que hizo con su madre. No sabe adónde ir. Un muchacho asustado y sin rumbo es un muchacho que otros usarán, mi rey. Dejadme buscarle. Dejadme traerle a casa, antes de que lo encuentre alguien con peores intenciones.
 
@@ -176,13 +176,13 @@ Wulfric se levantó, hizo una reverencia a la reina y salió. Eadgifu esperó a 
 
 Salieron juntos al patio. El sol se había abierto paso entre las nubes y la fortaleza humeaba todavía por los cuatro costados. Al otro lado del patio, junto a la escalera del salón, una mujer menuda con un velo de lino blanquísimo discutía con un criado que cargaba un baúl.
 
-—No, no, no. Ese no. Ese va a la habitación del este. La que da al mar. ¿No entiendes lo que significa «al mar»? Es esa cosa grande y mojada de ahí.
+—No, no, no. Ese no. Ese va a la habitación del este. La que da al mar. ¿No entiendes lo que significa «al mar»? El agua. Lo azul.
 
 —Madre —dijo Eduardo.
 
 Lady Aelswith, viuda del rey Alfredo, madre del rey de Wessex, se volvió hacia su hijo con una sonrisa radiante.
 
-—¡Edward, querido! He decidido quedarme.
+—¡Eduardo, querido! He decidido quedarme.
 
 —¿Quedarte?
 
@@ -314,7 +314,7 @@ Hild le había hecho apartarse del camino, y se habían quedado los dos de pie e
 
 —Los reyes casi siempre parecen enfadados —dijo Hild—. Es parte de su trabajo.
 
-Osbert se volvió hacia ella. Hild llevaba tres días rara. Rara para Hild, que era la persona más tranquila que él había conocido nunca, una mujer que podía ver arder un granero sin levantar la voz y que una vez había echado a un vikingo borracho del refectorio con una sola frase en danés que Osbert no había entendido y que el vikingo, por lo visto, sí. Pero desde que habían llegado las noticias de la batalla de Bebbanburg, Hild estaba distraída, se le olvidaban las oraciones, le miraba cuando creía que él no se daba cuenta. Y aquella mañana, en lugar de mandarle a cortar leña, le había dicho que se pusiera la túnica buena y que se lavara detrás de las orejas.
+Osbert se volvió hacia ella. Hild llevaba tres días rara. Rara para Hild, que era la persona más tranquila que él había conocido nunca, una mujer que podía ver arder un granero sin levantar la voz y que una vez había echado a un vikingo borracho del refectorio con una sola frase en danés que Osbert no había entendido y que el vikingo, por lo visto, sí. Pero una semana antes Hild se había marchado de la isla sin decir adónde, y había vuelto hacía dos días con el hábito oliendo a humo, un corte vendado en la mano y la cara de alguien que ha visto muchos muertos. No había querido contar nada. Desde entonces estaba distraída, se le olvidaban las oraciones, le miraba cuando creía que él no se daba cuenta. Y aquella mañana, en lugar de mandarle a cortar leña, le había dicho que se pusiera la túnica buena y que se lavara detrás de las orejas.
 
 Detrás de las orejas. A los quince años.
 
@@ -378,7 +378,7 @@ El muchacho dio un paso adelante, inclinó la cabeza, la levantó. No se arrodil
 
 Tenía la voz grave, recién cambiada. Uhtred abrió la boca. No le salió nada. Hild le miraba. Osbert le miraba. El fuego crepitaba. Por el agujero del techo entró un copo de ceniza y se posó en la mesa, entre el pan y la cerveza.
 
-Treinta años luchando por aquella roca, pensó Uhtred. Había entrado por la puerta del mar con tres hombres. Había matado a Wihtgar con las manos. Había mirado a la cara a Constantín de Escocia y le había obligado a retirarse. Y no era capaz de decirle a un chico de quince años: *soy tu padre*.
+Toda una vida luchando por aquella roca, pensó Uhtred. Había entrado por la puerta del mar con tres hombres. Había matado a Wihtgar con las manos. Había mirado a la cara a Constantín de Escocia y le había obligado a retirarse. Y no era capaz de decirle a un chico de quince años: *soy tu padre*.
 
 —Siéntate —dijo al fin—. Come algo. Habréis caminado mucho.
 
@@ -398,7 +398,7 @@ Osbert se inclinó hacia delante.
 
 —Era un idiota —dijo.
 
-Hild se quedó muy quieta.
+Hild cerró los ojos.
 
 —Un idiota terco —siguió Uhtred, y una vez que empezó no supo cómo parar—. Un hombre que nunca estaba en casa. Que se pasó la vida luchando en las guerras de otros, por reyes que no le querían, por tierras que no eran suyas. Que tenía hijos y no los veía crecer. Que siempre tenía algo más importante que hacer.
 
@@ -450,7 +450,7 @@ Hild suspiró. Se le fue la furia de golpe, como se va el aire de un fuelle, y s
 
 —Yo no arreglo las cosas, Hild. Las rompo.
 
-—Has arreglado esto. —Hild señaló a su alrededor, el salón quemado, la fortaleza, el mar—. Treinta años, pero lo has arreglado.
+—Has arreglado esto. —Hild señaló a su alrededor, el salón quemado, la fortaleza, el mar—. Te ha costado la vida entera, pero lo has arreglado.
 
 —Esto lo he conquistado. No es lo mismo.
 
@@ -512,13 +512,13 @@ Uhtred la miró. Eadith le sostuvo la mirada.
 
 —«Quizá» no es una respuesta.
 
-—Es la única honrada que tengo. —Eadith dejó la jarra—. Tienes veintiséis heridos en el granero, Uhtred. Tres no pasarán de esta noche. Dos perderán la pierna. Uno se cree que es la reencarnación de san Cuthbert porque le dieron un golpe en la cabeza, y como no se le pase, va a fundar una iglesia en tu letrina. Me quedo hasta que se curen. —Hizo una pausa—. Y luego ya veremos.
+—Es la única honrada que tengo. —Eadith dejó la jarra—. Tienes veintiséis heridos en el granero, Uhtred. Tres no pasarán de esta noche. Dos perderán la pierna. Uno cree que es san Cuthbert porque le dieron un golpe en la cabeza. Le he dejado creérselo: así reza más y se queja menos. Me quedo hasta que se curen. —Hizo una pausa—. Y luego ya veremos.
 
 —¿Ya veremos qué?
 
 —Si me das una razón para quedarme.
 
-Lo dijo sin coquetería, sin bajar los ojos, como quien pone una condición en un trato de ganado. Uhtred se quedó sin palabras por segunda vez aquel día, lo cual era una marca que no había alcanzado desde que tenía doce años.
+Lo dijo sin coquetería, sin bajar los ojos, igual que se pone una condición en un trato de ganado. Uhtred se quedó sin palabras por segunda vez aquel día, lo cual era una marca que no había alcanzado desde que tenía doce años.
 
 Iba a contestar algo —no sabía qué, algo estúpido, sin duda— cuando la puerta del salón se abrió de par en par y entró lady Aelswith seguida de cuatro criados y tres baúles.
 
@@ -542,13 +542,13 @@ Eadith se levantó.
 
 Aelswith la miró de arriba abajo, el delantal sangriento, las mangas, el pelo.
 
-—Tú eres la hermana de Eardwulf.
-
-—Lo soy, señora.
-
-—Mataste a Bresal conmigo en el camino. Bueno, lo maté yo. Pero tú estabas.
+—Tú estabas en el camino. Cuando aquellos hombres nos cogieron.
 
 —Estaba, señora.
+
+—Yo maté a uno. —Aelswith lo dijo con cierto orgullo—. Con mis propias manos. Me confesé después, por supuesto.
+
+—Lo recuerdo, señora. Fue muy valiente.
 
 —Muy bien. —Aelswith asintió como un rey que concede una tierra—. Llévame a esa torre. Y que alguien suba vino, porque con este frío se me van a pudrir los huesos antes de Navidad.
 
@@ -562,7 +562,7 @@ Uhtred se quedó mirando la puerta cerrada. Luego se bebió la cerveza de un tra
 
 El padre Uhtred encontró al muchacho en la capilla, ya de noche.
 
-Estaba sentado en el último banco, con las piernas estiradas y los brazos cruzados, mirando el altar como quien mira a un enemigo. El padre Uhtred había venido a rezar las completas y a encender las velas; no esperaba compañía. Caminaba despacio todavía, con una mano en la pared, porque la herida que le hizo Brida se le despertaba con el frío y le recordaba, cada noche, que era un hombre a medias. Había aprendido a no maldecir por eso. Le había costado meses. A veces todavía se le escapaba.
+Estaba sentado en el último banco, con las piernas estiradas y los brazos cruzados, mirando el altar igual que se mira a un enemigo. El padre Uhtred había venido a rezar las completas y a encender las velas; no esperaba compañía. Caminaba despacio todavía, con una mano en la pared, porque la herida que le hizo Brida se le despertaba con el frío y le recordaba, cada noche, que era un hombre a medias. Había aprendido a no maldecir por eso. Le había costado meses. A veces todavía se le escapaba.
 
 —Perdona —dijo Osbert, y se levantó—. No sabía que…
 
@@ -588,7 +588,7 @@ Osbert se rio, a su pesar. Se volvió a sentar. El padre Uhtred terminó con las
 
 —Raro. Me miraba como si yo fuera un fantasma. Y el hombre de la puerta, el irlandés, se santiguó al verme. Y hay una mujer en las cocinas que se echó a llorar cuando le pedí agua. —Osbert levantó la vista—. Y vos me miráis igual.
 
-El padre Uhtred se quedó muy quieto, con la astilla todavía humeando en la mano.
+El padre Uhtred no se movió. La astilla le humeaba todavía en la mano.
 
 Pensó: *no lo ha hecho*. Pensó: *no ha podido*. Pensó en su padre sentado en la silla de su abuelo, en el salón quemado, con esa cara que ponía cuando algo le dolía tanto que no podía ni enfadarse. Y pensó que él era sacerdote, y que un sacerdote no puede mentir, y que había un muchacho delante de él con los ojos de su madre esperando una respuesta.
 
@@ -688,6 +688,6 @@ Uhtred miró hacia el norte. La lengua de arena, plateada. La isla santa, una so
 
 Uhtred ya estaba en el patio. Desde la puerta de la torre, una figura con un candil en la mano le vio pasar: Eadith, con el pelo suelto y un chal sobre los hombros. No le dijo nada. Él tampoco. Le trajeron el caballo gris, montó, le abrieron la puerta pequeña.
 
-Y Uhtred de Bebbanburg, que había entrado en su fortaleza tres días antes después de treinta años de destierro, salió de ella en mitad de la noche, solo, sin escudo, persiguiendo a un muchacho de quince años hacia un camino de arena que el mar se tragaba dos veces al día.
+Y Uhtred de Bebbanburg, que había entrado en su fortaleza tres días antes después de toda una vida de destierro, salió de ella en mitad de la noche, solo, sin escudo, persiguiendo a un muchacho de quince años hacia un camino de arena que el mar se tragaba dos veces al día.
 
 *Los dioses me habían devuelto Bebbanburg. Me habían devuelto un hijo. Y, por si me había olvidado de quiénes eran, aquella misma noche me pusieron delante la marea.*

@@ -10,7 +10,7 @@ No lo conseguí. Eadith me encontró sentado en el borde del colchón, con una m
 
 —Entonces el suelo ha subido.
 
-Me miró como me ha mirado siempre, con esa paciencia que en una mujer lista es más peligrosa que una espada. Tiene el pelo blanco ya, recogido en una trenza que antes era rojiza y ahora es del color de la ceniza fría, pero sigue cruzándose de brazos igual que el primer día que me plantó cara. Dejó el cuenco que traía en el arcón, me pasó un brazo por debajo del sobaco y me levantó. Pesaba la mitad que antes. Ella también.
+Me miró como me ha mirado siempre, con esa paciencia que en una mujer como ella es más peligrosa que una espada. Tiene el pelo blanco ya, recogido en una trenza que antes era rojiza y ahora es del color de la ceniza fría, pero sigue cruzándose de brazos igual que el primer día que me plantó cara. Dejó el cuenco que traía en el arcón, me pasó un brazo por debajo del sobaco y me levantó. Pesaba la mitad que antes. Ella también.
 
 —Puedo solo.
 
@@ -50,7 +50,7 @@ Osbert sonrió un poco. Él también le quiso.
 
 —Edmundo será rey —dijo—. Tiene dieciocho años.
 
-Dieciocho años. La misma edad que tenía Aethelstan el verano en que recuperé Bebbanburg. Me quedé mirando el fuego y pensé que los dioses tienen un sentido del humor que solo entienden los muertos.
+Dieciocho años. La misma edad que tenía Aethelstan el año en que recuperé Bebbanburg. Me quedé mirando el fuego y pensé que los dioses tienen un sentido del humor que solo entienden los muertos.
 
 —Hay más —dijo Osbert.
 
@@ -58,7 +58,7 @@ Dieciocho años. La misma edad que tenía Aethelstan el verano en que recuperé 
 
 —Olaf Guthfrithson ha cruzado desde Dublín. Dicen que va hacia Eoferwic.
 
-Eadith se quedó muy quieta a mi lado. Yo me reí. No fue una risa bonita: fue la tos de un perro viejo que huele un lobo y ya no tiene dientes.
+Eadith dejó de coser. Yo me reí. No fue una risa bonita: fue la tos de un perro viejo que huele un lobo y ya no tiene dientes.
 
 —Los reyes se mueren —dije— y los lobos vuelven. Es lo único que no cambia en este mundo.
 
@@ -74,7 +74,7 @@ Traía la nariz roja de frío, un saco al hombro y esa cara de paciencia con la 
 
 —Voy a escribir tu vida.
 
-Lo dijo como quien anuncia que va a ordeñar una cabra. Eadith, que estaba remendando algo junto a la ventana, levantó la vista y no dijo nada, lo cual quería decir que ya lo sabía. En mi casa todo el mundo sabe las cosas antes que yo.
+Lo dijo con el mismo tono con que anunciaría que va a ordeñar una cabra. Eadith, que estaba remendando algo junto a la ventana, levantó la vista y no dijo nada, lo cual quería decir que ya lo sabía. En mi casa todo el mundo sabe las cosas antes que yo.
 
 —Mi vida —repetí.
 
@@ -116,7 +116,7 @@ Los oí antes de verlos, como siempre. Finan se quejaba de que Sihtric le había
 
 Entraron sin llamar. Nunca han llamado.
 
-Finan tiene más años que yo, o eso dice él; yo sospecho que se los inventa para que le dejen el mejor sitio junto al fuego. Está flaco como un palo de escoba, tiene el pelo blanco cortado al rape y una cicatriz nueva en la mejilla que se hizo el año pasado cayéndose de un caballo, aunque él cuenta que fue un escocés de dos metros. Sihtric camina con un bastón que finge no necesitar. Los dos llevaban espada. Los dos siguen llevando espada a todas partes, como si en cualquier momento fueran a tener que formar un muro de escudos en el pasillo de mi casa.
+Finan tiene más años que yo, o eso dice él; yo sospecho que se los inventa para que le dejen el mejor sitio junto al fuego. Está flaco como un palo de escoba, tiene el pelo blanco cortado al rape y una cicatriz nueva en la mejilla que se hizo el año pasado cayéndose de un caballo, aunque él cuenta que fue un escocés que le sacaba dos cabezas. Sihtric camina con un bastón que finge no necesitar. Los dos llevaban espada. Los dos siguen llevando espada a todas partes, como si en cualquier momento fueran a tener que formar un muro de escudos en el pasillo de mi casa.
 
 —Vengo a ver si te has muerto —dijo Finan.
 
@@ -148,7 +148,7 @@ El padre Uhtred había dejado de escribir y los miraba con esa mezcla de cariño
 
 —Ya lo sé que era suyo. Por eso es gracioso.
 
-Nos reímos los tres. El padre Uhtred también. Eadith no, porque nunca le ha hecho gracia la historia del jabalí, pero sonrió. Y durante un rato estuvimos allí sentados, cuatro viejos y una mujer lista, acordándonos de un muerto, como se hace en las casas donde todavía se quiere a la gente.
+Nos reímos los tres. El padre Uhtred también. Eadith no, porque nunca le ha hecho gracia la historia del jabalí, pero sonrió. Y durante un rato estuvimos allí sentados, cuatro viejos y una mujer con más juicio que todos ellos, acordándonos de un muerto, como se hace en las casas donde todavía se quiere a la gente.
 
 —¿Qué es eso? —preguntó Finan al fin, señalando los pergaminos con la barbilla.
 
@@ -164,7 +164,7 @@ Finan miró al sacerdote. Luego me miró a mí. Luego volvió a mirar al sacerdo
 
 —Nada —dijimos Finan y yo a la vez.
 
-Eadith levantó una ceja. No dijo nada. Hay cosas que una mujer lista prefiere no saber, y cosas que ya sabe y prefiere que creas que no.
+Eadith levantó una ceja. No dijo nada. Hay cosas que Eadith prefiere no saber, y cosas que ya sabe y prefiere que creas que no.
 
 ---
 

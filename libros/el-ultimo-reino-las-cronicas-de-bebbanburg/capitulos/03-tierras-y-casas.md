@@ -78,7 +78,7 @@ Oswig se detuvo a diez pasos. No desmontó. Miró a Uhtred, miró a Stiorra, mir
 
 Oswig apretó la lanza.
 
-—Mi padre murió en Eoferwic —dijo—. Hace cincuenta años. Con un hacha danesa en la cabeza. Ese mismo día murió el vuestro, lord Uhtred. En el mismo campo. Por las mismas hachas. —Miró a Stiorra—. Los padres de esta gente.
+—Mi padre murió en Eoferwic —dijo—. Yo era un crío. Con un hacha danesa en la cabeza. Ese mismo día murió el vuestro, lord Uhtred. En el mismo campo. Por las mismas hachas. —Miró a Stiorra—. Los padres de esta gente.
 
 Stiorra no se movió. Uno de sus daneses, el más joven, dio un paso adelante con la mano en el hacha. Stiorra le paró con un gesto, sin mirarle.
 
@@ -246,52 +246,6 @@ Osbert la acompañó hasta el principio de la arena, con los postes del paso cla
 
 Hild se rio. Le besó en la frente. Luego subió al carro, y las monjas arrearon a la mula, y Osbert se quedó mirando cómo se alejaban por la arena brillante hacia la isla, cada vez más pequeñas, hasta que se metieron entre los postes y desaparecieron.
 
-Cuando se dio la vuelta, Uhtred estaba en las dunas, a caballo, mirándole.
-
-Se acercó al paso. Desmontó. Se quedaron los dos de pie, uno delante del otro, sin saber qué decir. El viento les movía el pelo.
-
-—Toma —dijo Uhtred al fin.
-
-Le tendió algo envuelto en un trapo de lana. Osbert lo cogió. Pesaba. Lo desenvolvió.
-
-Era un seax. Un cuchillo largo de guerrero, de un palmo y medio de hoja, con la empuñadura de asta de ciervo gastada por muchas manos y la vaina de cuero negro con remaches de plata. La hoja tenía un dibujo en el acero, como agua que se mueve, y una runa grabada cerca de la guarda.
-
-—Era de mi padre —dijo Uhtred—. Lo llevaba el día que murió. Ragnar me lo devolvió cuando cumplí doce años. Dijo que un hombre tiene que llevar algo de su padre encima, aunque su padre fuera un idiota.
-
-Osbert levantó la vista.
-
-—¿Tu padre era un idiota?
-
-—Mi padre era un hombre duro que nunca me dijo que me quería. —Uhtred se encogió de hombros—. Yo no quiero ser como él. Pero me está costando.
-
-Osbert miró el seax. Pasó el dedo por la runa.
-
-—¿Qué pone?
-
-—Bebbanburg.
-
-Osbert lo envainó despacio. Se lo colgó del cinturón, donde había llevado hasta entonces un cuchillo de cocina de las monjas. Pesaba bien. Se notaba.
-
-—Gracias, señor —dijo.
-
-—De nada. —Uhtred montó otra vez. Le miró desde arriba—. Finan dice que mañana te dejará practicar con espada de verdad.
-
-—Finan dice muchas cosas.
-
-—Finan dice muchas cosas —asintió Uhtred—. Pero esa me la ha dicho a mí, y conmigo no miente. Casi nunca.
-
-Hizo girar al caballo. Osbert le llamó.
-
-—¿Señor?
-
-Uhtred se volvió.
-
-—Mañana —dijo Osbert—. Cuando practique con la espada de verdad. ¿Vas a bajar? ¿O vas a mirar desde la muralla?
-
-Uhtred se quedó quieto un momento largo. Luego sonrió, de lado, como sonreía Osbert cuando no quería sonreír.
-
-—Ya veremos —dijo.
-
 ---
 
 El hombre se llamaba Wulfhere y gritaba como un cerdo en el matadero.
@@ -374,7 +328,7 @@ Uhtred se sirvió cerveza. Bebió. Dejó la jarra.
 
 Aelswith le miró largamente por encima del queso. Luego, contra todo pronóstico, contra todo lo que Uhtred había llegado a saber de ella en treinta años de discusiones, de insultos, de odio y al final de algo parecido al cariño, sonrió.
 
-—Ya era hora —dijo.
+—Ya era hora —dijo—. Aunque espero que esto termine delante de un sacerdote, lord Uhtred. Si no, rezaré por vuestra alma todas las noches. En voz alta. Y mi habitación está justo encima de la vuestra.
 
 Y siguió comiendo.
 
@@ -418,7 +372,7 @@ Uhtred se levantó.
 
 El patio se quedó en silencio. Hasta las gaviotas, pareció, se callaron.
 
-—He escuchado a todos —dijo. Lo dijo primero en sajón, y luego lo repitió en danés, frase por frase, despacio, para que nadie pudiera decir después que no había entendido—. Y voy a decir lo que he oído.
+—He escuchado a todos —dijo. Lo dijo primero en sajón, y luego lo repitió en danés, frase por frase, despacio, para que nadie se quedara sin entenderlo—. Y voy a decir lo que he oído.
 
 »He oído que un hombre ha muerto en un pozo. Que tenía mujer y un hijo en camino. Que no podrá decirnos qué pasó, porque está muerto. He oído a tres muchachos contar la misma historia con las mismas palabras, como si se la hubieran aprendido de memoria por el camino. —Miró a los tres chicos sajones. Uno bajó la cabeza—. He oído a un hombre pedir sangre por sangre, y a otro decirme que si derramo sangre sajona por un danés, los sajones me odiarán.
 
@@ -472,112 +426,44 @@ Uhtred tardó en contestar. Abajo, en las dunas, se veían las hogueras de los �
 
 —Dice que por eso os peleabais Alfredo y tú. Porque os parecíais demasiado.
 
-Uhtred se volvió a mirarle. Osbert le miraba muy serio, con los ojos de Gisela y la nariz de su propio padre. La de Uhtred el Viejo. Hasta esa noche no lo había visto.
+Uhtred se volvió a mirarle. Osbert le miraba muy serio, con la cara de Gisela y la nariz de su propio padre. La de Uhtred el Viejo. Hasta esa noche no lo había visto.
 
 —Hild habla mucho —dijo.
 
-—Sí. —Osbert sonrió un poco—. Pero conmigo no miente. Casi nunca.
+Metió la mano bajo la capa y sacó algo envuelto en un trapo de lana. Se lo tendió. Osbert lo cogió. Pesaba. Lo desenvolvió.
 
-Uhtred se rio. Osbert también. Y se quedaron allí un rato, en silencio, mirando el mar.
+Era un seax. Un cuchillo largo de guerrero, de un palmo y medio de hoja, con la empuñadura de asta de ciervo gastada por muchas manos y la vaina de cuero negro con remaches de plata. La hoja tenía un dibujo en el acero, como agua que se mueve, y una runa grabada cerca de la guarda.
 
----
+—Era de mi padre —dijo Uhtred—. Lo llevaba el día que murió. Ragnar me lo devolvió cuando cumplí doce años. Dijo que un hombre tiene que llevar algo de su padre encima, aunque su padre fuera un idiota.
 
-Rögnvaldr de Eoferwic llegó a Bebbanburg el último día de la siembra, con cuarenta hombres, seis carros, un estandarte con una cruz bordada en oro y una carta del rey Eduardo de Wessex.
+—¿Tu padre era un idiota?
 
-Llegó cantando.
+—Mi padre era un hombre duro que nunca me dijo que me quería. —Uhtred se encogió de hombros—. Yo no quiero ser como él. Pero me está costando.
 
-Uhtred lo oyó desde el patio, antes de verle: un vozarrón desafinado que venía por el camino de la costa entonando un himno cristiano con una letra que no era exactamente la de los curas. Luego le vio. Rögnvaldr cabalgaba al frente de sus hombres en un caballo blanco demasiado pequeño para él, con una capa de piel de oso, un crucifijo de plata del tamaño de una mano sobre el pecho y el pelo trenzado con cuentas de cristal. Tenía la cara roja y la sonrisa ancha de un hombre que no ha tenido una idea buena en su vida y no lo sabe.
+Osbert pasó el dedo por la runa.
 
-—¡Uhtred! —bramó desde el caballo—. ¡Uhtred de Bebbanburg! ¡Hermano mío en Cristo!
+—¿Qué pone?
 
-—Por todos los dioses —murmuró Finan a su lado.
+—Bebbanburg.
 
-—¡He venido en paz! —Rögnvaldr bajó del caballo de un salto y estuvo a punto de caerse—. ¡Completamente en paz! ¡Soy un hombre nuevo! ¡Bautizado! ¡Reformado! ¡No he probado la cerveza desde el principio de la Cuaresma!
+Osbert lo envainó despacio. Se lo colgó del cinturón, donde había llevado hasta entonces un cuchillo de cocina de las monjas. Pesaba bien. Se notaba.
 
-—La Cuaresma terminó hace un mes —dijo Sihtric.
+—Gracias, señor.
 
-—¡Seis semanas enteras! —Rögnvaldr abrió los brazos como si hubiera conquistado Roma—. ¡Por la gracia de Dios!
+—Finan dice que mañana te dejará practicar con espada de verdad.
 
-Detrás de él, un hombre flaco y moreno con cara de comadreja se bajó del caballo con más cuidado. Uhtred le reconoció: Wolland, que había sido hombre de Sigtryggr y había traído a la gente de Brida hasta las puertas de Eoferwic, y que ahora servía a Rögnvaldr como un perro sirve al que le da de comer. Wolland le miró y bajó la vista enseguida. Uhtred no la bajó.
+—Finan dice muchas cosas.
 
-Stiorra salió del salón.
+—Muchas. Pero esa me la ha dicho a mí, y conmigo no miente. Casi nunca.
 
-Uhtred la vio venir y supo, en el acto, que aquello iba a acabar mal. Lo supo como se sabe que va a caer un rayo un segundo antes de que caiga: por un cambio en el aire. Stiorra venía andando muy despacio, muy tranquila, con el arco a la espalda y los brazos sueltos a los costados, y tenía la cara completamente vacía. La cara que tenía la noche que mató a Brida.
+Osbert miró hacia la playa, oscura, donde cada mañana el irlandés le tiraba de culo en la arena. Luego miró a su padre.
 
-Rögnvaldr la vio también. Se le borró la sonrisa un instante. Volvió enseguida.
+—Mañana —dijo—. Cuando practique con la espada de verdad. ¿Vas a bajar? ¿O vas a mirar desde la muralla?
 
-—¡Cuñada! —gritó—. ¡Hermana! ¡Viuda de mi querido hermano Sigtryggr, que Dios tenga en su gloria!
+Uhtred tardó mucho en contestar. Luego sonrió de lado, como sonreía Osbert cuando no quería sonreír.
 
-—Sigtryggr está en el Valhalla —dijo Stiorra—. Con los dioses que tú has escupido.
+—Bajaré —dijo.
 
-—Bueno, bueno. —Rögnvaldr se rio—. Eso ya lo discutiremos. Hay sitio para todos en la casa del Señor, dicen los curas. —Sacó un rollo de pergamino de dentro de la capa y lo agitó en el aire—. Pero no he venido a hablar de teología, lord Uhtred. ¡He venido por negocios! ¡Negocios del rey!
+*Bajé. Y Finan, que es un traidor, me tiró de culo en la arena delante de mi hijo con el mismo truco del guiño que le había enseñado a él. Y mi hijo se rio. Fue la primera vez que le oí reírse de mí sin rabia. Llevaba toda la vida esperando ese ruido y no lo sabía.*
 
----
-
-La carta del rey Eduardo decía, con muchas palabras y mucho latín que el padre Uhtred tuvo que traducir dos veces, que Rögnvaldr, rey de Eoferwic por la gracia de Dios y la voluntad del rey de Wessex, tenía derecho a recibir el tributo de todos los daneses establecidos en las tierras de Northumbria, «como señor natural de su gente», a cambio de responder de su conducta ante el rey.
-
-—Todos los daneses —repitió Uhtred.
-
-—¡Todos! —Rögnvaldr estaba sentado a la mesa del salón, donde Uhtred le había sentado porque la hospitalidad es sagrada incluso con imbéciles, comiendo cordero con las dos manos—. Es lógico, ¿no? Yo soy danés. Ellos son daneses. Yo soy rey. Ellos no. —Se chupó los dedos—. Es una cuestión de orden, lord Uhtred. El rey Eduardo quiere orden en el norte.
-
-—El rey Eduardo quiere orden en el norte —dijo Uhtred— pagado por los daneses de mi tierra a un rey que no es el mío.
-
-—¡Es tu rey! ¡Le juraste homenaje!
-
-—Le rindo homenaje a Eduardo. No a ti.
-
-—¡Yo soy de Eduardo!
-
-—Eso nadie lo duda —dijo Finan.
-
-Hubo risas en las mesas de abajo. Rögnvaldr no las oyó, o fingió no oírlas. Siguió comiendo. Al otro lado de la mesa, Stiorra no comía. No había tocado el plato. Tenía las manos encima de la mesa, una sobre otra, quietas, y miraba a Rögnvaldr sin parpadear.
-
-Uhtred lo vio. Eadith lo vio. Le puso una mano en el brazo a Uhtred por debajo de la mesa, solo un roce, y él asintió.
-
-—Te diré lo que vas a hacer —le dijo Uhtred a Rögnvaldr—. Vas a volver a Eoferwic. Vas a escribirle a tu rey, que también es el mío, y le vas a decir esto: los daneses de mis tierras me pagan a mí, como los sajones. Yo le rindo homenaje a él. Ese es el trato que hicimos en este mismo salón, delante de su madre y de su ejército, el otoño pasado. Si quiere cambiarlo, que venga a decírmelo él.
-
-—El rey no va a venir hasta aquí por…
-
-—Entonces no lo querrá cambiar mucho.
-
-Rögnvaldr dejó de comer. Por primera vez, la sonrisa se le fue del todo, y por debajo apareció otra cosa, algo pequeño y astuto y rencoroso.
-
-—Te crees muy listo, Uhtred —dijo—. Siempre te lo has creído. Mi hermano también te lo creía. Te admiraba. Por eso se casó con tu hija, ¿lo sabías? No porque la quisiera. Porque quería tener algo tuyo.
-
-Stiorra no se movió.
-
-—Y mira cómo acabó —siguió Rögnvaldr, y alzó la copa, que estaba llena de cerveza, porque llevaba toda la cena bebiendo y nadie se lo había impedido—. Muerto a manos de su suegro. De rodillas. Como un cerdo. Delante de los sajones. —Bebió—. Por mi hermano, que tenía muy mal gusto para los amigos. Y para las mujeres.
-
-El cuchillo apareció en la mano de Stiorra como si hubiera estado allí siempre. No lo vio sacar nadie. Estaba sentada al otro lado de la mesa y un instante después estaba de pie, inclinada sobre ella, con la punta del cuchillo de comer apretada contra la garganta de Rögnvaldr, justo debajo de la nuez, y una gota de sangre corría ya por el filo hacia sus dedos.
-
-Los cuarenta hombres de Rögnvaldr se levantaron de los bancos. Los hombres de Uhtred se levantaron también. Toki tenía el hacha en la mano. Wolland tenía un cuchillo. Finan tenía dos.
-
-—Stiorra —dijo Uhtred.
-
-No le hizo caso. Miraba a Rögnvaldr a los ojos, muy cerca, tan cerca que él podía olerle el aliento.
-
-—Abriste las puertas de mi ciudad a Brida —dijo, muy bajo, en danés, y en el salón no había ni un ruido para que todos la oyeran—. Me tuviste escondida en las cloacas, como una rata, mientras ella colgaba a mis mujeres en la plaza. Le pusiste la mano encima a mi marido para que ella le torturara. Y después te arrodillaste delante del rey sajón, te echaste agua en la cabeza y te sentaste en su trono. En el mío.
-
-—Stiorra —repitió Uhtred, más alto.
-
-—Lo juro —dijo Stiorra, y lo dijo en voz alta, para todo el salón, en danés y luego en sajón, como lo había hecho su padre en el patio, para que nadie pudiera decir después que no lo había entendido—. Lo juro por Odín, por Thor y por la sangre de Sigtryggr. Antes de que llegue el próximo Mes de la Sangre, Rögnvaldr estará muerto.
-
-Apartó el cuchillo. Se limpió la sangre en la túnica de Rögnvaldr, despacio, con cuidado, como quien limpia una hoja después de destripar un pescado. Luego se dio la vuelta y salió del salón, y nadie la detuvo.
-
-Rögnvaldr se llevó la mano al cuello. Se la miró. Tenía los dedos rojos.
-
-—¿Habéis visto eso? —gritó—. ¿Lo habéis visto todos? ¡Me ha amenazado! ¡Ha amenazado al rey de Eoferwic! ¡Ha jurado matarme!
-
-—Lo hemos visto —dijo Uhtred.
-
-—¡Se lo diré al rey! ¡Se lo diré a Eduardo!
-
-—Díselo. —Uhtred se sirvió cerveza. Le temblaba la mano un poco, y lo disimuló—. Y dile también lo que tú has dicho de su hermano muerto, delante de cien testigos, en la mesa del hombre que te ha dado de comer. A ver cuál de las dos cosas le parece peor.
-
-Rögnvaldr se fue al día siguiente, al alba, sin despedirse, con sus cuarenta hombres y sus seis carros y su estandarte con la cruz de oro, y un trapo atado al cuello.
-
-Wolland fue el último en salir por la puerta. Se volvió a mirar la fortaleza una vez, desde el camino, y Uhtred, que estaba en la muralla, le vio la cara, y no le gustó lo que vio en ella.
-
-*No le gustó porque no tenía miedo. Un hombre como Wolland, que ha visto a su señor con un cuchillo en el cuello, debería tener miedo. Tenía otra cosa. Parecía un hombre que acaba de recibir un regalo.*
-
-*Antes de que llegara el siguiente Mes de la Sangre, Rögnvaldr estaba muerto. Y todos los que habían estado en mi salón aquella noche sabían quién lo había jurado.*
+*Diez días después llegó Rögnvaldr.*

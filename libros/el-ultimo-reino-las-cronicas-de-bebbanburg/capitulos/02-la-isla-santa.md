@@ -184,7 +184,7 @@ Silencio. El mar. El siseo de las corrientes alrededor del banco. A lo lejos, un
 
 —¿Por qué me escondiste? —preguntó Osbert.
 
-Lo preguntó sin rabia, con una voz plana, como quien pregunta qué hora es. Uhtred cerró los ojos.
+Lo preguntó sin rabia, con una voz plana, igual que habría preguntado por el tiempo. Uhtred cerró los ojos.
 
 Pensó en contestar lo que le había contestado a su hijo mayor tantas veces: que era peligroso, que tenía enemigos, que un hijo de Uhtred era un rehén esperando a que alguien lo cogiera. Todo eso era verdad. Pero el agua le llegaba a los muslos, y el muchacho le había sacado del barro con las manos desnudas, y uno no le cuenta medias verdades a quien le acaba de salvar la vida. Eso, por lo menos, sí lo había aprendido.
 
@@ -192,7 +192,7 @@ Pensó en contestar lo que le había contestado a su hijo mayor tantas veces: qu
 
 Osbert no dijo nada.
 
-—Después de eso —siguió Uhtred—, todo lo que quise se me fue muriendo. Amigos. Una mujer a la que quise casi tanto como a tu madre. Hombres que me habían seguido a todas partes. Osferth, que era como un hermano para mí y que murió en Rumcofa mientras yo estaba en otra parte. Tu hermano mayor… —Se calló. No iba a contarle eso. Todavía no—. A todos les pasó algo por estar cerca de mí. Y cuando naciste, y tu madre se murió, yo te miré y pensé que si te quedabas a mi lado, te mataría. No con mis manos. Con mi vida. Con mis enemigos, con mis guerras, con mi mala suerte. Así que te di a Hild, que es la mejor persona que conozco. Y le dije que no te contara quién eras. Para que nadie te buscara. Para que yo no te buscara.
+—Después de eso —siguió Uhtred—, todo lo que quise se me fue muriendo. Amigos. Una mujer a la que quise casi tanto como a tu madre. Hombres que me habían seguido a todas partes. Osferth, que era como un hermano para mí y que murió en Rumcofa mientras yo estaba en otra parte. Tu hermano mayor… —Se calló. No iba a contarle eso. Todavía no—. A todos les pasó algo por estar cerca de mí. Y cuando naciste, y tu madre se murió, yo te miré y pensé que si te quedabas a mi lado, te mataría. No con mis manos. Con mi vida. Con mis enemigos, con mis guerras, con mi mala suerte. Así que te di a Hild, que es la mejor persona que conozco. Y le dije que no te contara quién eras. Para que nadie te buscara. ¿Quién iba a buscar al hijo de Uhtred en la isla santa, delante de las narices de su tío, que tenía Bebbanburg y le quería muerto? Nadie. Ni siquiera yo. Para que yo no te buscara.
 
 —¿Tú?
 
@@ -208,7 +208,7 @@ El agua les llegaba a la cintura. Osbert se agarró al poste con las dos manos.
 
 —Ya lo sé.
 
-—No, no lo sabes. —Osbert se volvió hacia él. Tenía la cara mojada, y no todo era agua del mar—. Yo me pasé quince años inventándome a mi padre. Cada noche. Era un guerrero que había muerto en una batalla. Era un señor que me buscaba por todas partes y no me encontraba. Era un rey, a veces, las noches que lloraba. Me lo inventaba bueno, valiente, me lo inventaba muerto para que no fuera culpa suya no venir. —Le temblaba la voz—. Y estabas vivo. Todo el tiempo. A dos días de camino. ¿Sabes lo que es eso?
+—No, no lo sabes. —Osbert se volvió hacia él. Tenía la cara mojada, y no todo era agua del mar—. Yo me pasé quince años inventándome a mi padre. Cada noche. Era un guerrero que había muerto en una batalla. Era un señor que me buscaba por todas partes y no me encontraba. Era un rey, a veces, las noches que lloraba. Me lo inventaba bueno, valiente, me lo inventaba muerto para que no fuera culpa suya no venir. —Le temblaba la voz—. Y estabas vivo. Todo el tiempo. En algún sitio de este reino, peleando por otros. ¿Sabes lo que es eso?
 
 Uhtred no contestó. El agua le llegaba a las costillas.
 
@@ -240,7 +240,19 @@ No lo notaron enseguida. Estaban demasiado helados para notar nada. Pero al rato
 
 —Los pescadores siempre tienen razón. Es lo único que se puede decir de los pescadores.
 
-Osbert se rio. Esta vez fue una risa de verdad, corta, cansada, sorprendida de sí misma. Uhtred se rio también. Y se quedaron allí los dos, abrazados al poste de un santo cristiano, con el mar retirándose a su alrededor, riéndose como dos idiotas, temblando como perros mojados.
+Osbert se rio. Esta vez fue una risa de verdad, corta, cansada, sorprendida de sí misma.
+
+—¿Ha sido suerte? —preguntó—. ¿O Dios?
+
+Uhtred miró el poste, la cruz tallada, el mar que se iba.
+
+—*Wyrd bið ful āræd* —dijo—. Me lo enseñó Ragnar. Quiere decir que el destino lo es todo. Que las Nornas tejen y nosotros solo somos el hilo.
+
+—La madre Hild dice que eso es superstición pagana.
+
+—La madre Hild acaba de criar a un muchacho que me ha sacado del barro a mí, de todos los hombres del mundo, en la única noche de mi vida que he cruzado este paso. —Uhtred se encogió de hombros—. Llámalo como quieras.
+
+Osbert soltó otra carcajada, y esta vez Uhtred se rio con él. Y se quedaron allí los dos, abrazados al poste de un santo cristiano, con el mar retirándose a su alrededor, riéndose como dos idiotas, temblando como perros mojados.
 
 ---
 
@@ -256,7 +268,7 @@ Finan saltó de la barca con el agua hasta las rodillas y se acercó chapoteando
 
 —Vete a la mierda, Finan.
 
-—Ya veo. —Finan miró a Osbert, que le miraba a él con los ojos de su madre y el mal humor de su padre—. Buenos días, muchacho. ¿Te lo has encontrado así o se lo has hecho tú?
+—Ya veo. —Finan miró a Osbert, que le devolvía la mirada con el mal humor de su padre—. Buenos días, muchacho. ¿Te lo has encontrado así o se lo has hecho tú?
 
 —Me lo he encontrado así —dijo Osbert—. Estaba en el barro, como un cerdo.
 
@@ -372,7 +384,7 @@ Stiorra esperó a que se fueran todos. Cuando Uhtred pasó a su lado, camino de 
 
 —Sí.
 
-Stiorra le miró. Tenía los ojos de su madre también, pensó Uhtred. Todos sus hijos tenían los ojos de Gisela. Era como si ella siguiera mirándole desde tres caras distintas, para asegurarse de que no se le olvidaba nada.
+Stiorra le miró. Todos sus hijos tenían algo de Gisela, pensó Uhtred. Era como si ella siguiera mirándole desde tres caras distintas, para asegurarse de que no se le olvidaba nada.
 
 —A mí nunca me fuiste a buscar —dijo Stiorra.
 
@@ -380,7 +392,7 @@ No lo dijo con rabia. Eso fue lo peor. Lo dijo como se dice algo que lleva mucho
 
 —Lo sé —dijo Uhtred.
 
-—Viniste cuando Brida tomó Eoferwic, sí. Con doce hombres. Y te fuiste en cuanto supiste que Aethelflaed se moría. Cuando Eduardo me desterró, me ofreciste un consejo y te marchaste a cazar a Brida. —Stiorra no apartó la vista—. Siempre te vas. Siempre hay algo más importante.
+—Viniste a Eoferwic, sí. Y te fuiste en cuanto te llamaron del sur. —Stiorra no apartó la vista—. Siempre te vas. Siempre hay algo más importante.
 
 —Lo sé.
 
@@ -460,7 +472,7 @@ Aelfweard se levantó. Se tambaleó. Wulfric dio un paso adelante para sostenerl
 
 Aelfweard se volvió hacia Wulfric. Wulfric sonrió.
 
-Y la reina Eadgifu soltó un gemido largo y bajo, y se dobló hacia delante en la silla, y una de sus damas gritó, y el líquido de sus aguas se derramó por el suelo de piedra del salón del rey de Wessex delante de todo el witan.
+A su lado, la reina Eadgifu se había llevado la mano a los riñones. Nadie se fijó salvo una de sus damas, que se inclinó a preguntarle algo. Eadgifu negó con la cabeza y siguió sonriendo hasta que el witan se disolvió, y solo entonces, en el pasillo, se apoyó en la pared y le dijo a la dama que mandara llamar a la comadrona.
 
 ---
 
@@ -514,10 +526,10 @@ Aelfweard no dijo nada. Miró la copa que tenía en la mano. Luego, despacio, co
 
 Wulfric sonrió. Se levantó, fue hasta la ventana, miró la noche de Winchester, las luces de la catedral, los tejados mojados por la lluvia.
 
-—Me han contado una cosa curiosa del norte —dijo, como quien habla del tiempo—. Dicen que la hija de Uhtred, la viuda de Sigtryggr, no ha fallado nunca un tiro con el arco. Que fue ella quien mató a la bruja Brida, de un flechazo en el pecho, a cincuenta pasos.
+—Me han contado una cosa curiosa del norte —dijo, sin volverse—. Dicen que la hija de Uhtred, la viuda de Sigtryggr, mató a la bruja Brida de un flechazo en el pecho. Y que Uhtred, después de todo lo que le hizo Brida a su familia, la habría dejado vivir.
 
 —¿Y qué?
 
-—Nada, mi señor. Nada. —Wulfric seguía mirando por la ventana—. Solo que me gustaría ver una de sus flechas algún día. Dicen que las hace ella misma. Que se reconocen a la legua.
+—Nada, mi señor. Nada. —Wulfric seguía mirando por la ventana—. Solo que es interesante saber qué cosas no perdona una mujer.
 
 *Aquel otoño, en Winchester, nació una princesa, y un hombre gordo y amable empezó a tejer. Yo no lo sabía. Estaba en Bebbanburg, aprendiendo a ser padre de un muchacho que me llamaba señor, y creía que mis enemigos eran los escotos, y los daneses de Dublín, y el mar. Siempre he sido muy bueno viendo a los enemigos que llevan espada. Los otros siempre los he visto tarde.*
