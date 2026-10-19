@@ -34,6 +34,16 @@ fi
 echo "== 5/7 Interfaz: se crea entera y se pulsan todos los botones (Lune)"
 "$BIN/lune" run "$ROOT/tools/harness/run_client.luau" "$SRC" | tail -3 || status=1
 
+# Capturas de la interfaz en PC y móvil + auditoría de diseño (skill disenar-interfaz; informativo)
+rm -rf "$OUT/vista" "$OUT/vista_movil" && mkdir -p "$OUT/vista" "$OUT/vista_movil"
+"$BIN/lune" run "$ROOT/tools/harness/run_client.luau" "$SRC" "$OUT/vista" > /dev/null 2>&1 || true
+"$BIN/lune" run "$ROOT/tools/harness/run_client.luau" "$SRC" "$OUT/vista_movil" 844 390 > /dev/null 2>&1 || true
+VER="$ROOT/../.claude/skills/disenar-interfaz/ver_interfaz.py"
+if [ -f "$VER" ] && command -v node > /dev/null && NODE_PATH=$(npm root -g) node -e "require('playwright')" 2> /dev/null; then
+	echo "-- Diseño (aproximado): PC $(python3 -I "$VER" "$OUT/vista" | tail -1) · móvil $(python3 -I "$VER" "$OUT/vista_movil" --movil | tail -1)"
+	echo "   Capturas e informes: tools/out/vista/ y tools/out/vista_movil/"
+fi
+
 echo "== 6/7 Economía: bot de 6 horas (luau)"
 mkdir -p "$OUT/sim"
 cp "$SRC/ReplicatedStorage/TycoonConfig.luau" "$OUT/sim/"

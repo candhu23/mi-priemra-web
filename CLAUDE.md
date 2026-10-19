@@ -14,11 +14,14 @@ El repo tiene **tres juegos de Roblox** independientes (y `index.html`, una web 
 | **Estanterías Hechizadas** (3D 1.ª persona, ordenar libros; sin publicar) | `roblox-biblioteca/` | `claude/biblioteca-arcana` | **`roblox-biblioteca/CLAUDE.md`** + `DISENO.md` + §2, §8–§11 de este archivo |
 
 - Si el usuario habla de aviones, carga aérea, España o mapa → es **AeroCarga España**.
-- Si habla de libros, biblioteca, estanterías, ordenar, hechizos o «el tercer juego» → es **Estanterías Hechizadas**.
+- Si habla del juego de la biblioteca (library), estanterías, ordenar libros, hechizos o «el tercer juego» → es **Estanterías Hechizadas** (escribir libros NO: eso es §16).
 - Si la carpeta del juego no existe en tu rama (p. ej. empezaste en `main`), cámbiate a su rama:
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).
 - Las secciones §2 (cómo es el usuario) y §11 (normas de Roblox) valen para todos los juegos.
+- **Escritura de libros** (no son juegos): carpeta `libros/` y skills `libro-*` (ver §16 y `libros/README.md`).
+- **Herramientas de Claude para los juegos** (`.claude/`, ver §15): `/publicar`, `roblox-nube`,
+  `disenar-interfaz`, `arte-roblox`, `nuevo-juego`, `disenar-juego`, el guardián y el agente `revisor-juego`.
 
 ---
 
@@ -60,10 +63,11 @@ roblox-imperio-web/
 ├── ImperioWeb.rbxl             # Lugar generado con rojo build (lo que se publica)
 ├── README.md                   # Guía para el usuario (en español)
 ├── docs/                       # Imágenes: rascacielos.png, ciudad.png, iconos/mentor_x2_xp.png
+│   └── arte/                   # encargo.json (skill arte-roblox) → iconos de 4 pases, icono del juego, miniatura, hoja.png
 ├── tools/                      # Verificación (ver §8). bin/ y out/ están en .gitignore
 │   ├── setup.sh                # Descarga luau-lsp, luau, rojo 7.4.4, lune 0.10.4
 │   ├── check.sh                # Verificación completa + rojo build
-│   ├── harness/                # run_world / run_server / run_client (.luau para Lune) + render.py
+│   ├── harness/                # run_world / run_server / run_client (.luau para Lune) + render.py + volcado.luau
 │   └── sim/sim.luau            # Simulador de economía (bot)
 └── src/
     ├── ReplicatedStorage/
@@ -199,6 +203,9 @@ cd roblox-imperio-web && tools/check.sh      # descarga herramientas la 1ª vez 
    que recorre todas las acciones, compras, guardado, salida y reentrada. Debe acabar en `TODO OK`.
 5. `run_client.luau`: crea toda la interfaz, le pasa el estado real del servidor
    (`tools/out/state.json`) y **pulsa todos los botones** + recorre el tutorial. Debe dar `CLIENTE OK`.
+   Con carpeta y tamaño (`run_client.luau <src> <carpeta> [ancho alto]`) vuelca el HUD y las 10 pestañas;
+   `check.sh` lo hace en PC (1280×720) y móvil (844×390) y, si existe `.claude/`, dibuja y audita las
+   pantallas (informativo: `tools/out/vista*/informe_diseno.md`, skill `disenar-interfaz`).
 6. `sim.luau`: bot de economía 6 h (ritmo actual: $1M ≈ 11 min, Metaverso ≈ 56 min
    para un bot perfecto; un humano va bastante más lento).
 7. `rojo build` → regenera `ImperioWeb.rbxl` (solo si todo lo anterior pasa). **Súbelo en el commit.**
@@ -223,6 +230,9 @@ al harness del servidor**.
 - `Lighting.Technology` no se puede cambiar por script → va en `default.project.json`.
 - Los cilindros de Roblox van a lo largo del eje X: girar 90° en Z para ponerlos de pie.
 - Usa `IsFriendsWithAsync` / `IsInGroupAsync` (las versiones sin Async están obsoletas).
+- **Móvil**: la ventana mide 880×560 de diseño; en un móvil horizontal (~390 px de alto) la escala bajaba
+  a 0,55 y el texto quedaba en 6–7 px. `updateScale` usa mínimo **0,75** (o lo que quepa a lo ancho) si el alto < 520 y acorta la
+  ventana (`windowRef`) para que quepa. Comprueba cualquier cambio de interfaz con las capturas de móvil.
 
 ## 10. Publicar una versión nueva (flujo del usuario)
 
@@ -251,8 +261,12 @@ al harness del servidor**.
 ## 12. Pendiente / ideas siguientes
 
 - [ ] Crear Developer Products y poner sus IDs (sin Headhunters si se sigue el consejo).
+      Con la clave Open Cloud lo hace Claude (`roblox_cloud.py crear-producto`, escribe el ID solo).
 - [ ] Publicar la versión con tutorial, misiones, ofertas de empleo y botón único (v1.2).
-- [ ] Imágenes de los Game Passes (4 en Canva + `docs/iconos/mentor_x2_xp.png`).
+- [ ] Subir las imágenes de los Game Passes: hechas en `docs/arte/` (x2 Money, Turbo Coder, +3 Websites,
+      Agency Pro; Mentor ya estaba en `docs/iconos/`) + icono del juego y miniatura. Con clave Open Cloud:
+      `roblox_cloud.py imagen imperio pase <id> <png> --confirmo`; sin ella, a mano (skill `arte-roblox`).
+- [ ] Textos de descripción de las tarjetas (12 px) aún pequeños en móvil (~9 px reales): subir a 14.
 - [ ] **Sistema de idiomas ES/EN** (la ficha del juego está en inglés pero la interfaz en
       español): módulo de traducciones y detectar `LocaleId` del jugador.
 - [ ] Conseguir los 250 jugadores 16+ (TikTok/Discord) para abrir a todas las edades.
@@ -276,7 +290,40 @@ al harness del servidor**.
 Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación, trampas y pendientes) está en
 **`roblox-carga-aerea/CLAUDE.md`**. Léelo antes de tocar esa carpeta. Rama: `claude/zealous-dirac-ejfljx`.
 
-## 15. Tercer juego: «Estanterías Hechizadas»
+---
+
+## 15. Herramientas de Claude en `.claude/` (para todos los juegos)
+
+| Pieza | Qué hace |
+|---|---|
+| `settings.json` + `hooks/preparar-sesion.sh` | Al empezar cada sesión en la nube instala las herramientas de `tools/bin` de cada juego (cualquier carpeta con `tools/setup.sh`; ~8 s, la 2ª vez nada) y avisa si hay `ROBLOX_API_KEY` |
+| `skills/publicar/` (`/publicar`) | Flujo completo de versión: rama → `Config.VERSION` → `tools/check.sh` → commit/push → prueba real → publicar (o pasos de Studio) → notas ES/EN |
+| `skills/roblox-nube/` | `roblox_cloud.py` (Open Cloud): `estado`, `pases`, `productos`, `guardar`, `probar`, `publicar`, `reiniciar`, `crear-producto`, `crear-pase`, `precio`, `imagen`. `juegos.json` = IDs de cada juego. `prueba_real.luau` = prueba en un servidor real de Roblox |
+| `skills/disenar-interfaz/` | **Ver la interfaz**: `volcado.luau` (desde los harness) → `ver_interfaz.py` → PNG en PC/móvil + `informe_diseno.md` (texto pequeño/cortado/tapado, contraste, botones pequeños, fuera de pantalla, UIGradient sobre texto). Guía de estilo para Roblox |
+| `skills/arte-roblox/` | `arte.py encargo.json carpeta` → iconos de pases/productos (512, revisados en círculo), icono del juego y miniaturas 1920×1080 + `hoja.png` |
+| `skills/nuevo-juego/` | `crear_juego.py` + `plantilla/`: juego nuevo jugable y verificado (servidor seguro, guardado a prueba de fallos, ES/EN, UI para móvil, bot de pruebas, ritmo de economía, capturas) |
+| `skills/disenar-juego/` | Método de diseño (bucle, primeros 5 min, metas, economía medida, monetización legítima) + `mapa_juego.py` (resumen del juego y acciones **sin probar**) |
+| `hooks/revisar-luau.py` (guardián) | Tras cada edición de un `.luau`: lo compila (si falla, Claude tiene que arreglarlo ya) y avisa de trampas conocidas (§9, DataStore sin pcall, APIs obsoletas) |
+| `agents/revisor-juego.md` | Revisor de solo lectura antes de cada commit/publicación: trampas, seguridad, guardado, normas de Roblox, pruebas, textos, diseño |
+
+- Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
+- Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
+  `skills/roblox-nube/SKILL.md` §4.
+- Los juegos nuevos se crean con la skill `nuevo-juego` (se registran solos en `juegos.json`).
+
+---
+
+## 16. Escritura de libros (`libros/` y skills `libro-*`)
+
+El usuario también me pide **libros** (en español). Cada libro va en `libros/<titulo>/` (BIBLIA, PLAN, ESTADO,
+`capitulos/`, `revision/`). Flujo obligatorio: `libro-biblia` → `libro-plan` → por capítulo `libro-escribir` →
+`libro-revisar` (con `analizar_texto.py`) → actualizar BIBLIA + `comprobar_continuidad.py` → cada 3–5 capítulos
+`libro-lector` (agente `lector-beta`, que solo lee los capítulos). Validar la voz con el usuario tras los
+3 primeros capítulos. Versiones .zip para claude.ai en `libros/skills-para-claude-ai/` (regenerarlas si cambian).
+
+---
+
+## 17. Tercer juego: «Estanterías Hechizadas»
 
 Todo su contexto está en **`roblox-biblioteca/CLAUDE.md`** y el diseño completo (reglas, números, supuestos,
 tabla original → nuestra versión) en **`roblox-biblioteca/DISENO.md`**. Rama: `claude/biblioteca-arcana`.

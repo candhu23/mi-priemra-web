@@ -1,0 +1,16 @@
+{
+  "estilo": { "texto": "#facc15", "borde": "#172554", "letra": "Fredoka One" },
+  "piezas": [
+    { "tipo": "pase", "archivo": "pase_x2_money.png", "emoji": "💰", "titulo": "x2", "subtitulo": "MONEY",
+      "fondo": ["#14532d", "#4ade80"], "borde": "#052e16", "flechas": true },
+    { "tipo": "pase", "archivo": "pase_turbo_coder.png", "emoji": "⚡", "titulo": "TURBO", "subtitulo": "CODER",
+      "fondo": ["#7c2d12", "#fb923c"], "borde": "#431407" },
+    { "tipo": "pase", "archivo": "pase_3_slots.png", "emoji": "🌐", "titulo": "+3", "subtitulo": "WEBSITES",
+      "fondo": ["#3b0764", "#c084fc"], "borde": "#2e1065" },
+    { "tipo": "pase", "archivo": "pase_agency_pro.png", "emoji": "🏙️", "titulo": "PRO", "subtitulo": "AGENCY",
+      "fondo": ["#701a75", "#f472b6"], "borde": "#4a044e" },
+    { "tipo": "icono", "archivo": "icono_juego.png", "emoji": "🏙️", "titulo": "WEB EMPIRE", "fondo": ["#1e3a8a", "#38bdf8"] },
+    { "tipo": "miniatura", "archivo": "miniatura_1.png", "titulo": "WEB EMPIRE\\nTYCOON", "subtitulo": "Code websites · Get rich 💸",
+      "emoji": "🏙️", "etiqueta": "🆕 UPDATE", "fondo": ["#1e3a8a", "#38bdf8"] }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "imperio": {
+    "nombre": "Web Empire Tycoon",
+    "carpeta": "roblox-imperio-web",
+    "rbxl": "ImperioWeb.rbxl",
+    "config": "src/ReplicatedStorage/TycoonConfig.luau",
+    "rama": "claude/roblox-game-h5olkl",
+    "universeId": 10769603072,
+    "placeId": 129921526137293
+  },
+  "aerocarga": {
+    "nombre": "AeroCarga España (Spain Air Cargo Tycoon)",
+    "carpeta": "roblox-carga-aerea",
+    "rbxl": "AeroCarga.rbxl",
+    "config": "src/ReplicatedStorage/Config.luau",
+    "rama": "claude/zealous-dirac-ejfljx",
+    "universeId": null,
+    "placeId": null
+  },
+  "biblioteca": {
+    "nombre": "Estanterías Hechizadas (Spellbound Shelves)",
+    "carpeta": "roblox-biblioteca",
+    "rbxl": "Biblioteca.rbxl",
+    "config": "src/ReplicatedStorage/Config.luau",
+    "rama": "claude/biblioteca-arcana",
+    "universeId": null,
+    "placeId": null
+  }
+}
