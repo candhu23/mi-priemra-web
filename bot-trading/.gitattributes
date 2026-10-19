@@ -1,0 +1,2 @@
+# El menú de Windows se guarda tal cual, con saltos de línea de Windows (CRLF)
+*.bat -text

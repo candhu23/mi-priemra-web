@@ -1,0 +1,131 @@
+# =====================================================================================
+#  AJUSTES DEL BOT DE TRADING  ·  TODO ES SIMULADO: no usa dinero real ni claves
+# =====================================================================================
+#  Ábrelo con el Bloc de notas, cambia lo que quieras y guarda.
+#  Reglas: los textos van entre comillas ("4h"), los decimales con punto (0.5),
+#  true / false sin comillas. Lo que va detrás de # es solo una explicación.
+#  Si te equivocas, el bot te dirá qué línea está mal (no se rompe nada).
+# =====================================================================================
+
+[general]
+monedas = ["BTC/USDT", "ETH/USDT"]   # pares de Binance (todos contra la misma: USDT)
+intervalo = "4h"                     # duración de cada vela: 15m, 30m, 1h, 4h, 1d…
+capital_inicial = 1000               # dinero de mentira con el que empieza (en USDT)
+comision = 0.1                       # % que cobra Binance por compra o venta
+deslizamiento = 0.05                 # % de precio peor al ejecutar (como en la realidad)
+modo_entrada = "cualquiera"          # con varias estrategias: "cualquiera", "mayoria" o "todas"
+modo_salida = "cualquiera"           # igual, pero para las señales de venta
+memoria_senales = 3                  # velas que una señal sigue contando para ponerse de acuerdo
+max_posiciones = 2                   # monedas compradas a la vez como máximo
+max_por_operacion = 50               # % máximo del capital en una sola compra
+orden_minima = 10                    # compra mínima en USDT
+velas_calentamiento = 300            # velas previas para calcular los indicadores
+
+[backtest]
+dias = 365                           # días del pasado que se prueban
+abrir_informe = true                 # abrir el informe en el navegador al terminar
+
+[vivo]
+segundos_entre_consultas = 30        # cada cuánto mira el precio
+minutos_entre_resumenes = 30         # cada cuánto escribe el estado en pantalla
+
+# =====================================================================================
+#  LOS 15 PLUGINS  ·  activo = true (encendido) / false (apagado)
+# =====================================================================================
+
+# ---------- ESTRATEGIAS: deciden cuándo comprar y vender --------------------------------
+
+[plugins.cruce_medias]          # 1. Sigue la tendencia: compra cuando la media rápida cruza la lenta
+activo = true
+rapida = 12                     # velas de la media rápida
+lenta = 26                      # velas de la media lenta
+
+[plugins.rsi]                   # 2. Compra tras una caída fuerte cuando empieza a rebotar
+activo = false
+periodo = 14
+sobreventa = 30                 # por debajo: "barato"
+sobrecompra = 70                # por encima: "caro" (señal de venta)
+
+[plugins.bollinger]             # 3. Compra al rebotar en la banda inferior, vende en la superior
+activo = false
+periodo = 20
+desviaciones = 2.0
+
+[plugins.macd]                  # 4. Compra cuando el impulso gira al alza
+activo = false
+rapida = 12
+lenta = 26
+senal = 9
+solo_bajo_cero = false          # true: solo compra si el MACD está por debajo de 0
+
+# ---------- FILTROS: impiden compras en malos momentos ----------------------------------
+
+[plugins.filtro_tendencia]      # 5. Solo compra si la tendencia de fondo es alcista
+activo = true
+periodo = 200                   # velas de la media larga
+exigir_pendiente = false        # true: además la media tiene que estar subiendo
+velas_pendiente = 10
+
+[plugins.filtro_volatilidad]    # 6. Ni mercado dormido ni desbocado
+activo = true
+periodo_atr = 14
+minimo = 0.3                    # % mínimo de movimiento por vela
+maximo = 8.0                    # % máximo de movimiento por vela
+
+[plugins.filtro_volumen]        # 7. Solo compra si hay más volumen de lo normal
+activo = false
+periodo = 20
+factor = 1.2                    # volumen mínimo = 1,2 × la media
+
+# ---------- GESTIÓN DEL RIESGO: protegen el dinero ----------------------------------------
+
+[plugins.tamano_posicion]       # 8. Cuánto comprar para perder como mucho un % si sale mal
+activo = true
+riesgo_por_operacion = 1.0      # % del capital que se puede perder en una operación
+sin_stop = 10.0                 # % del capital a invertir si no hubiera stop loss
+
+[plugins.stop_loss]             # 9. Venta de emergencia si el precio cae
+activo = true
+modo = "atr"                    # "atr" (se adapta a cada moneda) o "porcentaje"
+multiplicador_atr = 2.0         # stop a 2 veces el movimiento normal por debajo
+periodo_atr = 14
+porcentaje = 5.0                # usado en modo "porcentaje"
+
+[plugins.take_profit]           # 10. Vende al llegar a un objetivo de ganancia
+activo = false
+modo = "ratio"                  # "ratio" (X veces lo arriesgado) o "porcentaje"
+ratio = 2.0
+porcentaje = 10.0
+
+[plugins.trailing_stop]         # 11. El stop sube con el precio para asegurar ganancias
+activo = true
+multiplicador_atr = 3.0
+periodo_atr = 14
+activar_tras_ganancia = 0.0     # % de ganancia a partir del cual empieza a subir
+
+[plugins.freno_emergencia]      # 12. Para de comprar en malas rachas
+activo = true
+perdida_diaria_max = 5.0        # % de pérdida en un día → no compra hasta mañana
+caida_maxima = 20.0             # % de caída desde el máximo → freno fuerte
+vender_todo_en_caida = true     # con el freno fuerte, vender todo
+dias_pausa_tras_caida = 7
+perdidas_seguidas_max = 4       # tras 4 pérdidas seguidas…
+velas_pausa_tras_perdidas = 12  # …descansa 12 velas
+operaciones_dia_max = 10
+
+# ---------- INFORMACIÓN -----------------------------------------------------------------
+
+[plugins.diario]                # 13. Apunta cada operación en un CSV para Excel
+activo = true
+formato_excel_es = true         # coma decimal y ";" (Excel en español)
+
+[plugins.informe]               # 14. Página con gráficos y resultados (resultados/)
+activo = true
+max_operaciones_tabla = 300
+
+[plugins.telegram]              # 15. Avisos al móvil (configúralo con la opción del menú)
+activo = true
+avisar_compras = true
+avisar_ventas = true
+avisos_importantes = true
+resumen_diario = true

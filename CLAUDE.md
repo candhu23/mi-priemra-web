@@ -5,14 +5,16 @@ repositorio. Léelo entero antes de tocar nada.
 
 ## 0. Índice: ¿en qué juego vas a trabajar?
 
-El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web personal sin relación):
+El repo tiene **dos juegos de Roblox** independientes, un **bot de trading** en Python (solo simulación) y `index.html`, una web personal sin relación:
 
 | Juego | Carpeta | Rama de trabajo | Contexto que debes leer |
 |---|---|---|---|
 | **Web Empire Tycoon** (3D, publicado) | `roblox-imperio-web/` | `claude/roblox-game-h5olkl` | Este archivo, §1–§13 |
 | **AeroCarga España** (2D, sin publicar) | `roblox-carga-aerea/` | `claude/zealous-dirac-ejfljx` | **`roblox-carga-aerea/CLAUDE.md`** + §2 y §11 de este archivo |
+| **Bot de trading** (cripto, solo simulación, Python) | `bot-trading/` | `claude/bot-trading` | **`bot-trading/CLAUDE.md`** + §2 de este archivo |
 
 - Si el usuario habla de aviones, carga aérea, España, mapa o «el juego nuevo» → es **AeroCarga España**.
+- Si habla de trading, bot, criptomonedas, Binance o plugins del bot → es el **Bot de trading** (no es Roblox).
 - Si la carpeta del juego no existe en tu rama (p. ej. empezaste en `main`), cámbiate a su rama:
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).

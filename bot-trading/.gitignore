@@ -1,0 +1,8 @@
+# Se crean al usar el bot (no se suben al repositorio)
+datos/
+resultados/
+estado/
+secretos.toml
+secretos.toml.txt
+__pycache__/
+*.pyc
