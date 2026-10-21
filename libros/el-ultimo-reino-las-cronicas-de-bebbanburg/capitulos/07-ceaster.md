@@ -1,6 +1,6 @@
 ## Capítulo 7: Ceaster
 
-*Tres inviernos. Eso duró la paz. Tres inviernos en los que no maté a nadie, salvo a un lobo que se comía las ovejas de Ealdwic y a un ladrón de caballos de Dunholm que me lo pidió a gritos. Engordé. Me salieron más canas. Aprendí los nombres de los hijos de Sihtric, que eran muchos, y los de los nietos de los pescadores, que eran más. Dormía todas las noches en la misma cama, con la misma mujer, y por las mañanas me despertaba sin saber dónde estaba la espada. Eadith decía que eso era ser feliz. Yo no lo sabía. Nunca lo había probado. Y justo cuando empezaba a acostumbrarme, los dioses se aburrieron.*
+*Cinco inviernos. Eso duró la paz. Cinco inviernos en los que no maté a nadie, salvo a un lobo que se comía las ovejas de Ealdwic y a un ladrón de caballos de Dunholm que me lo pidió a gritos. Engordé. Me salieron más canas. Aprendí los nombres de los hijos de Sihtric, que eran muchos, y los de los nietos de los pescadores, que eran más. Dormía todas las noches en la misma cama, con la misma mujer, y por las mañanas me despertaba sin saber dónde estaba la espada. Eadith decía que eso era ser feliz. Yo no lo sabía. Nunca lo había probado. Y justo cuando empezaba a acostumbrarme, los dioses se aburrieron.*
 
 ---
 
@@ -100,11 +100,7 @@ No era que estuviera más viejo. Era que estaba vacío. Como si alguien le hubie
 
 —El camino es largo, mi rey.
 
-—Todos los caminos son largos hacia el norte. Por eso nadie los recorre. —Eduardo le miró de arriba abajo—. Estáis gordo.
-
-—Eso me dice todo el mundo.
-
-—Será verdad, entonces. —Eduardo hizo un gesto vago con la mano del paño—. Sentaos. Me cansa mirar hacia arriba.
+—Todos los caminos son largos hacia el norte. Por eso nadie los recorre. —Eduardo hizo un gesto vago con la mano del paño—. Sentaos. Me cansa mirar hacia arriba.
 
 Uhtred se sentó en un taburete. Aethelstan se quedó de pie junto a la entrada. En el fondo de la tienda, sentada en la penumbra, estaba la reina Eadgifu con un niño pequeño dormido en el regazo, de pelo rubio y mejillas rojas. Edmundo. Tres años. Eadgifu le miró a Uhtred por encima de la cabeza del niño y no dijo nada.
 
@@ -152,11 +148,7 @@ El padre Pyrlig llegó al campamento dos días después, montado en un poni gris
 
 —Dios no tiene nada que ver.
 
-—¡Dios tiene que ver con todo! ¡Hasta contigo, por desgracia para Él! —Pyrlig se bajó del poni, que pareció muy aliviado, y le dio un abrazo de oso que le crujió las costillas—. Te has puesto gordo.
-
-—Me lo dice todo el mundo.
-
-—Será que es verdad. —Pyrlig se apartó y le miró—. Y canoso. Y con cara de estar bien comido y bien querido. —Entornó los ojos—. Hay una mujer.
+—¡Dios tiene que ver con todo! ¡Hasta contigo, por desgracia para Él! —Pyrlig se bajó del poni, que pareció muy aliviado, y le dio un abrazo de oso que le crujió las costillas. Se apartó y le miró—. Canoso. Y con cara de estar bien comido y bien querido. —Entornó los ojos—. Hay una mujer.
 
 —Eadith.
 
@@ -316,7 +308,9 @@ Osbert se quedó mirándole. Aethelstan, a su lado, le puso la mano en el hombro
 
 Ceaster abrió las puertas al mediodía.
 
-Los mercios de la muralla habían visto huir a los galeses y habían visto a los hombres de Wessex en las escalas, y habían hecho las cuentas que hacen siempre los rebeldes cuando se quedan solos. Salieron con las manos en alto, el reeve rebelde por delante con una cuerda al cuello que se había puesto él mismo, y se arrodillaron delante de Aelfweard, que estaba a caballo en la puerta sur con su armadura brillante, sin un rasguño, y una sonrisa enorme.
+Los mercios de la muralla habían visto huir a los galeses y habían visto a los hombres de Wessex en las escalas, y habían hecho lo que hacen siempre los rebeldes cuando se quedan solos. Salieron con las manos en alto, el reeve rebelde por delante con una cuerda al cuello que se había puesto él mismo, y se arrodillaron delante de Aelfweard, que estaba a caballo en la puerta sur con su armadura brillante, sin un rasguño, y una sonrisa enorme.
+
+Wulfric, a su lado, se inclinó hacia Uhtred al pasar con su caballo, sin sonreír. *Os lo dije en la tienda, lord Uhtred. Se le paga a un galés y vuelve.* Y Uhtred, que lo odiaba, tuvo que reconocer que tenía razón.
 
 Los ealdormen de Wessex le aclamaron. *¡Aelfweard! ¡Aelfweard!* Wulfric, a su lado, inclinó la cabeza con modestia, como si la victoria fuera solo del muchacho. Nadie mencionó a la Guardia de Mercia. Nadie mencionó a los galeses del río. Nadie mencionó a veinte hombres de Bebbanburg que habían cruzado el campo de batalla detrás de un muchacho sin escudo.
 
@@ -404,6 +398,6 @@ En la segunda milla, se le fue la cabeza hacia delante.
 
 Uhtred lo vio desde lejos. Vio al rey inclinarse sobre el cuello del caballo, despacio, como un hombre que se queda dormido. Vio a Aethelstan espolear su caballo hacia él. Vio la corona caer al barro del camino y rodar, y a un muchacho de la guardia agacharse a recogerla.
 
-Y vio a Wulfric de Wiltunscir, que cabalgaba al lado de Aelfweard, mirar al rey caído. Y luego mirar a Aelfweard. Y luego, muy despacio, como un hombre que hace cuentas, hacia el sur. Hacia Winchester.
+Y vio a Wulfric de Wiltunscir, que cabalgaba al lado de Aelfweard, mirar al rey caído. Y luego mirar a Aelfweard. Y luego, muy despacio, hacia el sur. Hacia Winchester.
 
 *Le llevaron a Farndon, a la casa del reeve, que era la única con camas de verdad. Los físicos dijeron que se recuperaría. Los físicos dicen siempre eso hasta el último día, porque si dicen otra cosa, los reyes los cuelgan. Yo había visto morir a Alfredo. Había visto morir a Aethelflaed. Conocía aquella cara. Y aquella noche, en Farndon, mientras Eadith le daba agua al rey de Wessex con una cuchara porque los físicos no se atrevían a tocarle, supe que mi promesa tenía los días contados. Y que los días eran pocos.*

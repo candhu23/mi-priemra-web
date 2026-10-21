@@ -92,7 +92,7 @@ Eadith no contestó enseguida. Se había puesto de pie en los estribos y miraba 
 
 Había fiebre en Oxenaford.
 
-Se lo dijo el portero de la abadía de santa Frideswida, un monje viejo y desdentado que reconoció al padre Uhtred de cuando era estudiante y le abrazó llorando. Llevaba un mes. Había empezado en las casas del río, entre los pescadores y los curtidores, y había subido a la ciudad con el calor. Una fiebre que entraba de golpe, con escalofríos y dolor de cabeza, y luego un sudor que empapaba las sábanas, y luego, a veces, se iba sola al tercer día, y otras veces no se iba, y el enfermo se moría al quinto o al sexto, ardiendo, sin conocer a nadie. Habían enterrado a cuarenta y siete personas en el cementerio de la abadía desde Pentecostés. Tres de ellas, monjes.
+Se lo dijo el portero de la abadía de santa Frideswida, un monje viejo y desdentado que reconoció al padre Uhtred de cuando era estudiante y le abrazó llorando. Llevaba desde Pentecostés. Había empezado en las casas del río, entre los pescadores y los curtidores, y había subido a la ciudad con el calor. Una fiebre que entraba de golpe, con escalofríos y dolor de cabeza, y luego un sudor que empapaba las sábanas, y luego, a veces, se iba sola al tercer día, y otras veces no se iba, y el enfermo se moría al quinto o al sexto, ardiendo, sin conocer a nadie. Habían enterrado a cuarenta y siete personas en el cementerio de la abadía desde Pentecostés. Tres de ellas, monjes.
 
 —¿Y el rey va a venir aquí? —preguntó Eadith—. ¿Con esto?
 
@@ -212,7 +212,7 @@ Que Wessex era suyo. Que Mercia era de Aethelstan. Como había querido su padre.
 
 —Wulfric lo es casi.
 
-—Entonces dejad de que lo sea. —Uhtred se levantó—. Es fácil. Se dice «no». Lo practicáis delante del espejo, si queréis. «No, Wulfric». Al principio cuesta. Luego se coge el gusto.
+—Entonces dejad de que lo sea. —Uhtred se levantó—. Es fácil. Se dice «no». Lo practicáis a solas, en la capilla, si queréis. «No, Wulfric». Al principio cuesta. Luego se coge el gusto.
 
 Aelfweard se rio otra vez. Luego se puso serio.
 
@@ -418,7 +418,7 @@ Uhtred miró a su hijo. Miró a Eadith. Abrió la boca para discutir. La cerró.
 
 Los hombres de Wessex entraron en el claustro.
 
-Eran veinte, treinta, con lanzas y espadas y antorchas, con la cara roja de rabia y de dolor, y al frente iba el capitán con cara de buey, y detrás de él, caminando despacio, con las manos cruzadas sobre el vientre y lágrimas de verdad en la cara, lord Wulfric de Wiltunscir.
+Eran veinte, treinta, con lanzas y espadas y antorchas, con la cara roja de rabia y de dolor, y al frente iba el capitán, y detrás de él, caminando despacio, con las manos cruzadas sobre el vientre y lágrimas de verdad en la cara, lord Wulfric de Wiltunscir.
 
 Se pararon. Uhtred no se movió. No sacó la espada. Se quedó de pie junto a la fuente, con Eadith a un lado y su hijo sacerdote al otro, y les miró.
 
@@ -426,7 +426,7 @@ Se pararon. Uhtred no se movió. No sacó la espada. Se quedó de pie junto a la
 
 —¿El rey Edwin? —dijo Uhtred.
 
-—Los ealdormen de Wessex han elegido esta tarde, en la plaza, al hermano del rey muerto. —Wulfric se secó los ojos—. Está en Winchester. Le mandaremos la noticia esta noche. Y vuestra cabeza, si Dios quiere, poco después.
+—Los ealdormen de Wessex han elegido hace una hora, en la plaza, con el rey todavía caliente, a su hermano. —Wulfric se secó los ojos—. Está en Winchester. Le mandaremos la noticia esta noche. Y vuestra cabeza, si Dios quiere, poco después.
 
 —Aelfweard ha muerto de la fiebre del río, Wulfric. Como otros cincuenta en esta ciudad. Los monjes lo tienen apuntado en un libro.
 

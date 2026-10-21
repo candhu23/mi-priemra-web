@@ -8,7 +8,24 @@
 | T6-3 | Tierras y casas | ✅ | ✅ | ✅ (4/5) | ~5.600 | partido en dos tras la lectura beta |
 | T6-4 | La flecha | ✅ | ✅ | — | ~6.400 | empieza con la visita de Rögnvaldr (antes en el 3) |
 
-**Total**: ~27.700 palabras · **Siguiente paso**: que el usuario valide la voz nueva (de la serie) → T6-5 «Bakewell».
+**Total T6**: ~62.000 palabras · **Siguiente paso**: que el usuario lea la T6 en la Biblioteca → detallar T7 en PLAN.md → T7-1.
+
+## Temporada 6 terminada (2026-10-21)
+| T6-5 | Bakewell | ✅ | ✅ | ✅ (5/5) | ~7.500 | |
+| T6-6 | El Tuerto | ✅ | ✅ | ✅ (3/5→mejorado) | ~4.900 | fiesta recortada; semilla de Constantín |
+| T6-7 | Ceaster | ✅ | ✅ | ✅ (4/5) | ~4.900 | |
+| T6-8 | Farndon | ✅ | ✅ | ✅ (5/5) | ~4.100 | |
+| T6-9 | Dieciséis días | ✅ | ✅ | ✅ (4/5) | ~4.900 | |
+| T6-10 | Sangre de reyes | ✅ | ✅ | ✅ (4/5→mejorado) | ~7.600 | + escena de Uhtred y Eadgifu en la capilla; + recado de Eduardo a Aelswith |
+
+Lectura beta caps. 4–10: **8/10**. Arreglado: cronología de las flechas (la del crimen es una copia), coartada de Stiorra
+(la calla y Uhtred esconde al testigo), confesión de Beorhtric con el arquero Hrolf, años (cinco inviernos de paz),
+plazos (carta a los 12 días), Uhtred con jugada propia en Winchester (pacto con Eadgifu), copa de la reina menos
+subrayada, Aelswith recibe el recado de Eduardo, Stiorra en Kingston, Wulfric acierta una vez, muletillas («gordo»,
+«peor defecto», «cuentas», rótulos fijos). No se cambia (canon de la serie): Eadith aprendió a curar en Frankia;
+Aethelstan perdonó a Aethelhelm antes de que se suicidara.
+
+Publicado en el artefacto **Biblioteca** (libros/ultimo-reino-t6.json) — ver biblioteca/construir_biblioteca.py.
 
 ## Lectura beta prólogo + caps. 1–3 (8/10; informe en revision/)
 Mejor: la confesión fallida («Era un idiota… —¿Está muerto? —Todavía no»), el poste de san Aidan, el desayuno con

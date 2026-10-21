@@ -312,7 +312,7 @@ Y luego, despacio, sin decir una palabra, Aldhelm de Mercia hincó una rodilla e
 
 ---
 
-El carro de Winchester llegó a Farndon cinco días después, con seis monjes y un ataúd de roble, y se llevó el cuerpo de Eduardo hacia el sur, para enterrarlo en la catedral nueva junto a su padre. Nadie invitó a Aethelstan a acompañarlo.
+El carro de Winchester llegó a Farndon doce días después, con seis monjes y un ataúd de roble, y se llevó el cuerpo de Eduardo hacia el sur, para enterrarlo en la catedral nueva junto a su padre. Nadie invitó a Aethelstan a acompañarlo.
 
 Con el carro llegó también un jinete de Wiltunscir con una carta sellada con el dragón de Wessex. Un sello nuevo. El del rey Aelfweard.
 
@@ -350,6 +350,6 @@ Uhtred miró el camino del sur. Pensó en Eduardo, encogido en su cama, pidiénd
 
 —¿Solo? —dijo Finan.
 
-—Solo —dijo Uhtred—. Con Finan, Sihtric y Osbert, que es lo mismo que ir solo, porque nunca me hacen caso.
+—Solo —dijo Uhtred—. Con Finan, Sihtric y Osbert. Que para el caso es ir solo, porque nunca me hacen caso.
 
-*Le había jurado a un rey moribundo que no habría guerra entre sus hijos. Y el hijo que quedaba en Winchester tenía al lado a un hombre que quería esa guerra más que nada en el mundo, porque solo en una guerra podía quedarse con todo. Así que fui al sur, a Oxenaford, a hablar con un muchacho asustado que se había puesto una corona demasiado grande. No sabía que le quedaban dieciséis días de vida. Nadie lo sabía. Salvo, quizá, los dioses. Y los dioses, como siempre, no dijeron nada.*
+*Le había jurado a un rey moribundo que no habría guerra entre sus hijos. Y el hijo que quedaba en Winchester tenía al lado a un hombre que quería esa guerra más que nada en el mundo, porque solo en una guerra podía quedarse con todo. Así que fui al sur, a Oxenaford, a hablar con un muchacho asustado que se había puesto una corona demasiado grande. No sabía que al muchacho le quedaban pocos días de vida. Nadie lo sabía. Salvo, quizá, los dioses. Y los dioses, como siempre, no dijeron nada.*

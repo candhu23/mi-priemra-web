@@ -208,7 +208,11 @@ Aethelstan tenía la mandíbula apretada. Uhtred le vio debatirse, le vio pensar
 
 —Mi padre quiere la paz en el norte —dijo Aethelstan al fin, despacio, como si cada palabra le costara—. Si vos le rendís homenaje y le pagáis, la tendrá.
 
-—Bien. —El Tuerto se recostó en la silla—. Entonces hay trato. Casi.
+—Bien. —El Tuerto se recostó en la silla. Luego sonrió con media boca—. Os diré algo gratis, ya que estamos. Antes que vuestra rama verde, me llegó a Eoferwic otra. Del norte. De un rey escoto que tiene muy buena memoria y muy mal perder. Me ofrecía amistad. —Se encogió de hombros—. Le he contestado que ya tengo bastantes amigos. Por ahora.
+
+Uhtred no dijo nada. Aethelstan se había puesto muy pálido.
+
+—Entonces hay trato —dijo el Tuerto—. Casi.
 
 —¿Casi?
 
@@ -336,7 +340,7 @@ Uhtred abrió la boca para contestar. No le salió nada. Detrás de él, Finan h
 
 ---
 
-Bebieron. Comieron. Bailaron. Uhtred bailó con Aelswith, que bailaba sorprendentemente bien para una mujer que decía tener los huesos podridos, y con Sig, que le pisó dos veces y se rio las dos, y con Ingrith, que no le pisó ninguna y le contó, mientras daban vueltas, que Finan roncaba como un buey enfermo. Stiorra bailó con Toki, y luego, cuando creía que nadie la miraba, con Eadric de Hagustald, que había aparecido de la nada con una jarra de cerveza y la cara más roja que la cerveza. Osbert bailó con todas las chicas de la fortaleza y no se le dio bien con ninguna.
+Uhtred bailó con Aelswith, que bailaba sorprendentemente bien para una mujer que decía tener los huesos podridos. No se lo dijo a nadie. Ella tampoco.
 
 A medianoche, cuando ya quedaban pocos en pie, Uhtred encontró a Eadith sola en la escalera del salón, mirando el patio con una copa en la mano.
 
@@ -400,7 +404,7 @@ Uhtred no contestó.
 
 Uhtred se quedó muy quieto en la silla.
 
-—Hoy te he dejado hacer las cosas a tu manera —siguió Aethelstan—, porque mi padre es el rey y no yo, y porque tenías razón en lo del Tuerto, y porque Aelfwynn merecía casarse con Cynlaef. —Hizo una pausa—. Pero cuando yo sea rey, Uhtred, no te lo pediré.
+—Hoy te he dejado hacer las cosas a tu manera —siguió Aethelstan—, porque mi padre es el rey y no yo, y porque tenías razón en lo del Tuerto, y porque Aelfwynn merecía casarse con Cynlaef. —Hizo una pausa—. Pero cuando yo sea rey, Uhtred, no te pediré permiso.
 
 Lo dijo sin amenaza. Sin rencor. Lo dijo como se dice algo que es verdad y que los dos saben.
 
@@ -408,4 +412,4 @@ Luego espoleó al caballo, levantó la mano, y se fue al sur con su estandarte, 
 
 Uhtred se quedó en las dunas mucho rato.
 
-*Cuando yo sea rey. No «si». «Cuando». Lo dijo así un muchacho de diecinueve años al que yo había criado, y yo lo oí y no le di importancia, porque Eduardo era joven todavía, o eso creía yo, y los reyes jóvenes no se mueren. Pasaron tres años antes de que entendiera lo que me había dicho el Tuerto en Eoferwic. Tres años de paz, los únicos que he tenido en mi vida. Aelfwynn tuvo un hijo. Stiorra le puso una rueda nueva a otro molino. Osbert dejó de tropezarse. Y en Winchester, la reina Eadgifu dio a luz por fin un varón, y le pusieron de nombre Edmundo, y un hombre gordo con una cadena de plata lo cogió en brazos en el bautizo, y sonrió.*
+*Cuando yo sea rey. No «si». «Cuando». Y no me pediría permiso. Lo dijo así un muchacho de diecinueve años al que yo había criado, y yo lo oí y no le di importancia, porque Eduardo era joven todavía, o eso creía yo, y los reyes jóvenes no se mueren. Pasaron cinco años antes de que entendiera lo que me había dicho el Tuerto en Eoferwic. Cinco inviernos de paz, los únicos que he tenido en mi vida. Aelfwynn tuvo un hijo. Stiorra le puso una rueda nueva a otro molino. Osbert dejó de tropezarse. Y en Winchester, la reina Eadgifu dio a luz por fin un varón, y le pusieron de nombre Edmundo, y un hombre gordo con una cadena de plata lo cogió en brazos en el bautizo, y sonrió.*

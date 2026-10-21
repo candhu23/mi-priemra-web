@@ -28,7 +28,7 @@ Wulfsige le miró.
 
 —Ante el witan de Wessex. —El padre Uhtred cerró el libro—. Ante el rey, el que sea. Ante Dios.
 
-Wulfsige se quedó callado un momento largo. Era un hombre joven, flaco, con la tonsura mal afeitada y las manos rojas de frotarlas con vinagre. Llevaba dos meses sin dormir de verdad. Había enterrado a dos hermanos de su casa. Miró la vela. Miró el libro.
+Wulfsige se quedó callado un momento largo. Era un hombre joven, flaco, con las manos rojas de frotarlas con vinagre. Llevaba dos meses sin dormir de verdad. Había enterrado a dos hermanos de su casa. Miró la vela. Miró el libro.
 
 —Lo juraría ante Dios —dijo—. Que es el único que me importa. Los demás, que oigan lo que quieran.
 
@@ -88,7 +88,7 @@ Se llevaron a Uhtred de Oxenaford al alba del cuarto día, en un carro de bueyes
 
 Le habían quitado la cadena del tobillo y le habían puesto otra en las muñecas, más corta, atada a los barrotes. Le habían dado pan duro y agua del río —el muy imbécil del capitán con cara de buey, que no había querido escuchar a Eadith— y Uhtred no se había bebido el agua, y el capitán se había reído de él. Detrás del carro, a una distancia que los guardias consideraban respetuosa y que Uhtred consideraba insoportable, cabalgaban Eadith y el padre Uhtred en una mula y un caballo de carga, con el baúl, con un monje flaco de tonsura mal afeitada en otra mula, y con un muchacho de veinte años vestido de lego, con la capucha muy calada, que no hablaba con nadie.
 
-Wulfric iba delante, en su caballo gris moteado. El mismo de Bakewell. Lo había recuperado.
+Wulfric iba delante, en su caballo gris moteado. El mismo de Bakewell. Ahora lo montaba él.
 
 —Hace un día precioso, lord Uhtred —dijo, frenando un momento para ponerse a la altura del carro, al mediodía, cuando paraban a abrevar en un arroyo—. ¿No os parece? Dios nos regala un cielo azul para llevar a un asesino de reyes ante la justicia.
 
@@ -102,7 +102,7 @@ Uhtred le miró a través de los barrotes. Algo en la frase le sonaba. Tardó un
 
 —Me parece que hablas demasiado.
 
-—Es un defecto que tengo. —Wulfric se encogió de hombros—. Y luego, claro, el bastardo vendrá. No podrá evitarlo. Le criasteis vos. Vendrá con la Guardia de Mercia a vengaros, o a intentarlo, y entonces Wessex tendrá una guerra justa contra un rebelde que asesinó a su hermano por medio de su viejo maestro pagano. —Suspiró—. Y la ganaremos. Porque Wessex es más grande que Mercia, y tiene más plata, y más hombres. Y cuando la ganemos, habrá un solo reino. Como quería el rey Eduardo.
+—Me lo dicen a menudo. —Wulfric se encogió de hombros—. Y luego, claro, el bastardo vendrá. No podrá evitarlo. Le criasteis vos. Vendrá con la Guardia de Mercia a vengaros, o a intentarlo, y entonces Wessex tendrá una guerra justa contra un rebelde que asesinó a su hermano por medio de su viejo maestro pagano. —Suspiró—. Y la ganaremos. Porque Wessex es más grande que Mercia, y tiene más plata, y más hombres. Y cuando la ganemos, habrá un solo reino. Como quería el rey Eduardo.
 
 —Eduardo quería que sus hijos no se mataran.
 
@@ -118,7 +118,7 @@ Uhtred lo supo un instante antes de que pasara. No por nada que viera. Por un si
 
 Uhtred se agarró a los barrotes.
 
-La primera flecha le dio al capitán con cara de buey en el cuello.
+La primera flecha le dio al capitán en el cuello.
 
 Salió de los juncos de la orilla norte, por detrás, con un silbido corto, y el capitán se llevó las manos a la garganta y se cayó del caballo al agua sin decir nada. Antes de que nadie entendiera lo que pasaba, salieron otras diez. Veinte. Los caballos de Wiltunscir relincharon, se encabritaron, tiraron a sus jinetes al río. Y luego, por la orilla sur, la de delante, por donde nadie miraba, salieron de entre los sauces sesenta jinetes con capas verdes, al galope, gritando.
 
@@ -204,6 +204,44 @@ Uhtred no contestó. Le miró un momento más. Luego le cogió por los hombros y
 
 ---
 
+La reina viuda rezaba sola en la capilla pequeña del palacio de Winchester la víspera del witan, ya de noche, cuando Uhtred de Bebbanburg entró sin hacer ruido y se sentó en el último banco.
+
+No se volvió. Le había oído. Siguió rezando hasta el final, con la cabeza baja y las manos juntas, y luego se santiguó y se quedó quieta.
+
+—Os han dejado entrar en Winchester con un salvoconducto del obispo —dijo, de espaldas—. No con permiso para pasearos por el palacio de noche.
+
+—No me paseo, mi reina. He venido a rezar.
+
+—Vos no rezáis.
+
+—Hoy, sí. —Uhtred se miró las manos—. Rezo para que mañana una mujer lista haga lo que le conviene.
+
+Eadgifu se volvió despacio en el banco. A la luz de las velas, vestida de negro, parecía más joven de lo que era y más cansada de lo que nadie sabía.
+
+—¿Y qué creéis vos que me conviene, lord Uhtred?
+
+—En Farndon —dijo Uhtred— yo estaba en el patio, junto al pozo. Os vi en la ventana, con vuestro hijo en las rodillas. Y vi a Wulfric entrar en vuestra habitación, y ponerse a vuestro lado, y poneros la mano en el hombro. —Hizo una pausa—. Y os vi poneros de piedra. No sé lo que os dijo. Pero sé lo que se le ve en la cara a alguien cuando le amenazan a un hijo. Yo lo he tenido en la mía.
+
+Eadgifu no dijo nada.
+
+—Mañana Wulfric va a pedirle al witan mi cabeza —siguió Uhtred—. Y luego va a pedirle una guerra contra Aethelstan. Y la va a tener, porque Edwin dirá que sí a todo. Y cuando la gane, ya no os necesitará a vos, ni a vuestro hijo. Un niño de tres años con sangre de Alfredo es un estorbo para un hombre que quiere mandar en Wessex detrás de un rey de paja. —Se levantó—. Aethelstan no se casará. No quiere. Nunca ha querido. Lo sé yo, que le crié. Si es rey, vuestro hijo será su heredero. Y nadie le tocará, porque lo jurará delante de los obispos y Aethelstan cumple lo que jura. Eso también se lo enseñé yo.
+
+—¿Y por qué iba a creeros?
+
+—Porque estoy en Winchester con una cadena marcada en las muñecas, mi reina, y aun así he venido a hablar con vos y no a escaparme. —Uhtred se encogió de hombros—. Y porque si no me creéis, mañana me cortan la cabeza y no tendréis que volver a verme.
+
+Eadgifu se quedó mirándole un rato muy largo. Las velas temblaban.
+
+—Wulfric tiene arrendada la ceca de Winchester —dijo al fin, muy bajo—. Desde hace diez años. Se la dio mi marido, a cambio de los hombres de Wiltunscir. Todo lo que acuña lo cobra en peniques nuevos y con eso paga a su casa. A sus criados. A sus hombres. —Se volvió otra vez hacia el altar—. Una mujer que le da de comer a la corte sabe de dónde sale la plata, lord Uhtred. Los hombres nunca lo preguntan.
+
+—¿Lo diréis mañana?
+
+—Mañana diré lo que me convenga. —Eadgifu juntó las manos otra vez—. Id a dormir. Y decidle a vuestra mujer que lo de la ceca lo ha averiguado ella. Le sentará mejor en la boca que en la mía.
+
+Uhtred salió de la capilla. En la puerta, se volvió. La reina viuda de Wessex rezaba otra vez, con la cabeza baja, y no le miró.
+
+---
+
 El witan de Wessex se reunió en la sala grande del palacio de Winchester tres días después, con todos los obispos, todos los ealdormen, todos los thegns que pudieron llegar a tiempo y la mitad de la ciudad apretada en las puertas y en las ventanas para mirar.
 
 Uhtred había estado en aquella sala muchas veces. La primera, siendo un muchacho, delante de Alfredo, con la cara llena de barro y más orgullo que sentido común. La última, hacía muchos años, discutiendo con Eduardo por algo que ya no recordaba. La sala no había cambiado. Las mismas vigas negras de humo. El mismo trono de roble en el estrado. El mismo olor a cera y a incienso y a hombres sudando debajo de las capas buenas.
@@ -270,7 +308,7 @@ Aelfnoth abrió la boca. No le salió nada. Miró a Eadith. Eadith le sostuvo la
 
 Eadith sacó la bolsita de cuero. La vació sobre la mesa de los obispos. Diez peniques rodaron por la madera.
 
-—Nuevos —dijo—. De la ceca de Winchester. Como los que pagaron a los asesinos de Rögnvaldr en Eoferwic. Como los que pagaron a un hombre llamado Ceolmund, que tenía un caballo gris moteado, y que apareció ahorcado en un roble en Bakewell la mañana en que mi señor iba a preguntar por él. —Miró a Wulfric—. El mismo caballo gris moteado que lord Wulfric montaba hace tres días en el vado de Wealingaford.
+—Nuevos —dijo—. De la ceca de Winchester. Recién acuñados. Y en Winchester, desde hace diez años, la ceca la tiene arrendada un solo hombre, que cobra en peniques nuevos lo que acuña y paga con ellos a su casa: lord Wulfric. —Miró a los obispos—. Son peniques como los que pagaron a los asesinos de Rögnvaldr en Eoferwic. Como los que llevaba un hombre llamado Ceolmund, que tenía un caballo gris moteado y que apareció ahorcado en Bakewell la mañana después del juicio, antes de que nadie pudiera preguntarle nada. —Miró a Wulfric—. El mismo caballo gris moteado que lord Wulfric montaba hace tres días en el vado de Wealingaford.
 
 La sala estalló.
 
@@ -314,7 +352,7 @@ Silencio. En toda la sala. Ni un murmullo. Uhtred oyó, muy lejos, en el patio, 
 
 Se volvió hacia el trono. Hacia Edwin. Luego hacia Aethelstan.
 
-—Mi marido dividió los reinos para que sus hijos no se mataran —dijo—. Uno ha muerto. De fiebre, dice el monje. Yo le creo. Le vi la cara a Aelfweard en Oxenaford antes de irme: sudaba como sudan los que se mueren de eso. —Miró a Edwin, que se había encogido en el trono—. Este muchacho es un buen muchacho. Reza mucho. Pero no ha mandado nunca ni a un perro. Y si se queda en esa silla, lord Wulfric le mandará a él. Y luego, cuando ya no le sirva, le dará un poco de agua mala.
+—Mi marido dividió los reinos para que sus hijos no se mataran —dijo—. Uno ha muerto. De fiebre, dice el monje. Yo le creo. He enterrado a dos hermanas de esa fiebre, en Kent, cuando era niña. —Miró a Edwin, que se había encogido en el trono—. Este muchacho es un buen muchacho. Reza mucho. Pero no ha mandado nunca ni a un perro. Y si se queda en esa silla, lord Wulfric le mandará a él. Y luego, cuando ya no le sirva, le dará un poco de agua mala.
 
 —Eso es una calumnia —dijo Wulfric. Por primera vez, le temblaba la voz—. Mi reina, estáis alterada por el dolor…
 
@@ -336,13 +374,15 @@ Edwin le miró.
 
 ---
 
-Arrestaron a Beorhtric aquella tarde, en los aposentos de Wulfric, con una bolsa de peniques nuevos en el arcón y una carta a medio quemar en el brasero. Confesó antes de que le enseñaran el hierro. Confesó todo: Ceolmund, Wolland, el caballo gris, los peniques, Oswig, Aelfnoth. Confesó con la cara gris de un hombre que lleva veinte años sin hacer preguntas y de pronto tiene que contestarlas todas.
+Arrestaron a Beorhtric aquella tarde, en los aposentos de Wulfric, con una bolsa de peniques nuevos en el arcón y una carta a medio quemar en el brasero. Confesó antes de que le enseñaran el hierro. Confesó todo. Que Wolland robó tres flechas del armero de Bebbanburg la noche del banquete. Que un danés de Dublín que Wolland tenía a sueldo, un arquero llamado Hrolf, las copió en Eoferwic pluma por pluma y disparó desde el tejado de los establos, y que se marchó a Dublín con su paga al día siguiente. Que Ceolmund subió al norte a pagar a Oswig por lo que diría en Bakewell. Que a Ceolmund lo colgó él, Beorhtric, con sus propias manos, la noche del juicio. Y lo de Aelfnoth. Confesó con la cara gris de un hombre que lleva veinte años sin hacer preguntas y de pronto tiene que contestarlas todas.
 
 Lo único que no confesó fue que su señor lo supiera.
 
 —Lo hice yo solo —repitió, una y otra vez, delante de los obispos—. Por mi cuenta. Por amor a mi señor. Para que mi señor tuviera lo que merecía. Él no sabía nada. Nada.
 
 Nadie le creyó. Pero nadie pudo probar lo contrario.
+
+*De Hrolf, el arquero, no se supo nada más. No entonces. Dublín está a un mar de distancia y se traga a la gente como el mar. Tardé muchos años en volver a oír ese nombre.*
 
 Aethelstan no mandó colgar a Wulfric. Uhtred se lo pidió, aquella noche, en la sala pequeña del palacio, la que daba al jardín, donde Alfredo escribía sus libros.
 
@@ -366,7 +406,7 @@ Uhtred se quedó callado. Lo había dicho él. A Osbert, en la muralla de Bebban
 
 Wulfric de Wiltunscir no llegó a Glastingabyrig.
 
-Le encontraron muerto en su celda del palacio de Winchester dos días después, al alba, la mañana en que iba a salir hacia el oeste con una escolta de monjes. Estaba sentado en su cama, vestido, con la cadena de plata todavía puesta, la cabeza caída sobre el pecho y una copa vacía en la mano. Una copa de plata. De las de la mesa de la reina.
+Le encontraron muerto en su celda del palacio de Winchester dos días después, al alba, la mañana en que iba a salir hacia el oeste con una escolta de monjes. Estaba sentado en su cama, vestido, con la cadena de plata todavía puesta, la cabeza caída sobre el pecho y una copa vacía en la mano. Nadie supo quién se la había llevado.
 
 Los físicos dijeron que había sido el corazón. Que era un hombre gordo, y que la vergüenza y el disgusto le habían reventado algo dentro. Era posible. Los físicos de Winchester decían muchas cosas.
 
@@ -394,7 +434,55 @@ Detrás de él, Finan soltó un silbido muy bajo.
 
 *El witan de Wessex tardó un año en aceptar al bastardo. Un año entero de discusiones, de ealdormen que iban y venían, de obispos que escribían cartas, de Edwin rezando en su capilla y de Aethelstan esperando en Tamworth con una paciencia que no le había enseñado yo, porque yo no la tenía. Al final le aceptaron. No porque le quisieran. Porque no había nadie más. Así se hacen casi todos los reyes.*
 
-*Le coronaron en Kingston, junto al Támesis, el cuarto día de septiembre del año 925, sobre la piedra donde se coronaban los reyes de los sajones antes de que hubiera reyes de Wessex. Yo estuve allí. Y Eadith, y Finan, y Sihtric, y Osbert. Y lady Aelswith, que tenía más de setenta años y que se empeñó en hacer el viaje desde Bebbanburg en una litera, quejándose de los caminos durante tres semanas, para ver coronar a su nieto. Lloró durante toda la ceremonia. Luego me dijo que era el polen.*
+*Le coronaron en Kingston, junto al Támesis, el cuarto día de septiembre del año 925, sobre la piedra donde se coronaban los reyes de los sajones antes de que hubiera reyes de Wessex. Yo estuve allí. Y Eadith, y Finan, y Sihtric, y Osbert. Y lady Aelswith, que tenía más de setenta años y que se empeñó en hacer el viaje desde Bebbanburg en una litera, quejándose de los caminos durante tres semanas, para ver coronar a su nieto. Lloró durante toda la ceremonia. Luego me dijo que era el humo del incienso. Y Stiorra vino también, con Toki y con el señor de Hagustald detrás como un perro grande, y se quedó al fondo de la iglesia con los brazos cruzados. Cuando le pregunté por qué había venido, me dijo: «Para ver la cara del rey que me va a quitar el valle». Lo dijo sin rencor. Casi.*
+
+---
+
+Aelswith estaba sentada en su litera, a la sombra de un sauce, junto a la iglesia de Kingston, cuando terminó la ceremonia, secándose los ojos con un pañuelo de lino y diciéndole a todo el que pasaba que el incienso de Kingston era de una calidad pésima.
+
+Uhtred se sentó en la hierba a su lado. Le crujieron las rodillas.
+
+—Lady Aelswith.
+
+—Lord Uhtred. —Aelswith se sonó—. Ha sido una ceremonia preciosa. El obispo de Kingston no sabe latín, pero ha sido preciosa. Mi nieto estaba muy guapo. Su padre también estaba muy guapo el día que le coronaron. Su abuelo, no tanto. Alfredo nunca estuvo guapo con corona; decía que le hacía cara de pera.
+
+—Tengo un recado para vos —dijo Uhtred—. De Eduardo. Me lo dio en Farndon. La noche antes de morir.
+
+Aelswith dejó el pañuelo en el regazo.
+
+—¿Un recado?
+
+—Me pidió que os dijera que sentía no haberos visto bailar nunca. —Uhtred la miró—. Y que os quería. Aunque le escribierais cartas horribles.
+
+Aelswith se quedó muy quieta. El viento movía las ramas del sauce por encima de ellos. Al otro lado del prado, alguien tocaba una flauta.
+
+—Un año —dijo al fin—. Un año, lord Uhtred. Y me lo decís ahora.
+
+—Os lo quería decir a la cara. Y no os he visto la cara desde Farndon.
+
+—Podríais haberlo escrito.
+
+—Vos sabéis cómo escribo.
+
+Aelswith le miró. Abrió la boca para reñirle. Y entonces se le arrugó la cara entera, de golpe, como se arruga un pergamino al fuego, y se echó a llorar. No como en la iglesia. Como una madre.
+
+Uhtred no dijo nada. Le cogió la mano. Ella le dejó.
+
+—Era un niño muy serio —dijo Aelswith cuando pudo hablar—. Muy serio. Nunca se reía. Su padre le pedía tanto… Yo le pedía tanto… —Se secó los ojos con el dorso de la mano, sin pañuelo, sin dignidad ninguna—. Y no me vio bailar nunca porque yo no bailé nunca, lord Uhtred. Hasta Bebbanburg. Hasta aquella boda de locos en vuestra casa. Hasta que tuve setenta años y nadie a quien dar ejemplo.
+
+—Bailáis muy bien.
+
+—Ya lo sé. —Aelswith se sonó otra vez—. Es lo único que he hecho bien sin que nadie me lo mandara.
+
+Se quedaron así un rato, la vieja reina y el pagano, debajo del sauce, cogidos de la mano. Luego Aelswith le soltó, recogió el pañuelo, se lo guardó en la manga y se enderezó en la litera.
+
+—Esto no se lo contaréis a nadie —dijo.
+
+—A nadie.
+
+—Y el incienso de Kingston es de una calidad pésima.
+
+—Pésima, señora.
 
 ---
 
@@ -432,7 +520,7 @@ Uhtred no se movió.
 
 —No te lo voy a pedir hoy —dijo Aethelstan—. Hoy no. Hoy es el día más feliz de mi vida, y no quiero estropearlo. —Se puso de pie. Se puso la corona. Le quedaba bien. No se le caía. No le apretaba—. Pero te lo voy a pedir. Algún día. Pronto. —Le tendió la mano para ayudarle a levantarse—. Y quiero que sepas, desde hoy, que te quiero más que a nadie en este mundo, y que te lo voy a pedir igual.
 
-Uhtred le miró la mano. Una mano de hombre ya. De rey. La misma que había sostenido una espada de madera en una playa de Rumcofa cuando tenía diez años.
+Uhtred le miró la mano. Una mano de hombre ya. De rey. La misma que, en Rumcofa, con diez años, apenas podía levantar una espada de madera.
 
 La cogió. Se levantó.
 

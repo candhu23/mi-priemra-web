@@ -74,7 +74,7 @@ Uhtred levantó la cabeza.
 
 Uhtred no contestó. Se comió el queso. Estaba duro y bueno.
 
-—Hoy cumplió dieciséis años —dijo al fin—. Hace once días.
+—Ha cumplido dieciséis años —dijo al fin—. Hace once días.
 
 —Ya lo sé.
 
@@ -242,7 +242,7 @@ Uhtred se levantó. Le crujió la otra rodilla. Bajó del estrado sin esperar a 
 
 Wolland habló primero.
 
-Habló bien, había que concedérselo. Contó la visita a Bebbanburg, el cuchillo en la garganta de su señor, el juramento. Contó la noche de niebla, el patio, el pozo. Sacó la flecha rota y la levantó para que la vieran todos, con sus plumas negras y rojas y su nudo, y los daneses de Eoferwic murmuraron, y algunos sajones se santiguaron. Contó cómo Rögnvaldr, su señor, cristiano bautizado, había muerto con la mano en las plumas, diciendo *la zorra, lo juró y llegó*. Wolland no lo había oído; nadie lo había oído. Pero lo dijo con tanta pena que pareció verdad.
+Habló bien, había que concedérselo. Contó la visita a Bebbanburg, el cuchillo en la garganta de su señor, el juramento. Contó la noche de niebla, el patio, el pozo. Pidió que se trajera la flecha, y Uhtred, que la tenía en su caja, la mandó traer, porque esconderla habría sido peor. Wolland la levantó para que la vieran todos, con sus plumas negras y rojas y su nudo, y los daneses de Eoferwic murmuraron, y algunos sajones se santiguaron. Cuando Uhtred dijo, delante de todos, que el nudo estaba mal hecho y que era una copia, Wolland se rio: *¿y quién ha tenido la flecha en su casa seis meses, lord Uhtred, con un cuchillo y una vela?* Y medio prado se rio con él. Contó cómo Rögnvaldr, su señor, cristiano bautizado, había muerto con la mano en las plumas, diciendo *la zorra, lo juró y llegó*. Wolland no lo había oído; nadie lo había oído. Pero lo dijo con tanta pena que pareció verdad.
 
 Luego llamó a un testigo.
 
@@ -270,7 +270,7 @@ Uhtred se tomó su tiempo. Miró a Oswig. Miró a Wolland, que sonreía con sus 
 
 —Tengo un testigo también, mi rey —dijo.
 
-Se volvió. Hizo una seña. Y de entre los hombres de Bebbanburg salió un muchacho flaco y pelirrojo de diecisiete años, con las manos llenas de callos y la cara llena de pecas, que caminó hasta el pie del estrado con las piernas temblando y se arrodilló al lado de Oswig de Hagustald, a un palmo de él.
+Se volvió. Hizo una seña. Y de entre los hombres de Bebbanburg salió un muchacho flaco y pelirrojo de diecisiete años, que había pasado el invierno durmiendo a dos pasos de Toki, con las manos llenas de callos y la cara llena de pecas, que caminó hasta el pie del estrado con las piernas temblando y se arrodilló al lado de Oswig de Hagustald, a un palmo de él.
 
 Oswig le miró por primera vez. Se le fue el color de la cara.
 
@@ -280,7 +280,7 @@ Oswig le miró por primera vez. Se le fue el color de la cara.
 
 ---
 
-—Me llamo Eadric, hijo de Wulfnoth, de Hagustald —dijo el muchacho, y le temblaba la voz, pero no se le quebró—. Soy sobrino de lord Oswig. Hace un año maté a un hombre. Se llamaba Grim. Era danés. Le maté en el pozo de Bedwic con un cuchillo de cocina, porque me llamó ladrón y yo era un idiota.
+—Me llamo Eadric, hijo de Wulfnoth, de Hagustald —dijo el muchacho, y le temblaba la voz, pero no se le quebró—. Soy sobrino de lord Oswig. El otoño pasado maté a un hombre. Se llamaba Grim. Era danés. Le maté en el pozo de Bedwic con un cuchillo de cocina, porque me llamó ladrón y yo era un idiota.
 
 Hubo murmullos. Eadric no se detuvo.
 
@@ -510,13 +510,13 @@ Lo encontró Sihtric aquella tarde, mientras todo el campamento celebraba o lame
 
 El mozo miró a un lado y a otro. Bajó la voz.
 
-—Le encontraron esta mañana, señor. En el bosque, detrás del campamento. Colgado de un roble. Dicen que se ahorcó.
+—Le encontraron esta mañana, señor, al alba, antes del combate. En el bosque, detrás del campamento. Colgado de un roble. Dicen que se ahorcó.
 
 —¿Por qué?
 
 El mozo se encogió de hombros.
 
-—No lo sé, señor. Dicen que le había robado plata a su señor. Que lord Wulfric le había echado de su servicio hacía meses, por San Miguel, y que el hombre no tenía adónde ir y se había vuelto loco. —Bajó todavía más la voz—. Pero el caballo seguía aquí, señor. En la fila de lord Wulfric. Comiendo la avena de lord Wulfric. Desde San Miguel.
+—No lo sé, señor. Dicen que le había robado plata a su señor. Que lord Wulfric le había echado de su servicio hacía meses, por San Miguel, y que el hombre no tenía adónde ir y se había vuelto loco. —Bajó todavía más la voz—. Pero llegó a Bakewell con lord Wulfric, señor, montado en ese caballo. Y el caballo sigue aquí. En la fila de lord Wulfric. Comiendo la avena de lord Wulfric. Como si nunca le hubiera echado.
 
 ---
 

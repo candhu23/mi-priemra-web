@@ -12,7 +12,7 @@ Uhtred lo oyó desde el patio, antes de verle: un vozarrón desafinado que vení
 
 —¡Uhtred! —gritó desde el caballo—. ¡Uhtred de Bebbanburg! ¡Hermano mío en Cristo!
 
-—Por todos los dioses —murmuró Finan a su lado.
+—Por Dios bendito —murmuró Finan a su lado.
 
 —¡He venido en paz! —Rögnvaldr bajó del caballo de un salto y estuvo a punto de caerse—. ¡Completamente en paz! ¡Soy un hombre nuevo! ¡Bautizado! ¡Reformado! ¡No he probado la cerveza desde San Miguel!
 
@@ -148,15 +148,15 @@ Uhtred no dijo nada.
 
 Echó a andar hacia el blanco a recoger sus flechas. Uhtred la siguió. Las arrancaron juntos de la paja, una por una, y Stiorra las fue contando y metiendo en el carcaj.
 
-—Once —dijo al final. Frunció el ceño—. Tenía catorce.
+—Once —dijo al final. Frunció el ceño—. Ya eran once esta mañana, cuando las saqué del armero. Anoche, antes de la cena, había catorce.
 
-—Se habrán perdido en la arena.
+—Las habrás contado mal.
 
-—No pierdo flechas, padre.
+—No cuento mal mis flechas, padre.
 
-Miraron alrededor. La arena estaba lisa, sin marcas. El mar había borrado lo que hubiera habido. Stiorra se encogió de hombros y no dijo nada más, y Uhtred tampoco, y subieron juntos a la fortaleza mientras se ponía el sol.
+Uhtred no dijo nada. El armero estaba en el patio, junto a la puerta del salón, y la noche anterior había dormido en el patio y en el salón medio centenar de hombres de Eoferwic. Stiorra se encogió de hombros, como si no le importara, y subieron juntos a la fortaleza mientras se ponía el sol.
 
-*Catorce flechas. Once en el carcaj. Lo recordé mucho después, cuando ya era tarde para que sirviera de algo. Así funcionan las cosas que importan: te pasan por delante de la cara mientras estás mirando a otro lado, y solo las ves cuando ya se han ido.*
+*Catorce flechas. Once en el carcaj. Lo recordé días después, cuando ya era tarde para que sirviera de algo. Así funcionan las cosas que importan: te pasan por delante de la cara mientras estás mirando a otro lado, y solo las ves cuando ya se han ido.*
 
 ---
 
@@ -174,7 +174,7 @@ Había doblado la guardia. Había hecho registrar la ciudad. Había mandado a Wo
 
 Y aun así no dormía.
 
-Se levantó a mear pasada la medianoche. El orinal estaba lleno —los criados eran unos cerdos, los mandaría azotar—, así que salió al patio, descalzo, con la capa de piel por encima de la camisa y la espada en la mano. Hacía frío. Había niebla. La niebla de Eoferwic en otoño, que sube del río y se mete en las calles y lo vuelve todo gris y blando.
+Se levantó a mear poco antes de la medianoche. El orinal estaba lleno —los criados eran unos cerdos, los mandaría azotar—, así que salió al patio, descalzo, con la capa de piel por encima de la camisa y la espada en la mano. Hacía frío. Había niebla. La niebla de Eoferwic en otoño, que sube del río y se mete en las calles y lo vuelve todo gris y blando.
 
 Los dos guardias de la puerta del salón estaban allí, con sus lanzas. Le saludaron. Rögnvaldr no les contestó. Fue hasta la esquina del patio, junto al pozo, donde siempre meaba, y se levantó la camisa.
 
@@ -190,7 +190,7 @@ Se sentó en el suelo. No quería sentarse. Las piernas se sentaron solas. Los g
 
 —Llegó —dijo, o creyó decir—. La zorra. Lo juró y llegó.
 
-Y se murió allí, junto al pozo, en la niebla, con la camisa levantada y la espada todavía en la mano, a tres horas del Mes de la Sangre.
+Y se murió allí, junto al pozo, en la niebla, con la camisa levantada y la espada todavía en la mano, a menos de una hora del Mes de la Sangre.
 
 ---
 
@@ -206,13 +206,13 @@ Había un pergamino también. El padre Uhtred lo leyó en voz alta, porque su pa
 
 El salón estaba en silencio. Nadie miraba a Stiorra. Todo el mundo miraba a Stiorra.
 
-Ella se levantó de su sitio en la mesa. Se acercó a la caja. Cogió la flecha rota con dos dedos, la levantó a la luz del fuego, la giró. Miró las plumas. Miró el nudo.
+Ella se levantó de su sitio en la mesa. Se acercó a la caja. Cogió la flecha rota con dos dedos, la levantó a la luz del fuego, la giró. Las plumas estaban apelmazadas de sangre seca y el hilo, negro.
 
-—Es mía —dijo.
+—Parece mía —dijo.
 
 Alguien en el fondo del salón soltó el aire.
 
-—Es mía —repitió Stiorra—. La hice yo. Con estas manos. —Dejó la flecha en la caja, con cuidado—. Pero no la disparé.
+—Parece mía —repitió Stiorra—. Las plumas. El tinte. El nudo. —Dejó la flecha en la caja, con cuidado—. Pero yo no la disparé.
 
 —Lo sé —dijo Uhtred.
 
@@ -232,15 +232,15 @@ El jinete asintió muy deprisa y se fue sin esperar a que le dieran de comer.
 
 Estaban en su cuarto, en la torre del sur. Eadith, sentada en la cama con una manta sobre los hombros. Finan y Sihtric, de pie junto a la puerta. El padre Uhtred, en el arcón, con las manos en las mangas. Osbert, en el suelo, con la espalda contra la pared y las rodillas en el pecho. Nadie le había invitado. Nadie le había echado.
 
-—Catorce flechas tenía Stiorra en el carcaj la tarde que se fue Rögnvaldr —siguió Uhtred—. Cuando las recogimos del blanco, había once. Las tres que faltan no se perdieron en la arena. Stiorra no pierde flechas.
+—Catorce flechas tenía Stiorra en el carcaj la noche del banquete —siguió Uhtred—. A la mañana siguiente, cuando lo sacó del armero, había once. Las tres que faltan no se perdieron. Stiorra no pierde flechas.
 
 —Alguien las cogió —dijo Sihtric.
 
-—Alguien que estaba en Bebbanburg ese día. O esa noche.
+—Alguien que durmió en Bebbanburg esa noche.
 
-—Rögnvaldr trajo cuarenta hombres —dijo Finan—. Cualquiera de ellos pudo bajar a la playa. El carcaj estaba en la arena, ¿no? Mientras ella tiraba.
+—Rögnvaldr trajo cuarenta hombres —dijo Finan—. Y Wolland. Y todos durmieron en el patio, a diez pasos del armero.
 
-—No mientras ella tiraba. Antes. —Uhtred se pasó la mano por la cara—. Lo deja en el armero del patio por las noches, con el arco. Todo el mundo lo sabe.
+—Lo deja allí todas las noches, con el arco. —Uhtred se pasó la mano por la cara—. Todo el mundo lo sabe.
 
 —Todo el mundo en Bebbanburg —dijo Eadith en voz baja.
 
@@ -256,7 +256,7 @@ Silencio.
 
 Osbert levantó la cabeza.
 
-—¿Por qué alguien de aquí querría que pareciera que ha sido ella?
+—¿Por qué alguien querría que pareciera que ha sido ella?
 
 Todos le miraron. Era la primera vez que hablaba en una reunión así, y se puso colorado, pero no bajó la vista.
 
@@ -302,6 +302,32 @@ Uhtred sonrió.
 
 —Esa —dijo Eadith— es la frase que dicen todos los hombres antes de no volver.
 
+La puerta se abrió sin que nadie llamara. Era Stiorra. Llevaba la capa todavía puesta, mojada de la lluvia del patio, y era evidente que había estado escuchando detrás de la madera.
+
+—Yo no estaba en Ealdwic —dijo—. La víspera del Mes de la Sangre.
+
+Todos la miraron.
+
+—Estaba en Bedwic. Toda la noche. La viuda de Grim se puso de parto y no había comadrona, y el chico de Oswig vino a buscarme a caballo, gritando. —Se cruzó de brazos—. Le saqué el niño con estas manos. Al alba lloraba. Lo vieron la viuda y el chico.
+
+Uhtred se quedó muy quieto.
+
+—¿Por qué no lo has dicho en el salón?
+
+—Porque no me defiendo delante de sajones. —Stiorra levantó la barbilla—. Ni delante de un jinete de Wolland.
+
+—No, no lo digas —dijo Uhtred despacio—. Tienes razón. Por otra cosa, pero tienes razón.
+
+—¿Qué cosa?
+
+—Que tus dos testigos son una danesa que estaba pariendo y el sobrino del hombre que más odia a tus daneses. El mismo muchacho que mató al marido de esa danesa. —Uhtred miró a Eadith, luego a Finan—. Si se sabe ahora, nadie le creerá. Y si alguien sabe que existe ese chico, ese chico no llegará vivo al verano. Le encontrarán ahogado en su propio pozo.
+
+—Entonces callamos —dijo Finan.
+
+—Callamos. Hasta que haya un sitio donde decirlo que importe. Delante de quien tenga que oírlo. —Uhtred se volvió hacia su hija—. Y hasta entonces, el chico de Oswig no se separa de Toki. Ni para mear.
+
+Stiorra le miró un momento largo. Luego asintió una vez y salió, y la puerta se quedó abierta detrás de ella, y entraba el ruido de la lluvia.
+
 Osbert se había levantado del suelo.
 
 —Yo voy —dijo.
@@ -310,7 +336,7 @@ Uhtred le miró.
 
 —No.
 
-—Voy. —Osbert apretó los puños—. Es mi hermana. No la conozco. Me mira como si fuera un mueble. Pero es mi hermana. Y llevo tres semanas aprendiendo a pelear con Finan, y Finan dice que ya no me caigo tanto.
+—Voy. —Osbert apretó los puños—. Es mi hermana. No la conozco. Me mira como si fuera un mueble. Pero es mi hermana. Y llevo seis semanas aprendiendo a pelear con Finan, y Finan dice que ya no me caigo tanto.
 
 —Finan dice muchas cosas.
 
@@ -406,7 +432,7 @@ Finan no contestó enseguida. Se arrastró un poco por la paja. Se agachó. Cogi
 
 Era un trozo de hilo de tripa. Corto, de un dedo de largo, retorcido en un nudo.
 
-—Se le cayó al atar la cuerda del arco —dijo Finan—. O al probarla. Los arqueros buenos se la atan antes de tirar, para que no se suelte con el frío. —Le dio vueltas al hilo entre los dedos—. Este nudo no lo hace nadie en Midgard, ¿no? Eso dicen.
+—Es hilo de emplumar —dijo Finan—. Mira, aún tiene un trozo de pluma pegado, negra. Se le soltaría una pluma con la humedad, esperando aquí arriba toda la noche, y la volvió a atar a oscuras. Y cortó lo que le sobraba con los dientes. —Le dio vueltas al hilo entre los dedos—. Este nudo no lo hace nadie en Midgard, ¿no? Eso dicen.
 
 Uhtred se acercó al pie del establo. Finan le tiró el hilo. Uhtred lo cogió en el aire y lo miró.
 
@@ -420,9 +446,17 @@ Muy poco. Un ojo que no lo hubiera visto mil veces no lo habría notado. Pero Uh
 
 —¿Qué? —El padre Uhtred se acercó—. Déjame ver.
 
-—Es el nudo de Stiorra. Pero no lo ha hecho ella. Lo ha hecho alguien que ha mirado sus flechas y lo ha copiado. —Uhtred cerró la mano sobre el hilo—. Las tres flechas que faltaban. Se llevó tres. Una para Rögnvaldr. Las otras dos, para practicar el nudo.
+—Es el nudo de Stiorra. Pero no lo ha hecho ella. Lo ha hecho alguien que ha mirado sus flechas y lo ha copiado.
 
-—O para usarlas otra vez —dijo Finan desde el tejado.
+Uhtred se volvió hacia Sihtric, que llevaba al hombro la caja de madera. La abrió allí mismo, en el patio, delante de los guardias de Wolland. Sacó la flecha rota. Rascó con la uña la sangre seca del emplumado, despacio, hasta que asomó el hilo.
+
+La última vuelta, al revés.
+
+—No es suya —dijo—. La flecha. No es una flecha de Stiorra. Es una copia. —Cerró la mano sobre el hilo—. Las tres que faltaban no eran para disparar. Eran para copiarlas. Para que el que tuviera que mirarla viera lo que esperaba ver.
+
+—¿Y las de verdad? —dijo Finan desde el tejado.
+
+—En algún sitio. Esperando a que alguien las necesite.
 
 Nadie dijo nada durante un momento. En la puerta del patio, los guardias de Wolland les miraban.
 
@@ -474,7 +508,7 @@ Todos se volvieron hacia él. Osbert estaba sentado junto al fuego, con el escud
 
 —Si se fue al norte dos días antes —dijo—, y la flecha de Stiorra ya estaba aquí…
 
-—La flecha llegó antes —dijo Uhtred despacio—. Con Rögnvaldr. En sus carros. Con Wolland. —Miró a Osbert—. El sajón no vino a traer la flecha. Vino a traer la plata. Y luego se fue al norte.
+—Las flechas de Stiorra llegaron con Wolland —dijo Uhtred despacio—. En los carros de Rögnvaldr. Y aquí alguien las copió. —Miró a Osbert—. El sajón no vino a traer flechas. Vino a traer la plata. Y luego se fue al norte.
 
 —¿A Bebbanburg?
 
@@ -484,7 +518,7 @@ Todos se volvieron hacia él. Osbert estaba sentado junto al fuego, con el escud
 
 Nadie contestó. El fuego crepitaba. Fuera, en la puerta del salón, los guardias de Wolland hablaban en voz baja y se reían de algo.
 
-*Aquella noche, en el salón vacío del obispo de Eoferwic, supe tres cosas. Que mi hija era inocente. Que alguien de Wessex quería que no lo pareciera. Y que no tenía nada, ni un testigo vivo, ni una prueba que un rey pudiera tocar, salvo un trozo de hilo con una vuelta al revés. Sabía la verdad. Y la verdad, cuando no se puede probar, es solo otra forma de tener razón a solas.*
+*Aquella noche, en el salón vacío del obispo de Eoferwic, supe tres cosas. Que mi hija era inocente. Que alguien de Wessex quería que no lo pareciera. Y que no tenía nada que un rey fuera a creer: un trozo de hilo con una vuelta al revés, y un muchacho pelirrojo al que tenía que mantener vivo hasta el verano. Sabía la verdad. Y la verdad, cuando no se puede probar, es solo otra forma de tener razón a solas.*
 
 ---
 
@@ -498,7 +532,7 @@ Por todo ello, el rey convocaba a todos los señores del norte —sajones, danes
 
 El clérigo enrolló el pergamino. Hubo un silencio.
 
-—Juicio —dijo Wolland, y sonrió con sus dientes pequeños y torcidos—. Justo. Muy justo. El rey es sabio. —Se volvió hacia Uhtred—. Aunque los daneses, lord Uhtred, tenemos otra costumbre para estas cosas. Vos la conocéis. Vuestra hija la conoce mejor que nadie. Ella misma la pidió, en esta misma ciudad, contra Brida.
+—Juicio —dijo Wolland, y sonrió—. Justo. Muy justo. El rey es sabio. —Se volvió hacia Uhtred—. Aunque los daneses, lord Uhtred, tenemos otra costumbre para estas cosas. Vos la conocéis. Vuestra hija la conoce mejor que nadie. Ella misma la pidió, en esta misma ciudad, contra Brida.
 
 Uhtred no dijo nada. Lo sabía. Lo había sabido desde que el clérigo dijo la palabra *juicio*.
 
