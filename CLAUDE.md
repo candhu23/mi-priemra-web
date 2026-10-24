@@ -418,3 +418,13 @@ Las clasificaciones simuladas se guardan por nombre y se ordenan.
 - No poner identificadores de modelo de IA en commits ni en el código.
 - Tras cambiar algo visible, explica al usuario qué cambia, qué verificaste, qué NO pudiste
   verificar (no hay Studio aquí) y tu % de confianza.
+
+---
+
+## Equipo de agentes para los juegos de Roblox (`/equipo`)
+
+Cinco agentes en `.claude/agents/` que trabajan como compañeros, coordinados por la skill `.claude/skills/equipo/`:
+🧑‍✈️ **Álex** (`jefe-equipo`: planifica y da las órdenes), 💡 **Nico** (`disenador-juego`: ideas y fichas en
+`<juego>/propuestas/`), 🛠️ **Leo** (`programador-luau`: programa y verifica, sin commit), 🎮 **Vega**
+(`interfaz-probador`: juega como jugadores reales y pule la interfaz) y 📣 **Iris** (`crecimiento-lanzamiento`:
+ficha, arte, vídeos y plan para conseguir jugadores). Escribe `/equipo` y lo que quieras.
