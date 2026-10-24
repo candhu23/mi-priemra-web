@@ -18,6 +18,11 @@ description: Reúne al equipo de cinco agentes para diseñar, actualizar y lanza
 lanzas a cada miembro con la orden de Álex, le devuelves los informes y haces lo que solo tú puedes hacer
 (hablar con el usuario, commit/push, publicar con su «sí»).
 
+**Desde el plugin** (otro proyecto): los agentes se llaman con prefijo, `equipo-roblox:jefe-equipo`,
+`equipo-roblox:disenador-juego`, etc. Si en el repo no hay juego, empieza con la skill `nuevo-juego` (la trae el
+plugin) para crear uno con todas las pruebas; sin `juegos.json`, la lista de juegos son las carpetas con
+`default.project.json`. Las rutas `.claude/skills/...` de los agentes se buscan como indica su sección «Si estás en otro proyecto».
+
 ## 0. Antes de empezar
 
 1. **¿Qué juego?** `.claude/skills/roblox-nube/juegos.json` (nombre, carpeta, **rama**) y CLAUDE.md §0. Si no está claro, pregunta.
