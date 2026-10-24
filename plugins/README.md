@@ -53,6 +53,10 @@ claude plugin validate .      # comprueba el marketplace
 ```
 Y vuelve a subir a claude.ai los `.zip` que hayan cambiado.
 
+## Capturas de ejemplo
+
+`plugins/capturas/`: catálogo de mallas, pueblo dibujado con vista3d (4 vistas), inventario en móvil y apertura de huevo en PC.
+
 ## Qué está comprobado (y qué no)
 - Módulos Luau: compilan y pasan `luau-lsp` con los tipos de Roblox sin avisos; UIKit, Animar, Adaptable, Pantallas, Constructor y Ambiente se ejecutaron en Lune con instancias reales (nombres y tipos de propiedades válidos).
 - Pantallas fotografiadas en 1280×720 y 844×390 sin problemas graves; mallas leídas con un lector glTF/OBJ externo; marketplace validado e instalado con `claude plugin install`.
