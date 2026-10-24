@@ -16,5 +16,14 @@
     "rama": "claude/zealous-dirac-ejfljx",
     "universeId": null,
     "placeId": null
+  },
+  "criasmiticas": {
+    "nombre": "Crías Míticas (Mythic Hatchlings)",
+    "carpeta": "roblox-crias-miticas",
+    "rbxl": "MythicHatchlings.rbxl",
+    "config": "src/ReplicatedStorage/Config.luau",
+    "rama": "claude/confident-johnson-v5zy5f",
+    "universeId": null,
+    "placeId": null
   }
 }
