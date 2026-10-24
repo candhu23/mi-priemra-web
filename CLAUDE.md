@@ -304,10 +304,10 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 | `skills/disenar-juego/` | Método de diseño (bucle, primeros 5 min, metas, economía medida, monetización legítima) + `mapa_juego.py` (resumen del juego y acciones **sin probar**) |
 | `hooks/revisar-luau.py` (guardián) | Tras cada edición de un `.luau`: lo compila (si falla, Claude tiene que arreglarlo ya) y avisa de trampas conocidas (§9, DataStore sin pcall, APIs obsoletas) |
 | `agents/revisor-juego.md` | Revisor de solo lectura antes de cada commit/publicación: trampas, seguridad, guardado, normas de Roblox, pruebas, textos, diseño |
-| `skills/equipo/` (`/equipo`) | Coordina al **equipo de 3 agentes** (abajo): reunión de ideas, actualización completa idea → código → interfaz → revisión → commit, o arreglar un fallo |
-| `agents/disenador-juego.md` (💡 Nico) | Diagnostica el juego, propone máx. 3 ideas puntuadas y escribe la ficha para programar en `<juego>/propuestas/`. No toca código |
-| `agents/programador-luau.md` (🛠️ Leo) | Programa la ficha de punta a punta (Config → servidor → estado → cliente → harness → docs) hasta `TODO CORRECTO ✅`. Sin commit/push |
-| `agents/interfaz-probador.md` (🎮 Vega) | Juega como un jugador nuevo con las capturas PC/móvil, audita con `disenar-interfaz` y arregla lo visual del cliente |
+| `skills/equipo/` (`/equipo`) | Coordina al **equipo de 3 agentes** (abajo): reunión de ideas, actualización completa idea → código → interfaz → revisión → commit, arreglar un fallo o probar como jugador |
+| `agents/disenador-juego.md` (💡 Nico) | Fase del juego, diagnóstico con datos, máx. 3 ideas puntuadas y ficha para programar en `<juego>/propuestas/` (+ `INDICE.md`, memoria de ideas). No toca código |
+| `agents/programador-luau.md` (🛠️ Leo) | Programa la ficha de punta a punta, reproduce los fallos antes de arreglarlos, revisa su diff, hasta `TODO CORRECTO ✅`. Sin commit/push |
+| `agents/interfaz-probador.md` (🎮 Vega) | Juega como 3 jugadores (10 años móvil, 15 años PC, inglés) con las capturas, audita y arregla solo lo visual del cliente |
 
 - Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
