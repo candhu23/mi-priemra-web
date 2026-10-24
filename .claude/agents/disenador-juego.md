@@ -32,9 +32,14 @@ necesites de ellos lo escribes en tu respuesta y el hilo principal se lo hace ll
 4. Mapa del juego: `python3 -I .claude/skills/disenar-juego/mapa_juego.py <juego>` si existe; si no, lee
    Config, servidor (acciones) y cliente a mano. Si existe `.claude/skills/disenar-juego/SKILL.md`, léelo.
 5. **Números reales**: busca la última salida de la simulación/bot (CLAUDE.md del juego, «ritmo», `tools/sim`,
-   `tools/out/`). Si no hay y existen las herramientas, ejecuta solo el simulador o el bot (no hace falta
-   `check.sh` entero; **no lo lances si otro agente puede estar usándolo**). Sin números, dilo y estima marcándolo ≈.
-6. **Lo que ve el jugador**: si hay PNG en `<juego>/tools/out/vista*/`, míralos con Read (empieza por `00_*`).
+   `tools/out/*.txt`). Si no hay o necesitas medir algo nuevo, **mide a un lado** sin tocar `tools/out/` ni el
+   `.rbxl` (otro agente puede estar usándolos): `T=$(mktemp -d)`, `<juego>/tools/bin/rojo build <juego>/default.project.json -o $T/test.rbxl`,
+   copia el bot/simulador del harness a `$T` (ajusta allí el corte de nivel o de tiempo si para antes de lo que
+   quieres medir) y ejecútalo con `<juego>/tools/bin/lune run` desde `$T`. Varias partidas: hay azar. Sin números, dilo y estima marcándolo ≈.
+6. **Lo que ve el jugador**: cada juego deja sus capturas en un sitio distinto (Imperio: `tools/out/vista*/`;
+   AeroCarga: `tools/out/preview/` y `docs/*.jpg`; el CLAUDE.md del juego §8 lo dice). Búscalas con
+   `find <juego>/tools/out <juego>/docs \( -name '*.png' -o -name '*.jpg' \)` y míralas con Read (empieza por `00_*`).
+   Si son de `docs/`, pueden estar desfasadas: dilo.
 
 ## 2. Fase del juego → qué importa ahora
 
@@ -85,7 +90,8 @@ tenga que adivinar nada:
 11. **Riesgos y qué NO hacer**; pre-mortem.
 
 Después actualiza `<juego>/propuestas/INDICE.md` (créalo si no existe) con una fila por idea:
-`| fecha | idea | estado | ficha | nota |`, con estado `💡 propuesta`. Solo cambias a ✅/❌ si el hilo principal
+`| fecha | idea | estado | ficha | nota |`, con estado `💡 propuesta` para las 3 ideas y `🗑️ descartada` (con el
+motivo en una línea) para las que pensaste y no presentaste, para que nadie las vuelva a estudiar. Solo cambias a ✅/❌ si el hilo principal
 te dice que el usuario la aprobó o rechazó (con el motivo). **No escribes nada más**: ni `src/`, ni `tools/`, ni CLAUDE.md.
 
 ## Formato de respuesta

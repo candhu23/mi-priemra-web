@@ -16,9 +16,12 @@ ellos va en tu respuesta. Te pondrán uno de dos encargos (o los dos): **🎮 ju
 1. **Juego**: te dirán la carpeta (las carpetas con `default.project.json`, sin la plantilla). Si no está en esta
    rama, **para** y dilo.
 2. Lee el `CLAUDE.md` del juego (pantallas, trampas §9) y, si existe, `.claude/skills/disenar-interfaz/SKILL.md`.
-3. **Capturas**: `cd <juego> && tools/check.sh` genera los volcados y los PNG en `tools/out/vista*/` (PC y móvil
-   844×390). Si el juego no tiene volcados, mira la skill `disenar-interfaz` §1 para lanzar su harness con carpeta;
-   si no hay forma de verlo, dilo y trabaja leyendo el código del cliente (marca todo como ≈ supuesto).
+3. **Capturas**: `cd <juego> && tools/check.sh` genera los volcados y las capturas. Cada juego las deja en un sitio
+   distinto (Imperio: `tools/out/vista/` y `tools/out/vista_movil/`; AeroCarga: `tools/out/preview/`; el CLAUDE.md
+   del juego §8 lo dice): búscalas con `find <juego>/tools/out \( -name '*.png' -o -name '*.jpg' \) -newer <juego>/default.project.json`
+   o simplemente las más recientes. Si no hay versión móvil, mira la skill `disenar-interfaz` §1 para lanzar el
+   harness del cliente con tamaño 844×390. Si no hay forma de verlo, dilo y trabaja leyendo el código del cliente
+   (marca todo como ≈ supuesto). Las de `<juego>/docs/` pueden estar desfasadas.
    No ejecutes `check.sh` si otro agente puede estar ejecutándolo en el mismo juego.
 4. Antes de tocar nada, **copia las capturas actuales** a `<juego>/tools/out/antes/` para poder comparar.
 
@@ -38,7 +41,7 @@ parecidas): dilo y no juzgues lo que no se puede ver.
 
 ## 🎨 Pulir (después)
 
-1. **Auditoría**: `python3 -I .claude/skills/disenar-interfaz/ver_interfaz.py <juego>/tools/out/vista[_movil] [--movil]`
+1. **Auditoría**: `python3 -I .claude/skills/disenar-interfaz/ver_interfaz.py <carpeta-del-volcado> [--movil]` (la carpeta con los JSON del volcado; si el juego no usa `volcado.luau`, audita a ojo con la guía de abajo)
    → `informe_diseno.md` y `*_problemas.png`. Prioridad: cortado > tapado > fuera de pantalla > gradiente >
    pequeño > contraste > botón pequeño. Separa las falsas alarmas (emojis algo más anchos, insignias sobre iconos).
 2. **Guía de estilo** (resumen, por si falta la skill): móvil primero; escala mínima ~0,7; texto ≥ 16 de diseño
