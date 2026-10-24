@@ -310,6 +310,7 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 | `agents/programador-luau.md` (🛠️ Leo) | Programa la ficha de punta a punta, reproduce los fallos antes de arreglarlos, revisa su diff, hasta `TODO CORRECTO ✅`. Sin commit/push |
 | `agents/interfaz-probador.md` (🎮 Vega) | Juega como 3 jugadores (10 años móvil, 15 años PC, inglés) con las capturas, audita y arregla solo lo visual del cliente |
 | `agents/crecimiento-lanzamiento.md` (📣 Iris) | Conseguir jugadores gratis y sin engaños: ficha ES/EN, arte (`arte-roblox`), notas de versión, guiones de vídeos, plan de Discord/grupo, analíticas. Escribe en `<juego>/marketing/`; no publica |
+| `plugins/equipo-roblox/` + `.claude-plugin/marketplace.json` | **El equipo como plugin** para tenerlo en cualquier proyecto: `plugins/equipo-roblox.zip` se sube en claude.ai → Personalizar → Plugins. Se **genera** desde `.claude/` con `python3 -I plugins/construir_equipo_roblox.py` (re-ejecútalo tras cambiar un agente o skill del equipo) |
 
 - Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:

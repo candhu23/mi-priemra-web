@@ -40,12 +40,13 @@ echo "-- Ritmo de la economía (jugador bueno; compáralo con DISENO.md §5)"
 
 echo "== 5/6 Diseño: capturas y auditoría (PC y móvil; aproximado)"
 VER="$ROOT/../.claude/skills/disenar-interfaz/ver_interfaz.py"
+[ -f "$VER" ] || VER=$(find ~/.claude/plugins -path '*/skills/disenar-interfaz/ver_interfaz.py' 2> /dev/null | head -1)
 if [ -f "$VER" ] && command -v node > /dev/null && NODE_PATH=$(npm root -g) node -e "require('playwright')" 2> /dev/null; then
 	python3 -I "$VER" "$OUT/vista" | tail -1
 	python3 -I "$VER" "$OUT/vista_movil" --movil | tail -1
 	echo "Informes: tools/out/vista/informe_diseno.md y tools/out/vista_movil/informe_diseno.md"
 else
-	echo "(sin Playwright o sin .claude/: se salta)"
+	echo "(sin Playwright o sin la skill disenar-interfaz: se salta)"
 fi
 
 echo "== 6/6 Construir {{RBXL}}"

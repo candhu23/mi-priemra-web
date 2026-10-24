@@ -1,0 +1,16 @@
+{
+  "name": "equipo-roblox",
+  "version": "1.0.0",
+  "description": "Equipo de 5 agentes para crear, diseñar, programar, probar y lanzar juegos de Roblox (Luau + Rojo) en español: Álex (jefe), Nico (diseño), Leo (programación), Vega (interfaz y pruebas), Iris (jugadores y lanzamiento), más el revisor, la skill /equipo y las herramientas para crear juegos nuevos, ver la interfaz y hacer iconos.",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "rojo",
+    "game-design",
+    "agents",
+    "espanol"
+  ]
+}

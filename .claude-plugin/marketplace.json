@@ -1,0 +1,14 @@
+{
+  "name": "candu-juegos",
+  "description": "Herramientas de Claude Code de Candu231 para hacer juegos de Roblox en español",
+  "owner": {
+    "name": "Candu231"
+  },
+  "plugins": [
+    {
+      "name": "equipo-roblox",
+      "source": "./plugins/equipo-roblox",
+      "description": "Equipo de 5 agentes (jefe, diseño, programación, interfaz y pruebas, lanzamiento) para juegos de Roblox en español"
+    }
+  ]
+}
