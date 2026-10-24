@@ -1,0 +1,14 @@
+{
+  "name": "roblox-3d-vista",
+  "description": "Permite VER lo que hay construido en 3D en un juego de Roblox sin abrir Studio y revisarlo",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "3d",
+    "espanol"
+  ],
+  "license": "MIT"
+}

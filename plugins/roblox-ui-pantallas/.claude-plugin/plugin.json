@@ -1,0 +1,14 @@
+{
+  "name": "roblox-ui-pantallas",
+  "description": "Pantallas típicas de un juego de Roblox ya hechas y bonitas (Pantallas.luau)",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "ui",
+    "espanol"
+  ],
+  "license": "MIT"
+}
