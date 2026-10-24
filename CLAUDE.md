@@ -601,3 +601,12 @@ Se hace por bloques, un commit por bloque con `check.sh` en verde:
 - [ ] Bloque 7 · P2 (rivales, vehículos, estilos, bots, eventos de temporada, social).
 - [ ] Bloque 8 · P3 (consorcios: explicar riesgos antes).
 
+---
+
+## Equipo de agentes para los juegos de Roblox (`/equipo`)
+
+Cinco agentes en `.claude/agents/` que trabajan como compañeros, coordinados por la skill `.claude/skills/equipo/`:
+🧑‍✈️ **Álex** (`jefe-equipo`: planifica y da las órdenes), 💡 **Nico** (`disenador-juego`: ideas y fichas en
+`<juego>/propuestas/`), 🛠️ **Leo** (`programador-luau`: programa y verifica, sin commit), 🎮 **Vega**
+(`interfaz-probador`: juega como jugadores reales y pule la interfaz) y 📣 **Iris** (`crecimiento-lanzamiento`:
+ficha, arte, vídeos y plan para conseguir jugadores). Escribe `/equipo` y lo que quieras.
