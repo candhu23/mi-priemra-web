@@ -100,6 +100,10 @@ def render(node, ruta, parent_layout=None):
 	style.append(f"z-index:{node.get('ZIndex', 1)}")
 	bt = node.get("BackgroundTransparency", 0)
 	grad = mod(node, "UIGradient")
+	if grad and isinstance(grad.get("Color"), list) and grad["Color"] and len(grad["Color"][0]) == 3:
+		# Algunos volcados (AeroCarga) traen [[r,g,b],…] sin tiempo: se reparten de 0 a 1
+		n = len(grad["Color"])
+		grad = {**grad, "Color": [[i / max(n - 1, 1)] + list(k) for i, k in enumerate(grad["Color"])]}
 	es_texto = cls in ("TextLabel", "TextButton", "TextBox")
 	if bt < 1 and grad and isinstance(grad.get("Color"), list) and len(grad["Color"]) >= 2:
 		# Roblox MULTIPLICA el degradado por BackgroundColor3 (y también por el color del texto)
