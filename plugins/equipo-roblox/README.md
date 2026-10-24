@@ -21,11 +21,11 @@ pruebas), `disenar-juego`, `disenar-interfaz` (ver la interfaz como PNG en PC y 
 
 ## Instalar
 
-**claude.ai (para tenerlo en todas las sesiones, también en la nube):** descarga `equipo-roblox.zip` →
+**claude.ai (para tenerlo en todas las sesiones, también en la nube):** descarga `plugins/zips-para-claude-ai/equipo-roblox.zip` →
 claude.ai → Personalizar (Customize) → Plugins → Añadir → Subir plugin → elige el zip → actívalo.
 
 **Claude Code en tu ordenador:** `/plugin marketplace add candhu23/mi-priemra-web` y después
-`/plugin install equipo-roblox@candu-juegos`.
+`/plugin install equipo-roblox@candu-roblox` (en PowerShell: `claude plugin install equipo-roblox@candu-roblox`).
 
 ## Actualizar
 

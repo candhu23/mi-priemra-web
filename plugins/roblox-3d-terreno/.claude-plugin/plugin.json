@@ -1,0 +1,14 @@
+{
+  "name": "roblox-3d-terreno",
+  "description": "Genera mundos con el Terrain de Roblox por código (Terreno.luau)",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "3d",
+    "espanol"
+  ],
+  "license": "MIT"
+}

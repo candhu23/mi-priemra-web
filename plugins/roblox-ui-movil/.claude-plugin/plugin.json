@@ -1,0 +1,14 @@
+{
+  "name": "roblox-ui-movil",
+  "description": "Hace que la interfaz de un juego de Roblox funcione bien en móvil, tableta, PC y consola",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "ui",
+    "espanol"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "roblox-3d-ambiente",
+  "description": "Iluminación, ambiente y efectos 3D para juegos de Roblox con Ambiente.luau",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "3d",
+    "espanol"
+  ],
+  "license": "MIT"
+}

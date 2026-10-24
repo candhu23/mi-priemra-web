@@ -1,0 +1,14 @@
+{
+  "name": "roblox-3d-mallas",
+  "description": "Genera modelos 3D low-poly estilo cartoon para importar en Roblox Studio como MeshParts (mallas.py → .glb + .obj + vista previa PNG)",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "3d",
+    "espanol"
+  ],
+  "license": "MIT"
+}

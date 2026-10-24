@@ -1,14 +1,14 @@
 """Construye el plugin «equipo-roblox» a partir de .claude/ de este repo (la única fuente de verdad).
 
 Uso (desde la raíz del repo): python3 -I plugins/construir_equipo_roblox.py
-Genera plugins/equipo-roblox/ (el plugin) y plugins/equipo-roblox.zip (para subirlo en claude.ai).
+Genera plugins/equipo-roblox/ (el plugin) y plugins/zips-para-claude-ai/equipo-roblox.zip (para subirlo en claude.ai → Plugins).
 Vuelve a ejecutarlo cada vez que cambies un agente o una skill del equipo.
 """
 import json, os, re, shutil, zipfile
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DESTINO = os.path.join(RAIZ, "plugins", "equipo-roblox")
-ZIP = os.path.join(RAIZ, "plugins", "equipo-roblox.zip")
+ZIP = os.path.join(RAIZ, "plugins", "zips-para-claude-ai", "equipo-roblox.zip")
 VERSION = "1.0.0"
 
 AGENTES = ["jefe-equipo", "disenador-juego", "programador-luau", "interfaz-probador", "crecimiento-lanzamiento", "revisor-juego"]

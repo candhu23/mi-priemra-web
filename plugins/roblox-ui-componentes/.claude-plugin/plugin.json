@@ -1,0 +1,14 @@
+{
+  "name": "roblox-ui-componentes",
+  "description": "Biblioteca de componentes de interfaz para Roblox (UIKit.luau) lista para copiar",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "ui",
+    "espanol"
+  ],
+  "license": "MIT"
+}
