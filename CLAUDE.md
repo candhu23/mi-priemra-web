@@ -20,7 +20,7 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
 - **Escritura de libros** (no son juegos): carpeta `libros/` y skills `libro-*` (ver §16 y `libros/README.md`).
 - **Herramientas de Claude para los juegos** (`.claude/`, ver §15): `/publicar`, `roblox-nube`,
   `disenar-interfaz`, `arte-roblox`, `nuevo-juego`, `disenar-juego`, el guardián, el agente `revisor-juego`
-  y el **equipo** (`/equipo`: Nico ideas, Leo código, Vega interfaz y pruebas).
+  y el **equipo** (`/equipo`: Álex jefe, Nico ideas, Leo código, Vega interfaz y pruebas, Iris jugadores).
 
 ---
 
@@ -304,10 +304,12 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 | `skills/disenar-juego/` | Método de diseño (bucle, primeros 5 min, metas, economía medida, monetización legítima) + `mapa_juego.py` (resumen del juego y acciones **sin probar**) |
 | `hooks/revisar-luau.py` (guardián) | Tras cada edición de un `.luau`: lo compila (si falla, Claude tiene que arreglarlo ya) y avisa de trampas conocidas (§9, DataStore sin pcall, APIs obsoletas) |
 | `agents/revisor-juego.md` | Revisor de solo lectura antes de cada commit/publicación: trampas, seguridad, guardado, normas de Roblox, pruebas, textos, diseño |
-| `skills/equipo/` (`/equipo`) | Coordina al **equipo de 3 agentes** (abajo): reunión de ideas, actualización completa idea → código → interfaz → revisión → commit, arreglar un fallo o probar como jugador |
+| `skills/equipo/` (`/equipo`) | Coordina al **equipo de 5 agentes** (abajo): el jefe planifica y da órdenes, el hilo principal las ejecuta y le devuelve los informes hasta TERMINADO. Atajos: ideas, probar como jugador, arreglar un fallo, conseguir jugadores |
+| `agents/jefe-equipo.md` (🧑‍✈️ Álex) | Jefe: convierte la petición en plan y órdenes con criterio de aceptación, evalúa entregas, prioriza entre juegos, dice TERMINADO. Escribe `<juego>/propuestas/PLAN.md` |
 | `agents/disenador-juego.md` (💡 Nico) | Fase del juego, diagnóstico con datos, máx. 3 ideas puntuadas y ficha para programar en `<juego>/propuestas/` (+ `INDICE.md`, memoria de ideas). No toca código |
 | `agents/programador-luau.md` (🛠️ Leo) | Programa la ficha de punta a punta, reproduce los fallos antes de arreglarlos, revisa su diff, hasta `TODO CORRECTO ✅`. Sin commit/push |
 | `agents/interfaz-probador.md` (🎮 Vega) | Juega como 3 jugadores (10 años móvil, 15 años PC, inglés) con las capturas, audita y arregla solo lo visual del cliente |
+| `agents/crecimiento-lanzamiento.md` (📣 Iris) | Conseguir jugadores gratis y sin engaños: ficha ES/EN, arte (`arte-roblox`), notas de versión, guiones de vídeos, plan de Discord/grupo, analíticas. Escribe en `<juego>/marketing/`; no publica |
 
 - Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:
