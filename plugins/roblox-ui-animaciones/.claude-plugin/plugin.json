@@ -1,0 +1,14 @@
+{
+  "name": "roblox-ui-animaciones",
+  "description": "Da «jugosidad» a la interfaz de un juego de Roblox con Animar.luau",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "ui",
+    "espanol"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "roblox-3d-construir",
+  "description": "Construye cosas 3D en Roblox con código (Constructor.luau) con buen aspecto y rendimiento",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "3d",
+    "espanol"
+  ],
+  "license": "MIT"
+}

@@ -20,6 +20,7 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
 - **Escritura de libros** (no son juegos): carpeta `libros/` y skills `libro-*` (ver §16 y `libros/README.md`).
 - **Herramientas de Claude para los juegos** (`.claude/`, ver §15): `/publicar`, `roblox-nube`,
   `disenar-interfaz`, `arte-roblox`, `nuevo-juego`, `disenar-juego`, el guardián y el agente `revisor-juego`.
+- **10 plugins de interfaz y 3D** (`plugins/`, ver §17): `roblox-ui-*` y `roblox-3d-*`, también instalables en otros proyectos.
 
 ---
 
@@ -319,3 +320,21 @@ El usuario también me pide **libros** (en español). Cada libro va en `libros/<
 `libro-lector` (agente `lector-beta`, que solo lee los capítulos). Validar la voz con el usuario tras los
 3 primeros capítulos. Versiones .zip para claude.ai en `libros/skills-para-claude-ai/` (regenerarlas si cambian).
 
+---
+
+## 17. Plugins de interfaz y 3D (`plugins/`, marketplace `candu-roblox`)
+
+10 plugins portables (no dependen de este repo). Fuente de verdad: `plugins/<nombre>/skills/<nombre>/`; copia en
+`.claude/skills/` y `.zip` para claude.ai en `plugins/zips-para-claude-ai/` → tras cambiarlos, `plugins/sincronizar.sh`.
+Catálogo: `.claude-plugin/marketplace.json` (validar con `claude plugin validate .`). Instalación: `plugins/README.md`.
+
+| Interfaz | 3D |
+|---|---|
+| `roblox-ui-estilo` (tema.py, revisar_ui.py) | `roblox-3d-construir` (Constructor.luau) |
+| `roblox-ui-componentes` (UIKit.luau) | `roblox-3d-mallas` (mallas.py → .glb/.obj/.png) |
+| `roblox-ui-pantallas` (Pantallas.luau + capturas sin Studio) | `roblox-3d-terreno` (Terreno.luau) |
+| `roblox-ui-movil` (Adaptable.luau) | `roblox-3d-ambiente` (Ambiente.luau) |
+| `roblox-ui-animaciones` (Animar.luau) | `roblox-3d-vista` (volcar.luau + vista3d.py) |
+
+Trampa de Lune ya resuelta en los probadores: `fs.readFile` dentro de una corrutina la suspende → el código de los módulos se
+lee antes y el guion va en el hilo principal.

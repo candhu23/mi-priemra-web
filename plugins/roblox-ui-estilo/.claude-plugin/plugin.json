@@ -1,0 +1,14 @@
+{
+  "name": "roblox-ui-estilo",
+  "description": "Da a la interfaz de un juego de Roblox un estilo profesional y coherente",
+  "author": {
+    "name": "Candu231"
+  },
+  "keywords": [
+    "roblox",
+    "luau",
+    "ui",
+    "espanol"
+  ],
+  "license": "MIT"
+}

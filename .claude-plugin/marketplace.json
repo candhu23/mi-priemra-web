@@ -1,0 +1,69 @@
+{
+  "name": "candu-roblox",
+  "owner": {
+    "name": "Candu231"
+  },
+  "description": "10 plugins para juegos de Roblox en español: 5 de interfaz (estilo, componentes, pantallas, móvil, animaciones) y 5 de 3D (construir, mallas, terreno, ambiente, vista).",
+  "plugins": [
+    {
+      "name": "roblox-3d-ambiente",
+      "source": "./plugins/roblox-3d-ambiente",
+      "description": "Iluminación, ambiente y efectos 3D para juegos de Roblox con Ambiente.luau",
+      "category": "3d"
+    },
+    {
+      "name": "roblox-3d-construir",
+      "source": "./plugins/roblox-3d-construir",
+      "description": "Construye cosas 3D en Roblox con código (Constructor.luau) con buen aspecto y rendimiento",
+      "category": "3d"
+    },
+    {
+      "name": "roblox-3d-mallas",
+      "source": "./plugins/roblox-3d-mallas",
+      "description": "Genera modelos 3D low-poly estilo cartoon para importar en Roblox Studio como MeshParts (mallas.py → .glb + .obj + vista previa PNG)",
+      "category": "3d"
+    },
+    {
+      "name": "roblox-3d-terreno",
+      "source": "./plugins/roblox-3d-terreno",
+      "description": "Genera mundos con el Terrain de Roblox por código (Terreno.luau)",
+      "category": "3d"
+    },
+    {
+      "name": "roblox-3d-vista",
+      "source": "./plugins/roblox-3d-vista",
+      "description": "Permite VER lo que hay construido en 3D en un juego de Roblox sin abrir Studio y revisarlo",
+      "category": "3d"
+    },
+    {
+      "name": "roblox-ui-animaciones",
+      "source": "./plugins/roblox-ui-animaciones",
+      "description": "Da «jugosidad» a la interfaz de un juego de Roblox con Animar.luau",
+      "category": "ui"
+    },
+    {
+      "name": "roblox-ui-componentes",
+      "source": "./plugins/roblox-ui-componentes",
+      "description": "Biblioteca de componentes de interfaz para Roblox (UIKit.luau) lista para copiar",
+      "category": "ui"
+    },
+    {
+      "name": "roblox-ui-estilo",
+      "source": "./plugins/roblox-ui-estilo",
+      "description": "Da a la interfaz de un juego de Roblox un estilo profesional y coherente",
+      "category": "ui"
+    },
+    {
+      "name": "roblox-ui-movil",
+      "source": "./plugins/roblox-ui-movil",
+      "description": "Hace que la interfaz de un juego de Roblox funcione bien en móvil, tableta, PC y consola",
+      "category": "ui"
+    },
+    {
+      "name": "roblox-ui-pantallas",
+      "source": "./plugins/roblox-ui-pantallas",
+      "description": "Pantallas típicas de un juego de Roblox ya hechas y bonitas (Pantallas.luau)",
+      "category": "ui"
+    }
+  ]
+}
