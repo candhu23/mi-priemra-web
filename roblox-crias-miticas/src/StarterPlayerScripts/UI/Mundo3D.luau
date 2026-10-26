@@ -234,7 +234,8 @@ function Mundo3D.start(kit: any)
 	localFolder = Instance.new("Folder")
 	localFolder.Name = "CriasLocales"
 	localFolder.Parent = Workspace
-	for _, d in world:GetDescendants() do
+	-- Huevos y puertas (también los que lleguen más tarde, por si el mapa se carga por partes)
+	local function register(d: Instance)
 		local zone = d:GetAttribute("Zone")
 		if d:IsA("BasePart") and type(zone) == "number" then
 			if d.Name == "Huevo" then
@@ -244,8 +245,15 @@ function Mundo3D.start(kit: any)
 				local gui = billboard(d, UDim2.fromOffset(260, 80), Vector3.new(0, 4, 0), 160)
 				table.insert(doors, { part = d, zone = zone, gui = gui, title = textOn(gui, 0, 0.5, 26, Config.Colors.white), price = textOn(gui, 0.5, 0.5, 24, Config.Colors.gold) })
 			end
+			if Kit.ctx.state then
+				Mundo3D.refresh(Kit.ctx.state)
+			end
 		end
 	end
+	for _, d in world:GetDescendants() do
+		register(d)
+	end
+	world.DescendantAdded:Connect(register)
 	RunService.RenderStepped:Connect(step)
 end
 

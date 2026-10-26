@@ -73,7 +73,7 @@ function M.new(placePath: string, opts: { [string]: any }?)
 
 	local SIGNALS = {
 		Activated = true, MouseEnter = true, MouseLeave = true, OnClientEvent = true, OnServerEvent = true,
-		Changed = true, Completed = true, CharacterAdded = true, Triggered = true, MouseClick = true,
+		Changed = true, Completed = true, CharacterAdded = true, Triggered = true, MouseClick = true, DescendantAdded = true, ChildAdded = true,
 		InputBegan = true, InputChanged = true, InputEnded = true,
 	}
 	local NOOP = { Play = true, Stop = true }

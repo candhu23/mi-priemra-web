@@ -18,6 +18,11 @@
         "Technology": "Future",
         "ClockTime": 14
       }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
     }
   }
 }
