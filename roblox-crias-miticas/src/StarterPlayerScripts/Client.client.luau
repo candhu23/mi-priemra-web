@@ -219,6 +219,7 @@ do
 			Parent = holder, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(18, 18),
 			BackgroundColor3 = C.red, Visible = false, ZIndex = 3,
 		}, { Kit.corner(), Kit.stroke(C.white, 2) })
+		dots[id].Name = "Aviso_" .. id
 	end
 end
 
@@ -254,7 +255,7 @@ local autoHatchOn = false
 local hatching = false -- la animación de apertura tapa el panel del huevo
 do
 	eggPanel = create("Frame", {
-		Parent = root, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(480, 206),
+		Parent = root, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(480, 228),
 		BackgroundColor3 = C.panel, BorderSizePixel = 0, Visible = false,
 	}, { Kit.corner(18), Kit.stroke(C.panelDark, 3), Kit.padding(10) })
 	local eggTitle = Kit.title(eggPanel, "", 22, C.ink, { Size = UDim2.new(1, 0, 0, 26) })
@@ -276,6 +277,12 @@ do
 		local seen = Kit.label(card, "", 16, C.greenDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Center })
 		oddsCards[i] = { card = card, stroke = stroke, emoji = emoji, pct = pct, seen = seen }
 	end
+	-- Recordatorio de la fusión (cuántas iguales pide la rareza de este huevo)
+	local eggFuse = Kit.label(eggPanel, "", 16, C.muted, Kit.FONT_BOLD, {
+		Position = UDim2.fromOffset(0, 124), Size = UDim2.new(1, 0, 0, 20), TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	eggFuse.Name = "PistaFusionHuevo"
+	Kit.fit(eggFuse, 16)
 	local buttons = create("Frame", {
 		Parent = eggPanel, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 62), BackgroundTransparency = 1,
 	}, { Kit.list(true, 10, Enum.HorizontalAlignment.Center) })
@@ -340,6 +347,9 @@ do
 			local z = Config.Zones[egg]
 			local eggRarity = Config.Rarities[z.eggRarity]
 			eggTitle.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id), rarity = T("egg_" .. eggRarity.id) }) .. (if s.luckLeft > 0 then "  🍀x2" else "")
+			local need = eggRarity.fuseNeed
+			eggFuse.Visible = need > 0
+			eggFuse.Text = T("egg_fuse_hint", { n = need })
 			-- Probabilidades visibles: cada especie y la de Brillante (con suerte y mejoras, igual que el servidor)
 			local odds = Config.eggOdds(egg, s, { luck = s.luckLeft > 0 })
 			local n = #odds.species
@@ -617,6 +627,17 @@ local function fuseGroups(s: any): ({ [string]: number }, number)
 	return counts, ready
 end
 
+-- «5 iguales de una isla → 1 mejor (3 desde Prodigiosa)»: los números salen de Config.Rarities
+local function fuseHint(): string
+	local n = Config.Rarities[1].fuseNeed
+	for _, r in Config.Rarities do
+		if r.fuseNeed > 0 and r.fuseNeed ~= n then
+			return T("fuse_hint", { n = n, few = r.fuseNeed, rarity = T("rar_" .. r.id) })
+		end
+	end
+	return T("fuse_hint", { n = n, few = n, rarity = T("rar_" .. Config.Rarities[1].id) })
+end
+
 local function groupKey(p: any): string
 	local def = Config.PetById[p.kind]
 	return def.zone .. ":" .. def.rarity .. ":" .. (if p.shiny then 1 else 0)
@@ -778,7 +799,7 @@ do
 		-- Fusión: en el altar «Fusionar todo»; lejos, el botón lleva al altar (isla 1)
 		-- Orden: barra · cría elegida (si hay; así sus botones se ven sin bajar en el móvil) · fusión · repetidas · rejilla
 		local _fc, fuseBtn = rowCard(3, "✨", if ready > 0 then T("fuse_ready", { n = ready }) else T("fuse_title"),
-			if s.nearAltar then T("fuse_hint") else T("altar_hint"), if s.nearAltar then T("fuse_all") else T("go_altar"), if s.nearAltar then "gold" else "blue",
+			if s.nearAltar then fuseHint() else T("altar_hint"), if s.nearAltar then T("fuse_all") else T("go_altar"), if s.nearAltar then "gold" else "blue",
 			(not s.nearAltar) or ready > 0, function()
 				if s.nearAltar then
 					send("fuseAll", nil, nil, nil, onFused, true)
@@ -1318,26 +1339,11 @@ function refreshAll()
 	hudAlbum.Text = "📖 " .. s.albumCount .. "/" .. s.albumTotal .. "   ✨ " .. s.shinyScore .. "   🪨 " .. s.stones
 	menuLabels()
 	Kit.setButton(autoButton, if s.settings.auto then T("auto_on") else T("auto_off"), true)
-	-- Puntos rojos
-	dots.daily.Visible = s.daily.available
-	local missionReady = false
-	for _, m in s.missions do
-		missionReady = missionReady or (m.progress >= m.n and not m.claimed)
+	-- Puntos rojos: solo si hay algo concreto que recoger o hacer (Config.menuAlerts, mismas reglas que el servidor)
+	local alerts = Config.menuAlerts(s)
+	for id, dot in dots do
+		dot.Visible = alerts[id] == true
 	end
-	dots.missions.Visible = missionReady
-	local albumReady = false
-	for i, m in Config.AlbumMilestones do
-		albumReady = albumReady or (not s.albumClaimed[tostring(i)] and s.albumCount / Config.albumTotal() * 100 >= m.pct)
-	end
-	dots.album.Visible = albumReady
-	local canBuy = false
-	for _, u in Config.Upgrades do
-		canBuy = canBuy or Config.canBuyUpgrade(s, u.id)
-	end
-	dots.upgrades.Visible = canBuy
-	dots.islands.Visible = nz ~= nil and nz.ok == true
-	local _counts, ready = fuseGroups(s)
-	dots.pets.Visible = ready > 0
 	Mundo3D.refresh(s)
 	updateContext()
 	updateTutorial()

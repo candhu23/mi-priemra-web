@@ -26,7 +26,7 @@ Fuse 5 alike to rank them up all the way to Mythic, earn Rebirth Stones and grow
 🌳 Upgrade Garden: 12 upgrades on glowing pedestals (more coins, more pets equipped, faster hatching…)
 📖 Discover pets in the Index to open new islands
 ✨ 1% Shiny pets (x2 power). Reach 200 Shiny score to open island 9: Aurora Sanctuary
-🌟 A Golden Pile appears every 3 minutes
+🌟 A Golden Crystal appears every 3 minutes
 🎯 3 daily missions + 7-day reward streak
 👥 +10% coins for each friend in your server (up to 4)
 🌍 English & Español
@@ -46,7 +46,7 @@ Fusiona 5 iguales para subirlas de rareza hasta Mítica, gana Piedras de Renacim
 🌳 Jardín de Mejoras: 12 mejoras en pedestales (más monedas, más crías equipadas, abrir más rápido…)
 📖 Descubre crías en el Álbum para abrir islas nuevas
 ✨ Brillantes al 1 % (poder x2). Con 200 de puntuación Brillante se abre la isla 9: Santuario Aurora
-🌟 Cada 3 minutos aparece un Montón Dorado
+🌟 Cada 3 minutos aparece un Cristal Dorado
 🎯 3 misiones diarias + racha diaria de 7 días
 👥 +10 % de monedas por cada amigo en tu servidor (máx. 4)
 🌍 English y Español

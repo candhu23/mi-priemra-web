@@ -41,7 +41,7 @@ caminos de neón). Islas que se abren con el **Álbum**, **Brillantes** al 1 % e
 - **Evento de lanzamiento** (sábado o domingo, 1 hora, p. ej. 18:00 hora de España = 12:00 en Nueva York): juegas con quien
   venga. Anúncialo 3 días antes en Discord y en los vídeos. Lo que es verdad y puedes decir:
   «+10 % coins for each friend in your server» y «Who fuses the most today?» / «¿Quién fusiona más hoy?».
-  Como cada 3 min sale un **Montón Dorado**, en 1 hora hay ≈ 20: «¡Rompamos los Montones Dorados juntos!» es verdad.
+  Como cada 3 min sale un **Cristal Dorado**, en 1 hora hay ≈ 20: «¡Rompamos los Cristales Dorados juntos!» es verdad.
   **No prometas premios en Robux ni sorteos.** Premio gratis: mención en Discord + rol «🐣 Fundador/Founder».
 - Pedir valoración: «Si te ha gustado, dale 👍 en la página del juego» (legítimo; nunca como requisito de nada).
 - **Mirar:** retención D1 (≥ 15 % ≈ buen inicio), duración de sesión (≥ 10 min ≈), nº de 👍.

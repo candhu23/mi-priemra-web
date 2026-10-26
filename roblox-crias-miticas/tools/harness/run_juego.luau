@@ -162,7 +162,31 @@ local function hasText(gui: any, text: string): boolean
 	return false
 end
 
+-- Puntos rojos del menú: los visibles son justo los de Config.menuAlerts (Tienda y Ajustes nunca)
+local MENU_IDS = { "pets", "album", "missions", "daily", "shop", "upgrades", "islands", "settings" }
+local function visibleDots(gui: any): { [string]: boolean }
+	local v = {}
+	for _, id in MENU_IDS do
+		local d = named(gui, "Aviso_" .. id)
+		assert(d, "falta el punto rojo de " .. id)
+		v[id] = d.Visible == true
+	end
+	return v
+end
+local function checkDots(W: any, gui: any, where: string)
+	local s = lastState(W)
+	if not s then
+		return
+	end
+	local ConfigX = W.require(W.wrap(W.game:GetService("ReplicatedStorage"):FindFirstChild("Config")))
+	local alerts = ConfigX.menuAlerts(s)
+	for id, on in visibleDots(gui) do
+		assert(on == (alerts[id] == true), "punto rojo de " .. id .. " mal en " .. where)
+	end
+end
+
 local function dump(W: any, gui: any, name: string)
+	checkDots(W, gui, name)
 	if DUMP then
 		for _ = 1, 4 do -- que se vayan los avisos (duran 3 s)
 			frame(W)
@@ -286,6 +310,12 @@ assert(math.abs(Config.shinyChance(9, { upgrades = { sparklebloom = true } }, { 
 assert(Config.petPower("sproutchick", true) == 2 * Config.petPower("sproutchick", false), "una Brillante no da ×2 de poder")
 print("  9 islas, huevos por rareza (especies y % visibles), Brillante 1 %/×2, puerta por Índice cerrada, sin renacer: OK")
 dump(W, gui, "00_inicio")
+do -- jugador nuevo: solo el diario tiene algo que recoger
+	local v = visibleDots(gui)
+	for id, on in v do
+		assert(on == (id == "daily"), "jugador nuevo: sobra o falta el punto rojo de " .. id)
+	end
+end
 
 -- Cristales distintos por isla: colores de su paleta (varios en la misma isla) y tamaño según el tipo
 local function nearPalette(c: any, palette: { any }): boolean
@@ -556,20 +586,42 @@ pressNamed(W, gui, "IrAltar")
 frame(W)
 assert(lastState(W).nearAltar == true, "«Ir al altar» no lleva al altar")
 
--- Crías: elegir una Común → «Fusionar 7/5 → Poco común»
-pressNamed(W, gui, "Menu_pets")
-local hit = nil
-for _, d in gui:GetDescendants() do
-	if d:IsA("TextButton") and d.Text == "" and d.Parent and d.Parent.Parent and d.Parent.Parent:IsA("Frame") then
-		-- las tarjetas de cría llevan un botón invisible encima; buscamos una Común por su emoji
-		for _, l in d.Parent:GetChildren() do
-			if l:IsA("TextLabel") and l.Text == Config.PetById.sproutchick.emoji then
-				hit = d
+-- Tarjeta de una Común (las tarjetas de cría llevan un botón invisible encima; se busca por su emoji)
+local function commonCard(): any
+	local hit = nil
+	for _, d in gui:GetDescendants() do
+		if d:IsA("TextButton") and d.Text == "" and d.Parent and d.Parent.Parent and d.Parent.Parent:IsA("Frame") then
+			for _, l in d.Parent:GetChildren() do
+				if l:IsA("TextLabel") and l.Text == Config.PetById.sproutchick.emoji then
+					hit = d
+				end
 			end
 		end
 	end
+	assert(hit, "no encuentro la tarjeta de la cría para fusionar")
+	return hit
 end
-assert(hit, "no encuentro la tarjeta de la cría para fusionar")
+
+-- Lejos del altar, con bastantes iguales, el botón de la cría elegida es «Ir al altar»: lleva al altar y no fusiona
+hrp.CFrame = W.roblox.CFrame.new(spawnPos + W.roblox.Vector3.new(0, 0, -80))
+frame(W)
+assert(lastState(W).nearAltar ~= true, "la prueba debería empezar lejos del altar")
+pressNamed(W, gui, "Menu_pets")
+press(W, commonCard())
+frame(W)
+assert(named(gui, "FusionarIrAltar") and not named(gui, "Fusionar"), "lejos del altar el botón de la cría no lleva al altar")
+local farBefore = lastState(W)
+pressNamed(W, gui, "FusionarIrAltar")
+frame(W)
+local farAfter = lastState(W)
+assert(farAfter.nearAltar == true, "«Ir al altar» de la cría elegida no lleva al altar")
+assert(#farAfter.pets == #farBefore.pets, "«Ir al altar» ha fusionado")
+assert(not named(gui, "Fondo").Visible, "«Ir al altar» de la cría no cierra la ventana")
+print("  fusionar lejos del altar → «Ir al altar» (FusionarIrAltar) teletransporta sin fusionar: OK")
+
+-- Crías: elegir una Común → «Fusionar 7/5 → Poco común»
+pressNamed(W, gui, "Menu_pets")
+local hit = commonCard()
 press(W, hit)
 frame(W)
 dump(W, gui, "04_cria_elegida")
@@ -804,10 +856,12 @@ for i = 1, 3 do
 end
 s = lastState(W)
 assert(s.missions[3].claimed and s.luckLeft > 0, "las misiones no dan la suerte x2")
+assert(not named(gui, "Aviso_missions").Visible, "el punto rojo de Misiones sigue tras recogerlas")
 pressNamed(W, gui, "Menu_daily")
 dump(W, gui, "10_diario")
 pressNamed(W, gui, "RecogerDiario")
 assert(not lastState(W).daily.available, "el diario no se recogió")
+assert(not named(gui, "Aviso_daily").Visible, "el punto rojo del Diario sigue tras recogerlo")
 pressNamed(W, gui, "Menu_shop")
 dump(W, gui, "11_tienda")
 pressNamed(W, gui, "Menu_settings")
@@ -1146,7 +1200,7 @@ local Config2 = W2.require(W2.wrap(W2.game:GetService("ReplicatedStorage"):FindF
 Config2.GOLD_INTERVAL = 1
 frame(W2)
 Config2.GOLD_INTERVAL = 1e9
-assert(hasText(gui4, "Golden Pile on Sprout Meadow! Break it within 60 s"), "el aviso del Montón Dorado no sale en inglés")
+assert(hasText(gui4, "Golden Crystal on Sprout Meadow! Break it within 60 s"), "el aviso del Cristal Dorado no sale en inglés")
 print("  juega sin guardar y en inglés: OK")
 
 ---------------------------------------------------------------------

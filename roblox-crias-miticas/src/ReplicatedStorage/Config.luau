@@ -625,4 +625,50 @@ function Config.canBuyUpgrade(data: any, id: string): (boolean, string?, { [stri
 	return true, nil, nil
 end
 
+-- Grupos listos para fusionar (misma isla, rareza y Brillante, con fuseNeed copias y algo en que convertirse)
+function Config.fuseReadyCount(pets: { any }): number
+	local counts, ready = {}, 0
+	for _, p in pets do
+		local def = Config.PetById[p.kind]
+		if def and Config.Rarities[def.rarity].fuseNeed > 0 and Config.fuseResult(def.zone, def.rarity) then
+			local k = def.zone .. ":" .. def.rarity .. ":" .. (if p.shiny then 1 else 0)
+			counts[k] = (counts[k] or 0) + 1
+			if counts[k] == Config.Rarities[def.rarity].fuseNeed then
+				ready += 1
+			end
+		end
+	end
+	return ready
+end
+
+-- Puntos rojos del menú (con el estado que recibe el cliente): solo si hay algo concreto que recoger o hacer,
+-- con las mismas reglas que valida el servidor. Ids del menú: daily, missions, album, upgrades, islands, pets
+function Config.menuAlerts(s: any): { [string]: boolean }
+	local a = {}
+	a.daily = s.daily ~= nil and s.daily.available == true
+	-- Misión completada sin reclamar
+	for _, m in s.missions or {} do
+		if m.progress >= m.n and not m.claimed then
+			a.missions = true
+		end
+	end
+	-- Premio del Índice reclamable
+	for i, m in Config.AlbumMilestones do
+		if not (s.albumClaimed and s.albumClaimed[tostring(i)]) and Config.albumCount(s) / Config.albumTotal() * 100 >= m.pct then
+			a.album = true
+		end
+	end
+	-- Mejora que puedes pagar con tus piedras (y con sus requisitos comprados)
+	for _, u in Config.Upgrades do
+		if Config.canBuyUpgrade(s, u.id) then
+			a.upgrades = true
+		end
+	end
+	-- Isla siguiente que ya se puede abrir
+	a.islands = s.nextZone ~= nil and s.nextZone.ok == true
+	-- Fusión disponible
+	a.pets = Config.fuseReadyCount(s.pets or {}) > 0
+	return a
+end
+
 return Config
