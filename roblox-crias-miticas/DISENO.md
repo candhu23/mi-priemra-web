@@ -1,33 +1,87 @@
-# Diseño de «Crías Míticas»
+# Diseño de «Crías Míticas» (Mythic Hatchlings)
 
-> Documento vivo. Lo rellena Claude con la skill `disenar-juego` y lo aprueba el usuario.
+> Documento vivo. Estado: **BORRADOR, pendiente de aprobación del usuario**. No se programa hasta que lo apruebe.
+> Inspiración: la *idea* de «Collect All Pets» (coleccionar mascotas que recogen por ti). Nombres, arte,
+> textos y sonidos **originales**: no se copia nada del juego original.
 
 ## 1. Idea en una frase
-_(Qué eres y qué haces. Ej.: «Montas un imperio de food trucks por la ciudad».)_
+Eres cuidador/a de un archipiélago de islas flotantes: abres huevos mágicos, tus crías te siguen y rompen
+montones de monedas y cristales por ti, y con lo que ganas abres nuevas islas y completas el **Álbum Mítico**.
 
 ## 2. Bucle principal (30 segundos)
-Tocar → ganar dinero → comprar negocio → gana solo → comprar el siguiente.
+1. Caminas por la isla; hay **montones** (monedas, cofres, cristales) repartidos que reaparecen.
+2. Tocas un montón (o se elige solo el más cercano) → tus crías equipadas vuelan hacia él y lo rompen.
+3. Salen monedas que vuelan hacia ti (sonido + número «+25» flotando).
+4. Con monedas compras **huevos** → animación de apertura → cría nueva con su **rareza**.
+5. Equipas las mejores (botón «Equipar mejores») → rompes más rápido → huevos más caros.
 
-## 3. Bucle de sesión (10–20 minutos) y de días
-- Metas a la vista: siguiente negocio, mejora de clic, recompensa diaria (racha 7 días).
-- _(Añadir: misiones diarias, objetivos, eventos.)_
+Rarezas: Común · Poco común · Rara · Épica · Legendaria · Mítica (colores fijos en `Config.Colors`).
+Cada cría tiene **Poder** (daño por segundo a los montones). Montones con más vida dan más monedas.
+
+## 3. Bucle de sesión (10–20 min) y de días
+- **Islas** (8, se desbloquean con una puerta que cuesta monedas). Cada isla: montones que dan más, su propio
+  huevo (6–8 crías nuevas) y decoración distinta:
+  Pradera Brote · Bosque Seta · Playa Coral · Dunas Doradas · Volcán Brasa · Glaciar Cristal · Mar de Nubes · Cosmos.
+- **Fusión**: 5 crías iguales → versión **Dorada** (Poder ×3). 5 Doradas → **Arcoíris** (×3 otra vez).
+- **Huecos**: 3 crías equipadas al empezar; +1 al renacer 1, 3 y 5; +3 con el pase. Mochila de 50 (+25 por renacer).
+- **Renacer** (cuando llegas a la isla 4): reinicia monedas e islas; **conservas crías y álbum**;
+  monedas ×(1 + 0,5 × renacimientos) para siempre.
+- **Álbum Mítico** («Colecciónalas todas»): ~60 crías (+ sus Doradas/Arcoíris). Barra de progreso siempre
+  visible y premios al 10/25/50/75/100 % (bonus permanente de monedas y un título).
+- **Motivos para volver**: recompensa diaria (racha de 7, ya existe), 3 misiones diarias (fácil/media/difícil,
+  completar las 3 da suerte ×2 durante 10 min), ganancias sin conexión (25 %, máx. 8 h).
+- **Social**: +10 % de monedas por amigo en el servidor (máx. 4), ves las crías de los demás jugadores.
+  **Sin intercambios** en la primera versión (evita estafas y es mucho trabajo; se puede añadir luego).
 
 ## 4. Primeros 5 minutos
-- 0:00 botón grande «¡TOCA!» con pista · 0:30 primer negocio · 2:00 segundo negocio · 5:00 primera mejora.
+- 0:00 Flecha y texto «¡Toca un montón!» con 1 cría de regalo ya equipada.
+- 0:40 Ya tienes para el **primer huevo** (flecha hacia él). Animación de apertura con probabilidades a la vista.
+- 1:30 Segundo y tercer huevo → aparece el botón «Equipar mejores» (paso del tutorial).
+- 3:00 Primer duplicado → pista «Junta 5 iguales para una Dorada».
+- 5:00 La puerta de la isla 2 a la vista con su precio y barra de progreso.
+Tutorial de 5 pasos, se puede saltar, premio al final.
 
-## 5. Economía (objetivos de ritmo)
+## 5. Economía (objetivos de ritmo; se MEDIRÁN con el bot, no a ojo)
 | Hito | Objetivo (jugador normal) |
 |---|---|
-| 1.er negocio | < 30 s |
-| 4.º negocio | ~ 15 min |
-| _(…)_ | |
+| 1.er huevo | < 60 s |
+| 1.ª Dorada | ~ 10 min |
+| Isla 2 | ~ 8 min |
+| Isla 3 | ~ 25 min |
+| Isla 4 / 1.er renacer | ~ 60–90 min |
+| Isla 8 | varios días (con renacimientos) |
+| Álbum 100 % | semanas |
+- Precios de huevo e isla crecen ~×6–8 por isla; vida/monedas de montones ×5–6 por isla.
+- Premios (diaria, misiones, productos) en «minutos de monedas» con un mínimo fijo (escalan solos).
 
-## 6. Tienda (Robux)
+## 6. Tienda (Robux) — todo con `id = 0` hasta que se cree en Roblox
 | Artículo | Tipo | Precio | Qué da |
 |---|---|---|---|
-| Dinero x2 | Pase | 199 | x2 para siempre |
-| Clic automático | Pase | 149 | 2 toques/s |
-| Maletín / Caja fuerte | Producto | 25 / 99 | 15 / 90 min de ingresos |
+| Monedas x2 | Pase | 199 | x2 monedas para siempre |
+| +3 huecos | Pase | 249 | 3 crías más equipadas |
+| Abrir x3 | Pase | 199 | Abre 3 huevos a la vez |
+| Auto-abrir | Pase | 149 | Abre huevos solo mientras estás al lado |
+| Mochila +100 | Pase | 99 | Más espacio |
+| Saco / Cofre de monedas | Producto | 25 / 99 | 15 / 90 min de monedas |
+| Monedas x2 30 min | Producto | 39 | Boost temporal |
+
+**Decisión importante (recomendada):** NO vender huevos ni «suerte» por Robux. Así no hay «artículos aleatorios
+de pago» (más simple en el cuestionario de contenido, CLAUDE.md §11). La suerte se gana jugando (misiones).
+Probabilidades de cada huevo siempre visibles. Nada de «free Robux», ni tienda que se abre sola.
 
 ## 7. Estilo visual
-Claro y soleado, letra FredokaOne, botones gruesos, colores de `Config.Colors`.
+Islas flotantes con colores cartoon (skills `roblox-3d-terreno`, `roblox-3d-construir`, `roblox-3d-ambiente`),
+crías low-poly propias (`roblox-3d-mallas`) con aura según rareza, interfaz clara con botones gruesos
+(`roblox-ui-pantallas`: HUD, inventario por rareza, apertura de huevo, álbum). Letra FredokaOne. ES/EN.
+
+## 8. Plan por fases (para no quedarnos a medias otra vez)
+- **Fase 1 (v0.2, jugable):** islas 1–3, 3 huevos, ~20 crías, montones, seguir al jugador, equipar, fusionar,
+  álbum, diaria, tutorial. Bot de pruebas + capturas. *Commit y push al terminar cada parte.*
+- **Fase 2 (v0.3):** islas 4–8, renacer, misiones diarias, pases y productos (id = 0), offline.
+- **Fase 3 (v0.4):** arte 3D bonito, iconos (`arte-roblox`), ficha ES/EN, primera publicación.
+
+## 9. Riesgos / lo que no puedo comprobar aquí
+- Que las crías **sigan bien** al jugador y no atraviesen cosas: Lune no simula físicas ni movimiento;
+  solo se ve de verdad en Studio (te pediré una prueba con capturas).
+- Rendimiento con 8 jugadores × 6–9 crías + montones: se diseña ligero (crías ancladas movidas por código),
+  pero hay que probarlo en un servidor real.
