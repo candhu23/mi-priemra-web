@@ -403,7 +403,7 @@ do
 	Kit.textStroke(3).Parent = rareTitle
 	local titleScale = create("UIScale", { Parent = rareTitle })
 	local hint = Kit.title(overlay, "", 20, C.white, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -30), Size = UDim2.fromOffset(400, 26),
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -14), Size = UDim2.fromOffset(400, 26),
 		TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
 	})
 	Kit.textStroke(2).Parent = hint
@@ -499,10 +499,11 @@ do
 					stroke.Color = rarity.color
 					stroke.Thickness = if (c.h.rarity or 0) >= Config.HATCH_MEDIUM_FROM then 8 else 5
 				end
-				-- Bote de la tarjeta (1 → 1,15 → 1) en las raras. La tarjeta es un Frame: su único UIScale
+				-- Bote de la tarjeta (1 → 1,1 → 1) en las raras. La tarjeta es un Frame: su único UIScale.
+				-- 1,1 y no más: en el móvil una tarjeta más grande pisa «Toca para seguir» y el título
 				if (c.h.rarity or 0) >= Config.HATCH_MEDIUM_FROM then
 					local bounce = create("UIScale", { Parent = c.card })
-					Kit.tween(bounce, 0.15, { Scale = 1.15 }, Enum.EasingStyle.Back)
+					Kit.tween(bounce, 0.15, { Scale = 1.1 }, Enum.EasingStyle.Back)
 					task.delay(0.15, function()
 						Kit.tween(bounce, 0.2, { Scale = 1 })
 					end)
@@ -1020,15 +1021,25 @@ do
 		local back = color or (if kind == "error" then C.red elseif kind == "success" then C.green elseif kind == "gold" then C.gold else C.blue)
 		-- Fondo claro (dorado, amarillo) → texto oscuro sin borde; fondo oscuro → texto blanco con borde
 		local light = back.R * 0.3 + back.G * 0.59 + back.B * 0.11 > 0.6
+		-- Los especiales van en un marco con borde blanco grueso: así un aviso Mítico (rosa) no se confunde
+		-- con un error (rojo). El borde va en el marco y el del texto en la etiqueta (un UIStroke en cada uno)
+		local holder: GuiObject? = nil
+		if special then
+			holder = create("Frame", {
+				Parent = toasts, BackgroundColor3 = back, Size = UDim2.fromOffset(430, 56), ZIndex = 41,
+			}, { Kit.corner(14), Kit.stroke(C.white, 3) })
+		end
 		local t = create("TextLabel", {
-			Parent = toasts, BackgroundColor3 = back, Size = UDim2.fromOffset(420, if special then 52 else 44), Text = text,
-			TextColor3 = if light then C.ink else C.white, FontFace = Kit.FONT_TITLE, TextSize = 18, TextWrapped = true, ZIndex = 41,
-		}, { Kit.corner(12), Kit.padding(10, 10, 4, 4) })
+			Parent = holder or toasts, BackgroundColor3 = back, BackgroundTransparency = if holder then 1 else 0,
+			Size = if holder then UDim2.fromScale(1, 1) else UDim2.fromOffset(420, 44), Text = text,
+			TextColor3 = if light then C.ink else C.white, FontFace = Kit.FONT_TITLE, TextSize = 18, TextWrapped = true, ZIndex = 42,
+		}, { Kit.corner(12), Kit.padding(12, 12, 4, 4) })
 		if not light then
 			Kit.textStroke(1.5).Parent = t
 		end
+		local gone = holder or t
 		task.delay(seconds or (if special then 5 else 3), function()
-			t:Destroy()
+			gone:Destroy()
 		end)
 	end
 end

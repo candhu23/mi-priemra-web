@@ -36,7 +36,7 @@ fi
 "$BIN/lune" run "$ROOT/tools/harness/run_juego.luau" test.rbxl "$OUT/vista_movil" 844 390 > /dev/null 2>&1 || true
 
 echo "-- Ritmo de la economía (jugador bueno; compáralo con DISENO.md §5)"
-"$BIN/lune" run "$ROOT/tools/harness/ritmo.luau" "$SRC" 90 | head -14 2> /dev/null || true
+"$BIN/lune" run "$ROOT/tools/harness/ritmo.luau" "$SRC" 90 2> /dev/null | head -14 2> /dev/null || true
 
 echo "== 5/6 Diseño: capturas y auditoría (PC y móvil; aproximado)"
 VER="$ROOT/../.claude/skills/disenar-interfaz/ver_interfaz.py"

@@ -43,7 +43,11 @@ function Kit.fmtMoney(n: number): string
 		v /= 1000
 		i += 1
 	end
-	return string.format(if v >= 100 then "$%.0f%s" elseif v >= 10 then "$%.1f%s" else "$%.2f%s", v, SUFIJOS[i])
+	-- Se recorta hacia abajo (nunca redondea hacia arriba: 999.999 sale «999K» y no «1000K»)
+	local decimals = if v >= 100 then 0 elseif v >= 10 then 1 else 2
+	local m = 10 ^ decimals
+	v = math.floor(v * m + 1e-6) / m
+	return string.format("$%." .. decimals .. "f%s", v, SUFIJOS[i])
 end
 
 -- Igual que fmtMoney pero sin «$» (para monedas 🪙)
