@@ -514,7 +514,7 @@ do
 				Kit.fit(name, 22)
 				local pill = Kit.title(c.card, T("rar_" .. rarity.id), 20, C.ink, {
 					AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 174), Size = UDim2.fromOffset(150, 30),
-					TextXAlignment = Enum.TextXAlignment.Center, BackgroundColor3 = rarity.color, BackgroundTransparency = 0, ZIndex = 33,
+					TextXAlignment = Enum.TextXAlignment.Center, BackgroundColor3 = rarity.color:Lerp(C.white, 0.4), BackgroundTransparency = 0, ZIndex = 33,
 				})
 				Kit.corner(10).Parent = pill
 				if c.h.new then

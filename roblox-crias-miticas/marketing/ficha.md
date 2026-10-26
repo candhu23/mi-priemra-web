@@ -27,7 +27,7 @@ Unlock 8 floating islands, fuse pets into Golden and Rainbow versions, and compl
 👥 +10% coins for each friend in your server (up to 4)
 🌍 English & Español
 
-Eggs are bought with coins earned in the game, never with Robux.
+Eggs are bought with in-game coins. Every egg shows its odds.
 
 v0.3: islands 4–8 (Golden Dunes, Ember Volcano, Crystal Glacier, Cloud Sea, Cosmos), Rebirth, daily missions and offline coins.
 ```
@@ -46,7 +46,7 @@ Abre 8 islas flotantes, fusiona tus crías en versión Dorada y Arcoíris y comp
 👥 +10 % de monedas por cada amigo en tu servidor (máx. 4)
 🌍 English y Español
 
-Los huevos se compran con monedas del juego, nunca con Robux.
+Los huevos se compran con monedas del juego. Cada huevo muestra sus probabilidades.
 
 v0.3: islas 4–8 (Dunas Doradas, Volcán Brasa, Glaciar Cristal, Mar de Nubes, Cosmos), Renacer, misiones diarias y monedas sin conexión.
 ```
@@ -55,7 +55,9 @@ v0.3: islas 4–8 (Dunas Doradas, Volcán Brasa, Glaciar Cristal, Mar de Nubes, 
 - **Línea 1** = qué haces + la gracia (las crías trabajan por ti). Es lo único que mucha gente lee en el móvil.
 - **Línea 2** = la meta larga (islas, fusión, álbum) → motivo para volver.
 - Lista corta con números reales (56 / 8 / x3 / x9 / +10 %) sacados de `Config.luau`, no inventados.
-- «Odds shown» y «never with Robux» generan confianza en padres y jugadores, y son verdad (no se venden huevos ni suerte).
+- «Odds shown» genera confianza en padres y jugadores. NO decir «never with Robux»: si se crean los packs de monedas
+  (cash_s/cash_l), los huevos se podrían pagar indirectamente con Robux. En ese momento revisar la norma de artículos
+  aleatorios de pago (cuestionario y PolicyService) antes de publicar.
 - No se mencionan pases ni precios: la ficha vende el juego, la tienda va dentro.
 - No se nombra ningún otro juego.
 

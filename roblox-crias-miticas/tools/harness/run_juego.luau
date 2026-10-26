@@ -226,7 +226,9 @@ local g = golds(W)
 assert(#g == 1, "con 1 jugador tiene que salir UN Montón Dorado (salen " .. #g .. ")")
 local gold = g[1]
 assert(gold:GetAttribute("Zone") == 1, "el Montón Dorado no está en la isla del jugador")
-assert(gold:GetAttribute("MaxHp") == Config.GOLD_HP * Config.Zones[1].pileHp, "vida del Montón Dorado mal")
+local esperada = math.max(1, math.min(Config.GOLD_HP * Config.Zones[1].pileHp, math.floor(lastState(W).power * Config.GOLD_MAX_SECONDS)))
+assert(gold:GetAttribute("MaxHp") == esperada, "vida del Montón Dorado mal: " .. tostring(gold:GetAttribute("MaxHp")) .. " (esperada " .. esperada .. ")")
+assert(esperada <= lastState(W).power * Config.GOLD_MAX_SECONDS, "el Montón Dorado no se puede romper antes de caducar")
 local avisos = noticesTo(W, W.player, fired0, "gold", "n_gold_pile")
 assert(#avisos == 1 and avisos[1].zone == 1 and avisos[1].secs == Config.GOLD_LIFETIME, "no llega el aviso del Montón Dorado")
 frame(W)
@@ -639,7 +641,7 @@ end
 assert(#golds(W3) == 2 and gByZone[1] and gByZone[2], "con jugadores en las islas 1 y 2 tiene que haber un dorado en cada una")
 assert(#noticesTo(W3, p3, fired3, "gold", "n_gold_pile") == 1 and #noticesTo(W3, p3, fired3, "gold", "n_gold_pile_locked") == 1,
 	"A debe saber que hay un dorado en una isla que no tiene")
-assert(#noticesTo(W3, pB, fired3, "gold", "n_gold_pile") == 2, "B puede llegar a los dos dorados")
+assert(#noticesTo(W3, pB, fired3, "gold", "n_gold_pile") == 1, "B recibe un solo aviso (el dorado más alto al que llega)")
 assert(hasText(gui3, Lang3.t("es", "n_gold_pile_locked", { zone = Lang3.t("es", "zone_mushroom") })), "no sale el aviso de isla cerrada")
 -- A no tiene la isla 2: ni con la acción ni tocándolo
 local g2 = gByZone[2]

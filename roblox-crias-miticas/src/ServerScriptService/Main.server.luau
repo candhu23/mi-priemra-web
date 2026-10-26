@@ -138,7 +138,7 @@ local function clearTarget(pileId: number)
 	end
 end
 
-local function spawnPile(zone: number, gold: boolean?)
+local function spawnPile(zone: number, gold: boolean?, hpCap: number?)
 	local kind = if gold then GOLD_KIND else pickKind()
 	local look = PILE_LOOK[kind.id]
 	local z = Config.Zones[zone]
@@ -159,6 +159,9 @@ local function spawnPile(zone: number, gold: boolean?)
 	local id = nextPileId
 	nextPileId += 1
 	local maxHp = math.floor(z.pileHp * kind.hp)
+	if hpCap then -- el dorado se tiene que poder romper antes de que caduque
+		maxHp = math.max(1, math.min(maxHp, math.floor(hpCap)))
+	end
 	p:SetAttribute("PileId", id)
 	p:SetAttribute("Zone", zone)
 	p:SetAttribute("Kind", kind.id)
@@ -241,20 +244,37 @@ end
 -- Montón Dorado: uno en la isla más alta abierta de cada jugador (sin repetir isla ni duplicar si sigue vivo).
 -- Esa isla la tiene pagada, así que siempre puede llegar. Se avisa a todos (quien no la tiene, sabe que existe)
 local function spawnGold()
-	local zones: { [number]: boolean } = {}
+	-- Islas donde sale (la más alta de cada jugador) y el poder del más fuerte de esa isla
+	local zones: { [number]: number } = {}
 	for _, s in sessions do
-		zones[s.data.zones] = true
+		zones[s.data.zones] = math.max(zones[s.data.zones] or 0, Config.teamPower(s.data))
 	end
-	for zone in zones do
+	local spawned: { number } = {}
+	for zone, power in zones do
 		local alive = false
 		for _, pile in piles do
 			alive = alive or (pile.gold == true and pile.zone == zone)
 		end
 		if not alive then
-			spawnPile(zone, true)
-			for player, s in sessions do
-				notify(player, "gold", if s.data.zones >= zone then "n_gold_pile" else "n_gold_pile_locked", { zone = zone, secs = Config.GOLD_LIFETIME })
+			spawnPile(zone, true, power * Config.GOLD_MAX_SECONDS)
+			table.insert(spawned, zone)
+		end
+	end
+	-- Un aviso por jugador: el dorado más alto al que llega y, como mucho, uno de isla cerrada
+	for player, s in sessions do
+		local reach, locked = 0, 0
+		for _, zone in spawned do
+			if zone <= s.data.zones then
+				reach = math.max(reach, zone)
+			elseif locked == 0 or zone < locked then
+				locked = zone
 			end
+		end
+		if reach > 0 then
+			notify(player, "gold", "n_gold_pile", { zone = reach, secs = Config.GOLD_LIFETIME })
+		end
+		if locked > 0 then
+			notify(player, "gold", "n_gold_pile_locked", { zone = locked, secs = Config.GOLD_LIFETIME })
 		end
 	end
 end
@@ -974,6 +994,11 @@ while true do
 		s.bonuses.boost = now < d.boosts.coinsUntil
 		s.bonuses.luck = now < d.boosts.luckUntil
 		local root = rootPart(player)
+		-- Si se cae de las islas, vuelve a su isla más alta (sin esperar a morir abajo)
+		if root and root.Position.Y < World.TOP - 60 then
+			root.CFrame = World.zones[math.clamp(d.zones, 1, #World.zones)].spawn
+			root.AssemblyLinearVelocity = Vector3.zero
+		end
 		local pile = piles[s.target]
 		if not pileInReach(s, root, pile, Config.REACH) then
 			pile = nil

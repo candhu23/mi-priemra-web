@@ -75,6 +75,8 @@ las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTE
 
 - [ ] Que el usuario lo pruebe en Studio (Play) y mande capturas: crías siguiendo, montones, huevo, puertas.
 - [ ] Primera publicación en Studio (Publish to Roblox As… → experiencia NUEVA) y poner IDs en `juegos.json`.
-- [ ] Crear pases/productos (`roblox-nube`) e iconos (`arte-roblox`). Pases: x2, slots, hatch3, autoHatch, backpack.
+- [ ] Crear pases/productos (`roblox-nube`); iconos ya hechos en `docs/arte/`. Pases: x2, slots, hatch3, autoHatch, backpack.
+      **Ojo:** crear los packs de monedas (cash_s/cash_l) hace que los huevos se puedan pagar indirectamente con Robux →
+      revisar la norma de artículos aleatorios de pago (cuestionario, PolicyService) antes.
 - [ ] Arte: crías como mallas low-poly (`roblox-3d-mallas`) en vez de bola + emoji; islas más vistosas.
 - [ ] Ideas: intercambio entre jugadores (con cuidado con estafas), eventos con huevo especial, clasificación.

@@ -141,6 +141,7 @@ Config.PileKinds = {
 -- Montón Dorado: cada GOLD_INTERVAL s, uno en la isla más alta abierta de cada jugador (sin repetir isla)
 Config.GOLD_INTERVAL = 180 -- s. «Algo nuevo» cada 3 min sin agobiar
 Config.GOLD_LIFETIME = 60 -- s. Si no se rompe, desaparece
+Config.GOLD_MAX_SECONDS = 30 -- y como mucho 30 s del poder del jugador más fuerte de esa isla (si no, en islas altas caducaba)
 Config.GOLD_HP = 10 -- × pileHp de la isla (un cristal es ×8): aguanta lo bastante para llegar y verlo
 Config.GOLD_COINS = 33 -- × pileCoins de la isla = ×10 lo que da un Cofre (3,3) → rinde ×3,3 por punto de vida
 Config.PILES_PER_ZONE = 14
