@@ -3,8 +3,11 @@
 	encadenan en zigzag por una rejilla de 3×3. Cada zona tiene su suelo y su decoración low-poly, está rodeada
 	de acantilados de roca y se pasa a la siguiente por una PUERTA en la pared que las separa.
 	También fabrica los cristales (los «montones» que rompen las crías) con World.crystal.
+	Además: el Jardín de Mejoras (casilla (-1,0), pegado a la zona 1 por un arco sin puerta) con 12 pedestales unidos
+	por caminos de neón, los Altares de Fusión (zona 1 y Jardín) y el cielo de aurora de la zona 9.
 	Los textos (precios, nombres) los pone el CLIENTE encima, traducidos. Aquí solo hay piezas con atributos:
-	Zone en huevos y puertas. Los nombres «Isla<n>», «Suelo», «Huevo», «Puerta» los usan el cliente y el bot.
+	Zone en huevos y puertas, UpgradeId en pedestales, From/To en caminos. Los nombres «Isla<n>», «Jardin», «Suelo»,
+	«Huevo», «Puerta», «Pedestal», «Orbe», «Anillo», «Camino», «Altar», «CartelJardin» los usan el cliente y el bot.
 	Nota: no se usa CFrame.lookAt (en Lune sale girado al revés): facing() hace lo mismo con fromMatrix.
 ]]
 
@@ -143,13 +146,20 @@ local function place(alias: string, parent: Instance, base: Vector3, size: numbe
 	return m :: Model, ext * s
 end
 
-export type ZoneInfo = { center: Vector3, egg: BasePart, door: BasePart?, spawn: CFrame, entry: Vector3?, exit: Vector3? }
+export type ZoneInfo = { center: Vector3, egg: BasePart, door: BasePart?, spawn: CFrame, entry: Vector3?, exit: Vector3?, gate: Vector3? }
 World.zones = {} :: { ZoneInfo }
 -- Altares de fusión: de momento solo el PUNTO (zona 1, junto a la aparición) para validar Config.FUSE_REACH.
 -- El altar de piedra visible y el del Jardín los pone la ronda 2b
 World.altars = {} :: { Vector3 }
--- Pedestales del Jardín de Mejoras (id → posición). Vacío hasta la ronda 2b (Config.UPGRADE_NEEDS_PEDESTAL)
+-- Pedestales del Jardín de Mejoras: id → punto (a la altura del jugador) para Config.UPGRADE_REACH, y su pieza
 World.pedestals = {} :: { [string]: Vector3 }
+World.pedestalParts = {} :: { [string]: BasePart }
+World.altarParts = {} :: { BasePart }
+-- Jardín de Mejoras (casilla (-1,0)): centro y punto de llegada al viajar (teleport 0)
+World.garden = nil :: { center: Vector3, spawn: CFrame }?
+World.GARDEN_CELL = Vector2.new(-1, 0)
+local ALTAR_ZONE1 = Vector3.new(-16, 0, 26) -- desde el centro de la zona 1 (~16 studs de la aparición)
+local ALTAR_GARDEN = Vector3.new(70, 0, -60) -- desde el centro del Jardín
 
 ---------------------------------------------------------------------
 -- Piezas básicas
@@ -454,6 +464,256 @@ local function zoneAt(col: number, row: number): number
 	return 0
 end
 
+-- ProximityPrompt (el texto lo traduce cada cliente)
+local function prompt(parent: Instance, name: string, hold: number): ProximityPrompt
+	local pp = Instance.new("ProximityPrompt")
+	pp.Name = name
+	pp.ActionText = name
+	pp.MaxActivationDistance = Config.PROMPT_REACH
+	pp.HoldDuration = hold
+	pp.RequiresLineOfSight = false
+	pp.Parent = parent
+	return pp
+end
+
+-- Altar de Fusión: plataforma redonda de piedra con un círculo mágico morado, 4 cristales y un orbe flotando.
+-- La pieza «Altar» (la base) lleva la etiqueta FuseStation y el ProximityPrompt que abre la ventana de fusión
+local function makeAltar(parent: Instance, pos: Vector3): BasePart
+	local m = Instance.new("Model")
+	m.Name = "AltarFusion"
+	local base = disc(m, pos + Vector3.new(0, 0.5, 0), 1, 16, Color3.fromRGB(125, 120, 140), Enum.Material.Slate)
+	base.Name = "Altar"
+	deco(disc(m, pos + Vector3.new(0, 1.05, 0), 0.12, 14, Config.Colors.purple, Enum.Material.Neon)).Name = "Circulo"
+	deco(disc(m, pos + Vector3.new(0, 1.1, 0), 0.12, 12.4, Color3.fromRGB(60, 50, 95), Enum.Material.Slate))
+	deco(disc(m, pos + Vector3.new(0, 1.15, 0), 0.12, 8, Color3.fromRGB(200, 140, 255), Enum.Material.Neon)).Name = "Circulo"
+	deco(disc(m, pos + Vector3.new(0, 1.2, 0), 0.12, 6.6, Color3.fromRGB(60, 50, 95), Enum.Material.Slate))
+	for k = 0, 3 do
+		local a = k * math.pi / 2 + math.pi / 4
+		local c = pos + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6)
+		deco(part(m, {
+			Name = "Cristal", Size = Vector3.new(1.1, 4.5, 1.1), CFrame = CFrame.new(c + Vector3.new(0, 3, 0)) * CFrame.Angles(0, a, 0.15),
+			Color = if k % 2 == 0 then Color3.fromRGB(190, 120, 255) else Color3.fromRGB(110, 220, 255), Material = Enum.Material.Neon,
+		}))
+	end
+	local orb = deco(ball(m, pos + Vector3.new(0, 6, 0), 2.6, Color3.fromRGB(220, 170, 255), Enum.Material.Neon))
+	orb.Name = "OrbeAltar"
+	local light = Instance.new("PointLight")
+	light.Color = Config.Colors.purple
+	light.Range = 14
+	light.Brightness = 1.5
+	light.Parent = orb
+	base:AddTag("FuseStation")
+	prompt(base, "Fusionar", 0)
+	m.Parent = parent
+	table.insert(World.altars, pos)
+	table.insert(World.altarParts, base)
+	return base
+end
+
+-- Huevo del color de su rareza sobre el pilar (base = arriba del pilar). Devuelve la pieza «Huevo» (atributo Zone y
+-- etiqueta Egg la pone quien llama): con modelos, caja invisible con el modelo «Huevo» dentro; sin modelos, un
+-- elipsoide con manchas. Desde Épica, luz; Legendario y Prodigioso, manchas de neón
+local function makeEgg(parent: Instance, base: Vector3, rarity: number, rng: Random): BasePart
+	local ec = Config.EggColors[rarity] or Config.EggColors[1]
+	local center = base + Vector3.new(0, 4.5, 0)
+	local egg = part(parent, {
+		Name = "Huevo", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 9, 7), CFrame = CFrame.new(center),
+		Color = ec.shell, Material = Enum.Material.SmoothPlastic,
+	})
+	local spotsNeon = ec.glow >= 10
+	local model = if modelos then place("Huevo", egg, base, 9, rng:NextNumber(0, 6.28), 1, true, { eggShell = ec.shell, eggSpots = ec.spots }) else nil
+	if model then
+		egg.Transparency = 1
+		egg.CanCollide = false
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CanCollide = false
+				if spotsNeon and string.match(d.Name, "eggSpots$") then
+					d.Material = Enum.Material.Neon
+				end
+			end
+		end
+	else
+		-- Manchas medio hundidas en la cáscara (posición fija: el rng del mundo tiene semilla)
+		for k = 1, ec.spotCount do
+			local a = k / ec.spotCount * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
+			local y = rng:NextNumber(-0.55, 0.6)
+			local r = math.sqrt(math.max(0.05, 1 - y * y))
+			local d = rng:NextNumber(1.2, 2.2)
+			deco(ball(egg, center + Vector3.new(math.cos(a) * r * 3.4, y * 4.4, math.sin(a) * r * 3.4), d, ec.spots,
+				if spotsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic)).Name = "Mancha"
+		end
+	end
+	if ec.glow > 0 then
+		local light = Instance.new("PointLight")
+		light.Color = ec.shell
+		light.Range = ec.glow
+		light.Brightness = 1.2
+		light.Parent = egg
+	end
+	return egg
+end
+
+-- Cielo de la zona 9: cintas de aurora, anillo-portal de neón, estrellas e islotes flotantes con cristales
+local function auroraSky(m: Instance, center: Vector3, rng: Random)
+	local tints = { Color3.fromRGB(90, 240, 200), Color3.fromRGB(120, 170, 255), Color3.fromRGB(200, 140, 255), Color3.fromRGB(255, 120, 220) }
+	for r = 1, 3 do
+		local z0 = -60 + r * 30
+		local y0 = 55 + r * 8
+		for k = 0, 11 do
+			local x = -88 + k * 16
+			local p = center + Vector3.new(x, y0 + math.sin(k * 0.7 + r) * 6, z0 + math.cos(k * 0.5 + r) * 10)
+			deco(part(m, {
+				Name = "Aurora", Size = Vector3.new(16, 12, 0.4), CFrame = CFrame.new(p) * CFrame.Angles(0, math.sin(k + r) * 0.3, 0),
+				Color = tints[(k + r) % #tints + 1], Material = Enum.Material.Neon, Transparency = 0.45,
+			}))
+		end
+	end
+	-- Anillo-portal en el centro de la isla (16 bloques de neón en círculo, de pie)
+	local ring = center + Vector3.new(-45, 0, -45)
+	for k = 0, 15 do
+		local a = k / 16 * math.pi * 2
+		deco(part(m, {
+			Name = "Portal", Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(ring + Vector3.new(math.cos(a) * 14, 16 + math.sin(a) * 14, 0)) * CFrame.Angles(0, 0, a),
+			Color = tints[k % #tints + 1], Material = Enum.Material.Neon,
+		}))
+	end
+	disc(m, ring + Vector3.new(0, 0.5, 0), 1, 22, Color3.fromRGB(60, 80, 110), Enum.Material.Slate).Name = "PortalBase"
+	-- Estrellas e islotes flotantes
+	for _ = 1, 18 do
+		deco(ball(m, center + Vector3.new(rng:NextNumber(-90, 90), rng:NextNumber(30, 70), rng:NextNumber(-90, 90)), rng:NextNumber(0.8, 1.8), Color3.fromRGB(255, 250, 230), Enum.Material.Neon)).Name = "Estrella"
+	end
+	for k = 1, 5 do
+		local a = k / 5 * math.pi * 2
+		local p = center + Vector3.new(math.cos(a) * 60, rng:NextNumber(24, 40), math.sin(a) * 60)
+		deco(part(m, { Name = "Islote", Size = Vector3.new(10, 4, 9), CFrame = CFrame.new(p) * CFrame.Angles(0, a, 0), Color = Color3.fromRGB(50, 65, 90), Material = Enum.Material.Slate }))
+		deco(part(m, { Name = "Islote", Size = Vector3.new(6, 5, 5), CFrame = CFrame.new(p - Vector3.new(0, 4, 0)) * CFrame.Angles(0, a + 0.5, 0.3), Color = Color3.fromRGB(40, 50, 75), Material = Enum.Material.Slate }))
+		deco(part(m, { Name = "Cristal", Size = Vector3.new(1.4, 6, 1.4), CFrame = CFrame.new(p + Vector3.new(0, 5, 0)) * CFrame.Angles(0.1, a, 0.15), Color = tints[k % #tints + 1], Material = Enum.Material.Neon }))
+	end
+end
+
+-- Distancia de un punto a un segmento (en el suelo), para no poner adornos encima de los caminos del Jardín
+local function segDist(p: Vector3, a: Vector3, b: Vector3): number
+	local ab = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+	local ap = Vector3.new(p.X - a.X, 0, p.Z - a.Z)
+	local t = math.clamp(ap:Dot(ab) / math.max(ab:Dot(ab), 1e-6), 0, 1)
+	return (ap - ab * t).Magnitude
+end
+
+-- Jardín de Mejoras: suelo de césped, 3 paredes de acantilado (la 4.ª es la de la zona 1, con el arco), 12 pedestales
+-- (cilindro de piedra + anillo + orbe; el cliente los pinta: verde comprado, amarillo se puede, gris bloqueado), caminos
+-- de neón entre ellos (Config.Upgrades[i].req), un Altar de Fusión, cartel de entrada y árboles en los bordes
+local function buildGarden(folder: Instance, rng: Random)
+	local half = World.CELL / 2
+	local center = Vector3.new(World.GARDEN_CELL.X * World.CELL, World.TOP, World.GARDEN_CELL.Y * World.CELL)
+	local m = Instance.new("Model")
+	m.Name = "Jardin"
+	local ground = part(m, {
+		Name = "Suelo", Size = Vector3.new(World.CELL, 4, World.CELL), CFrame = CFrame.new(center - Vector3.new(0, 2, 0)),
+		Color = Color3.fromRGB(80, 170, 90), Material = Enum.Material.Grass,
+	})
+	ground.CanQuery = true
+	local rockColor = Color3.fromRGB(95, 105, 100)
+	for _, s in { { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+		local nrm = Vector3.new(s[1], 0, s[2])
+		local along = Vector3.new(-s[2], 0, s[1])
+		local edge = center + nrm * half
+		cliffWall(m, edge - along * half, edge + along * half, rng:NextNumber(55, 70), rockColor, rng, 0)
+	end
+	-- Pedestales
+	local spots: { Vector3 } = {}
+	for _, u in Config.Upgrades do
+		local pos = center + Vector3.new(u.pos.X, 0, u.pos.Y)
+		spots[#spots + 1] = pos
+		local base = disc(m, pos + Vector3.new(0, 1.5, 0), 3, 10, Color3.fromRGB(150, 150, 160), Enum.Material.Rock)
+		base.Name = "Pedestal"
+		base:SetAttribute("UpgradeId", u.id)
+		base:AddTag("Upgrade")
+		local ring = deco(disc(m, pos + Vector3.new(0, 3.05, 0), 0.2, 11, Color3.fromRGB(100, 116, 139), Enum.Material.SmoothPlastic))
+		ring.Name = "Anillo"
+		ring:SetAttribute("UpgradeId", u.id)
+		local orb = deco(ball(m, pos + Vector3.new(0, 5.6, 0), 4, Color3.fromRGB(100, 116, 139), Enum.Material.SmoothPlastic))
+		orb.Name = "Orbe"
+		orb:SetAttribute("UpgradeId", u.id)
+		prompt(base, "Comprar", 0.5)
+		World.pedestals[u.id] = pos + Vector3.new(0, 3, 0)
+		World.pedestalParts[u.id] = base
+	end
+	-- Caminos de neón (de centro a centro; el 4–10 sale en diagonal)
+	local segs: { { Vector3 } } = {}
+	for _, u in Config.Upgrades do
+		for _, r in u.req do
+			local a = (World.pedestals[r] :: Vector3) - Vector3.new(0, 3, 0)
+			local b = (World.pedestals[u.id] :: Vector3) - Vector3.new(0, 3, 0)
+			local link = deco(part(m, {
+				Name = "Camino", Size = Vector3.new(3, 0.3, (b - a).Magnitude), CFrame = facing((a + b) / 2 + Vector3.new(0, 0.2, 0), b + Vector3.new(0, 0.2, 0)),
+				Color = Color3.fromRGB(100, 116, 139), Material = Enum.Material.Neon,
+			}))
+			link:SetAttribute("From", r)
+			link:SetAttribute("To", u.id)
+			link:AddTag("UpgradeLink")
+			table.insert(segs, { a, b })
+		end
+	end
+	-- Altar de fusión del Jardín y cartel de entrada (el cliente pone el texto y las piedras que tienes)
+	local altarPos = center + ALTAR_GARDEN
+	makeAltar(m, altarPos)
+	local signPos = center + Vector3.new(half - 14, 0, -22)
+	part(m, { Name = "Poste", Size = Vector3.new(1, 8, 1), CFrame = CFrame.new(signPos + Vector3.new(0, 4, 0)), Color = WOOD, Material = Enum.Material.Wood })
+	part(m, { Name = "CartelJardin", Size = Vector3.new(0.6, 4, 9), CFrame = CFrame.new(signPos + Vector3.new(0, 9, 0)), Color = Color3.fromRGB(150, 105, 60), Material = Enum.Material.WoodPlanks })
+	-- Árboles y flores en los bordes, sin tapar pedestales, caminos, altar ni la entrada
+	local entrance = center + Vector3.new(half - 10, 0, 0)
+	local function free(p: Vector3): boolean
+		if (p - entrance).Magnitude < 30 or (p - altarPos).Magnitude < 16 or (p - signPos).Magnitude < 8 then
+			return false
+		end
+		for _, q in spots do
+			if (p - q).Magnitude < 14 then
+				return false
+			end
+		end
+		for _, sg in segs do
+			if segDist(p, sg[1], sg[2]) < 6 then
+				return false
+			end
+		end
+		return true
+	end
+	for _ = 1, 40 do
+		local s = rng:NextInteger(1, 4)
+		local t = rng:NextNumber(-half + 22, half - 22)
+		local inset = rng:NextNumber(18, 30)
+		local p = if s == 1 then center + Vector3.new(half - inset, 0, t)
+			elseif s == 2 then center + Vector3.new(-half + inset, 0, t)
+			elseif s == 3 then center + Vector3.new(t, 0, half - inset)
+			else center + Vector3.new(t, 0, -half + inset)
+		if free(p) then
+			decorate(m, "meadow", p, rng, true, rockColor, 1)
+		end
+	end
+	for _ = 1, 30 do
+		local p = center + Vector3.new(rng:NextNumber(-half + 20, half - 20), 0, rng:NextNumber(-half + 20, half - 20))
+		if free(p) then
+			flowers(m, p, rng)
+		end
+	end
+	m.Parent = folder
+	World.garden = { center = center, spawn = CFrame.new(entrance + Vector3.new(-12, 4, 0)) }
+end
+
+-- Arco de hojas en el hueco de la pared oeste de la zona 1 (paso al Jardín, sin puerta)
+local function gardenArch(m: Instance, edge: Vector3, along: Vector3)
+	for _, sgn in { -1, 1 } do
+		part(m, { Name = "Columna", Size = Vector3.new(5, 30, 5), CFrame = CFrame.new(edge + along * sgn * (World.GATE / 2 + 2.5) + Vector3.new(0, 15, 0)), Color = Color3.fromRGB(150, 140, 130), Material = Enum.Material.Cobblestone })
+	end
+	for k = -3, 3 do
+		deco(part(m, {
+			Name = "ArcoJardin", Size = Vector3.new(7, 6, 7), CFrame = CFrame.new(edge + along * k * 5 + Vector3.new(0, 31 - math.abs(k) * 0.8, 0)) * CFrame.Angles(0.2 * k, k, 0),
+			Color = if k % 2 == 0 then LEAF else LEAF_DARK, Material = Enum.Material.SmoothPlastic,
+		}))
+	end
+end
+
 function World.build(): Folder
 	loadModels()
 	local folder = Instance.new("Folder")
@@ -490,7 +750,12 @@ function World.build(): Folder
 			local along = Vector3.new(-s[2], 0, s[1])
 			local edge = center + nrm * half
 			local a, b = edge - along * half, edge + along * half
-			if other == 0 then
+			local toGarden = g[1] + s[1] == World.GARDEN_CELL.X and g[2] + s[2] == World.GARDEN_CELL.Y
+			if toGarden then
+				-- Paso al Jardín de Mejoras: hueco sin puerta (siempre abierto) con un arco de hojas
+				cliffWall(m, a, b, rng:NextNumber(55, 70), theme.rock, rng, World.GATE)
+				gardenArch(m, edge, along)
+			elseif other == 0 then
 				cliffWall(m, a, b, rng:NextNumber(55, 70), theme.rock, rng, 0)
 			elseif other > i then
 				local chained = other == i + 1
@@ -523,10 +788,7 @@ function World.build(): Folder
 		local eggBase = entry + inDir * 30 + sideDir * 26
 		part(m, { Name = "Pilar", Size = Vector3.new(10, 6, 10), CFrame = CFrame.new(eggBase + Vector3.new(0, 3, 0)) * CFrame.Angles(0, 0.4, 0), Color = Color3.fromRGB(150, 150, 160), Material = Enum.Material.Rock })
 		deco(disc(m, eggBase + Vector3.new(0, 6.1, 0), 0.2, 12, Config.Colors.gold, Enum.Material.Neon)).Name = "Aro"
-		local egg = part(m, {
-			Name = "Huevo", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 9, 7), CFrame = CFrame.new(eggBase + Vector3.new(0, 10.5, 0)),
-			Color = (Config.EggColors[zone.eggRarity] or Config.EggColors[1]).shell, Material = Enum.Material.SmoothPlastic, -- color de su rareza
-		})
+		local egg = makeEgg(m, eggBase + Vector3.new(0, 6, 0), zone.eggRarity, rng) -- color de su rareza
 		egg:SetAttribute("Zone", i)
 		egg:AddTag("Egg")
 
@@ -538,11 +800,13 @@ function World.build(): Folder
 		end
 
 		-- Decoración: muchas cosas pegadas a las paredes y unas pocas dentro
+		local gardenGate = if i == 1 then center + Vector3.new(-half + 12, 0, 0) else nil
+		local altarSpot = if i == 1 then center + ALTAR_ZONE1 else nil
 		local function freeSpot(p: Vector3): boolean
-			if (p - eggBase).Magnitude < 16 then
+			if (p - eggBase).Magnitude < 16 or (altarSpot and (p - altarSpot).Magnitude < 16) then
 				return false
 			end
-			for _, gate in { entry, exit } do
+			for _, gate in { entry, exit, gardenGate } do
 				if gate and (p - gate).Magnitude < 26 then
 					return false
 				end
@@ -578,6 +842,11 @@ function World.build(): Folder
 			water(m, center + Vector3.new(half - 35, 0, -half + 35), 50, 50)
 		elseif theme.deco == "volcano" then
 			volcanoCone(m, center + Vector3.new(-half + 45, 0, -half + 45))
+		elseif theme.deco == "aurora" then
+			auroraSky(m, center, rng)
+		end
+		if altarSpot then
+			makeAltar(m, altarSpot)
 		end
 
 		m.Parent = folder
@@ -588,6 +857,7 @@ function World.build(): Folder
 		info.door = door
 		info.entry = entry
 		info.exit = exit
+		info.gate = gardenGate
 		-- Al viajar se aparece cerca del centro, mirando hacia dentro
 		info.spawn = CFrame.new(center + Vector3.new(0, 4, 0) + (entry - center) * 0.3)
 	end
@@ -602,8 +872,8 @@ function World.build(): Folder
 	spawn.Transparency = 0.5
 	spawn.Duration = 0
 	spawn.Parent = folder
-	-- Altar de fusión de la zona 1: ~16 studs de la aparición y lejos del huevo (también llega quien viaja a la isla 1)
-	World.altars = { World.zones[1].center + Vector3.new(-16, 0, 26) }
+	-- Jardín de Mejoras (con su altar); el de la zona 1 ya se puso con la isla (~16 studs de la aparición)
+	buildGarden(folder, rng)
 
 	local piles = Instance.new("Folder")
 	piles.Name = "Montones"
@@ -643,8 +913,13 @@ function World.pilePosition(zone: number, rng: Random): Vector3
 	for _ = 1, 30 do
 		local pos = info.center + Vector3.new(rng:NextNumber(-half, half), 0, rng:NextNumber(-half, half))
 		local ok = (pos - Vector3.new(info.egg.Position.X, pos.Y, info.egg.Position.Z)).Magnitude > 16
-		for _, gate in { info.entry, info.exit } do
+		for _, gate in { info.entry, info.exit, info.gate } do
 			if gate and (pos - gate).Magnitude < 22 then
+				ok = false
+			end
+		end
+		for _, a in World.altars do
+			if (Vector3.new(pos.X, a.Y, pos.Z) - a).Magnitude < 14 then
 				ok = false
 			end
 		end

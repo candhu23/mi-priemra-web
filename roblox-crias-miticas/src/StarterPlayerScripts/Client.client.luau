@@ -783,11 +783,32 @@ do
 				end
 			end)
 		fuseBtn.Name = if s.nearAltar then "FusionarTodo" else "IrAltar"
+		-- «Soltar repetidas» (Míticas y de islas anteriores; nunca equipadas, Brillantes ni la última de cada especie).
+		-- Pide un segundo toque
+		local dupes = #Config.dupesToRelease(s)
+		local armedDupes = false
+		local dupesBtn: TextButton
+		_fc, dupesBtn = rowCard(3, "🧹", T("dupes_title", { n = dupes }), T("dupes_hint"), T("release"), "red", dupes > 0, function()
+			if not armedDupes then
+				armedDupes = true
+				dupesBtn.Text = T("release_sure")
+				task.delay(3, function()
+					if armedDupes and dupesBtn.Parent then
+						armedDupes = false
+						dupesBtn.Text = T("release")
+					end
+				end)
+				return
+			end
+			armedDupes = false
+			send("releaseDupes")
+		end)
+		dupesBtn.Name = "SoltarRepetidas"
 		-- Detalle de la elegida
 		if sel then
 			local def = Config.PetById[sel.kind]
 			local rarity = Config.Rarities[def.rarity]
-			local card = Kit.card(body, { Size = UDim2.new(1, 0, 0, 132), LayoutOrder = 3, ZIndex = 12 })
+			local card = Kit.card(body, { Size = UDim2.new(1, 0, 0, 132), LayoutOrder = 4, ZIndex = 12 })
 			Kit.label(card, def.emoji, 48, nil, nil, { Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(64, 64), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 13 })
 			local name = Kit.title(card, petLabel(sel.kind, sel.shiny) .. (if sel.shiny then " · " .. T("shiny") else ""), 22, C.ink, {
 				Position = UDim2.fromOffset(80, 8), Size = UDim2.new(1, -90, 0, 28), ZIndex = 13,
@@ -838,7 +859,7 @@ do
 			b3.Name = "Soltar"
 			Kit.setButton(b3, nil, #s.pets > 1 and not eq)
 		else
-			line(T("pick_pet"), 16, C.muted, 3)
+			line(T("pick_pet"), 16, C.muted, 4)
 		end
 		-- Rejilla: equipadas primero, luego por poder
 		local list = table.clone(s.pets)
@@ -850,7 +871,7 @@ do
 			return Config.petPower(a.kind, a.shiny) > Config.petPower(b.kind, b.shiny)
 		end)
 		local shown = math.min(#list, 300)
-		local g = grid(4, Vector2.new(98, 112), math.ceil(shown / 5))
+		local g = grid(5, Vector2.new(98, 112), math.ceil(shown / 5))
 		for i = 1, shown do
 			local p = list[i]
 			local def = Config.PetById[p.kind]
@@ -1048,19 +1069,29 @@ do
 		for _ in s.upgrades do
 			n += 1
 		end
-		return s.stones .. "|" .. n
+		return s.stones .. "|" .. n .. "|" .. Mundo3D.near.pedestal
 	end
 	renderers.upgrades = function()
 		local s = ctx.state
 		windowTitle.Text = "🌳 " .. T("upgrades")
 		line(T("up_header", { n = s.stones }), 18, C.ink, 0)
+		-- Se compran en su pedestal del Jardín (Config.UPGRADE_NEEDS_PEDESTAL): desde lejos, la ventana lleva allí
+		local near = Mundo3D.near.pedestal
+		if Config.UPGRADE_NEEDS_PEDESTAL then
+			local _c, go = rowCard(0, "🌳", T("zone_garden"), T("up_go_hint"), T("go_garden"), "green", true, function()
+				send("teleport", 0)
+				closeWindow()
+			end)
+			go.Name = "IrJardin"
+		end
 		for i, u in Config.Upgrades do
 			local owned = s.upgrades[u.id] == true
 			local ok, why, params = Config.canBuyUpgrade(s, u.id)
 			local locked = why == "n_need_upgrade"
 			local sub = if locked and params then T("up_locked", { upgrade = T("up_" .. params.upgrade) }) else T("up_" .. u.id .. "_desc")
+			local here = not Config.UPGRADE_NEEDS_PEDESTAL or near == u.id
 			local _c, b = rowCard(i, if owned then "✅" elseif locked then "🔒" else u.emoji, T("up_" .. u.id), sub,
-				if owned then T("up_owned") else "🪨 " .. u.cost, if owned then "green" else "gold", ok, function()
+				if owned then T("up_owned") else T("up_state_cost", { n = u.cost }), if owned then "green" else "gold", ok and here, function()
 					send("buyUpgrade", u.id)
 				end)
 			b.Name = "Mejora_" .. u.id
@@ -1074,6 +1105,11 @@ do
 	renderers.islands = function()
 		local s = ctx.state
 		windowTitle.Text = "🗺️ " .. T("islands")
+		local _g, garden = rowCard(0, "🌳", T("zone_garden"), T("garden_sub"), T("go"), "green", true, function()
+			send("teleport", 0)
+			closeWindow()
+		end)
+		garden.Name = "IrJardin"
 		for i, z in Config.Zones do
 			local name = i .. ". " .. T("zone_" .. z.id)
 			if i <= s.zones then
@@ -1296,6 +1332,11 @@ function refreshAll()
 			body.CanvasPosition = scroll
 		end
 	end
+end
+
+-- Altar de fusión (ProximityPrompt): abre la ventana de Crías, que arriba tiene «Fusionar todo»
+Mundo3D.onAltar = function()
+	openWindow("pets")
 end
 
 stateRemote.OnClientEvent:Connect(function(s)

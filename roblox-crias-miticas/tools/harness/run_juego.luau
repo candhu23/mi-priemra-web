@@ -113,6 +113,16 @@ local function noticesTo(W: any, plr: any, from: number, kind: string, key: stri
 	return list
 end
 
+-- Pieza «Pedestal» de una mejora en el Jardín
+local function pedestalOf(mundoX: any, id: string): any
+	for _, d in mundoX:FindFirstChild("Jardin"):GetChildren() do
+		if d.Name == "Pedestal" and d:GetAttribute("UpgradeId") == id then
+			return d
+		end
+	end
+	return nil
+end
+
 local function buttons(gui: any): { any }
 	local list = {}
 	for _, d in gui:GetDescendants() do
@@ -201,6 +211,59 @@ for _, d in mundo:GetDescendants() do
 	end
 end
 assert(door9, "no hay puerta de la isla 9")
+-- Jardín de Mejoras: 12 pedestales con orbe, anillo y ProximityPrompt; 14 caminos de neón; cartel; altar
+local jardin = mundo:FindFirstChild("Jardin")
+local L = W.require(W.wrap(W.game:GetService("ReplicatedStorage"):FindFirstChild("Lang")))
+assert(jardin, "no hay Jardín de Mejoras")
+do
+local nPed, nOrb, nRing, nLink, nAltar = 0, 0, 0, 0, 0
+for _, d in jardin:GetChildren() do
+	if d.Name == "Pedestal" then
+		nPed += 1
+		local pp = d:FindFirstChildOfClass("ProximityPrompt")
+		assert(pp and pp.MaxActivationDistance == Config.PROMPT_REACH and not pp.RequiresLineOfSight and pp.HoldDuration > 0, "pedestal sin ProximityPrompt bien puesto")
+	elseif d.Name == "Orbe" then
+		nOrb += 1
+	elseif d.Name == "Anillo" then
+		nRing += 1
+	elseif d.Name == "Camino" then
+		nLink += 1
+		assert(d.Material == W.roblox.Enum.Material.Neon and d.CanCollide == false, "los caminos deben ser de neón y sin colisión")
+	end
+end
+local altares = {}
+for _, d in mundo:GetDescendants() do
+	if d.Name == "Altar" and d:HasTag("FuseStation") then
+		table.insert(altares, d)
+		assert(d:FindFirstChildOfClass("ProximityPrompt"), "altar sin ProximityPrompt")
+	end
+end
+nAltar = #altares
+assert(nPed == 12 and nOrb == 12 and nRing == 12 and nLink == 14, string.format("Jardín: %d pedestales, %d orbes, %d anillos, %d caminos", nPed, nOrb, nRing, nLink))
+assert(nAltar == 2, "tiene que haber 2 altares de fusión (zona 1 y Jardín), hay " .. nAltar)
+assert(jardin:FindFirstChild("CartelJardin") and jardin:FindFirstChild("AltarFusion") and mundo:FindFirstChild("Isla1"):FindFirstChild("AltarFusion"), "falta el cartel o algún altar")
+-- Paso de la zona 1 al Jardín: sin rocas en el hueco del muro oeste (x = −100) y con arco
+local isla1 = mundo:FindFirstChild("Isla1")
+for _, d in isla1:GetChildren() do
+	if d.Name == "Acantilado" then
+		local q = d.CFrame.Position
+		assert(not (math.abs(q.X + 100) < 15 and math.abs(q.Z) < 8), "una roca tapa el paso al Jardín")
+	end
+end
+assert(isla1:FindFirstChild("ArcoJardin"), "no hay arco en el paso al Jardín")
+assert(mundo:FindFirstChild("Isla9"):FindFirstChild("Aurora") and mundo:FindFirstChild("Isla9"):FindFirstChild("Portal"), "la zona 9 no tiene su cielo de aurora")
+-- Huevos sin modelos: elipsoide con manchas (más manchas cuanto más raro)
+local manchas = 0
+for _, d in mundo:FindFirstChild("Isla8"):FindFirstChild("Huevo"):GetChildren() do
+	manchas += if d.Name == "Mancha" then 1 else 0
+end
+assert(manchas == Config.EggColors[5].spotCount, "el huevo Legendario no tiene sus manchas")
+-- En el cliente: carteles de pedestal y altar traducidos
+frame(W)
+assert(hasText(mundo, L.t("es", "up_goldenroot_desc")) and hasText(mundo, L.t("es", "altar_title")), "faltan los carteles del Jardín o del altar")
+assert(pedestalOf(mundo, "goldenroot"):FindFirstChildOfClass("ProximityPrompt").ActionText == L.t("es", "up_prompt_buy", { n = 1 }), "el prompt del pedestal no está traducido")
+print("  Jardín (12 pedestales, 14 caminos, cartel, paso con arco), 2 altares, zona 9 con aurora, huevo con manchas: OK")
+end
 -- Puerta por Índice: con 1 cría descubierta la isla 2 (pide 3) no se abre, y sin gastar monedas
 local okU, keyU = W.callbacks.Action(W.player, "unlockZone", 2)
 assert(not okU and keyU == "n_need_index" and lastState(W).zones == 1, "la isla 2 se abre sin descubrir 3 crías")
@@ -626,13 +689,26 @@ assert(not ok6 and key6 == "n_need_index" and p6.n == 21 and p6.have == lastStat
 assert(lastState(W).nextZone.need == 21 and lastState(W).nextZone.kind == "index", "el estado no dice lo que pide la isla 6")
 print("  islas por Índice (sin monedas; rechaza la 6), viaje y puerta: OK")
 
--- Mejoras (ventana temporal): con 1 Piedra se compra la Raíz Dorada; el resto pide requisitos o más piedras
+-- Mejoras: con 1 Piedra se compra la Raíz Dorada, pero EN su pedestal; el resto pide requisitos o más piedras
+do
 local cm0 = lastState(W).coinMult
 local okR, keyR = W.callbacks.Action(W.player, "buyUpgrade", "swiftsprout")
 assert(not okR and keyR == "n_need_upgrade", "se compra una mejora sin su requisito")
 assert(not W.callbacks.Action(W.player, "buyUpgrade", "noexiste") and not W.callbacks.Action(W.player, "buyUpgrade", 5), "buyUpgrade acepta un id falso")
+local okL, keyL = W.callbacks.Action(W.player, "buyUpgrade", "goldenroot")
+assert(not okL and keyL == "n_go_pedestal" and not lastState(W).upgrades.goldenroot, "se compra una mejora lejos de su pedestal")
 pressNamed(W, gui, "Menu_upgrades")
 dump(W, gui, "07_mejoras")
+pressNamed(W, gui, "Mejora_goldenroot") -- lejos: botón apagado, no compra
+assert(not lastState(W).upgrades.goldenroot, "la ventana compra lejos del pedestal")
+pressNamed(W, gui, "IrJardin")
+frame(W)
+local gc = jardin:FindFirstChild("Suelo").CFrame.Position
+assert(math.abs(hrp.CFrame.Position.X - gc.X) < 100 and math.abs(hrp.CFrame.Position.Z - gc.Z) < 100, "«Ir al jardín» no lleva al Jardín")
+local ped = pedestalOf(mundo, "goldenroot")
+hrp.CFrame = W.roblox.CFrame.new(ped.CFrame.Position + W.roblox.Vector3.new(0, 1.5, 6))
+frame(W)
+pressNamed(W, gui, "Menu_upgrades")
 pressNamed(W, gui, "Mejora_goldenroot")
 s = lastState(W)
 assert(s.upgrades.goldenroot and s.stones == 0, "comprar la Raíz Dorada no gasta la piedra")
@@ -642,7 +718,63 @@ assert(not okD and keyD == "n_upgrade_owned", "se puede comprar dos veces la mis
 local okS, keyS, pS = W.callbacks.Action(W.player, "buyUpgrade", "thriftynest")
 assert(not okS and keyS == "n_need_stones" and pS.n == 5, "se compra una mejora sin piedras")
 pressNamed(W, gui, "Cerrar")
-print("  mejoras: requisito, id falso, comprar con piedra (+25 %), no repetir, sin piedras: OK")
+frame(W)
+-- El cliente pinta el pedestal comprado de verde (neón) y el prompt dice «Comprada»; los demás siguen grises
+local function orbOf(id: string): any
+	for _, d in jardin:GetChildren() do
+		if d.Name == "Orbe" and d:GetAttribute("UpgradeId") == id then
+			return d
+		end
+	end
+	return nil
+end
+local green, grey = orbOf("goldenroot").Color, orbOf("mightysap").Color
+assert(green.G > 0.7 and green.R < 0.3 and orbOf("goldenroot").Material == W.roblox.Enum.Material.Neon, "el pedestal comprado no está verde")
+assert(math.abs(grey.R - grey.B) < 0.25 and grey.G < 0.6, "un pedestal bloqueado no está gris")
+assert(ped:FindFirstChildOfClass("ProximityPrompt").ActionText == L.t("es", "up_prompt_owned"), "el prompt no dice «Comprada»")
+print("  mejoras: requisito, id falso, lejos del pedestal no, «Ir al jardín», en el pedestal sí (+25 %), no repetir, sin piedras, colores: OK")
+
+-- Altar físico: su ProximityPrompt abre la ventana de Crías con «Fusionar todo»
+hrp.CFrame = W.roblox.CFrame.new(mundo:FindFirstChild("Aparicion").CFrame.Position + W.roblox.Vector3.new(0, 3, 0))
+frame(W)
+local altarPrompt = mundo:FindFirstChild("Isla1"):FindFirstChild("AltarFusion"):FindFirstChild("Altar"):FindFirstChildOfClass("ProximityPrompt")
+assert(altarPrompt.ActionText == L.t("es", "altar_prompt"), "el prompt del altar no está traducido")
+W.signalFor(W.idOf(altarPrompt), "Triggered"):Fire(W.player)
+frame(W)
+assert(named(gui, "Fondo").Visible and named(gui, "FusionarTodo"), "el altar no abre la ventana de fusión")
+dump(W, gui, "07b_altar_fusion")
+-- «Soltar repetidas»: Míticas e islas anteriores, nunca equipadas, Brillantes ni la última de cada especie
+local before = lastState(W)
+local expected = #W.require(W.wrap(W.game:GetService("ReplicatedStorage"):FindFirstChild("Config"))).dupesToRelease(before)
+assert(expected > 0, "la partida de prueba debería tener repetidas que soltar")
+pressNamed(W, gui, "SoltarRepetidas")
+assert(#lastState(W).pets == #before.pets, "«Soltar repetidas» debe pedir confirmación")
+pressNamed(W, gui, "SoltarRepetidas")
+local after = lastState(W)
+assert(#after.pets == #before.pets - expected, "«Soltar repetidas» no suelta las que dice la regla")
+local kinds, eqOk = {}, true
+for _, p in after.pets do
+	kinds[p.kind] = (kinds[p.kind] or 0) + (if p.shiny then 0 else 1)
+end
+for _, p in before.pets do
+	assert(p.shiny ~= true or kinds[p.kind] ~= nil, "se soltó una Brillante")
+	if not p.shiny then
+		assert((kinds[p.kind] or 0) >= 1, "se soltó la última normal de " .. p.kind)
+	end
+end
+for _, uid in before.equipped do
+	local found = false
+	for _, p in after.pets do
+		found = found or p.uid == uid
+	end
+	eqOk = eqOk and found
+end
+assert(eqOk, "se soltó una cría equipada")
+local okDu, keyDu = W.callbacks.Action(W.player, "releaseDupes")
+assert(not okDu and keyDu == "n_no_dupes", "sin repetidas debe decirlo")
+pressNamed(W, gui, "Cerrar")
+print(string.format("  altar físico abre la fusión; «Soltar repetidas» (%d, nunca equipadas/Brillantes/última): OK", expected))
+end
 
 -- Álbum, misiones, diario, tienda, ajustes
 pressNamed(W, gui, "Menu_album")
@@ -975,20 +1107,26 @@ do
 	local hum46 = hrp46.Parent:FindFirstChildOfClass("Humanoid")
 	local s46 = lastStateOf(W3, p46)
 	assert(hum46.WalkSpeed == 16 and s46.walkSpeed == 16, "velocidad al andar inicial mal")
-	Config3.UPGRADE_NEEDS_PEDESTAL = true -- con pedestales (ronda 2b) hay que estar al lado
 	local okP, keyP = W3.callbacks.Action(p46, "buyUpgrade", "goldenroot")
 	assert(not okP and keyP == "n_go_pedestal", "con pedestales se compra desde lejos")
-	Config3.UPGRADE_NEEDS_PEDESTAL = false
+	-- Lejos, el ProximityPrompt tampoco compra (el servidor mira la distancia)
+	local pp1 = pedestalOf(mundo3, "goldenroot"):FindFirstChildOfClass("ProximityPrompt")
+	W3.signalFor(W3.idOf(pp1), "Triggered"):Fire(p46)
+	assert(not lastStateOf(W3, p46).upgrades.goldenroot, "el prompt compra desde lejos")
+	-- Junto a cada pedestal, mantener pulsado su prompt la compra
 	for _, id in { "goldenroot", "swiftsprout", "buddybranch1", "thriftynest", "leafpouch", "dewyhands", "mightysap" } do
 		W3.tick(1) -- límite de 10 acciones/s
-		assert(W3.callbacks.Action(p46, "buyUpgrade", id), "no se puede comprar " .. id)
+		local pd = pedestalOf(mundo3, id)
+		hrp46.CFrame = W3.roblox.CFrame.new(pd.CFrame.Position + W3.roblox.Vector3.new(0, 1.5, 6))
+		W3.signalFor(W3.idOf(pd:FindFirstChildOfClass("ProximityPrompt")), "Triggered"):Fire(p46)
+		assert(lastStateOf(W3, p46).upgrades[id], "el prompt del pedestal no compra " .. id)
 	end
 	frame(W3)
 	s46 = lastStateOf(W3, p46)
 	assert(s46.slots == 4 and s46.backpack == 100 and s46.walkSpeed == 20 and hum46.WalkSpeed == 20, "las mejoras no suben huecos/mochila/velocidad")
 	assert(math.abs(s46.hatchCooldown - 0.7) < 1e-9 and Config3.eggCost(1, s46) == 40, "las mejoras no abaratan ni aceleran los huevos")
 	assert(s46.stones == 500 - (1 + 3 + 8 + 5 + 10 + 15 + 20), "las piedras gastadas no cuadran")
-	print("  isla 9 (199 no, 200 sí), mejoras: pedestal, huecos 4, mochila 100, andar 20, huevo −20 %, abrir 0,7 s: OK")
+	print("  isla 9 (199 no, 200 sí), mejoras por ProximityPrompt (lejos no, cerca sí): huecos 4, mochila 100, andar 20, huevo −20 %, abrir 0,7 s: OK")
 end
 
 ---------------------------------------------------------------------
@@ -1012,7 +1150,7 @@ assert(hasText(gui4, "Golden Pile on Sprout Meadow! Break it within 60 s"), "el 
 print("  juega sin guardar y en inglés: OK")
 
 ---------------------------------------------------------------------
-print("-- Con modelos 3D en ServerStorage.Modelos (falsos: piezas con los mismos nombres) --")
+print("-- Con modelos 3D en ReplicatedStorage.Modelos (falsos: piezas con los mismos nombres) --")
 do
 	local W5 = M.new(PLACE, { width = WIDTH, height = HEIGHT, locale = "es-es" })
 	local R = W5.roblox
@@ -1021,10 +1159,26 @@ do
 	local aliases = { "Cristal1", "Cristal2", "CristalGrande", "PiedraA", "PiedraB", "PiedraC", "PiedraAlta", "PiedraAltaB", "RocaMusgo", "Roble", "Arbol", "ArbolDetallado", "ArbolGordo",
 		"ArbolCono", "Pino", "PinoRedondo", "Palmera", "PalmeraCurva", "SetaRoja", "SetaAlta", "SetaTan", "CactusAlto", "CactusBajo",
 		"Arbusto", "Arbusto2", "Hierba", "FlorRoja", "FlorAmarilla", "FlorMorada", "Tronco", "Tocon", "RocaDeco", "RocaAlta" }
-	for _, alias in aliases do
+	local animals = { "Chick", "Bird", "Eagle", "RedFox", "Cat", "Wolf", "Fish", "Piranha", "Whale", "Llama", "Horse", "Zebra", "Pig", "Cow", "Pug", "Dog", "Sheep" }
+	local function mats(alias: string): { string }
+		if string.sub(alias, 1, 7) == "Cristal" then
+			return { "crystal", "crystal" }
+		elseif alias == "Huevo" then
+			return { "eggShell", "eggSpots" }
+		elseif table.find(animals, alias) then
+			return { "Eyes", "Body" } -- el cuerpo es la pieza más grande (i = 2)
+		end
+		return { "stone", "leafsGreen" }
+	end
+	local all = table.clone(aliases)
+	for _, a in animals do
+		table.insert(all, a)
+	end
+	table.insert(all, "Huevo")
+	for _, alias in all do
 		local mm = R.Instance.new("Model")
 		mm.Name = alias
-		for i, mat in (if string.sub(alias, 1, 7) == "Cristal" then { "crystal", "crystal" } else { "stone", "leafsGreen" }) do
+		for i, mat in mats(alias) do
 			local p = R.Instance.new("Part")
 			p.Name = alias .. "__" .. mat
 			p.Size = R.Vector3.new(2, 1 + i, 2)
@@ -1033,7 +1187,7 @@ do
 		end
 		mm.Parent = folder
 	end
-	folder.Parent = W5.game:GetService("ServerStorage")
+	folder.Parent = W5.game:GetService("ReplicatedStorage") -- donde dice modelos/LEEME.md (los clientes dibujan las crías)
 	W5.runScript(W5.game:GetService("ServerScriptService"):FindFirstChild("Main"))
 	local mundo5 = W5.game:GetService("Workspace"):FindFirstChild("Mundo")
 	local piles5 = mundo5:FindFirstChild("Montones"):GetChildren()
@@ -1087,6 +1241,31 @@ do
 		frame(W5)
 	end
 	assert(lastState(W5).coins > 0, "con modelos las crías no rompen cristales")
+	-- Huevo con el modelo del pack pintado por rareza (caja invisible con el modelo dentro)
+	local egg5 = mundo5:FindFirstChild("Isla3"):FindFirstChild("Huevo")
+	local shell5 = egg5:FindFirstChild("Huevo", true) and egg5:FindFirstChild("Huevo"):FindFirstChild("Huevo__eggShell")
+	assert(egg5.Transparency == 1 and shell5, "con modelos el huevo no usa el modelo «Huevo»")
+	local e3 = Config.EggColors[2].shell
+	assert(math.abs(shell5.Color.R - e3.R) + math.abs(shell5.Color.G - e3.G) + math.abs(shell5.Color.B - e3.B) < 0.02, "el huevo con modelo no tiene el color de su rareza")
+	-- Crías con el animal del pack: ancla + piezas «Chick__…», la grande del color de la cría, que se mueven con ella
+	local cria = nil
+	for _, d in W5.game:GetService("Workspace"):FindFirstChild("CriasLocales"):GetChildren() do
+		if d.Name == "Cria" and d:FindFirstChild("Chick__Body") then
+			cria = d
+		end
+	end
+	assert(cria, "con modelos la cría no es el animal del pack")
+	local body5 = cria:FindFirstChild("Chick__Body")
+	local want = Config.PetById.sproutchick.color
+	assert(math.abs(body5.Color.R - want.R) + math.abs(body5.Color.G - want.G) + math.abs(body5.Color.B - want.B) < 0.02, "la cría no está pintada con su color")
+	assert(body5.Anchored and not body5.CanCollide, "las piezas de la cría deben ir ancladas y sin colisión")
+	local p0 = body5.CFrame.Position
+	hrp5.CFrame = W5.roblox.CFrame.new(hrp5.CFrame.Position + W5.roblox.Vector3.new(30, 0, 0))
+	W5.callbacks.Action(W5.player, "setAuto", false)
+	for _ = 1, 4 do
+		frame(W5)
+	end
+	assert((body5.CFrame.Position - p0).Magnitude > 5 and cria:FindFirstChild("Chick__Body") == body5, "la cría con modelo no sigue al jugador (o se recrea cada frame)")
 	assert(real5:FindFirstChild("PlayerGui"):FindFirstChild("MythicHatchlingsUI"), "con modelos no se crea la interfaz")
 	print(string.format("  cristales con modelo (%d), decoración (%d en la pradera), monedas en 60 s: %d: OK", #piles5, placed, math.floor(lastState(W5).coins)))
 	local _ = hrp5

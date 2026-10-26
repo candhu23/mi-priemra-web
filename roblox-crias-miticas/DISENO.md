@@ -32,7 +32,9 @@ Cada cría tiene **Poder** (daño por segundo a los montones). Montones con más
   Nunca se fusiona con las normales. **Puntuación Brillante** = suma por cada cría distinta que has tenido Brillante (no baja).
 - **Piedras de Renacimiento**: 1 por cada Mítica que creas (en la misma fusión). Se gastan en el **Jardín de Mejoras**:
   12 mejoras de compra única con requisitos (monedas, andar, huecos, huevo más barato, mochila, poder, abrir más rápido,
-  Brillante), 307 🪨 en total. De momento se compran en la ventana «🌳 Mejoras»; los pedestales físicos llegan en la ronda 2b.
+  Brillante), 307 🪨 en total. El Jardín está pegado a la zona 1 (arco sin puerta, siempre abierto; también «🌳 Ir» en
+  Islas): 12 pedestales unidos por caminos de neón; se compran en su pedestal (ProximityPrompt). Altar de fusión en la
+  zona 1 y en el Jardín. «🧹 Soltar repetidas» en Crías para que la mochila no bloquee los huevos.
 - **Huecos**: 3 al empezar; +3 con mejoras (Rama I, Rama II, Corona); +3 con el pase. Mochila de 50 (+150 con mejoras, +100 pase).
 - **Ya no hay Renacer** ni versiones Dorada/Arcoíris (pedido del usuario, 2026-10-26).
 - **Índice** («Colecciónalas todas»): 72 crías, pestaña normal y pestaña Brillante. Barra de progreso siempre

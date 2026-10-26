@@ -774,15 +774,21 @@ function Actions.unlockZone(_player: Player, s: Session, zone: any)
 	return true, "n_zone_open", { zone = zone }
 end
 
+-- Viajar a una isla abierta, o al Jardín de Mejoras con zone = 0 (siempre abierto)
 function Actions.teleport(player: Player, s: Session, zone: any)
-	if not isInt(zone, 1, s.data.zones) then
+	if not isInt(zone, 0, s.data.zones) then
 		return false
 	end
 	local root = rootPart(player)
 	if not root then
 		return false
 	end
-	root.CFrame = World.zones[zone].spawn -- mueve a todo el personaje (las piezas van unidas)
+	local garden = World.garden
+	if zone == 0 and not garden then
+		return false
+	end
+	-- mueve a todo el personaje (las piezas van unidas)
+	root.CFrame = if zone == 0 and garden then garden.spawn else World.zones[zone].spawn
 	s.target = 0
 	return true
 end
@@ -811,6 +817,30 @@ function Actions.buyUpgrade(player: Player, s: Session, id: any)
 	applyWalk(player, s)
 	syncPets(player, s)
 	return true, "n_upgrade", { upgrade = id }
+end
+
+-- «Soltar repetidas»: suelta las que dice Config.dupesToRelease (nunca equipadas, Brillantes ni la última normal de
+-- cada especie). Así la mochila no bloquea los huevos
+function Actions.releaseDupes(player: Player, s: Session)
+	local d = s.data
+	local list = Config.dupesToRelease(d)
+	if #list == 0 then
+		return false, "n_no_dupes"
+	end
+	local gone = {}
+	for _, uid in list do
+		gone[uid] = true
+	end
+	local keep = {}
+	for _, p in d.pets do
+		if not gone[p.uid] then
+			table.insert(keep, p)
+		end
+	end
+	d.pets = keep
+	s.dirty = true
+	syncPets(player, s)
+	return true, "n_released", { n = #list }
 end
 
 function Actions.claimDaily(_player: Player, s: Session)
@@ -909,6 +939,25 @@ actionRemote.OnServerInvoke = function(player: Player, action: any, a: any, b: a
 	local ok, textKey, params = fn(player, s, a, b, c)
 	sendState(player)
 	return ok, textKey, params
+end
+
+-- Pedestales del Jardín: mantener pulsado su ProximityPrompt compra la mejora (mismas validaciones que la acción,
+-- también la distancia). La respuesta va como aviso porque no hay RemoteFunction de por medio
+for id, base in World.pedestalParts do
+	local pp = base:FindFirstChildOfClass("ProximityPrompt")
+	if pp then
+		pp.Triggered:Connect(function(player: Player)
+			local s = sessions[player]
+			if not s or tooFast(s.actionTimes, 10) then
+				return
+			end
+			local ok, textKey, params = Actions.buyUpgrade(player, s, id)
+			if textKey then
+				notify(player, if ok then "success" else "error", textKey, params)
+			end
+			sendState(player)
+		end)
+	end
 end
 
 ---------------------------------------------------------------------

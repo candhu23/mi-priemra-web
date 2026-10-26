@@ -253,10 +253,11 @@ Config.UpgradeById = {} :: { [string]: Upgrade }
 for _, u in Config.Upgrades do
 	Config.UpgradeById[u.id] = u
 end
--- Hasta que existan los pedestales físicos (ronda 2b) se compran desde la ventana «🌳 Mejoras» en cualquier sitio.
--- Con true, buyUpgrade pide estar a ≤ UPGRADE_REACH del pedestal (World.pedestals)
-Config.UPGRADE_NEEDS_PEDESTAL = false
+-- Se compran en su pedestal del Jardín (ProximityPrompt o la ventana «🌳 Mejoras» estando al lado):
+-- buyUpgrade pide estar a ≤ UPGRADE_REACH del pedestal (World.pedestals). false = desde cualquier sitio
+Config.UPGRADE_NEEDS_PEDESTAL = true
 Config.UPGRADE_REACH = 14
+Config.PROMPT_REACH = 12 -- distancia de los ProximityPrompt (pedestales y altares)
 
 ---------------------------------------------------------------------
 -- Huecos, mochila, andar, álbum
@@ -266,6 +267,11 @@ Config.SLOTS_PASS = 3
 Config.BACKPACK_BASE = 50
 Config.BACKPACK_PASS = 100
 Config.WALK_SPEED = 16 -- la de Roblox; «Brote Veloz» la sube
+
+-- Crías en 3D con los animales del pack (ReplicatedStorage.Modelos): altura del animal ×Rarities[r].size y giro
+-- extra por si los modelos miran hacia atrás (si en Studio andan de espaldas: math.pi)
+Config.PET_MODEL_HEIGHT = 2.4
+Config.PET_MODEL_YAW = 0
 
 -- Álbum (Índice): % de crías distintas descubiertas → bonus permanente de monedas al reclamar
 Config.AlbumMilestones = {
@@ -568,6 +574,33 @@ function Config.zoneNeed(data: any, zone: number): (boolean, string, number, num
 	local need = z.needDiscovered or 0
 	local have = Config.albumCount(data)
 	return have >= need, "index", need, have
+end
+
+-- «Soltar repetidas»: uids que se pueden soltar sin perder nada importante. Solo crías normales (nunca Brillantes),
+-- sin equipar, Míticas (ya no se fusionan) o de islas anteriores a la más alta abierta; y siempre se queda al menos
+-- una normal de cada especie
+function Config.dupesToRelease(data: any): { number }
+	local eq = {}
+	for _, uid in data.equipped do
+		eq[uid] = true
+	end
+	local normals = {}
+	for _, p in data.pets do
+		if not p.shiny then
+			normals[p.kind] = (normals[p.kind] or 0) + 1
+		end
+	end
+	local list = {}
+	-- De atrás adelante: se sueltan las más nuevas y se queda la más antigua
+	for i = #data.pets, 1, -1 do
+		local p = data.pets[i]
+		local def = Config.PetById[p.kind]
+		if def and not p.shiny and not eq[p.uid] and (def.rarity == Config.MYTHIC or def.zone < (data.zones or 1)) and normals[p.kind] > 1 then
+			normals[p.kind] -= 1
+			table.insert(list, p.uid)
+		end
+	end
+	return list
 end
 
 -- ¿Puede comprar esta mejora? (sí, clave del error si no, parámetros del error)

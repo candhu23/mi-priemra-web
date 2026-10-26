@@ -23,10 +23,12 @@ roblox-crias-miticas/
 ├── src/ServerScriptService/Main.server.luau  # Remotes, sesiones, montones, acciones, compras, bucle 1 s, guardado
 ├── src/ServerScriptService/Data.luau         # DataStore MythicHatchlings_v2 (todo en pcall; sin publicar → sin guardar)
 ├── src/ServerScriptService/World.luau        # Mapa continuo: 9 zonas (World.GRID 3×3 lleno, 200×200) con acantilados, puertas en las paredes,
-│                                             #   decoración por tema, huevo sobre pilar y World.crystal (aspecto de los cristales)
+│                                             #   decoración por tema, huevo por rareza sobre pilar, World.crystal (cristales),
+│                                             #   Jardín de Mejoras (casilla (-1,0)), Altares de Fusión y cielo de aurora (zona 9)
 ├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
-├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías de todos los jugadores, carteles de huevos/puertas, «+🪙» flotante
+├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías (animales del pack o bolas), carteles de huevos/puertas/pedestales/altares,
+│                                             #   colores del Jardín por jugador, «+🪙» flotante
 ├── modelos/                    # CriasMiticas_Modelos.glb (Kenney + Quaternius, CC0; tools/modelos/construir_pack.py) + LEEME.md (importarlo en Studio) + vista
 └── tools/  setup.sh · check.sh · harness/ (mock, run_juego, ritmo, vista_mundo, volcado, check_lang.py)
 ```
@@ -38,10 +40,25 @@ roblox-crias-miticas/
   `Notify` (`(tipo, claveTexto, params)`). Tipos especiales: `coins` (número flotante), `rare` (a todos con `FireAllClients`:
   `{uid,name,pet,rarity}`; el cliente lo ignora si `uid` es el suyo) y `gold` (toast dorado de 5 s).
 - Acciones: `target(pileId) setAuto(bool) hatch(isla, 1|3, auto) equip(uid) unequip(uid) equipBest fuse(isla, rareza, brillante)
-  fuseAll release(uid) unlockZone(isla) teleport(isla) buyUpgrade(id) claimDaily claimMission(i) claimAlbum(i) finishTutorial
+  fuseAll release(uid) releaseDupes unlockZone(isla) teleport(isla|0 = Jardín) buyUpgrade(id) claimDaily claimMission(i) claimAlbum(i) finishTutorial
   setLang(""|"es"|"en") setMuted(bool)`. Límite 10/s; abrir huevo cada `Config.hatchCooldown` (0,9 s; 0,7 con mejora);
-  huevo a ≤ 18 studs; montón a ≤ 70; fusionar a ≤ `FUSE_REACH` (20) de un altar si `FUSE_NEEDS_ALTAR` (`World.altars`:
-  de momento un punto junto a la aparición; el altar visible es de la ronda 2b). **Ya no existe `rebirth`.**
+  huevo a ≤ 18 studs; montón a ≤ 70; fusionar a ≤ `FUSE_REACH` (20) de un altar (`FUSE_NEEDS_ALTAR = true`, confirmado por el
+  usuario). **Ya no existe `rebirth`.**
+- **Mundo de la ronda 2b**: Jardín de Mejoras en la casilla (-1,0) (`World.garden`, modelo «Jardin»), paso desde la zona 1 por un
+  hueco sin puerta con arco de hojas. 12 «Pedestal» (atributo `UpgradeId`, etiqueta `Upgrade`, hijos «Orbe»/«Anillo» con el
+  mismo atributo, ProximityPrompt `PROMPT_REACH` con 0,5 s: el servidor lo conecta a `buyUpgrade` y responde con un aviso) en
+  `Config.Upgrades[i].pos`; 14 «Camino» de neón (`From`/`To`, etiqueta `UpgradeLink`); «CartelJardin». 2 Altares de Fusión
+  («Altar», etiqueta `FuseStation`, ProximityPrompt; `World.altars`/`altarParts`): zona 1 junto a la aparición y en el Jardín;
+  el prompt lo escucha el CLIENTE (`Mundo3D.onAltar` → ventana Crías con «Fusionar todo»). Colores del Jardín en el cliente:
+  verde neón comprado, amarillo con pulso se puede, gris bloqueado; camino verde si sus dos extremos están comprados.
+  `World.pedestals[id]` = punto para `UPGRADE_REACH`; la ventana 🌳 solo compra estando al lado (si no, «🌳 Ir»).
+- Huevo (`makeEgg`): con modelos, caja invisible «Huevo» + modelo «Huevo» (`eggShell`/`eggSpots` de `Config.EggColors`);
+  sin modelos, elipsoide con `spotCount` «Mancha»; luz desde Épico, manchas de neón en Legendario/Prodigioso.
+- Crías con modelos (solo `ReplicatedStorage.Modelos`: el cliente no ve ServerStorage): `Mundo3D` normaliza cada modelo una vez
+  (plantilla), clona sus piezas al cambiar el equipo y cada frame solo las mueve (ancla «Cria» invisible + piezas dentro);
+  altura `PET_MODEL_HEIGHT × rareza`, pieza más grande con el color de la cría, el resto tirando a él; `PET_MODEL_YAW` por si
+  andan de espaldas. «Soltar repetidas»: `Config.dupesToRelease` (Míticas o de islas anteriores, nunca equipadas, Brillantes
+  ni la última normal de cada especie).
 - **Rarezas por fusión** (ficha `propuestas/2026-10-26-rarezas-arbol.md`): 8 rarezas (`Config.Rarities`, poder ×3, `fuseNeed`
   5/5/5/5/5/3/3), 72 crías (`Config.Zones[i].pets` con `rarity`, `model`, `color`). Cada huevo da una rareza (`eggRarity`) y
   1–6 especies al mismo %. `fuse`/`fuseAll`: misma isla + rareza + Brillante → la siguiente de esa isla (`Config.fuseResult`);
@@ -67,7 +84,7 @@ roblox-crias-miticas/
   Cada modelo «Alias» tiene piezas «Alias__material»; `World.place` los escala, gira y pinta por material y zona (`MAT_COLORS`,
   `ZONE_MATS`). Sin modelos todo sale con piezas básicas. Pack (51): Kenney Nature Kit + 17 animales de
   Quaternius (Cow, Horse, Llama, Pig, Pug, Sheep, Zebra, Cat, Dog, Eagle, Piranha, Wolf, Chick, Fish, RedFox, Whale, Bird) +
-  Cristal1/Cristal2/CristalGrande + Huevo (eggShell/eggSpots). `ModelColors.luau` (generado) = color de cada pieza. El bot prueba los dos casos (modelos falsos en ServerStorage).
+  Cristal1/Cristal2/CristalGrande + Huevo (eggShell/eggSpots). `ModelColors.luau` (generado) = color de cada pieza. El bot prueba los dos casos (modelos falsos en ReplicatedStorage, con animales y huevo).
 - Montones = **cristales** (el usuario probó rocas y prefirió cristales, 2026-10-26). `Workspace.Mundo.Montones`, aspecto en
   `World.crystal`: con modelos, racimos «Cristal1/Cristal2/CristalGrande» (generados en `construir_pack.py`) dentro de una caja
   invisible; sin modelos, cristales de piezas con punta y sin base. Color: uno de `Config.Zones[i].crystalColors` (paleta de la
@@ -106,11 +123,8 @@ las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTE
 - [ ] Crear pases/productos (`roblox-nube`); iconos ya hechos en `docs/arte/`. Pases: x2, slots, hatch3, autoHatch, backpack.
       **Ojo:** crear los packs de monedas (cash_s/cash_l) hace que los huevos se puedan pagar indirectamente con Robux →
       revisar la norma de artículos aleatorios de pago (cuestionario, PolicyService) antes.
-- [ ] Crías en 3D: el usuario las pondrá desde la Creator Store (elegido el 2026-10-26). Falta: carpeta de modelos y que
-      Mundo3D los use en vez de bola + emoji.
 - [ ] Fase A pendiente (tras el mapa): HUD estilo Collect All Pets, Índice con tarjetas por rareza, imán de monedas.
-- [ ] Ronda 2b: Jardín de Mejoras físico (12 pedestales, caminos, `UPGRADE_NEEDS_PEDESTAL = true`), Altar de Fusión visible
-      (zona 1 y Jardín) y su ProximityPrompt, zona 9 bonita, huevos 3D por rareza, animales Quaternius en `Mundo3D`.
-- [ ] Preguntas al usuario: ¿fusionar solo en el altar (hoy `FUSE_NEEDS_ALTAR = true`)? ¿1.ª piedra antes (bajar `eggCost` 6–8)?
-- [ ] Fase B: variantes Metallic/Giant, insignias, estadísticas, misiones encadenadas, «Soltar repetidas» (la mochila se llena de Míticas).
+- [ ] Ver en Studio con el pack importado: que los animales miren hacia delante (si no, `Config.PET_MODEL_YAW = math.pi`),
+      su tamaño y color, y el huevo «Huevo» pintado por rareza.
+- [ ] Fase B: variantes Metallic/Giant, insignias, estadísticas, misiones encadenadas, sumidero de piedras tras el árbol.
 - [ ] Ideas: intercambio entre jugadores (con cuidado con estafas), eventos con huevo especial, clasificación.
