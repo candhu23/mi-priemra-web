@@ -13,6 +13,9 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local World = {}
 
 World.SPACING = 200 -- distancia entre centros de isla
+-- Camino que serpentea: rumbo (grados, 0 = +X) del puente que llega a cada isla 2..8, y cuánto sube cada isla
+World.HEADINGS = { 0, 40, 85, 40, -10, -60, -100 }
+World.RISE = 14
 World.RADIUS = 62 -- radio de la parte plana de cada isla
 World.TOP = 20 -- altura del suelo de las islas
 
@@ -67,10 +70,54 @@ function World.build(): Folder
 	folder.Name = "Mundo"
 	local rng = Random.new(7)
 
+	-- Centros de isla a lo largo del camino (en forma de S, subiendo)
+	local centers = { Vector3.new(0, World.TOP, 0) }
+	for i = 2, #Config.Zones do
+		local h = math.rad(World.HEADINGS[i - 1] or 0)
+		centers[i] = centers[i - 1] + Vector3.new(math.cos(h) * World.SPACING, World.RISE, math.sin(h) * World.SPACING)
+	end
+	-- Mirando de «from» hacia «to» (como CFrame.lookAt, que en Lune sale al revés y no se puede probar)
+	local function facing(from: Vector3, to: Vector3): CFrame
+		local forward = (to - from).Unit
+		local right = forward:Cross(Vector3.new(0, 1, 0)).Unit
+		return CFrame.fromMatrix(from, right, right:Cross(forward))
+	end
+	-- Direcciones (planas) hacia las islas vecinas: ahí van los puentes
+	local function flatDir(a: Vector3, b: Vector3): Vector3
+		local d = b - a
+		return Vector3.new(d.X, 0, d.Z).Unit
+	end
+
 	for i, zone in Config.Zones do
 		local isle = Instance.new("Model")
 		isle.Name = "Isla" .. i
-		local center = Vector3.new((i - 1) * World.SPACING, World.TOP, 0)
+		local center = centers[i]
+		local neighbors = {}
+		if centers[i - 1] then
+			table.insert(neighbors, flatDir(center, centers[i - 1]))
+		end
+		if centers[i + 1] then
+			table.insert(neighbors, flatDir(center, centers[i + 1]))
+		end
+		-- El huevo, en el lado contrario a los puentes
+		local away = Vector3.new(0, 0, 0)
+		for _, n in neighbors do
+			away -= n
+		end
+		if away.Magnitude < 0.3 then -- puentes enfrentados: a un lado
+			away = Vector3.new(-neighbors[1].Z, 0, neighbors[1].X)
+		end
+		away = away.Unit
+		local function nearBridge(pos: Vector3): boolean
+			local d = pos - center
+			local flat = Vector3.new(d.X, 0, d.Z).Unit
+			for _, n in neighbors do
+				if flat:Dot(n) > 0.85 then
+					return true
+				end
+			end
+			return false
+		end
 		-- Suelo (disco), tierra debajo y una punta para que parezca flotante
 		local ground = disc(isle, center - Vector3.new(0, 2, 0), 4, World.RADIUS * 2, zone.grass, Enum.Material.Grass)
 		ground.Name = "Suelo"
@@ -78,7 +125,7 @@ function World.build(): Folder
 		disc(isle, center - Vector3.new(0, 20, 0), 12, World.RADIUS * 1.1, zone.dirt:Lerp(Color3.new(0, 0, 0), 0.2), Enum.Material.Rock)
 
 		-- Pedestal y huevo
-		local eggPos = center + Vector3.new(0, 0, -40)
+		local eggPos = center + away * 40
 		disc(isle, eggPos + Vector3.new(0, 1, 0), 2, 16, Config.Colors.panelDark, Enum.Material.Marble)
 		local egg = part(isle, {
 			Name = "Huevo", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 9, 7), CFrame = CFrame.new(eggPos + Vector3.new(0, 6.5, 0)),
@@ -94,7 +141,7 @@ function World.build(): Folder
 			local a = n / 9 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
 			local d = rng:NextNumber(World.RADIUS - 10, World.RADIUS - 4)
 			local pos = center + Vector3.new(math.cos(a) * d, 0, math.sin(a) * d)
-			if math.abs(math.sin(a)) > 0.25 and (pos - eggPos).Magnitude > 22 then -- no tapar puentes ni huevo
+			if not nearBridge(pos) and (pos - eggPos).Magnitude > 22 then -- no tapar puentes ni huevo
 				if n % 3 == 0 then
 					rock(isle, pos, rng)
 				else
@@ -106,16 +153,18 @@ function World.build(): Folder
 		-- Puente y puerta hacia la isla siguiente
 		local door: BasePart? = nil
 		if i > 1 then
-			local from = center - Vector3.new(World.SPACING - World.RADIUS + 2, 0, 0)
-			local to = center - Vector3.new(World.RADIUS - 2, 0, 0)
-			local mid = (from + to) / 2
+			local dir = flatDir(centers[i - 1], center)
+			local from = centers[i - 1] + dir * (World.RADIUS - 2)
+			local to = center - dir * (World.RADIUS - 2)
 			local length = (to - from).Magnitude
-			part(isle, { Name = "Puente", Size = Vector3.new(length, 2, 18), CFrame = CFrame.new(mid - Vector3.new(0, 1, 0)), Color = Color3.fromRGB(180, 130, 80), Material = Enum.Material.WoodPlanks })
+			local along = facing(from, to) * CFrame.new(0, 0, -length / 2) -- centro del puente, inclinado
+			part(isle, { Name = "Puente", Size = Vector3.new(18, 2, length), CFrame = along * CFrame.new(0, -1, 0), Color = Color3.fromRGB(180, 130, 80), Material = Enum.Material.WoodPlanks })
 			for _, side in { -1, 1 } do
-				part(isle, { Name = "Baranda", Size = Vector3.new(length, 3, 1), CFrame = CFrame.new(mid + Vector3.new(0, 1.5, side * 9)), Color = Color3.fromRGB(140, 95, 60), Material = Enum.Material.Wood })
+				part(isle, { Name = "Baranda", Size = Vector3.new(1, 3, length), CFrame = along * CFrame.new(side * 9, 1.5, 0), Color = Color3.fromRGB(140, 95, 60), Material = Enum.Material.Wood })
 			end
+			local mid = along.Position
 			local d = part(isle, {
-				Name = "Puerta", Size = Vector3.new(2, 40, 18), CFrame = CFrame.new(mid + Vector3.new(0, 20, 0)),
+				Name = "Puerta", Size = Vector3.new(18, 40, 2), CFrame = facing(mid, mid + dir) * CFrame.new(0, 20, 0),
 				Color = Config.Colors.sky, Material = Enum.Material.ForceField, Transparency = 0.2,
 			})
 			d:SetAttribute("Zone", i)

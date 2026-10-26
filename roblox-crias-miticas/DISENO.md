@@ -73,7 +73,8 @@ de pago» (más simple en el cuestionario de contenido, CLAUDE.md §11). La suer
 Probabilidades de cada huevo siempre visibles. Nada de «free Robux», ni tienda que se abre sola.
 
 ## 7. Estilo visual
-Islas flotantes con colores cartoon (skills `roblox-3d-terreno`, `roblox-3d-construir`, `roblox-3d-ambiente`),
+Islas flotantes unidas por un camino de puentes que serpentea y va subiendo (como en los juegos de mascotas: cada isla
+más alta y más lejos), con colores cartoon (skills `roblox-3d-terreno`, `roblox-3d-construir`, `roblox-3d-ambiente`),
 crías low-poly propias (`roblox-3d-mallas`) con aura según rareza, interfaz clara con botones gruesos
 (`roblox-ui-pantallas`: HUD, inventario por rareza, apertura de huevo, álbum). Letra FredokaOne. ES/EN.
 

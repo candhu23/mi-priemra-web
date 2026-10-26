@@ -22,7 +22,7 @@ roblox-crias-miticas/
 ├── src/ReplicatedStorage/Lang.luau     # Textos ES/EN. El servidor manda claves; el cliente traduce
 ├── src/ServerScriptService/Main.server.luau  # Remotes, sesiones, montones, acciones, compras, bucle 1 s, guardado
 ├── src/ServerScriptService/Data.luau         # DataStore MythicHatchlings_v1 (todo en pcall; sin publicar → sin guardar)
-├── src/ServerScriptService/World.luau        # 8 islas flotantes en fila (X), puentes con puerta, huevos, decoración
+├── src/ServerScriptService/World.luau        # 8 islas flotantes en un camino en S que sube (World.HEADINGS, RISE), puentes con puerta, huevos
 ├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
 ├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías de todos los jugadores, carteles de huevos/puertas, «+🪙» flotante
@@ -58,7 +58,8 @@ tools/out/test.rbxl tools/out/mundo.rbxlx` + `vista3d.py` (skill `roblox-3d-vist
 
 Trampas de Lune ya resueltas en `mock.luau`: `Position` de una pieza se lee/escribe vía `CFrame`; las listas que devuelven
 `GetChildren`/`GetDescendants` se envuelven; `MouseClick` es una señal. Lune no tiene `PivotTo`: el servidor mueve al
-jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox).
+jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox). **`CFrame.lookAt` de Lune sale girado al revés**:
+en el código del mundo se usa `facing()` con `CFrame.fromMatrix` (igual en Lune y en Roblox).
 
 ## 5. Pendiente
 
