@@ -77,6 +77,16 @@ ANIMALES = {
 }
 
 
+# Hacia dónde mira la cabeza de cada animal en su archivo (comprobado dibujándolos desde arriba).
+# Se giran todos para que miren a −Z, que es «delante» en Roblox (LookVector).
+CABEZA = {
+    "Cow": "+Z", "Horse": "+Z", "Llama": "+Z", "Pig": "+Z", "Pug": "+Z", "Sheep": "+Z", "Zebra": "-Z",
+    "Cat": "+X", "Dog": "+X", "Eagle": "-Z", "Piranha": "+Z", "Wolf": "+X", "Chick": "+X",
+    "Fish": "+Z", "RedFox": "-Z", "Whale": "+Z", "Bird": "-Z",
+}
+GIRO = {"-Z": 0, "+Z": math.pi, "+X": math.pi / 2, "-X": -math.pi / 2}
+
+
 def descargar_quaternius() -> dict:
     """Devuelve {zip: carpeta OBJ} (descarga y descomprime la 1.ª vez)."""
     out = {}
@@ -104,6 +114,13 @@ def animal(ruta: str, colores: dict):
         g.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(name=mat, baseColorFactor=list(c) + [255]))
         out.append((mat.replace(".", ""), g))
     return out
+
+
+def girar(partes, angulo):
+    rot = trimesh.transformations.rotation_matrix(angulo, [0, 1, 0])
+    for _, m in partes:
+        m.apply_transform(rot)
+    return partes
 
 
 def huevo():
@@ -220,7 +237,7 @@ def main():
     for alias, archivo in MODELOS.items():
         fuentes.append((alias, lambda archivo=archivo: cristal(archivo[1], archivo[2]) if isinstance(archivo, tuple) else piezas(os.path.join(carpeta, archivo + ".glb"))))
     for alias, (zipk, nombre, colores) in ANIMALES.items():
-        fuentes.append((alias, lambda zipk=zipk, nombre=nombre, colores=colores: animal(os.path.join(obj[zipk], nombre + ".obj"), colores)))
+        fuentes.append((alias, lambda zipk=zipk, nombre=nombre, colores=colores, alias=alias: girar(animal(os.path.join(obj[zipk], nombre + ".obj"), colores), GIRO[CABEZA[alias]])))
     fuentes.append(("Huevo", huevo))
     colores_luau = {}
     for alias, fuente in fuentes:
