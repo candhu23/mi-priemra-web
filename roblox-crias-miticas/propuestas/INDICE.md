@@ -11,3 +11,6 @@ Memoria de ideas: antes de proponer algo nuevo, mira aquí qué se hizo, qué se
 | 2026-10-26 | Premio por enviar invitaciones | Nico | 🗑️ descartada | — | Fácil de abusar y ≈ dudoso con las normas de Roblox; el premio honesto ya es +10 % al jugar juntos |
 | 2026-10-26 | Huevo de evento con cuenta atrás | Nico | 🗑️ descartada por ahora | — | Grande (crías, arte, horarios) y sin jugadores aún; mejor en fase C |
 | 2026-10-26 | Clasificación semanal | Nico | 🗑️ descartada por ahora | — | Con 1–8 jugadores por servidor y sin publicar no motiva; requiere OrderedDataStore. Fase C |
+| 2026-10-26 | Rarezas por fusión (8, 5/5/5/5/5/3/3) + Piedra por Mítica + árbol de mejoras físico + zonas por Índice + estación de fusión + sin Renacer | Usuario | 📝 respondido; ficha en curso (Nico) | (2026-10-26-rarezas-arbol.md) | Pedido literal del usuario con captura de Collect All Pets |
+| 2026-10-26 | Cristales de color/tamaño por zona y más dinero visible por zona | Usuario | 🛠️ hecha (Leo-1, sin commit) | — | Hoy monedas ×9 / vida ×7 por zona = ×1,29/s: no se nota |
+| 2026-10-26 | Huevos 3D por rareza (blanco/verde/azul/morado/dorado, hasta Legendario) + zona 9 por 200 de puntuación Brillante | Usuario | 📝 en la ficha de rarezas | (2026-10-26-rarezas-arbol.md) | Brillante mínimo (solo Normal/Brillante); Metálico/Gigante siguen en Fase B |
