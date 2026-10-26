@@ -38,6 +38,7 @@ Mundo3D.start(Kit)
 -- Variables compartidas entre bloques (se asignan dentro de cada bloque)
 ---------------------------------------------------------------------
 local showToast: (text: string, kind: string?) -> ()
+local toastHolder: Frame -- los avisos (bajan cuando se ve el tutorial)
 local refreshAll: () -> ()
 local openWindow: (id: string) -> ()
 local closeWindow: () -> ()
@@ -136,15 +137,17 @@ do
 	Kit.textStroke(2).Parent = hudChips
 
 	local info = create("Frame", {
-		Parent = root, Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(200, 70), BackgroundColor3 = C.panel, BorderSizePixel = 0,
+		Parent = root, Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(250, 70), BackgroundColor3 = C.panel, BorderSizePixel = 0,
 	}, { Kit.corner(16), Kit.stroke(C.panelDark, 3), Kit.padding(10, 10, 6, 6) })
+	-- Línea 1: la meta siguiente (próxima isla o renacer) con su barra. Línea 2: álbum (y renacimientos si hay)
 	hudRebirth = Kit.title(info, "", 18, C.purpleDark, { Size = UDim2.new(1, 0, 0, 22) })
+	Kit.fit(hudRebirth, 18)
 	hudAlbum = Kit.label(info, "", 16, C.ink, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 18) })
 	Kit.fit(hudAlbum, 16)
 	local barBack = create("Frame", {
 		Parent = info, Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 10), BackgroundColor3 = C.panelDark, BorderSizePixel = 0,
 	}, { Kit.corner(5) })
-	hudAlbumBar = create("Frame", { Parent = barBack, Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.green, BorderSizePixel = 0 }, { Kit.corner(5) })
+	hudAlbumBar = create("Frame", { Parent = barBack, Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.gold, BorderSizePixel = 0 }, { Kit.corner(5) })
 end
 
 ---------------------------------------------------------------------
@@ -308,6 +311,13 @@ do
 				card.pct.Text = (if odds[i] < 1 then string.format("%.1f", odds[i]) else string.format("%.0f", odds[i])) .. " %"
 				card.seen.Text = if s.album[Config.albumKey(pet.id, 0)] then "✓" else "?"
 			end
+			-- Los botones de pase solo salen si el pase existe (si no, eran dos botones grises «Próximamente»)
+			local show3 = s.bonuses.hatch3 or passExists("hatch3")
+			local showAuto = s.bonuses.autoHatch or passExists("autoHatch")
+			local h1, h3, hAuto = open1.Parent :: Frame, open3.Parent :: Frame, autoEgg.Parent :: Frame
+			h3.Visible = show3
+			hAuto.Visible = showAuto
+			h1.Size = if show3 or showAuto then UDim2.fromOffset(190, 60) else UDim2.fromOffset(300, 60)
 			Kit.setButton(open1, T("egg_open", { value = coins(z.eggCost) }), s.coins >= z.eggCost)
 			Kit.setButton(open3, if s.bonuses.hatch3 then T("egg_open3", { value = Kit.fmt(z.eggCost * 3) }) elseif passExists("hatch3") then "🔒 x3" else T("soon"),
 				(s.bonuses.hatch3 and s.coins >= z.eggCost * 3) or (not s.bonuses.hatch3 and passExists("hatch3")))
@@ -719,8 +729,10 @@ do
 		windowTitle.Text = "🎯 " .. T("missions")
 		for i, m in s.missions do
 			local done = m.progress >= m.n
+			local r = Config.MissionReward[m.tier]
+			local prize = if r then "   ·   " .. T("reward", { value = coins(Config.minutesReward(r[1], r[2], s.coinRate)) }) else ""
 			local _card, b = rowCard(i, if m.claimed then "✅" else "🎯", T("mission_" .. m.tier) .. ": " .. T("mission_" .. m.stat, { n = m.n }),
-				m.progress .. " / " .. m.n, if m.claimed then T("claimed") else T("claim"), "green", done and not m.claimed, function()
+				math.min(m.progress, m.n) .. " / " .. m.n .. prize, if m.claimed then T("claimed") else T("claim"), "green", done and not m.claimed, function()
 					send("claimMission", i)
 				end)
 			b.Name = "Mision" .. i
@@ -740,9 +752,22 @@ do
 		local nextDay = if s.daily.available then (streak % #Config.Daily) + 1 else -1
 		for day = 1, #Config.Daily do
 			local done = day <= streak and not (s.daily.available and day >= nextDay)
+			local last = day == #Config.Daily
 			local cell = Kit.card(g, { LayoutOrder = day, ZIndex = 13, BackgroundColor3 = if day == nextDay then C.gold elseif done then C.panelDark else C.white })
-			Kit.title(cell, T("daily_day", { n = day }), 15, C.ink, { Position = UDim2.fromOffset(0, 8), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
-			Kit.label(cell, if done then "✅" else "🪙", 34, nil, nil, { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 44), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
+			if last then
+				local stroke = cell:FindFirstChildOfClass("UIStroke")
+				if stroke then
+					stroke.Color = C.goldDark
+					stroke.Thickness = 3
+				end
+			end
+			Kit.title(cell, T("daily_day", { n = day }), 15, C.ink, { Position = UDim2.fromOffset(0, 6), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
+			Kit.label(cell, if done then "✅" elseif last then "💰" else "🪙", 34, nil, nil, { Position = UDim2.fromOffset(0, 28), Size = UDim2.new(1, 0, 0, 44), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
+			-- Cuánto da cada día (se calcula igual que en el servidor: minutos de monedas con un mínimo)
+			local amount = Kit.title(cell, Kit.fmt(Config.dailyReward(day, s.coinRate)), 16, C.ink, {
+				Position = UDim2.fromOffset(2, 76), Size = UDim2.new(1, -4, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14,
+			})
+			Kit.fit(amount, 16)
 		end
 		local claim = Kit.button(body, "", "green", UDim2.new(1, 0, 0, 60), function()
 			send("claimDaily")
@@ -750,7 +775,8 @@ do
 		end, { LayoutOrder = 2, ZIndex = 13 })
 		claim.ZIndex = 14
 		claim.Name = "RecogerDiario"
-		Kit.setButton(claim, if s.daily.available then T("daily_claim") else T("daily_done"), s.daily.available == true)
+		Kit.setButton(claim, if s.daily.available then T("daily_claim") .. "  " .. coins(Config.dailyReward(nextDay, s.coinRate)) else T("daily_done"), s.daily.available == true)
+		line(T("daily_hint"), 16, C.muted, 3, 44)
 	end
 
 	local function shopItem(order: number, item: Config.ShopItem, isPass: boolean)
@@ -814,13 +840,13 @@ do
 		for i, z in Config.Zones do
 			local name = i .. ". " .. T("zone_" .. z.id)
 			if i <= s.zones then
-				local _c, b = rowCard(i, "🏝️", name, "🥚 " .. coins(z.eggCost), T("go"), "blue", true, function()
+				local _c, b = rowCard(i, "🏝️", name, T("egg_price", { value = coins(z.eggCost) }), T("go"), "blue", true, function()
 					send("teleport", i)
 					closeWindow()
 				end)
 				b.Name = "Ir" .. i
 			elseif i == s.zones + 1 then
-				local _c, b = rowCard(i, "🔒", name, "", coins(z.doorCost), "green", s.coins >= z.doorCost, function()
+				local _c, b = rowCard(i, "🔒", name, T("island_next"), coins(z.doorCost), "green", s.coins >= z.doorCost, function()
 					send("unlockZone", i)
 				end)
 				b.Name = "AbrirIsla" .. i
@@ -869,6 +895,7 @@ do
 		Parent = root, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 112), Size = UDim2.fromOffset(440, 200),
 		BackgroundTransparency = 1, ZIndex = 40,
 	}, { Kit.list(false, 6, Enum.HorizontalAlignment.Center) })
+	toastHolder = toasts
 	function showToast(text: string, kind: string?)
 		local color = if kind == "error" then C.red elseif kind == "success" then C.green else C.blue
 		local t = create("TextLabel", {
@@ -891,9 +918,9 @@ do
 		BackgroundColor3 = C.ink, BackgroundTransparency = 0.1, BorderSizePixel = 0, Visible = false, ZIndex = 20,
 	}, { Kit.corner(16), Kit.stroke(C.gold, 3), Kit.padding(10) })
 	banner.Name = "Tutorial"
-	local text = Kit.title(banner, "", 18, C.white, { Size = UDim2.new(1, -130, 1, 0), ZIndex = 21, TextWrapped = true })
+	local text = Kit.title(banner, "", 20, C.white, { Size = UDim2.new(1, -130, 1, 0), ZIndex = 21, TextWrapped = true })
 	text.TextTruncate = Enum.TextTruncate.None
-	Kit.fit(text, 18)
+	Kit.fit(text, 20)
 	local nextButton = Kit.button(banner, "", "gold", UDim2.fromOffset(120, 58), function()
 		local step = tutorial.step
 		if step == 4 then
@@ -929,9 +956,18 @@ do
 		end
 		tutorial.step = step
 		banner.Visible = step > 0 and step <= 5 and not shade.Visible and not hatching
+		-- Los avisos bajan si el tutorial ocupa su sitio (si no, se tapan el uno al otro)
+		toastHolder.Position = UDim2.new(0.5, 0, 0, if banner.Visible then 204 else 112)
+		Mundo3D.guide(if not banner.Visible then "" elseif step == 2 then "egg" elseif step == 5 then "door" else "", s.zones)
 		if banner.Visible then
-			text.Text = T("tut_" .. step)
-			Kit.setButton(nextButton, if step == 5 then T("tut_done") elseif step <= 3 then T("tut_skip") else T("tut_next"), true)
+			text.Text = "(" .. step .. "/5) " .. T("tut_" .. step)
+			-- «Saltar» es secundario: pequeño y blanco. «Siguiente»/«¡Listo!» es la acción principal: grande y dorado
+			local skip = step <= 3
+			nextButton:SetAttribute("Style", if skip then "white" else "gold")
+			local holder = nextButton.Parent :: Frame
+			holder.Size = if skip then UDim2.fromOffset(110, 58) else UDim2.fromOffset(120, 58)
+			text.Size = UDim2.new(1, if skip then -120 else -130, 1, 0)
+			Kit.setButton(nextButton, if step == 5 then T("tut_done") elseif skip then T("tut_skip") else T("tut_next"), true)
 		end
 	end
 end
@@ -958,9 +994,16 @@ function refreshAll()
 		table.insert(chips, T("luck_on", { time = Kit.fmtTime(s.luckLeft) }))
 	end
 	hudChips.Text = table.concat(chips, "   ")
-	hudRebirth.Text = "🔁 " .. T("rebirth_count", { n = s.rebirths })
+	local goalZone = Config.Zones[s.zones + 1]
+	if goalZone and not (s.zones >= s.rebirthZone and s.coins >= s.rebirthCost) then
+		hudRebirth.Text = "🌉 " .. T("hud_next_island", { value = coins(goalZone.doorCost) })
+		hudAlbumBar.Size = UDim2.fromScale(math.clamp(s.coins / goalZone.doorCost, 0, 1), 1)
+	else
+		hudRebirth.Text = "🔁 " .. T("hud_rebirth", { value = coins(s.rebirthCost) })
+		hudAlbumBar.Size = UDim2.fromScale(math.clamp(s.coins / math.max(1, s.rebirthCost), 0, 1), 1)
+	end
 	hudAlbum.Text = "📖 " .. T("album_progress", { n = s.albumCount, max = Config.albumTotal() })
-	hudAlbumBar.Size = UDim2.fromScale(s.albumCount / Config.albumTotal(), 1)
+		.. (if s.rebirths > 0 then "  ·  🔁 " .. s.rebirths else "")
 	menuLabels()
 	Kit.setButton(autoButton, if s.settings.auto then T("auto_on") else T("auto_off"), true)
 	-- Puntos rojos

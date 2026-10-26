@@ -28,6 +28,9 @@ local rigs: { [Player]: Rig } = {}
 local pileById: { [number]: BasePart } = {}
 local clock = 0
 local pileScan = 0
+local guideGui: BillboardGui? = nil -- flecha del tutorial sobre el huevo o la puerta
+local guideKey = ""
+local guideBase = 0
 
 local function billboard(parent: Instance, size: UDim2, offset: Vector3, maxDistance: number): BillboardGui
 	local gui = Instance.new("BillboardGui")
@@ -171,6 +174,10 @@ local function step(dt: number)
 			rigs[player] = nil
 		end
 	end
+	-- Flecha del tutorial: sube y baja para que se vea de lejos
+	if guideGui then
+		guideGui.StudsOffset = Vector3.new(0, guideBase + math.sin(clock * 4) * 0.8, 0)
+	end
 	-- ¿Qué tengo al lado?
 	local me = rootOf(Players.LocalPlayer)
 	Mundo3D.near.egg, Mundo3D.near.door = 0, 0
@@ -226,6 +233,44 @@ function Mundo3D.refresh(s: any)
 		d.title.Text = T("door_title", { zone = T("zone_" .. Config.Zones[d.zone].id) })
 		d.price.Text = if d.zone == s.zones + 1 then "🪙 " .. Kit.fmt(Config.Zones[d.zone].doorCost) else T("door_need")
 	end
+end
+
+-- Flecha grande (se ve a través de todo) sobre el huevo de la última isla abierta («egg») o sobre la
+-- puerta de la siguiente («door»). kind = "" la quita. Solo es una ayuda visual del tutorial.
+function Mundo3D.guide(kind: string, zones: number)
+	local key = kind .. ":" .. zones
+	if key == guideKey then
+		return
+	end
+	guideKey = key
+	if guideGui then
+		guideGui:Destroy()
+		guideGui = nil
+	end
+	local target: BasePart? = nil
+	if kind == "egg" then
+		for _, e in eggs do
+			if e.zone == math.max(1, zones) then
+				target = e.part
+			end
+		end
+	elseif kind == "door" then
+		for _, d in doors do
+			if d.zone == zones + 1 then
+				target = d.part
+			end
+		end
+	end
+	if not target then
+		return
+	end
+	guideBase = if kind == "egg" then 14 else 10
+	local gui = billboard(target, UDim2.fromOffset(110, 110), Vector3.new(0, guideBase, 0), 2000)
+	gui.Name = "GuiaTutorial"
+	gui.AlwaysOnTop = true
+	local arrow = textOn(gui, 0, 1, 90, Config.Colors.gold)
+	arrow.Text = "⬇️"
+	guideGui = gui
 end
 
 function Mundo3D.start(kit: any)
