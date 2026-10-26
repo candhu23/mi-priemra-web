@@ -1,10 +1,15 @@
 """Prepara el pack de modelos 3D de Crías Míticas para importarlo en Roblox Studio de una vez.
 
-Fuente: Kenney Nature Kit (CC0, https://kenney.nl/assets/nature-kit). Se descarga solo.
+Fuentes (todas CC0, se descargan solas):
+  - Kenney Nature Kit (https://kenney.nl/assets/nature-kit): árboles, rocas, setas, cactus, flores…
+  - Quaternius (OpenGameArt): Farm Animals, Animal Pack Vol.2 y Animals Pack → 17 animales para las crías.
+  - Generados aquí: racimos de cristal y el huevo (cáscara + manchas).
 Salida (en roblox-crias-miticas/modelos/):
   - CriasMiticas_Modelos.glb  → un modelo por alias (Roca, Pino…) con una pieza por color: «<Alias>__<material>».
                                 El juego repinta cada pieza según el material y la zona (World.luau).
   - vista_modelos.png         → hoja con todos los modelos (dibujo aproximado, para enseñarlo).
+  - src/ReplicatedStorage/ModelColors.luau → color de cada pieza «Alias__material» (el importador de Studio puede no
+                                traer los colores: el juego los pone con esta tabla).
 Uso: python3 -I tools/modelos/construir_pack.py   (desde roblox-crias-miticas/; necesita trimesh: pip install trimesh)
 """
 import io
@@ -43,6 +48,87 @@ MODELOS = {
     # Rocas de decoración y acantilados
     "RocaDeco": "rock_largeA", "RocaAlta": "rock_tallA",
 }
+
+
+# Animales de Quaternius (OpenGameArt, CC0): alias → (zip, archivo OBJ, colores por material)
+QUATERNIUS_ZIPS = {
+    "farm": "https://opengameart.org/sites/default/files/Farm%20Animals%20by%20%40Quaternius.zip",
+    "vol2": "https://opengameart.org/sites/default/files/Animal%20Pack%20Vol.2%20by%20%40Quaternius.zip",
+    "pack": "https://opengameart.org/sites/default/files/Animals%20Pack%20by%20Quaternius.zip",
+}
+ANIMALES = {
+    "Cow": ("farm", "Cow", {"Black": (45, 40, 40), "Pink": (240, 170, 170), "White": (245, 245, 240)}),
+    "Horse": ("farm", "Horse", {"Material.003": (150, 95, 55), "Material.006": (60, 40, 30)}),
+    "Llama": ("farm", "Llama", {"Brown": (140, 95, 60), "Grey": (90, 90, 95), "White": (240, 235, 225)}),
+    "Pig": ("farm", "Pig", {"Material": (90, 60, 60), "Material.003": (245, 165, 175)}),
+    "Pug": ("farm", "Pug", {"Beige": (225, 195, 150), "Brown": (110, 75, 50)}),
+    "Sheep": ("farm", "Sheep", {"Black": (60, 55, 55), "White": (245, 245, 240)}),
+    "Zebra": ("farm", "Zebra", {"Black": (40, 40, 45), "White": (245, 245, 245)}),
+    "Cat": ("vol2", "Cat", {"Grey": (150, 150, 155), "Pink": (245, 170, 180), "White": (245, 245, 245)}),
+    "Dog": ("vol2", "Dog", {"Dog": (200, 140, 80)}),
+    "Eagle": ("vol2", "Eagle", {"Beak": (250, 200, 60), "Claws": (60, 50, 40), "Head": (245, 245, 245), "Wings": (110, 75, 45)}),
+    "Piranha": ("vol2", "Piranha", {"Black": (40, 40, 45), "Brown": (150, 90, 60), "LightYellow": (250, 230, 150), "White": (245, 245, 245)}),
+    "Wolf": ("vol2", "Wolf", {"Wolf": (150, 155, 165)}),
+    "Chick": ("pack", "Chick", {"Material.001": (255, 220, 80), "Material.002": (250, 150, 40)}),
+    "Fish": ("pack", "Fish", {"Material.001": (250, 140, 60)}),
+    "RedFox": ("pack", "Red Fox", {"Material.001": (235, 120, 50), "Material.002": (245, 245, 240)}),
+    "Whale": ("pack", "Whale", {"Material.001": (80, 120, 190), "Material.002": (230, 235, 245)}),
+    "Bird": ("pack", "bird", {"Material.002": (90, 150, 230), "Material.006": (250, 200, 60)}),
+}
+
+
+def descargar_quaternius() -> dict:
+    """Devuelve {zip: carpeta OBJ} (descarga y descomprime la 1.ª vez)."""
+    out = {}
+    for clave, url in QUATERNIUS_ZIPS.items():
+        dest = os.path.join(RAIZ, "tools", "out", "quaternius_" + clave)
+        if not os.path.isdir(dest):
+            print("Descargando", clave, "…")
+            datos = urllib.request.urlopen(url, timeout=180).read()
+            with zipfile.ZipFile(io.BytesIO(datos)) as z:
+                z.extractall(dest)
+        for raiz, _, archivos in os.walk(dest):
+            if os.path.basename(raiz) == "OBJ":
+                out[clave] = raiz
+    return out
+
+
+def animal(ruta: str, colores: dict):
+    s = trimesh.load(ruta, group_material=True)
+    geoms = s.geometry.items() if isinstance(s, trimesh.Scene) else [("Body", s)]
+    out = []
+    for gname, g in geoms:
+        mat = getattr(getattr(g.visual, "material", None), "name", None) or gname
+        g = g.copy()
+        c = colores.get(mat, (200, 200, 200))
+        g.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(name=mat, baseColorFactor=list(c) + [255]))
+        out.append((mat.replace(".", ""), g))
+    return out
+
+
+def huevo():
+    """Huevo: cáscara (esfera estirada) + 7 manchas redondas pegadas. Materiales eggShell / eggSpots (el juego los pinta por rareza)."""
+    cas = trimesh.creation.icosphere(subdivisions=3, radius=1.0)
+    v = cas.vertices.copy()
+    v[:, 1] *= 1.32
+    v[:, 1] += np.where(v[:, 1] > 0, v[:, 1] * 0.0, v[:, 1] * 0.12)  # la parte de abajo algo más ancha
+    cas.vertices = v
+    cas.apply_translation([0, 1.32, 0])
+    rng = np.random.default_rng(5)
+    manchas = []
+    for k in range(7):
+        a = k / 7 * 2 * math.pi + rng.uniform(-0.3, 0.3)
+        y = rng.uniform(0.6, 2.0)
+        r = math.sqrt(max(0.05, 1 - ((y - 1.32) / 1.32) ** 2))
+        m = trimesh.creation.icosphere(subdivisions=1, radius=rng.uniform(0.18, 0.3))
+        m.apply_scale([1, 1, 0.35])
+        m.apply_transform(trimesh.transformations.rotation_matrix(-a + math.pi / 2, [0, 1, 0]))
+        m.apply_translation([math.cos(a) * r * 1.03, y, math.sin(a) * r * 1.03])
+        manchas.append(m)
+    sp = trimesh.util.concatenate(manchas)
+    for g, nombre, c in ((cas, "eggShell", (245, 245, 245)), (sp, "eggSpots", (150, 200, 255))):
+        g.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(name=nombre, baseColorFactor=list(c) + [255]))
+    return [("eggShell", cas), ("eggSpots", sp)]
 
 
 # Colores de serie (estilo cartoon vivo). El juego los vuelve a pintar por zona (World.luau, MAT_COLORS)
@@ -129,8 +215,16 @@ def main():
     escena = trimesh.Scene()
     fichas = []
     x = 0.0
+    obj = descargar_quaternius()
+    fuentes = []
     for alias, archivo in MODELOS.items():
-        partes = cristal(archivo[1], archivo[2]) if isinstance(archivo, tuple) else piezas(os.path.join(carpeta, archivo + ".glb"))
+        fuentes.append((alias, lambda archivo=archivo: cristal(archivo[1], archivo[2]) if isinstance(archivo, tuple) else piezas(os.path.join(carpeta, archivo + ".glb"))))
+    for alias, (zipk, nombre, colores) in ANIMALES.items():
+        fuentes.append((alias, lambda zipk=zipk, nombre=nombre, colores=colores: animal(os.path.join(obj[zipk], nombre + ".obj"), colores)))
+    fuentes.append(("Huevo", huevo))
+    colores_luau = {}
+    for alias, fuente in fuentes:
+        partes = fuente()
         todas = trimesh.util.concatenate([m for _, m in partes])
         mn, mx = todas.bounds
         centro = np.array([(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2])  # base en el suelo, centrado
@@ -150,11 +244,21 @@ def main():
             nombre = f"{alias}__{mat}"
             escena.add_geometry(m, node_name=nombre, geom_name=nombre, parent_node_name=alias)
             lista.append((mat, m, color_de(m)))
+            colores_luau[nombre] = color_de(m)
         fichas.append((alias, lista))
         x += ancho + 6
     destino = os.path.join(SALIDA, "CriasMiticas_Modelos.glb")
     escena.export(destino)
-    print(f"{len(MODELOS)} modelos → {destino} ({os.path.getsize(destino) // 1024} KB)")
+    print(f"{len(fuentes)} modelos → {destino} ({os.path.getsize(destino) // 1024} KB)")
+    luau = os.path.join(RAIZ, "src", "ReplicatedStorage", "ModelColors.luau")
+    with open(luau, "w", encoding="utf-8") as f:
+        f.write("-- GENERADO por tools/modelos/construir_pack.py: color de cada pieza «Alias__material» del pack de modelos.\n")
+        f.write("-- El importador de Studio puede no traer los colores; el juego los pone con esta tabla.\nreturn {\n")
+        for k in sorted(colores_luau):
+            r, g, b = colores_luau[k]
+            f.write(f'\t["{k}"] = Color3.fromRGB({r}, {g}, {b}),\n')
+        f.write("}\n")
+    print("Colores →", luau)
     hoja(fichas, os.path.join(SALIDA, "vista_modelos.png"))
 
 
@@ -190,7 +294,7 @@ def dibujar(lista, tam=220):
 
 
 def hoja(fichas, destino):
-    cols = 8
+    cols = 9
     filas = math.ceil(len(fichas) / cols)
     hoja = Image.new("RGB", (cols * 230, filas * 250), (250, 250, 252))
     d = ImageDraw.Draw(hoja)

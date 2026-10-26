@@ -40,6 +40,7 @@ World.THEMES = THEMES
 -- «Alias__material»: aquí se pintan según el material y la zona. Si no hay modelos, se usan piezas básicas.
 ---------------------------------------------------------------------
 local ServerStorage = game:GetService("ServerStorage")
+local ModelColors = require(ReplicatedStorage:WaitForChild("ModelColors")) -- colores de cada pieza (generado)
 local modelos: Instance? = nil
 
 local MAT_COLORS: { [string]: Color3 } = {
@@ -62,14 +63,15 @@ local ZONE_MATS: { { [string]: Color3 } } = {
 }
 
 local function loadModels()
-	modelos = ServerStorage:FindFirstChild("Modelos")
+	-- En ReplicatedStorage (los clientes los necesitan para dibujar las crías); se acepta también ServerStorage
+	modelos = ReplicatedStorage:FindFirstChild("Modelos") or ServerStorage:FindFirstChild("Modelos")
 	if not modelos and Config.MODELS_ASSET_ID ~= 0 then
 		local ok, asset = pcall(function()
 			return game:GetService("InsertService"):LoadAsset(Config.MODELS_ASSET_ID)
 		end)
 		if ok and asset then
 			asset.Name = "Modelos"
-			asset.Parent = ServerStorage
+			asset.Parent = ReplicatedStorage
 			modelos = asset
 		else
 			warn("No se pudieron cargar los modelos 3D (" .. tostring(asset) .. "): se usan piezas básicas")
@@ -118,7 +120,7 @@ local function place(alias: string, parent: Instance, base: Vector3, size: numbe
 		p.CFrame = CFrame.new(base + (rot * rel)) * rot * r
 		p.Anchored = true
 		local key = string.match(p.Name, "__(.+)$") or ""
-		local c = (colors and colors[key]) or zoneMats[key] or MAT_COLORS[key]
+		local c = (colors and colors[key]) or zoneMats[key] or MAT_COLORS[key] or ModelColors[p.Name]
 		if c then
 			p.Color = c
 			for _, child in p:GetChildren() do

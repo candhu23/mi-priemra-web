@@ -27,7 +27,7 @@ roblox-crias-miticas/
 ├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
 ├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías de todos los jugadores, carteles de huevos/puertas, «+🪙» flotante
-├── modelos/                    # CriasMiticas_Modelos.glb (Kenney Nature Kit, CC0) + LEEME.md (importarlo en Studio) + vista
+├── modelos/                    # CriasMiticas_Modelos.glb (Kenney + Quaternius, CC0; tools/modelos/construir_pack.py) + LEEME.md (importarlo en Studio) + vista
 └── tools/  setup.sh · check.sh · harness/ (mock, run_juego, ritmo, vista_mundo, volcado, check_lang.py)
 ```
 
@@ -46,9 +46,11 @@ roblox-crias-miticas/
 - `hatch` devuelve `{ hatched = { {kind, new, rarity, chance} } }`: la rareza y la probabilidad (`Config.eggOdds`, con suerte x2)
   las pone el servidor; el cliente solo dibuja el momento (normal / Épica / Legendaria-Mítica, `Config.HATCH_*`). La más
   rara del lote se anuncia al servidor si es ≥ `HATCH_BIG_FROM` (máx. 1 cada `RARE_ANNOUNCE_COOLDOWN` s; `Session.lastAnnounce`).
-- **Modelos 3D**: `ServerStorage.Modelos` (lo importa el usuario, `modelos/LEEME.md`) o `Config.MODELS_ASSET_ID` (InsertService).
+- **Modelos 3D**: `ReplicatedStorage.Modelos` (también vale ServerStorage; lo importa el usuario, `modelos/LEEME.md`) o `Config.MODELS_ASSET_ID` (InsertService).
   Cada modelo «Alias» tiene piezas «Alias__material»; `World.place` los escala, gira y pinta por material y zona (`MAT_COLORS`,
-  `ZONE_MATS`). Sin modelos todo sale con piezas básicas. El bot prueba los dos casos (modelos falsos en ServerStorage).
+  `ZONE_MATS`). Sin modelos todo sale con piezas básicas. Pack (51): Kenney Nature Kit + 17 animales de
+  Quaternius (Cow, Horse, Llama, Pig, Pug, Sheep, Zebra, Cat, Dog, Eagle, Piranha, Wolf, Chick, Fish, RedFox, Whale, Bird) +
+  Cristal1/Cristal2/CristalGrande + Huevo (eggShell/eggSpots). `ModelColors.luau` (generado) = color de cada pieza. El bot prueba los dos casos (modelos falsos en ServerStorage).
 - Montones = **cristales** (el usuario probó rocas y prefirió cristales, 2026-10-26). `Workspace.Mundo.Montones`, aspecto en
   `World.crystal`: con modelos, racimos «Cristal1/Cristal2/CristalGrande» (generados en `construir_pack.py`) dentro de una caja
   invisible; sin modelos, cristales de piezas con punta y sin base. Color: uno de `Config.Zones[i].crystalColors` (paleta de la
