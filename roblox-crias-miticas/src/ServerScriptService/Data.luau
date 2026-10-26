@@ -16,21 +16,25 @@ pcall(function()
 end)
 
 function Data.newData(): any
-	local generators = {}
-	for _, g in Config.Generators do
-		generators[g.id] = 0
-	end
 	return {
-		money = Config.START_MONEY,
-		lifetimeEarned = 0,
-		generators = generators,
-		clickLevel = 0,
+		coins = 0,
+		lifetimeCoins = 0,
+		zones = 1, -- islas abiertas (1 = solo la primera)
+		rebirths = 0,
+		pets = { { uid = 1, kind = Config.STARTER_PET, tier = 0 } }, -- { uid, kind, tier }
+		equipped = { 1 }, -- uids de las crías equipadas
+		nextUid = 2,
+		album = { [Config.albumKey(Config.STARTER_PET, 0)] = true }, -- "cría:versión" = true
+		albumClaimed = {}, -- "índice del hito" = true
 		daily = { lastDay = 0, streak = 0 },
+		missions = { day = 0, list = {}, bonusGiven = false }, -- list = { { tier, stat, n, start, claimed } }
+		boosts = { coinsUntil = 0, luckUntil = 0 },
+		tutorialDone = false,
 		receipts = {}, -- purchaseId = hora (las últimas 50): compras idempotentes
-		stats = { clicks = 0, bought = 0 },
-		settings = { lang = "", muted = false },
+		stats = { piles = 0, hatched = 0, fused = 0, rebirths = 0 },
+		settings = { lang = "", muted = false, auto = true },
 		lastOnline = 0,
-		version = 1,
+		version = 2,
 	}
 end
 
@@ -39,7 +43,7 @@ local function reconcile(data: any, template: any)
 	for k, v in template do
 		if data[k] == nil then
 			data[k] = if type(v) == "table" then table.clone(v) else v
-		elseif type(v) == "table" and type(data[k]) == "table" and next(v) ~= nil then
+		elseif type(v) == "table" and type(data[k]) == "table" and next(v) ~= nil and v[1] == nil then -- las listas no se tocan
 			reconcile(data[k], v)
 		end
 	end

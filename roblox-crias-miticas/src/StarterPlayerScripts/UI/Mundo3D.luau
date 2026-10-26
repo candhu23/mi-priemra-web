@@ -1,0 +1,252 @@
+--[[
+	Mundo3D (cliente): todo lo 3D que ve el jugador y que NO decide nada.
+	- Dibuja las crías de TODOS los jugadores (atributo «Pets» del jugador) siguiéndolos o picando su
+	  montón (atributo «Target»). Son piezas locales ancladas y sin colisión: ligeras.
+	- Carteles traducidos sobre huevos y puertas; abre (localmente) las puertas de las islas ya pagadas.
+	- Números «+🪙» flotando donde se rompe un montón.
+	- Dice qué huevo / puerta tienes al lado (Mundo3D.near) para que el HUD muestre sus botones.
+]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("Config"))
+
+local Mundo3D = {}
+Mundo3D.near = { egg = 0, door = 0 }
+
+local Kit: any = nil
+local world: Instance = nil :: any
+local pileFolder: Instance = nil :: any
+local localFolder: Folder = nil :: any
+local eggs: { { part: BasePart, zone: number, title: TextLabel, price: TextLabel } } = {}
+local doors: { { part: BasePart, zone: number, gui: BillboardGui, title: TextLabel, price: TextLabel } } = {}
+
+type Rig = { attr: string, pets: { { body: BasePart, tier: number, pos: Vector3 } } }
+local rigs: { [Player]: Rig } = {}
+local pileById: { [number]: BasePart } = {}
+local clock = 0
+local pileScan = 0
+
+local function billboard(parent: Instance, size: UDim2, offset: Vector3, maxDistance: number): BillboardGui
+	local gui = Instance.new("BillboardGui")
+	gui.Size = size
+	gui.StudsOffset = offset
+	gui.MaxDistance = maxDistance
+	gui.LightInfluence = 0
+	gui.Parent = parent
+	return gui
+end
+
+local function textOn(gui: Instance, y: number, h: number, size: number, color: Color3): TextLabel
+	local t = Kit.title(gui, "", size, color, {
+		Position = UDim2.fromScale(0, y), Size = UDim2.fromScale(1, h), TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	Kit.textStroke(2.5).Parent = t
+	Kit.fit(t, size)
+	return t
+end
+
+local function makePet(kind: string, tier: number): BasePart
+	local def = Config.PetById[kind]
+	local rarity = Config.Rarities[def.rarity]
+	local s = 2.2 * rarity.size
+	local body = Instance.new("Part")
+	body.Name = "Cria"
+	body.Shape = Enum.PartType.Ball
+	body.Size = Vector3.new(s, s, s)
+	body.Anchored = true
+	body.CanCollide = false
+	body.CanQuery = false
+	body.CanTouch = false
+	body.CastShadow = false
+	body.Material = if tier == 1 then Enum.Material.Foil else Enum.Material.SmoothPlastic
+	body.Color = if tier == 1 then def.color:Lerp(Config.Colors.gold, 0.6) else def.color
+	-- La cara es el emoji de la cría (se reconoce de lejos)
+	local face = billboard(body, UDim2.fromScale(s * 1.3, s * 1.3), Vector3.new(0, 0, 0), 120)
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Text = def.emoji
+	label.TextScaled = true
+	label.Parent = face
+	if rarity.id == "legendary" or rarity.id == "mythic" or tier > 0 then
+		local light = Instance.new("PointLight")
+		light.Color = if tier == 1 then Config.Colors.gold else rarity.color
+		light.Range = 8
+		light.Brightness = 1.5
+		light.Parent = body
+	end
+	body.Parent = localFolder
+	return body
+end
+
+local function rebuild(rig: Rig, attr: string, start: Vector3)
+	for _, p in rig.pets do
+		p.body:Destroy()
+	end
+	rig.pets = {}
+	rig.attr = attr
+	for entry in string.gmatch(attr, "[^,]+") do
+		local kind, tier = string.match(entry, "^(%w+):(%d)$")
+		if kind and Config.PetById[kind] then
+			table.insert(rig.pets, { body = makePet(kind, tonumber(tier) or 0), tier = tonumber(tier) or 0, pos = start })
+		end
+	end
+end
+
+local function rootOf(player: Player): BasePart?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		return root
+	end
+	return nil
+end
+
+local function step(dt: number)
+	clock += dt
+	pileScan -= dt
+	if pileScan <= 0 then
+		pileScan = 0.4
+		pileById = {}
+		for _, p in pileFolder:GetChildren() do
+			local id = p:GetAttribute("PileId")
+			if type(id) == "number" and p:IsA("BasePart") then
+				pileById[id] = p
+			end
+		end
+	end
+	local alpha = math.min(1, dt * 7)
+	for _, player in Players:GetPlayers() do
+		local root = rootOf(player)
+		local rig = rigs[player]
+		if not rig then
+			rig = { attr = "", pets = {} }
+			rigs[player] = rig
+		end
+		local attr = player:GetAttribute("Pets")
+		if type(attr) ~= "string" then
+			attr = ""
+		end
+		if root and attr ~= rig.attr then
+			rebuild(rig, attr :: string, root.Position)
+		end
+		if root then
+			local target = pileById[player:GetAttribute("Target") :: any]
+			local n = #rig.pets
+			for i, pet in rig.pets do
+				local goal: Vector3
+				local look: Vector3
+				if target and (target.Position - root.Position).Magnitude <= Config.REACH then
+					-- Picando: en círculo alrededor del montón, dando saltitos
+					local a = i / n * math.pi * 2 + clock * 0.8
+					local hop = math.abs(math.sin(clock * 9 + i)) * 1.6
+					goal = target.Position + Vector3.new(math.cos(a) * 4.5, 1.5 + hop, math.sin(a) * 4.5)
+					look = target.Position
+				else
+					-- Siguiendo: en filas de 3 detrás del jugador, flotando
+					local row = (i - 1) // 3
+					local col = (i - 1) % 3 - 1
+					local spot = root.CFrame * CFrame.new(col * 4, 0, 6 + row * 4)
+					goal = spot.Position + Vector3.new(0, -1 + math.sin(clock * 3 + i) * 0.4, 0)
+					look = goal + root.CFrame.LookVector
+				end
+				pet.pos = pet.pos:Lerp(goal, alpha)
+				pet.body.CFrame = CFrame.lookAt(pet.pos, Vector3.new(look.X, pet.pos.Y, look.Z))
+				if pet.tier == 2 then
+					pet.body.Color = Color3.fromHSV((clock * 0.3 + i * 0.1) % 1, 0.7, 1)
+				end
+			end
+		end
+	end
+	-- Jugadores que se han ido
+	for player, rig in rigs do
+		if not player.Parent then
+			for _, p in rig.pets do
+				p.body:Destroy()
+			end
+			rigs[player] = nil
+		end
+	end
+	-- ¿Qué tengo al lado?
+	local me = rootOf(Players.LocalPlayer)
+	Mundo3D.near.egg, Mundo3D.near.door = 0, 0
+	if me then
+		local s = Kit.ctx.state
+		for _, e in eggs do
+			if (e.part.Position - me.Position).Magnitude <= Config.EGG_REACH - 2 and s and e.zone <= s.zones then
+				Mundo3D.near.egg = e.zone
+			end
+		end
+		for _, d in doors do
+			if (d.part.Position - me.Position).Magnitude <= Config.DOOR_REACH and s and d.zone > s.zones then
+				Mundo3D.near.door = d.zone
+			end
+		end
+	end
+end
+
+-- Texto flotante en el mundo (p. ej. «+🪙 25» al romper un montón)
+function Mundo3D.floatText(pos: Vector3, text: string, color: Color3?)
+	local anchor = Instance.new("Part")
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+	anchor.Parent = localFolder
+	local gui = billboard(anchor, UDim2.fromOffset(160, 44), Vector3.new(0, 0, 0), 150)
+	gui.AlwaysOnTop = true
+	local t = textOn(gui, 0, 1, 30, color or Config.Colors.gold)
+	t.Text = text
+	Kit.tween(gui, 0.9, { StudsOffset = Vector3.new(0, 5, 0) })
+	Kit.tween(t, 0.9, { TextTransparency = 1 })
+	task.delay(0.9, function()
+		anchor:Destroy()
+	end)
+end
+
+-- Con cada estado: puertas abiertas/cerradas y precios
+function Mundo3D.refresh(s: any)
+	local T = Kit.T
+	for _, e in eggs do
+		local z = Config.Zones[e.zone]
+		e.title.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id) })
+		e.price.Text = if e.zone <= s.zones then "🪙 " .. Kit.fmt(z.eggCost) else "🔒"
+	end
+	for _, d in doors do
+		local open = s.zones >= d.zone
+		d.part.CanCollide = not open
+		d.part.Transparency = if open then 1 else 0.2
+		d.gui.Enabled = not open
+		d.title.Text = T("door_title", { zone = T("zone_" .. Config.Zones[d.zone].id) })
+		d.price.Text = if d.zone == s.zones + 1 then "🪙 " .. Kit.fmt(Config.Zones[d.zone].doorCost) else T("door_need")
+	end
+end
+
+function Mundo3D.start(kit: any)
+	Kit = kit
+	world = Workspace:WaitForChild("Mundo")
+	pileFolder = world:WaitForChild("Montones")
+	localFolder = Instance.new("Folder")
+	localFolder.Name = "CriasLocales"
+	localFolder.Parent = Workspace
+	for _, d in world:GetDescendants() do
+		local zone = d:GetAttribute("Zone")
+		if d:IsA("BasePart") and type(zone) == "number" then
+			if d.Name == "Huevo" then
+				local gui = billboard(d, UDim2.fromOffset(240, 80), Vector3.new(0, 8, 0), 140)
+				table.insert(eggs, { part = d, zone = zone, title = textOn(gui, 0, 0.5, 26, Config.Colors.white), price = textOn(gui, 0.5, 0.5, 26, Config.Colors.gold) })
+			elseif d.Name == "Puerta" then
+				local gui = billboard(d, UDim2.fromOffset(260, 80), Vector3.new(0, 4, 0), 160)
+				table.insert(doors, { part = d, zone = zone, gui = gui, title = textOn(gui, 0, 0.5, 26, Config.Colors.white), price = textOn(gui, 0.5, 0.5, 24, Config.Colors.gold) })
+			end
+		end
+	end
+	RunService.RenderStepped:Connect(step)
+end
+
+return Mundo3D

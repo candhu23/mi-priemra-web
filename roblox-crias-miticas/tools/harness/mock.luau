@@ -73,7 +73,7 @@ function M.new(placePath: string, opts: { [string]: any }?)
 
 	local SIGNALS = {
 		Activated = true, MouseEnter = true, MouseLeave = true, OnClientEvent = true, OnServerEvent = true,
-		Changed = true, Completed = true, CharacterAdded = true, Triggered = true,
+		Changed = true, Completed = true, CharacterAdded = true, Triggered = true, MouseClick = true,
 		InputBegan = true, InputChanged = true, InputEnded = true,
 	}
 	local NOOP = { Play = true, Stop = true }
@@ -133,6 +133,10 @@ function M.new(placePath: string, opts: { [string]: any }?)
 				return signalFor(idOf(inst), "changed:" .. name)
 			end
 		end
+		-- Lune no enlaza Position con CFrame en las piezas
+		if key == "Position" and inst:IsA("BasePart") then
+			return inst.CFrame.Position
+		end
 		if key == "AbsolutePosition" then
 			return roblox.Vector2.new(100, 100)
 		elseif key == "AbsoluteSize" then
@@ -182,7 +186,17 @@ function M.new(placePath: string, opts: { [string]: any }?)
 				end
 				local results = table.pack(value(inst, table.unpack(args, 1, args.n)))
 				for i = 1, results.n do
-					results[i] = wrap(results[i])
+					local r = results[i]
+					if type(r) == "table" and not realOf[r] and typeof(r[1]) == "Instance" then
+						-- listas de instancias (GetChildren, GetDescendants…): envolver cada una
+						local list = {}
+						for j, x in r do
+							list[j] = wrap(x)
+						end
+						results[i] = list
+					else
+						results[i] = wrap(r)
+					end
 				end
 				return table.unpack(results, 1, results.n)
 			end
@@ -194,7 +208,12 @@ function M.new(placePath: string, opts: { [string]: any }?)
 			W.callbacks[realOf[p].Name] = value
 			return
 		end
-		realOf[p][key] = unwrap(value)
+		local inst = realOf[p]
+		if key == "Position" and inst:IsA("BasePart") then
+			inst.CFrame = roblox.CFrame.new(value)
+			return
+		end
+		inst[key] = unwrap(value)
 	end
 	meta.__tostring = function(p)
 		return tostring(realOf[p])

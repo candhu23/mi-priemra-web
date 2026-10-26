@@ -46,6 +46,17 @@ function Kit.fmtMoney(n: number): string
 	return string.format(if v >= 100 then "$%.0f%s" elseif v >= 10 then "$%.1f%s" else "$%.2f%s", v, SUFIJOS[i])
 end
 
+-- Igual que fmtMoney pero sin «$» (para monedas 🪙)
+function Kit.fmt(n: number): string
+	return (string.gsub(Kit.fmtMoney(n), "%$", ""))
+end
+
+-- Segundos → «4:05»
+function Kit.fmtTime(sec: number): string
+	sec = math.max(0, math.floor(sec))
+	return string.format("%d:%02d", sec // 60, sec % 60)
+end
+
 function Kit.create(className: string, props: { [string]: any }, children: { Instance }?): any
 	local instance = Instance.new(className)
 	local parent = props.Parent
@@ -146,6 +157,7 @@ local STYLES = {
 	red = { C.red, C.redDark },
 	white = { C.white, C.panelDark },
 	grey = { C.grey, C.greyDark },
+	purple = { C.purple, C.purpleDark },
 }
 local clickSound: Sound? = nil
 
