@@ -144,7 +144,7 @@ Config.GOLD_LIFETIME = 60 -- s. Si no se rompe, desaparece
 Config.GOLD_MAX_SECONDS = 30 -- y como mucho 30 s del poder del jugador más fuerte de esa isla (si no, en islas altas caducaba)
 Config.GOLD_HP = 10 -- × pileHp de la isla (un cristal es ×8): aguanta lo bastante para llegar y verlo
 Config.GOLD_COINS = 33 -- × pileCoins de la isla = ×10 lo que da un Cofre (3,3) → rinde ×3,3 por punto de vida
-Config.PILES_PER_ZONE = 14
+Config.PILES_PER_ZONE = 32 -- zonas de 200×200: misma densidad que antes (y se ven muchos cristales)
 Config.PILE_RESPAWN = 6 -- segundos
 Config.REACH = 70 -- distancia máxima (studs) del jugador al montón para que sus crías piquen
 Config.AUTO_REACH = 45 -- el modo automático busca montones a esta distancia

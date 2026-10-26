@@ -77,8 +77,9 @@ de pago» (más simple en el cuestionario de contenido, CLAUDE.md §11). La suer
 Probabilidades de cada huevo siempre visibles. Nada de «free Robux», ni tienda que se abre sola.
 
 ## 7. Estilo visual
-Islas flotantes unidas por un camino de puentes que serpentea y va subiendo (como en los juegos de mascotas: cada isla
-más alta y más lejos), con colores cartoon (skills `roblox-3d-terreno`, `roblox-3d-construir`, `roblox-3d-ambiente`),
+Mapa CONTINUO como Collect All Pets (capturas del usuario 2026-10-26): 8 zonas pegadas en zigzag, cada una con su suelo y
+decoración (pradera, setas, playa, desierto, volcán, glaciar, nubes, cosmos), acantilados alrededor, puertas en las paredes
+y cristales de colores sobre losas; colores cartoon (skills `roblox-3d-terreno`, `roblox-3d-construir`, `roblox-3d-ambiente`),
 crías low-poly propias (`roblox-3d-mallas`) con aura según rareza, interfaz clara con botones gruesos
 (`roblox-ui-pantallas`: HUD, inventario por rareza, apertura de huevo, álbum). Letra FredokaOne. ES/EN.
 

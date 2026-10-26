@@ -22,7 +22,8 @@ roblox-crias-miticas/
 ├── src/ReplicatedStorage/Lang.luau     # Textos ES/EN. El servidor manda claves; el cliente traduce
 ├── src/ServerScriptService/Main.server.luau  # Remotes, sesiones, montones, acciones, compras, bucle 1 s, guardado
 ├── src/ServerScriptService/Data.luau         # DataStore MythicHatchlings_v1 (todo en pcall; sin publicar → sin guardar)
-├── src/ServerScriptService/World.luau        # 8 islas flotantes en un camino en S que sube (World.HEADINGS, RISE), puentes con puerta, huevos
+├── src/ServerScriptService/World.luau        # Mapa continuo: 8 zonas en zigzag (World.GRID 3×3, 200×200) con acantilados, puertas en las paredes,
+│                                             #   decoración por tema, huevo sobre pilar y World.crystal (aspecto de los cristales)
 ├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
 ├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías de todos los jugadores, carteles de huevos/puertas, «+🪙» flotante
@@ -44,7 +45,7 @@ roblox-crias-miticas/
 - `hatch` devuelve `{ hatched = { {kind, new, rarity, chance} } }`: la rareza y la probabilidad (`Config.eggOdds`, con suerte x2)
   las pone el servidor; el cliente solo dibuja el momento (normal / Épica / Legendaria-Mítica, `Config.HATCH_*`). La más
   rara del lote se anuncia al servidor si es ≥ `HATCH_BIG_FROM` (máx. 1 cada `RARE_ANNOUNCE_COOLDOWN` s; `Session.lastAnnounce`).
-- Montones (`Workspace.Mundo.Montones`): los crea el servidor (14 por isla, reaparecen a los 6 s). Se eligen tocándolos
+- Montones = **cristales** (`Workspace.Mundo.Montones`, aspecto en `World.crystal`): los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
   (ClickDetector) o en modo Auto (el más cercano a ≤ 45). Cada segundo restan el poder del equipo; al romperse las monedas
   se reparten según el daño de cada jugador. Al desaparecer un montón se quita el objetivo a todos los que lo picaban.
 - **Montón Dorado**: cada `GOLD_INTERVAL` s (`spawnGold` en el bucle) uno en la isla más alta abierta de cada jugador (sin
@@ -78,5 +79,8 @@ las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTE
 - [ ] Crear pases/productos (`roblox-nube`); iconos ya hechos en `docs/arte/`. Pases: x2, slots, hatch3, autoHatch, backpack.
       **Ojo:** crear los packs de monedas (cash_s/cash_l) hace que los huevos se puedan pagar indirectamente con Robux →
       revisar la norma de artículos aleatorios de pago (cuestionario, PolicyService) antes.
-- [ ] Arte: crías como mallas low-poly (`roblox-3d-mallas`) en vez de bola + emoji; islas más vistosas.
+- [ ] Crías en 3D: el usuario las pondrá desde la Creator Store (elegido el 2026-10-26). Falta: carpeta de modelos y que
+      Mundo3D los use en vez de bola + emoji.
+- [ ] Fase A pendiente (tras el mapa): HUD estilo Collect All Pets, Índice con tarjetas por rareza, imán de monedas.
+- [ ] Fase B: variantes Shiny/Metallic/Giant, insignias, estadísticas, árbol de mejoras con gemas, misiones encadenadas.
 - [ ] Ideas: intercambio entre jugadores (con cuidado con estafas), eventos con huevo especial, clasificación.

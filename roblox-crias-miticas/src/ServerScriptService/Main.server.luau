@@ -104,12 +104,6 @@ type Pile = {
 local piles: { [number]: Pile } = {}
 local nextPileId = 1
 
-local PILE_LOOK = {
-	coins = { size = Vector3.new(5, 2.5, 5), shape = Enum.PartType.Cylinder, color = Config.Colors.gold, material = Enum.Material.Foil },
-	chest = { size = Vector3.new(5, 4, 4), shape = Enum.PartType.Block, color = Color3.fromRGB(160, 100, 50), material = Enum.Material.WoodPlanks },
-	crystal = { size = Vector3.new(3.5, 7, 3.5), shape = Enum.PartType.Block, color = Config.Colors.purple, material = Enum.Material.Glass },
-	gold = { size = Vector3.new(8, 5, 8), shape = Enum.PartType.Block, color = Config.Colors.gold, material = Enum.Material.Neon },
-}
 -- Mismas fórmulas que Config.PileKinds (maxHp = pileHp × hp, monedas = pileCoins × coins)
 local GOLD_KIND = { id = "gold", hp = Config.GOLD_HP, coins = Config.GOLD_COINS }
 
@@ -140,22 +134,10 @@ end
 
 local function spawnPile(zone: number, gold: boolean?, hpCap: number?)
 	local kind = if gold then GOLD_KIND else pickKind()
-	local look = PILE_LOOK[kind.id]
 	local z = Config.Zones[zone]
 	local pos = World.pilePosition(zone, rng)
-	local p = Instance.new("Part")
-	p.Name = "Monton"
-	p.Anchored = true
-	p.Shape = look.shape
-	p.Size = look.size
-	p.Color = look.color
-	p.Material = look.material
-	p.CFrame = if look.shape == Enum.PartType.Cylinder
-		then CFrame.new(pos + Vector3.new(0, look.size.Y / 2, 0)) * CFrame.Angles(0, 0, math.rad(90))
-		else CFrame.new(pos + Vector3.new(0, look.size.Y / 2, 0)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0)
-	if look.shape == Enum.PartType.Cylinder then
-		p.Size = Vector3.new(look.size.Y, look.size.X, look.size.Z)
-	end
+	-- Cristal (pieza principal + puntas + losa); el aspecto está en World.crystal
+	local p = World.crystal(kind.id, zone, pos, rng)
 	local id = nextPileId
 	nextPileId += 1
 	local maxHp = math.floor(z.pileHp * kind.hp)
@@ -173,7 +155,7 @@ local function spawnPile(zone: number, gold: boolean?, hpCap: number?)
 	-- Barra de vida encima (sin texto: no hace falta traducir)
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(70, 10)
-	gui.StudsOffset = Vector3.new(0, 4.5, 0)
+	gui.StudsOffset = Vector3.new(0, p.Size.Y / 2 + 2, 0)
 	gui.AlwaysOnTop = true
 	gui.MaxDistance = 80
 	gui.Enabled = false

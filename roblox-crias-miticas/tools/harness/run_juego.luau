@@ -399,7 +399,13 @@ assert((hrp.CFrame.Position - c4).Magnitude < 60, "Ir a la isla 4 no mueve al ju
 assert(not W.callbacks.Action(W.player, "teleport", 6), "viajar a una isla cerrada")
 
 -- Puerta de la isla 5: panel al acercarse y abrir
-local door = mundo:FindFirstChild("Isla5"):FindFirstChild("Puerta")
+local door = nil
+for _, d in mundo:GetDescendants() do
+	if d.Name == "Puerta" and d:GetAttribute("Zone") == 5 then
+		door = d
+	end
+end
+assert(door, "no encuentro la puerta de la isla 5")
 hrp.CFrame = W.roblox.CFrame.new(door.CFrame.Position + W.roblox.Vector3.new(-10, -18, 0))
 frame(W)
 assert(named(gui, "AbrirPuerta").Parent.Parent.Visible, "no sale el panel de la puerta")
