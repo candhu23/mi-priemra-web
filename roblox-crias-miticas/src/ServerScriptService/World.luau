@@ -969,7 +969,7 @@ function World.crystal(kind: string, zone: number, pos: Vector3, rng: Random): P
 		end
 		size *= 1 + rng:NextNumber(-Config.PILE_SIZE_JITTER, Config.PILE_SIZE_JITTER)
 	end
-	local material = if kind == "gold" then Enum.Material.Neon else Enum.Material.Glass
+	local material = if kind == "gold" then Enum.Material.Neon else Enum.Material.SmoothPlastic -- Glass pesa en móvil
 	if modelos then
 		local alias = if kind == "coins" then ({ "Cristal1", "Cristal2" })[rng:NextInteger(1, 2)] elseif kind == "chest" then "Cristal2" else "CristalGrande"
 		local height = if kind == "gold" then 11 else 6 * size -- el pequeño mide 6 studs; el dorado, como antes

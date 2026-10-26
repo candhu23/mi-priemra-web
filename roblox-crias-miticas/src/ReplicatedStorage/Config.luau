@@ -7,7 +7,8 @@
 
 local Config = {}
 
-Config.VERSION = "0.3"
+Config.VERSION = "0.4"
+Config.LIGHT_MIN_POWER = 81 -- las crías con luz: Legendaria o más (y las Brillantes)
 Config.GROUP_ID = 0 -- grupo de Roblox para el +10 % (0 = desactivado)
 
 ---------------------------------------------------------------------
@@ -595,7 +596,7 @@ function Config.dupesToRelease(data: any): { number }
 	for i = #data.pets, 1, -1 do
 		local p = data.pets[i]
 		local def = Config.PetById[p.kind]
-		if def and not p.shiny and not eq[p.uid] and (def.rarity == Config.MYTHIC or def.zone < (data.zones or 1)) and normals[p.kind] > 1 then
+		if def and not p.shiny and not eq[p.uid] and (def.rarity == Config.MYTHIC or (def.zone < (data.zones or 1) and def.rarity <= Config.Zones[def.zone].eggRarity)) and normals[p.kind] > 1 then
 			normals[p.kind] -= 1
 			table.insert(list, p.uid)
 		end

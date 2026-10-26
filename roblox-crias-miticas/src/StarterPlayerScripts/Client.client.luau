@@ -535,8 +535,12 @@ do
 				c.big.Text = Config.PetById[c.h.kind].emoji
 				local stroke = c.card:FindFirstChildOfClass("UIStroke")
 				if stroke then
-					stroke.Color = rarity.color
+					stroke.Color = if c.h.shiny then C.gold else rarity.color
 					stroke.Thickness = if Config.hatchLevel(c.h) >= 2 then 8 else 5
+				end
+				-- Brillante: tarjeta dorada clara (si no, una Común Brillante parecía una Común normal)
+				if c.h.shiny then
+					c.card.BackgroundColor3 = C.gold:Lerp(C.white, 0.75)
 				end
 				-- Bote de la tarjeta (1 → 1,1 → 1) en las raras. La tarjeta es un Frame: su único UIScale.
 				-- 1,1 y no más: en el móvil una tarjeta más grande pisa «Toca para seguir» y el título
@@ -584,7 +588,7 @@ do
 				flash.BackgroundTransparency = 0.7
 				flash.Visible = true
 				Kit.tween(flash, 0.5, { BackgroundTransparency = 1 })
-				sparks(bestRarity.color)
+				sparks(if bestH.shiny then C.gold else bestRarity.color)
 				Kit.playRare()
 			end
 		end)
@@ -772,7 +776,8 @@ do
 		})
 		info.TextTruncate = Enum.TextTruncate.None
 		-- Fusión: en el altar «Fusionar todo»; lejos, el botón lleva al altar (isla 1)
-		local _fc, fuseBtn = rowCard(2, "✨", if ready > 0 then T("fuse_ready", { n = ready }) else T("fuse_title"),
+		-- Orden: barra · cría elegida (si hay; así sus botones se ven sin bajar en el móvil) · fusión · repetidas · rejilla
+		local _fc, fuseBtn = rowCard(3, "✨", if ready > 0 then T("fuse_ready", { n = ready }) else T("fuse_title"),
 			if s.nearAltar then T("fuse_hint") else T("altar_hint"), if s.nearAltar then T("fuse_all") else T("go_altar"), if s.nearAltar then "gold" else "blue",
 			(not s.nearAltar) or ready > 0, function()
 				if s.nearAltar then
@@ -788,7 +793,7 @@ do
 		local dupes = #Config.dupesToRelease(s)
 		local armedDupes = false
 		local dupesBtn: TextButton
-		_fc, dupesBtn = rowCard(3, "🧹", T("dupes_title", { n = dupes }), T("dupes_hint"), T("release"), "red", dupes > 0, function()
+		_fc, dupesBtn = rowCard(4, "🧹", T("dupes_title", { n = dupes }), T("dupes_hint"), T("release"), "red", dupes > 0, function()
 			if not armedDupes then
 				armedDupes = true
 				dupesBtn.Text = T("release_sure")
@@ -808,7 +813,7 @@ do
 		if sel then
 			local def = Config.PetById[sel.kind]
 			local rarity = Config.Rarities[def.rarity]
-			local card = Kit.card(body, { Size = UDim2.new(1, 0, 0, 132), LayoutOrder = 4, ZIndex = 12 })
+			local card = Kit.card(body, { Size = UDim2.new(1, 0, 0, 132), LayoutOrder = 2, ZIndex = 12 })
 			Kit.label(card, def.emoji, 48, nil, nil, { Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(64, 64), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 13 })
 			local name = Kit.title(card, petLabel(sel.kind, sel.shiny) .. (if sel.shiny then " · " .. T("shiny") else ""), 22, C.ink, {
 				Position = UDim2.fromOffset(80, 8), Size = UDim2.new(1, -90, 0, 28), ZIndex = 13,
@@ -827,15 +832,25 @@ do
 				send(if eq then "unequip" else "equip", sel.uid)
 			end, { ZIndex = 14, LayoutOrder = 1 })
 			b1.ZIndex = 15
-			-- Fusionar su grupo (misma isla, rareza y Brillante): «Fusionar 3/5 → Rara»
+			-- Fusionar su grupo (misma isla, rareza y Brillante): «Fusionar 3/5 → Rara» si faltan, «Fusionar 5 → Rara» si hay.
+			-- Con bastantes pero lejos del altar, el botón lleva al altar (como «Ir al altar» de arriba)
 			local need = rarity.fuseNeed
-			local canFuse = need > 0 and have >= need and s.nearAltar == true
-			local b2 = Kit.button(actions, if need > 0 then T("fuse", { have = have, need = need, rarity = T("rar_" .. Config.Rarities[def.rarity + 1].id) }) else "MAX", "gold", UDim2.fromOffset(230, 56), function()
-				send("fuse", def.zone, def.rarity, sel.shiny == true, onFused, true)
+			local enough = need > 0 and have >= need
+			local farAway = enough and s.nearAltar ~= true
+			local nextName = if need > 0 then T("rar_" .. Config.Rarities[def.rarity + 1].id) else ""
+			local b2Text = if need <= 0 then "MAX" elseif farAway then T("go_altar") elseif enough then T("fuse_go", { need = need, rarity = nextName })
+				else T("fuse", { have = have, need = need, rarity = nextName })
+			local b2 = Kit.button(actions, b2Text, if farAway then "blue" else "gold", UDim2.fromOffset(230, 56), function()
+				if farAway then
+					send("teleport", 1)
+					closeWindow()
+				else
+					send("fuse", def.zone, def.rarity, sel.shiny == true, onFused, true)
+				end
 			end, { ZIndex = 14, LayoutOrder = 2 })
 			b2.ZIndex = 15
-			b2.Name = "Fusionar"
-			Kit.setButton(b2, nil, canFuse)
+			b2.Name = if farAway then "FusionarIrAltar" else "Fusionar"
+			Kit.setButton(b2, nil, enough)
 			-- Soltar pide un segundo toque (no se puede deshacer)
 			local armed = false
 			local b3: TextButton
@@ -859,7 +874,7 @@ do
 			b3.Name = "Soltar"
 			Kit.setButton(b3, nil, #s.pets > 1 and not eq)
 		else
-			line(T("pick_pet"), 16, C.muted, 4)
+			line(T("pick_pet"), 16, C.muted, 5)
 		end
 		-- Rejilla: equipadas primero, luego por poder
 		local list = table.clone(s.pets)
@@ -871,7 +886,7 @@ do
 			return Config.petPower(a.kind, a.shiny) > Config.petPower(b.kind, b.shiny)
 		end)
 		local shown = math.min(#list, 300)
-		local g = grid(5, Vector2.new(98, 112), math.ceil(shown / 5))
+		local g = grid(6, Vector2.new(98, 112), math.ceil(shown / 5))
 		for i = 1, shown do
 			local p = list[i]
 			local def = Config.PetById[p.kind]
@@ -1088,8 +1103,11 @@ do
 			local owned = s.upgrades[u.id] == true
 			local ok, why, params = Config.canBuyUpgrade(s, u.id)
 			local locked = why == "n_need_upgrade"
-			local sub = if locked and params then T("up_locked", { upgrade = T("up_" .. params.upgrade) }) else T("up_" .. u.id .. "_desc")
 			local here = not Config.UPGRADE_NEEDS_PEDESTAL or near == u.id
+			-- Se puede pagar pero estás lejos: el botón sigue gris (se compra en el pedestal), y el texto lo dice
+			local sub = if locked and params then T("up_locked", { upgrade = T("up_" .. params.upgrade) })
+				elseif ok and not here then T("up_go_buy", { desc = T("up_" .. u.id .. "_desc") })
+				else T("up_" .. u.id .. "_desc")
 			local _c, b = rowCard(i, if owned then "✅" elseif locked then "🔒" else u.emoji, T("up_" .. u.id), sub,
 				if owned then T("up_owned") else T("up_state_cost", { n = u.cost }), if owned then "green" else "gold", ok and here, function()
 					send("buyUpgrade", u.id)
@@ -1251,7 +1269,7 @@ do
 		banner.Visible = step > 0 and step <= 5 and not shade.Visible and not hatching
 		-- Los avisos bajan si el tutorial ocupa su sitio (si no, se tapan el uno al otro)
 		toastHolder.Position = UDim2.new(0.5, 0, 0, if banner.Visible then 204 else 112)
-		Mundo3D.guide(if not banner.Visible then "" elseif step == 2 then "egg" elseif step == 5 then "door" else "", s.zones)
+		Mundo3D.guide(if not banner.Visible then "" elseif step == 2 then "egg" elseif step == 4 then "altar" elseif step == 5 then "door" else "", s.zones)
 		if banner.Visible then
 			text.Text = "(" .. step .. "/5) " .. T("tut_" .. step)
 			-- «Saltar» es secundario: pequeño y blanco. «Siguiente»/«¡Listo!» es la acción principal: grande y dorado

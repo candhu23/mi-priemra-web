@@ -155,6 +155,11 @@ local function makePet(kind: string, shiny: boolean): PetView
 			for _, child in p:GetChildren() do
 				child:Destroy() -- SurfaceAppearance, scripts…: solo la malla
 			end
+			if p:IsA("MeshPart") then
+				pcall(function()
+					p.TextureID = "" -- sin textura, para que se vea el color de la cría
+				end)
+			end
 			p.Size = tp.size * h
 			p.Anchored = true
 			p.CanCollide = false
@@ -168,7 +173,7 @@ local function makePet(kind: string, shiny: boolean): PetView
 			p.Parent = anchor
 			table.insert(view.parts, { part = p, offset = CFrame.new(tp.offset.Position * h) * (tp.offset - tp.offset.Position) })
 		end
-		if rarity.aura or shiny then
+		if rarity.power >= Config.LIGHT_MIN_POWER or shiny then -- pocas luces: pesan en móvil
 			local light = Instance.new("PointLight")
 			light.Color = if shiny then Config.Colors.white else rarity.color
 			light.Range = 8 + h
@@ -204,7 +209,7 @@ local function makePet(kind: string, shiny: boolean): PetView
 	label.Text = def.emoji
 	label.TextScaled = true
 	label.Parent = face
-	if rarity.aura or shiny then
+	if rarity.power >= Config.LIGHT_MIN_POWER or shiny then
 		local light = Instance.new("PointLight")
 		light.Color = if shiny then Config.Colors.white else rarity.color
 		light.Range = 8
@@ -463,8 +468,8 @@ function Mundo3D.refresh(s: any)
 	end
 end
 
--- Flecha grande (se ve a través de todo) sobre el huevo de la última isla abierta («egg») o sobre la
--- puerta de la siguiente («door»). kind = "" la quita. Solo es una ayuda visual del tutorial.
+-- Flecha grande (se ve a través de todo) sobre el huevo de la última isla abierta («egg»), el altar más cercano
+-- («altar») o la puerta de la siguiente («door»). kind = "" la quita. Solo es una ayuda visual del tutorial.
 function Mundo3D.guide(kind: string, zones: number)
 	local key = kind .. ":" .. zones
 	if key == guideKey then
@@ -488,11 +493,22 @@ function Mundo3D.guide(kind: string, zones: number)
 				target = d.part
 			end
 		end
+	elseif kind == "altar" then
+		-- El altar más cercano al jugador (paso 4: fusionar)
+		local character = Players.LocalPlayer.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		local best = math.huge
+		for _, a in altars do
+			local d = if hrp and hrp:IsA("BasePart") then (a.base.Position - hrp.Position).Magnitude else 0
+			if d < best then
+				best, target = d, a.base
+			end
+		end
 	end
 	if not target then
 		return
 	end
-	guideBase = if kind == "egg" then 14 else 10
+	guideBase = if kind == "egg" then 14 elseif kind == "altar" then 15 else 10 -- el altar ya tiene su cartel a 10
 	local gui = billboard(target, UDim2.fromOffset(110, 110), Vector3.new(0, guideBase, 0), 2000)
 	gui.Name = "GuiaTutorial"
 	gui.AlwaysOnTop = true
@@ -509,6 +525,7 @@ function Mundo3D.start(kit: any)
 	localFolder.Name = "CriasLocales"
 	localFolder.Parent = Workspace
 	-- Huevos y puertas (también los que lleguen más tarde, por si el mapa se carga por partes)
+	local refreshQueued = false
 	local function register(d: Instance)
 		local zone = d:GetAttribute("Zone")
 		if d:IsA("BasePart") and type(zone) == "number" then
@@ -572,8 +589,15 @@ function Mundo3D.start(kit: any)
 			local gui = billboard(d, UDim2.fromOffset(260, 80), Vector3.new(0, 4, 0), 140)
 			table.insert(signs, { title = textOn(gui, 0, 0.55, 26, Config.Colors.white), stones = textOn(gui, 0.55, 0.45, 22, Config.Colors.gold) })
 		end
-		if Kit.ctx.state then
-			Mundo3D.refresh(Kit.ctx.state)
+		-- Un solo repintado aunque lleguen cientos de piezas a la vez
+		if Kit.ctx.state and not refreshQueued then
+			refreshQueued = true
+			task.defer(function()
+				refreshQueued = false
+				if Kit.ctx.state then
+					Mundo3D.refresh(Kit.ctx.state)
+				end
+			end)
 		end
 	end
 	for _, d in world:GetDescendants() do

@@ -5,7 +5,7 @@ Juego creado con la plantilla `.claude/skills/nuevo-juego`. Lee también el `CLA
 
 ## 1. Estado
 
-- **Versión: 0.3** (`Config.VERSION`; súbela en cada versión). **No publicado.** Juego tipo «coleccionar mascotas»
+- **Versión: 0.4** (`Config.VERSION`; súbela en cada versión). **No publicado.** Juego tipo «coleccionar mascotas»
   (idea de *Collect All Pets*, con nombres, arte y textos originales).
 - Nombre en inglés: *Mythic Hatchlings*. Rama de trabajo: `claude/confident-johnson-v5zy5f`.
 - Descarga del lugar: `https://github.com/candhu23/mi-priemra-web/raw/claude/confident-johnson-v5zy5f/roblox-crias-miticas/MythicHatchlings.rbxl`
@@ -57,7 +57,7 @@ roblox-crias-miticas/
 - Crías con modelos (solo `ReplicatedStorage.Modelos`: el cliente no ve ServerStorage): `Mundo3D` normaliza cada modelo una vez
   (plantilla), clona sus piezas al cambiar el equipo y cada frame solo las mueve (ancla «Cria» invisible + piezas dentro);
   altura `PET_MODEL_HEIGHT × rareza`, pieza más grande con el color de la cría, el resto tirando a él; `PET_MODEL_YAW` por si
-  andan de espaldas. «Soltar repetidas»: `Config.dupesToRelease` (Míticas o de islas anteriores, nunca equipadas, Brillantes
+  andan de espaldas. «Soltar repetidas»: `Config.dupesToRelease` (Míticas o crías de rareza ≤ huevo de islas anteriores, nunca equipadas, Brillantes
   ni la última normal de cada especie).
 - **Rarezas por fusión** (ficha `propuestas/2026-10-26-rarezas-arbol.md`): 8 rarezas (`Config.Rarities`, poder ×3, `fuseNeed`
   5/5/5/5/5/3/3), 72 crías (`Config.Zones[i].pets` con `rarity`, `model`, `color`). Cada huevo da una rareza (`eggRarity`) y
