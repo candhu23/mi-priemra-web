@@ -1,8 +1,9 @@
 --[[
 	Cliente de Crías Míticas: TODA la interfaz. Solo enseña el estado que manda el servidor y pide acciones.
-	Pantallas: HUD (monedas, renacer, álbum), menú (8 botones), botón Auto, panel del huevo (con
-	probabilidades) o de la puerta, apertura de huevo, ventanas (Crías, Álbum, Misiones, Diario, Tienda,
-	Renacer, Islas, Ajustes), avisos y tutorial. Lo 3D (crías, carteles) está en UI/Mundo3D.
+	Pantallas: HUD (monedas, próxima isla, Índice/Brillante/piedras), menú (8 botones), botón Auto, panel del
+	huevo (probabilidad de cada especie y de Brillante) o de la puerta, apertura de huevo, ventanas (Crías con
+	fusión, Álbum normal/Brillante, Misiones, Diario, Tienda, Mejoras, Islas, Ajustes), avisos y tutorial.
+	Lo 3D (crías, carteles) está en UI/Mundo3D.
 	Diseño: piezas de UI/Kit en unidades de 960×540 (Kit.root escala). Cada parte va en su bloque do…end
 	(Luau: máx. 200 variables locales por función).
 ]]
@@ -42,7 +43,7 @@ local toastHolder: Frame -- los avisos (bajan cuando se ve el tutorial)
 local refreshAll: () -> ()
 local openWindow: (id: string) -> ()
 local closeWindow: () -> ()
-local showHatch: (list: { any }, auto: boolean?) -> ()
+local showHatch: (list: { any }, auto: boolean?, note: string?) -> ()
 local tutorialFlags = { equippedBest = false }
 local tutorial = { step = 0, started = false }
 
@@ -54,8 +55,9 @@ local function rarityOf(kind: string): Config.Rarity
 	return Config.Rarities[Config.PetById[kind].rarity]
 end
 
-local function tierName(tier: number): string
-	return if tier > 0 then T("tier_" .. tier) else ""
+-- Nombre de la cría con ✨ si es Brillante
+local function petLabel(kind: string, shiny: boolean?): string
+	return petName(kind) .. (if shiny then " ✨" else "")
 end
 
 local function coins(n: number): string
@@ -94,11 +96,20 @@ local function niceParams(params: any): { [string]: any }
 	if type(p.rarity) == "string" then
 		p.rarity = T("rar_" .. p.rarity)
 	end
+	if type(p.upgrade) == "string" and Config.UpgradeById[p.upgrade] then
+		p.upgrade = T("up_" .. p.upgrade)
+	end
+	for _, k in { "before", "after" } do
+		if type(p[k]) == "number" then
+			p[k] = Kit.fmt(p[k])
+		end
+	end
 	return p
 end
 
--- Pide una acción al servidor; onDone(ok, params) si hace falta la respuesta
-local function send(action: string, a: any?, b: any?, c: any?, onDone: ((boolean, any) -> ())?)
+-- Pide una acción al servidor; onDone(ok, params, texto) si hace falta la respuesta.
+-- quiet = si sale bien, no hay aviso: el texto se lo pasa a onDone (p. ej. para ponerlo en la ventana grande)
+local function send(action: string, a: any?, b: any?, c: any?, onDone: ((boolean, any, string?) -> ())?, quiet: boolean?)
 	task.spawn(function()
 		local ok, okServer, textKey, params = pcall(function()
 			return actionRemote:InvokeServer(action, a, b, c)
@@ -106,11 +117,12 @@ local function send(action: string, a: any?, b: any?, c: any?, onDone: ((boolean
 		if not ok then
 			return
 		end
-		if textKey then
-			showToast(T(textKey, niceParams(params)), if okServer then "success" else "error")
+		local text = if textKey then T(textKey, niceParams(params)) else nil
+		if text and not (quiet and okServer) then
+			showToast(text, if okServer then "success" else "error")
 		end
 		if onDone then
-			onDone(okServer == true, params)
+			onDone(okServer == true, params, text)
 		end
 	end)
 end
@@ -133,7 +145,7 @@ local function passExists(key: string): boolean
 end
 
 ---------------------------------------------------------------------
--- HUD: monedas arriba en el centro, avisos de boost/suerte debajo; renacer y álbum arriba a la izquierda
+-- HUD: monedas arriba en el centro, avisos de boost/suerte debajo; próxima isla, Índice y piedras arriba a la izquierda
 ---------------------------------------------------------------------
 local hudCoins: TextLabel
 local hudRate: TextLabel
@@ -162,7 +174,7 @@ do
 	local info = create("Frame", {
 		Parent = root, Position = UDim2.fromOffset(12, 10), Size = UDim2.fromOffset(250, 70), BackgroundColor3 = C.panel, BorderSizePixel = 0,
 	}, { Kit.corner(16), Kit.stroke(C.panelDark, 3), Kit.padding(10, 10, 6, 6) })
-	-- Línea 1: la meta siguiente (próxima isla o renacer) con su barra. Línea 2: álbum (y renacimientos si hay)
+	-- Línea 1: la meta siguiente (crías que pide la próxima isla) con su barra. Línea 2: Índice, ✨ y 🪨
 	hudRebirth = Kit.title(info, "", 18, C.purpleDark, { Size = UDim2.new(1, 0, 0, 22) })
 	Kit.fit(hudRebirth, 18)
 	hudAlbum = Kit.label(info, "", 16, C.ink, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 18) })
@@ -186,7 +198,7 @@ do
 	})
 	local items = {
 		{ "pets", "🐾", "orange" }, { "album", "📖", "blue" }, { "missions", "🎯", "green" }, { "daily", "🎁", "gold" },
-		{ "shop", "🛒", "purple" }, { "rebirth", "🔁", "purple" }, { "islands", "🗺️", "blue" }, { "settings", "⚙️", "white" },
+		{ "shop", "🛒", "purple" }, { "upgrades", "🌳", "green" }, { "islands", "🗺️", "blue" }, { "settings", "⚙️", "white" },
 	}
 	for i, it in items do
 		local id = it[1]
@@ -250,19 +262,19 @@ do
 	local oddsRow = create("Frame", {
 		Parent = eggPanel, Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, 0, 0, 92), BackgroundTransparency = 1,
 	}, { Kit.list(true, 6, Enum.HorizontalAlignment.Center) })
+	-- Una tarjeta por especie del huevo (hasta 6) + la de Brillante al final
 	local oddsCards = {}
-	for i = 1, #Config.Rarities do
+	for i = 1, 7 do
 		local card = Kit.card(oddsRow, { Size = UDim2.fromOffset(60, 90), LayoutOrder = i })
 		local stroke = card:FindFirstChildOfClass("UIStroke")
 		if stroke then
-			stroke.Color = Config.Rarities[i].color
 			stroke.Thickness = 3
 		end
 		local emoji = Kit.label(card, "", 30, nil, nil, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 38), TextXAlignment = Enum.TextXAlignment.Center })
 		local pct = Kit.title(card, "", 17, C.ink, { Position = UDim2.fromOffset(0, 44), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center })
 		Kit.fit(pct, 17)
 		local seen = Kit.label(card, "", 16, C.greenDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Center })
-		oddsCards[i] = { emoji = emoji, pct = pct, seen = seen }
+		oddsCards[i] = { card = card, stroke = stroke, emoji = emoji, pct = pct, seen = seen }
 	end
 	local buttons = create("Frame", {
 		Parent = eggPanel, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 62), BackgroundTransparency = 1,
@@ -326,13 +338,31 @@ do
 		doorPanel.Visible = door > 0 and egg == 0 and not hatching
 		if egg > 0 then
 			local z = Config.Zones[egg]
-			eggTitle.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id) }) .. (if s.luckLeft > 0 then "  🍀x2" else "")
-			local odds = Config.eggOdds(egg, s.luckLeft > 0)
+			local eggRarity = Config.Rarities[z.eggRarity]
+			eggTitle.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id), rarity = T("egg_" .. eggRarity.id) }) .. (if s.luckLeft > 0 then "  🍀x2" else "")
+			-- Probabilidades visibles: cada especie y la de Brillante (con suerte y mejoras, igual que el servidor)
+			local odds = Config.eggOdds(egg, s, { luck = s.luckLeft > 0 })
+			local n = #odds.species
 			for i, card in oddsCards do
-				local pet = z.pets[i]
-				card.emoji.Text = pet.emoji
-				card.pct.Text = pctText(odds[i]) .. " %"
-				card.seen.Text = if s.album[Config.albumKey(pet.id, 0)] then "✓" else "?"
+				card.card.Visible = i <= n + 1
+				if i <= n then
+					local sp = odds.species[i]
+					card.emoji.Text = Config.PetById[sp.kind].emoji
+					card.pct.Text = pctText(sp.pct) .. " %"
+					card.seen.Text = if s.album[sp.kind] then "✓" else "?"
+					card.seen.TextColor3 = C.greenDark
+					if card.stroke then
+						card.stroke.Color = eggRarity.color
+					end
+				elseif i == n + 1 then
+					card.emoji.Text = "✨"
+					card.pct.Text = pctText(odds.shinyPct) .. " %"
+					card.seen.Text = "⚔️x" .. Config.SHINY_POWER
+					card.seen.TextColor3 = C.orangeDark
+					if card.stroke then
+						card.stroke.Color = C.gold
+					end
+				end
 			end
 			-- Los botones de pase solo salen si el pase existe (si no, eran dos botones grises «Próximamente»)
 			local show3 = s.bonuses.hatch3 or passExists("hatch3")
@@ -341,17 +371,22 @@ do
 			h3.Visible = show3
 			hAuto.Visible = showAuto
 			h1.Size = if show3 or showAuto then UDim2.fromOffset(190, 60) else UDim2.fromOffset(300, 60)
-			Kit.setButton(open1, T("egg_open", { value = coins(z.eggCost) }), s.coins >= z.eggCost)
-			Kit.setButton(open3, if s.bonuses.hatch3 then T("egg_open3", { value = Kit.fmt(z.eggCost * 3) }) elseif passExists("hatch3") then "🔒 x3" else T("soon"),
-				(s.bonuses.hatch3 and s.coins >= z.eggCost * 3) or (not s.bonuses.hatch3 and passExists("hatch3")))
+			local cost = Config.eggCost(egg, s)
+			Kit.setButton(open1, T("egg_open", { value = coins(cost) }), s.coins >= cost)
+			Kit.setButton(open3, if s.bonuses.hatch3 then T("egg_open3", { value = Kit.fmt(cost * 3) }) elseif passExists("hatch3") then "🔒 x3" else T("soon"),
+				(s.bonuses.hatch3 and s.coins >= cost * 3) or (not s.bonuses.hatch3 and passExists("hatch3")))
 			Kit.setButton(autoEgg, if s.bonuses.autoHatch then (if autoHatchOn then T("egg_auto_stop") else T("egg_auto")) elseif passExists("autoHatch") then "🔒 " .. T("egg_auto") else T("soon"),
 				s.bonuses.autoHatch or passExists("autoHatch"))
 		end
 		if door > 0 then
 			local z = Config.Zones[door]
 			doorTitle.Text = T("door_title", { zone = T("zone_" .. z.id) })
-			if door == s.zones + 1 then
-				Kit.setButton(doorButton, T("door_open", { value = coins(z.doorCost) }), s.coins >= z.doorCost)
+			if door == s.zones + 1 and s.nextZone then
+				-- No cuesta monedas: pide crías descubiertas (o puntuación Brillante en la 9)
+				local nz = s.nextZone
+				local text = if nz.ok then T("door_open") elseif nz.kind == "shiny" then T("door_need_shiny", { need = nz.need, have = nz.have })
+					else T("door_need_index", { need = nz.need, have = nz.have })
+				Kit.setButton(doorButton, text, nz.ok)
 			else
 				Kit.setButton(doorButton, T("door_need"), false)
 			end
@@ -375,7 +410,7 @@ do
 end
 
 ---------------------------------------------------------------------
--- Apertura de huevo: el huevo tiembla y aparece la cría (o 3) con su rareza
+-- Apertura de huevo (o resultado de una fusión): el huevo tiembla y aparece la cría (o 3) con su rareza
 ---------------------------------------------------------------------
 do
 	local overlay = create("TextButton", {
@@ -403,10 +438,11 @@ do
 	Kit.textStroke(3).Parent = rareTitle
 	local titleScale = create("UIScale", { Parent = rareTitle })
 	local hint = Kit.title(overlay, "", 20, C.white, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -14), Size = UDim2.fromOffset(400, 26),
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -14), Size = UDim2.fromOffset(640, 26),
 		TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
 	})
 	Kit.textStroke(2).Parent = hint
+	Kit.fit(hint, 20)
 	local token = 0
 	-- Con título (Épica o más) el panel de monedas de arriba se esconde mientras dura (en el móvil no cabe todo)
 	local function showHud(on: boolean)
@@ -439,8 +475,10 @@ do
 		end
 	end
 
-	-- auto = abierto por Auto-abrir: aunque sea Legendaria, la ventana dura como la mediana (no tapa el juego)
-	function showHatch(list: { any }, auto: boolean?)
+	-- auto = abierto por Auto-abrir: aunque sea Brillante, la ventana dura como la mediana (no tapa el juego).
+	-- Nivel del momento (Config.hatchLevel): repetida / nueva en el Índice / Brillante o Mítica
+	-- note = texto extra abajo (resumen de una fusión: «¡12 fusiones! Poder …»)
+	function showHatch(list: { any }, auto: boolean?, note: string?)
 		token += 1
 		local my = token
 		for _, c in row:GetChildren() do
@@ -448,17 +486,18 @@ do
 				c:Destroy()
 			end
 		end
-		-- Nivel del momento según la cría más rara del lote (la rareza la decide el servidor)
-		local best, bestChance, bestIndex = 0, 0, 1
+		-- Nivel del momento según la mejor del lote (lo decide el servidor: nueva, Brillante, Mítica)
+		local level, bestIndex = 0, 1
 		for i, h in list do
-			local r = h.rarity or Config.PetById[h.kind].rarity
-			if r > best then
-				best, bestChance, bestIndex = r, h.chance or 0, i
+			local l = Config.hatchLevel(h)
+			if l > level then
+				level, bestIndex = l, i
 			end
 		end
-		local level = if best >= Config.HATCH_BIG_FROM then 3 elseif best >= Config.HATCH_MEDIUM_FROM then 2 else 1
-		local bestRarity = Config.Rarities[math.max(1, best)]
-		hint.Text = T("tap_continue")
+		level = math.max(level, 1)
+		local bestH = list[bestIndex]
+		local bestRarity = Config.Rarities[bestH.rarity or Config.PetById[bestH.kind].rarity]
+		hint.Text = if note then note .. "  ·  " .. T("tap_continue") else T("tap_continue")
 		rareTitle.Visible = false
 		flash.Visible = false
 		overlay.BackgroundTransparency = if level == 3 then 0.25 else 0.4
@@ -497,18 +536,18 @@ do
 				local stroke = c.card:FindFirstChildOfClass("UIStroke")
 				if stroke then
 					stroke.Color = rarity.color
-					stroke.Thickness = if (c.h.rarity or 0) >= Config.HATCH_MEDIUM_FROM then 8 else 5
+					stroke.Thickness = if Config.hatchLevel(c.h) >= 2 then 8 else 5
 				end
 				-- Bote de la tarjeta (1 → 1,1 → 1) en las raras. La tarjeta es un Frame: su único UIScale.
 				-- 1,1 y no más: en el móvil una tarjeta más grande pisa «Toca para seguir» y el título
-				if (c.h.rarity or 0) >= Config.HATCH_MEDIUM_FROM then
+				if Config.hatchLevel(c.h) >= 2 then
 					local bounce = create("UIScale", { Parent = c.card })
 					Kit.tween(bounce, 0.15, { Scale = 1.1 }, Enum.EasingStyle.Back)
 					task.delay(0.15, function()
 						Kit.tween(bounce, 0.2, { Scale = 1 })
 					end)
 				end
-				local name = Kit.title(c.card, petName(c.h.kind), 22, C.ink, {
+				local name = Kit.title(c.card, petLabel(c.h.kind, c.h.shiny), 22, C.ink, {
 					Position = UDim2.fromOffset(0, 140), Size = UDim2.new(1, 0, 0, 28), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
 				})
 				Kit.fit(name, 22)
@@ -526,20 +565,22 @@ do
 				end
 			end
 			if level >= 2 then
-				rareTitle.Text = if level == 2 then T("rare_mid") elseif bestRarity.id == "mythic" then T("rare_big_mythic") else T("rare_big_legendary")
-				rareTitle.TextColor3 = bestRarity.color
+				rareTitle.Text = if level == 2 then T("rare_new") elseif bestH.shiny then T("rare_big_shiny") else T("rare_big_mythic")
+				rareTitle.TextColor3 = if level == 3 and bestH.shiny then C.gold else bestRarity.color
 				rareTitle.Visible = true
 				titleScale.Scale = 0.4
 				Kit.tween(titleScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
 			end
 			if level == 3 then
-				-- Probabilidad real de la más rara (la manda el servidor: la misma que el panel del huevo), en su tarjeta
-				local odds = Kit.title(cards[bestIndex].card, T("rare_odds", { pct = pctText(bestChance) }), 18, C.ink, {
-					Position = UDim2.fromOffset(6, 212), Size = UDim2.new(1, -12, 0, 26), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
-				})
-				odds.Name = "ProbabilidadRara"
-				Kit.fit(odds, 18)
-				flash.BackgroundColor3 = bestRarity.color
+				-- Brillante: su probabilidad real (la manda el servidor: la misma que el panel del huevo), en su tarjeta
+				if bestH.shiny and bestH.chance then
+					local odds = Kit.title(cards[bestIndex].card, T("rare_odds", { pct = pctText(bestH.chance) }), 18, C.ink, {
+						Position = UDim2.fromOffset(6, 212), Size = UDim2.new(1, -12, 0, 26), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
+					})
+					odds.Name = "ProbabilidadRara"
+					Kit.fit(odds, 18)
+				end
+				flash.BackgroundColor3 = if bestH.shiny then C.gold else bestRarity.color
 				flash.BackgroundTransparency = 0.7
 				flash.Visible = true
 				Kit.tween(flash, 0.5, { BackgroundTransparency = 1 })
@@ -553,6 +594,52 @@ do
 				hide()
 			end
 		end)
+	end
+end
+
+-- Grupos de fusión: clave "isla:rareza:0|1" → cuántas tiene (las Míticas no se fusionan) y cuántos están listos
+local function fuseGroups(s: any): ({ [string]: number }, number)
+	local counts, ready = {}, 0
+	for _, p in s.pets do
+		local def = Config.PetById[p.kind]
+		if def and Config.Rarities[def.rarity].fuseNeed > 0 then
+			local k = def.zone .. ":" .. def.rarity .. ":" .. (if p.shiny then 1 else 0)
+			counts[k] = (counts[k] or 0) + 1
+			if counts[k] == Config.Rarities[def.rarity].fuseNeed then
+				ready += 1
+			end
+		end
+	end
+	return counts, ready
+end
+
+local function groupKey(p: any): string
+	local def = Config.PetById[p.kind]
+	return def.zone .. ":" .. def.rarity .. ":" .. (if p.shiny then 1 else 0)
+end
+
+-- Resultado de una fusión: si hay algo especial (nueva, Brillante, Mítica), la ventana grande con el resumen abajo
+-- (se cierra la ventana de Crías para que no quede debajo); si no, el resumen en un aviso
+local function onFused(ok: boolean, params: any, text: string?)
+	if not ok then
+		return
+	end
+	local made = if params and type(params.made) == "table" then params.made else {}
+	local list = table.clone(made)
+	table.sort(list, function(a, b)
+		return Config.hatchLevel(a) > Config.hatchLevel(b)
+	end)
+	local show = {}
+	for i = 1, math.min(3, #list) do
+		if Config.hatchLevel(list[i]) >= 2 then
+			table.insert(show, list[i])
+		end
+	end
+	if #show > 0 then
+		closeWindow()
+		showHatch(show, false, text)
+	elseif text then
+		showToast(text, "success")
 	end
 end
 
@@ -650,13 +737,13 @@ local function rowCard(order: number, emoji: string, titleText: string, sub: str
 end
 
 ---------------------------------------------------------------------
--- Ventana: Crías (inventario). Toca una cría → detalles y botones
+-- Ventana: Crías (inventario). Arriba «Fusionar todo» (en el altar); toca una cría → detalles y botones
 ---------------------------------------------------------------------
 do
 	local selected = 0
 	signatures.pets = function()
 		local s = ctx.state
-		return #s.pets .. "|" .. table.concat(s.equipped, ",") .. "|" .. s.slots .. "|" .. selected
+		return #s.pets .. "|" .. table.concat(s.equipped, ",") .. "|" .. s.slots .. "|" .. selected .. "|" .. tostring(s.nearAltar)
 	end
 	renderers.pets = function()
 		local s = ctx.state
@@ -665,11 +752,9 @@ do
 		for _, uid in s.equipped do
 			isEquipped[uid] = true
 		end
-		local counts = {}
+		local counts, ready = fuseGroups(s)
 		local sel = nil
 		for _, p in s.pets do
-			local k = p.kind .. ":" .. p.tier
-			counts[k] = (counts[k] or 0) + 1
 			if p.uid == selected then
 				sel = p
 			end
@@ -686,17 +771,30 @@ do
 			Position = UDim2.fromOffset(244, 0), Size = UDim2.new(1, -244, 1, 0), ZIndex = 13, TextWrapped = true,
 		})
 		info.TextTruncate = Enum.TextTruncate.None
+		-- Fusión: en el altar «Fusionar todo»; lejos, el botón lleva al altar (isla 1)
+		local _fc, fuseBtn = rowCard(2, "✨", if ready > 0 then T("fuse_ready", { n = ready }) else T("fuse_title"),
+			if s.nearAltar then T("fuse_hint") else T("altar_hint"), if s.nearAltar then T("fuse_all") else T("go_altar"), if s.nearAltar then "gold" else "blue",
+			(not s.nearAltar) or ready > 0, function()
+				if s.nearAltar then
+					send("fuseAll", nil, nil, nil, onFused, true)
+				else
+					send("teleport", 1)
+					closeWindow()
+				end
+			end)
+		fuseBtn.Name = if s.nearAltar then "FusionarTodo" else "IrAltar"
 		-- Detalle de la elegida
 		if sel then
 			local def = Config.PetById[sel.kind]
 			local rarity = Config.Rarities[def.rarity]
-			local card = Kit.card(body, { Size = UDim2.new(1, 0, 0, 132), LayoutOrder = 2, ZIndex = 12 })
+			local card = Kit.card(body, { Size = UDim2.new(1, 0, 0, 132), LayoutOrder = 3, ZIndex = 12 })
 			Kit.label(card, def.emoji, 48, nil, nil, { Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(64, 64), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 13 })
-			local name = Kit.title(card, petName(sel.kind) .. (if sel.tier > 0 then " · " .. tierName(sel.tier) else ""), 22, C.ink, {
+			local name = Kit.title(card, petLabel(sel.kind, sel.shiny) .. (if sel.shiny then " · " .. T("shiny") else ""), 22, C.ink, {
 				Position = UDim2.fromOffset(80, 8), Size = UDim2.new(1, -90, 0, 28), ZIndex = 13,
 			})
 			Kit.fit(name, 22)
-			local sub = Kit.label(card, "● " .. T("rar_" .. rarity.id) .. " · ⚔️ " .. T("power", { value = Kit.fmt(Config.petPower(sel.kind, sel.tier)) }) .. " · " .. T("pet_have", { n = counts[sel.kind .. ":" .. sel.tier] or 0 }), 16, C.ink, Kit.FONT_BOLD, {
+			local have = counts[groupKey(sel)] or 0
+			local sub = Kit.label(card, "● " .. T("rar_" .. rarity.id) .. " · ⚔️ " .. T("power", { value = Kit.fmt(Config.petPower(sel.kind, sel.shiny)) }) .. " · " .. T("pet_have", { n = have }), 16, C.ink, Kit.FONT_BOLD, {
 				Position = UDim2.fromOffset(80, 38), Size = UDim2.new(1, -90, 0, 22), ZIndex = 13,
 			})
 			Kit.fit(sub, 16)
@@ -708,9 +806,11 @@ do
 				send(if eq then "unequip" else "equip", sel.uid)
 			end, { ZIndex = 14, LayoutOrder = 1 })
 			b1.ZIndex = 15
-			local canFuse = sel.tier < Config.MAX_TIER and (counts[sel.kind .. ":" .. sel.tier] or 0) >= Config.FUSE_COUNT
-			local b2 = Kit.button(actions, if sel.tier < Config.MAX_TIER then T("fuse", { tier = tierName(sel.tier + 1) }) else "MAX", "gold", UDim2.fromOffset(230, 56), function()
-				send("fuse", sel.kind, sel.tier)
+			-- Fusionar su grupo (misma isla, rareza y Brillante): «Fusionar 3/5 → Rara»
+			local need = rarity.fuseNeed
+			local canFuse = need > 0 and have >= need and s.nearAltar == true
+			local b2 = Kit.button(actions, if need > 0 then T("fuse", { have = have, need = need, rarity = T("rar_" .. Config.Rarities[def.rarity + 1].id) }) else "MAX", "gold", UDim2.fromOffset(230, 56), function()
+				send("fuse", def.zone, def.rarity, sel.shiny == true, onFused, true)
 			end, { ZIndex = 14, LayoutOrder = 2 })
 			b2.ZIndex = 15
 			b2.Name = "Fusionar"
@@ -738,7 +838,7 @@ do
 			b3.Name = "Soltar"
 			Kit.setButton(b3, nil, #s.pets > 1 and not eq)
 		else
-			line(T("pick_pet"), 16, C.muted, 2)
+			line(T("pick_pet"), 16, C.muted, 3)
 		end
 		-- Rejilla: equipadas primero, luego por poder
 		local list = table.clone(s.pets)
@@ -747,10 +847,10 @@ do
 			if ea ~= eb then
 				return ea
 			end
-			return Config.petPower(a.kind, a.tier) > Config.petPower(b.kind, b.tier)
+			return Config.petPower(a.kind, a.shiny) > Config.petPower(b.kind, b.shiny)
 		end)
 		local shown = math.min(#list, 300)
-		local g = grid(3, Vector2.new(98, 112), math.ceil(shown / 5))
+		local g = grid(4, Vector2.new(98, 112), math.ceil(shown / 5))
 		for i = 1, shown do
 			local p = list[i]
 			local def = Config.PetById[p.kind]
@@ -762,11 +862,11 @@ do
 				stroke.Thickness = 3
 			end
 			Kit.label(card, def.emoji, 40, nil, nil, { Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 50), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
-			local pw = Kit.title(card, "⚔️" .. Kit.fmt(Config.petPower(p.kind, p.tier)), 16, C.ink, {
+			local pw = Kit.title(card, "⚔️" .. Kit.fmt(Config.petPower(p.kind, p.shiny)), 16, C.ink, {
 				Position = UDim2.fromOffset(2, 62), Size = UDim2.new(1, -4, 0, 20), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14,
 			})
 			Kit.fit(pw, 16)
-			local tag = (if p.tier == 1 then "⭐" elseif p.tier == 2 then "🌈" else "") .. (if isEquipped[p.uid] then "✅" else "")
+			local tag = (if p.shiny then "✨" else "") .. (if isEquipped[p.uid] then "✅" else "")
 			Kit.label(card, tag, 18, nil, nil, { Position = UDim2.fromOffset(0, 84), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
 			local hit = create("TextButton", { Parent = card, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "", ZIndex = 15 })
 			hit.Name = "Cria_" .. p.uid
@@ -779,53 +879,68 @@ do
 end
 
 ---------------------------------------------------------------------
--- Ventana: Álbum (Colecciónalas todas). Hitos con bonus + todas las crías por isla
+-- Ventana: Álbum (Índice). Normales: hitos con bonus + las 72 crías por isla. Brillantes: puntuación + las 72 en ✨
 ---------------------------------------------------------------------
 do
+	local shinyView = false
 	signatures.album = function()
 		local s = ctx.state
 		local claimed = 0
 		for _ in s.albumClaimed do
 			claimed += 1
 		end
-		return s.albumCount .. "|" .. claimed
+		return s.albumCount .. "|" .. claimed .. "|" .. s.shinyScore .. "|" .. tostring(shinyView)
 	end
 	renderers.album = function()
 		local s = ctx.state
 		local total = Config.albumTotal()
 		local pct = s.albumCount / total * 100
 		windowTitle.Text = "📖 " .. T("album")
-		line(T("album_progress", { n = s.albumCount, max = total }) .. string.format("  (%.0f %%)", pct), 18, C.ink, 1)
-		local g = grid(2, Vector2.new(108, 92), 1)
-		for i, m in Config.AlbumMilestones do
-			local claimed = s.albumClaimed[tostring(i)] == true
-			local holder = create("Frame", { Parent = g, BackgroundTransparency = 1, LayoutOrder = i, ZIndex = 13 })
-			local t = Kit.title(holder, m.pct .. " % → +" .. math.floor(m.bonus * 100) .. " %", 17, C.ink, {
-				Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 13,
-			})
-			Kit.fit(t, 17)
-			local b = Kit.button(holder, if claimed then T("claimed") else T("claim"), "green", UDim2.new(1, 0, 0, 60), function()
-				send("claimAlbum", i)
-			end, { Position = UDim2.fromOffset(0, 26), ZIndex = 13 })
+		-- Pestañas: normales / Brillantes
+		local tabs = create("Frame", { Parent = body, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 58), LayoutOrder = 0, ZIndex = 12 }, { Kit.list(true, 10) })
+		for i, v in { false, true } do
+			local b = Kit.button(tabs, if v then T("album_shiny") else T("album_normal"), if v == shinyView then (if v then "gold" else "blue") else "white", UDim2.fromOffset(220, 56), function()
+				shinyView = v
+				openWindow("album")
+			end, { ZIndex = 13, LayoutOrder = i })
 			b.ZIndex = 14
-			Kit.setButton(b, nil, not claimed and pct >= m.pct)
+			b.Name = if v then "VerBrillantes" else "VerNormales"
 		end
+		if shinyView then
+			local need = Config.Zones[#Config.Zones].needShiny or 0
+			line(T("shiny_score", { n = s.shinyScore, need = need }), 18, C.orangeDark, 1)
+		else
+			line(T("album_progress", { n = s.albumCount, max = total }) .. string.format("  (%.0f %%)", pct), 18, C.ink, 1)
+			local g = grid(2, Vector2.new(108, 92), 1)
+			for i, m in Config.AlbumMilestones do
+				local claimed = s.albumClaimed[tostring(i)] == true
+				local holder = create("Frame", { Parent = g, BackgroundTransparency = 1, LayoutOrder = i, ZIndex = 13 })
+				local t = Kit.title(holder, m.pct .. " % → +" .. math.floor(m.bonus * 100) .. " %", 17, C.ink, {
+					Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 13,
+				})
+				Kit.fit(t, 17)
+				local b = Kit.button(holder, if claimed then T("claimed") else T("claim"), "green", UDim2.new(1, 0, 0, 60), function()
+					send("claimAlbum", i)
+				end, { Position = UDim2.fromOffset(0, 26), ZIndex = 13 })
+				b.ZIndex = 14
+				Kit.setButton(b, nil, not claimed and pct >= m.pct)
+			end
+		end
+		local index = if shinyView then s.shinyIndex else s.album
 		for zi, z in Config.Zones do
-			section((if zi <= s.zones or s.rebirths > 0 then "" else "🔒 ") .. T("zone_" .. z.id), 10 + zi * 2)
-			local zg = grid(11 + zi * 2, Vector2.new(60, 62), 3)
-			for tier = 0, Config.MAX_TIER do
-				for ri, pet in z.pets do
-					local have = s.album[Config.albumKey(pet.id, tier)] == true
-					local cell = Kit.card(zg, { LayoutOrder = tier * 10 + ri, ZIndex = 13, BackgroundColor3 = if have then C.white else C.panelDark })
-					local stroke = cell:FindFirstChildOfClass("UIStroke")
-					if stroke then
-						stroke.Color = if tier == 1 then C.gold elseif tier == 2 then C.purple else Config.Rarities[ri].color
-						stroke.Thickness = if have then 3 else 1
-					end
-					Kit.label(cell, if have then pet.emoji else "?", 30, if have then nil else C.muted, Kit.FONT_TITLE, {
-						Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14,
-					})
+			section((if zi <= s.zones then "" else "🔒 ") .. T("zone_" .. z.id), 10 + zi * 2)
+			local zg = grid(11 + zi * 2, Vector2.new(60, 62), 1)
+			for ri, pet in z.pets do
+				local have = index[pet.id] == true
+				local cell = Kit.card(zg, { LayoutOrder = ri, ZIndex = 13, BackgroundColor3 = if have then C.white else C.panelDark })
+				local stroke = cell:FindFirstChildOfClass("UIStroke")
+				if stroke then
+					stroke.Color = if shinyView then C.gold else Config.Rarities[pet.rarity].color
+					stroke.Thickness = if have then 3 else 1
 				end
+				Kit.label(cell, if have then pet.emoji else "?", 30, if have then nil else C.muted, Kit.FONT_TITLE, {
+					Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14,
+				})
 			end
 		end
 	end
@@ -926,32 +1041,35 @@ do
 		end
 	end
 
-	signatures.rebirth = function()
+	-- Mejoras (temporal hasta los pedestales del Jardín, ronda 2b): las 12 con su estado y botón de comprar
+	signatures.upgrades = function()
 		local s = ctx.state
-		return s.rebirths .. "|" .. s.zones .. "|" .. tostring(s.coins >= s.rebirthCost)
+		local n = 0
+		for _ in s.upgrades do
+			n += 1
+		end
+		return s.stones .. "|" .. n
 	end
-	renderers.rebirth = function()
+	renderers.upgrades = function()
 		local s = ctx.state
-		windowTitle.Text = "🔁 " .. T("rebirth")
-		line(T("rebirth_count", { n = s.rebirths }), 22, C.purpleDark, 1)
-		line(T("rebirth_info"), 18, C.ink, 2, 52)
-		local now = 1 + Config.REBIRTH_BONUS * s.rebirths
-		line(T("rebirth_gain", { now = now, next = now + Config.REBIRTH_BONUS }), 18, C.greenDark, 3)
-		local zoneOk = s.zones >= s.rebirthZone
-		line(T("rebirth_req", { zone = s.rebirthZone, value = coins(s.rebirthCost) }), 18, if zoneOk and s.coins >= s.rebirthCost then C.greenDark else C.red, 4, 48)
-		local b = Kit.button(body, T("rebirth_go"), "purple", UDim2.new(1, 0, 0, 64), function()
-			send("rebirth")
-			closeWindow()
-		end, { LayoutOrder = 5, ZIndex = 13 })
-		b.ZIndex = 14
-		b.Name = "Renacer"
-		Kit.setButton(b, nil, zoneOk and s.coins >= s.rebirthCost)
+		windowTitle.Text = "🌳 " .. T("upgrades")
+		line(T("up_header", { n = s.stones }), 18, C.ink, 0)
+		for i, u in Config.Upgrades do
+			local owned = s.upgrades[u.id] == true
+			local ok, why, params = Config.canBuyUpgrade(s, u.id)
+			local locked = why == "n_need_upgrade"
+			local sub = if locked and params then T("up_locked", { upgrade = T("up_" .. params.upgrade) }) else T("up_" .. u.id .. "_desc")
+			local _c, b = rowCard(i, if owned then "✅" elseif locked then "🔒" else u.emoji, T("up_" .. u.id), sub,
+				if owned then T("up_owned") else "🪨 " .. u.cost, if owned then "green" else "gold", ok, function()
+					send("buyUpgrade", u.id)
+				end)
+			b.Name = "Mejora_" .. u.id
+		end
 	end
 
 	signatures.islands = function()
 		local s = ctx.state
-		local nextZone = Config.Zones[s.zones + 1]
-		return s.zones .. "|" .. tostring(nextZone ~= nil and s.coins >= nextZone.doorCost)
+		return s.zones .. "|" .. tostring(s.nextZone and s.nextZone.ok) .. "|" .. tostring(s.nextZone and s.nextZone.have)
 	end
 	renderers.islands = function()
 		local s = ctx.state
@@ -959,13 +1077,16 @@ do
 		for i, z in Config.Zones do
 			local name = i .. ". " .. T("zone_" .. z.id)
 			if i <= s.zones then
-				local _c, b = rowCard(i, "🏝️", name, T("egg_price", { value = coins(z.eggCost) }), T("go"), "blue", true, function()
+				local _c, b = rowCard(i, "🏝️", name, T("egg_price", { value = coins(Config.eggCost(i, s)) }), T("go"), "blue", true, function()
 					send("teleport", i)
 					closeWindow()
 				end)
 				b.Name = "Ir" .. i
-			elseif i == s.zones + 1 then
-				local _c, b = rowCard(i, "🔒", name, T("island_next"), coins(z.doorCost), "green", s.coins >= z.doorCost, function()
+			elseif i == s.zones + 1 and s.nextZone then
+				-- La siguiente: «Descubre N crías (tienes X)» o la puntuación Brillante (isla 9)
+				local nz = s.nextZone
+				local sub = if nz.kind == "shiny" then T("door_need_shiny", { need = nz.need, have = nz.have }) else T("door_need_index", { need = nz.need, have = nz.have })
+				local _c, b = rowCard(i, "🔒", name, sub, T("door_open"), "green", nz.ok, function()
 					send("unlockZone", i)
 				end)
 				b.Name = "AbrirIsla" .. i
@@ -1130,16 +1251,17 @@ function refreshAll()
 		table.insert(chips, T("luck_on", { time = Kit.fmtTime(s.luckLeft) }))
 	end
 	hudChips.Text = table.concat(chips, "   ")
-	local goalZone = Config.Zones[s.zones + 1]
-	if goalZone and not (s.zones >= s.rebirthZone and s.coins >= s.rebirthCost) then
-		hudRebirth.Text = "🌉 " .. T("hud_next_island", { value = coins(goalZone.doorCost) })
-		hudAlbumBar.Size = UDim2.fromScale(math.clamp(s.coins / goalZone.doorCost, 0, 1), 1)
+	-- Meta: lo que pide la próxima isla (crías descubiertas o puntuación Brillante), con su barra
+	local nz = s.nextZone
+	if nz then
+		hudRebirth.Text = "🌉 " .. T(if nz.kind == "shiny" then "hud_next_shiny" else "hud_next_index", { have = math.min(nz.have, nz.need), need = nz.need })
+		hudAlbumBar.Size = UDim2.fromScale(math.clamp(nz.have / math.max(1, nz.need), 0, 1), 1)
 	else
-		hudRebirth.Text = "🔁 " .. T("hud_rebirth", { value = coins(s.rebirthCost) })
-		hudAlbumBar.Size = UDim2.fromScale(math.clamp(s.coins / math.max(1, s.rebirthCost), 0, 1), 1)
+		hudRebirth.Text = "🌉 " .. T("hud_all_open")
+		hudAlbumBar.Size = UDim2.fromScale(1, 1)
 	end
-	hudAlbum.Text = "📖 " .. T("album_progress", { n = s.albumCount, max = Config.albumTotal() })
-		.. (if s.rebirths > 0 then "  ·  🔁 " .. s.rebirths else "")
+	-- Índice, puntuación Brillante y Piedras de Renacimiento (la moneda del Jardín)
+	hudAlbum.Text = "📖 " .. s.albumCount .. "/" .. s.albumTotal .. "   ✨ " .. s.shinyScore .. "   🪨 " .. s.stones
 	menuLabels()
 	Kit.setButton(autoButton, if s.settings.auto then T("auto_on") else T("auto_off"), true)
 	-- Puntos rojos
@@ -1154,19 +1276,14 @@ function refreshAll()
 		albumReady = albumReady or (not s.albumClaimed[tostring(i)] and s.albumCount / Config.albumTotal() * 100 >= m.pct)
 	end
 	dots.album.Visible = albumReady
-	dots.rebirth.Visible = s.zones >= s.rebirthZone and s.coins >= s.rebirthCost
-	local nextZone = Config.Zones[s.zones + 1]
-	dots.islands.Visible = nextZone ~= nil and s.coins >= nextZone.doorCost
-	local fusable = false
-	local counts = {}
-	for _, p in s.pets do
-		if p.tier < Config.MAX_TIER then
-			local k = p.kind .. ":" .. p.tier
-			counts[k] = (counts[k] or 0) + 1
-			fusable = fusable or counts[k] >= Config.FUSE_COUNT
-		end
+	local canBuy = false
+	for _, u in Config.Upgrades do
+		canBuy = canBuy or Config.canBuyUpgrade(s, u.id)
 	end
-	dots.pets.Visible = fusable
+	dots.upgrades.Visible = canBuy
+	dots.islands.Visible = nz ~= nil and nz.ok == true
+	local _counts, ready = fuseGroups(s)
+	dots.pets.Visible = ready > 0
 	Mundo3D.refresh(s)
 	updateContext()
 	updateTutorial()

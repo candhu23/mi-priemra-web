@@ -20,15 +20,23 @@ Rarezas: Común · Poco común · Rara · Épica · Legendaria · Mítica (color
 Cada cría tiene **Poder** (daño por segundo a los montones). Montones con más vida dan más monedas.
 
 ## 3. Bucle de sesión (10–20 min) y de días
-- **Islas** (8, se desbloquean con una puerta que cuesta monedas). Cada isla: montones que dan más, su propio
-  huevo (6–8 crías nuevas) y decoración distinta:
-  Pradera Brote · Bosque Seta · Playa Coral · Dunas Doradas · Volcán Brasa · Glaciar Cristal · Mar de Nubes · Cosmos.
-- **Fusión**: 5 crías iguales → versión **Dorada** (Poder ×3). 5 Doradas → **Arcoíris** (×3 otra vez).
-- **Huecos**: 3 crías equipadas al empezar; +1 al renacer 1, 3 y 5; +3 con el pase. Mochila de 50 (+25 por renacer).
-- **Renacer** (cuando llegas a la isla 4): reinicia monedas e islas; **conservas crías y álbum**;
-  monedas ×(1 + 0,5 × renacimientos) para siempre.
-- **Álbum Mítico** («Colecciónalas todas»): ~60 crías (+ sus Doradas/Arcoíris). Barra de progreso siempre
-  visible y premios al 10/25/50/75/100 % (bonus permanente de monedas y un título).
+- **Islas** (9). La puerta NO cuesta monedas: pide **crías descubiertas en el Índice** (3/7/11/16/21/27/33 para las
+  islas 2–8) y la 9, **200 de puntuación Brillante**. Cada isla: cristales que dan más, su huevo y decoración distinta:
+  Pradera Brote · Bosque Seta · Playa Coral · Dunas Doradas · Volcán Brasa · Glaciar Cristal · Mar de Nubes · Cosmos · Santuario Aurora.
+- **8 rarezas por fusión** (Común → Poco común → Rara → Épica → Legendaria → Prodigiosa → Ascendida → Mítica), poder ×3 cada una.
+  Cada huevo da **una sola rareza** (islas 1–2 Común, 3–4 Poco común, 5 Rara, 6–7 Épica, 8 Legendaria, 9 Prodigiosa) y 1–6
+  especies (mismo animal, distinto color). Lo demás se sube **fusionando en el Altar** (isla 1): 5 iguales de la misma isla
+  y rareza → la siguiente de esa isla (3 desde Prodigiosa). «Fusionar todo» hace todas las posibles de golpe.
+  72 crías (8 por isla, familias con los animales Quaternius). Ficha: `propuestas/2026-10-26-rarezas-arbol.md`.
+- **Brillante** (1 % al abrir; 2 % en la isla 9; ×2 con la suerte de misiones; ×1,5 con Flor Destello): ×2 de poder.
+  Nunca se fusiona con las normales. **Puntuación Brillante** = suma por cada cría distinta que has tenido Brillante (no baja).
+- **Piedras de Renacimiento**: 1 por cada Mítica que creas (en la misma fusión). Se gastan en el **Jardín de Mejoras**:
+  12 mejoras de compra única con requisitos (monedas, andar, huecos, huevo más barato, mochila, poder, abrir más rápido,
+  Brillante), 307 🪨 en total. De momento se compran en la ventana «🌳 Mejoras»; los pedestales físicos llegan en la ronda 2b.
+- **Huecos**: 3 al empezar; +3 con mejoras (Rama I, Rama II, Corona); +3 con el pase. Mochila de 50 (+150 con mejoras, +100 pase).
+- **Ya no hay Renacer** ni versiones Dorada/Arcoíris (pedido del usuario, 2026-10-26).
+- **Índice** («Colecciónalas todas»): 72 crías, pestaña normal y pestaña Brillante. Barra de progreso siempre
+  visible y premios al 10/25/50/75/100 % (bonus permanente de monedas).
 - **Motivos para volver**: recompensa diaria (racha de 7, ya existe), 3 misiones diarias (fácil/media/difícil,
   completar las 3 da suerte ×2 durante 10 min), ganancias sin conexión (25 %, máx. 8 h).
 - **Social**: +10 % de monedas por amigo en el servidor (máx. 4), ves las crías de los demás jugadores.
@@ -38,11 +46,34 @@ Cada cría tiene **Poder** (daño por segundo a los montones). Montones con más
 - 0:00 Flecha y texto «¡Toca un montón!» con 1 cría de regalo ya equipada.
 - 0:40 Ya tienes para el **primer huevo** (flecha hacia él). Animación de apertura con probabilidades a la vista.
 - 1:30 Segundo y tercer huevo → aparece el botón «Equipar mejores» (paso del tutorial).
-- 3:00 Primer duplicado → pista «Junta 5 iguales para una Dorada».
-- 5:00 La puerta de la isla 2 a la vista con su precio y barra de progreso.
+- 1:40 5 Comunes → primera fusión en el altar (junto a la aparición) → Poco común (cría nueva en el Índice).
+- 4:00 3 crías descubiertas → se abre la puerta de la isla 2 (la barra del HUD dice «📖 2/3 crías»).
 Tutorial de 5 pasos, se puede saltar, premio al final.
 
 ## 5. Economía (objetivos de ritmo; se MEDIRÁN con el bot, no a ojo)
+
+**Sistema actual (rarezas por fusión, 2026-10-26).** `ritmo.luau src 300 10`: 10 partidas, eficiencia 0,75, sin Montón
+Dorado ni pases; mediana (mín–máx). Objetivo = aceptación de la ficha. Persona ≈ bot × 2 (sin medir con personas).
+
+| Hito | Bot | Objetivo bot | Persona ≈ |
+|---|---|---|---|
+| 1.er huevo | 0:45 | < 1 min | ~1:30 |
+| 1.ª fusión | 1:37 | — | ~3 min |
+| 1.ª Brillante | 6:55 (1:07–31:35) | sorpresa en la 1.ª sesión | ~15 min |
+| Isla 2 | 3:53 (3:38–4:01) | 3–6 min | ~8 min |
+| Isla 5 | 34:21 (34:02–34:41) | 30–45 min | ~1 h 10 |
+| Isla 8 | 1 h 39 (1 h 37–1 h 40) | 1 h 30–2 h 15 | ~3 h 20 |
+| 1.ª Mítica = 1.ª piedra | 2 h 00 (1 h 58–2 h 01) | 1 h 50–2 h 40 | ~4 h |
+| ✨ 200 Brillante = isla 9 | 3 h 16 (3 h 09–3 h 23) | 3–5 h | ~6 h 30 |
+| Árbol completo (307 🪨) | 3 h 42 (3 h 36–3 h 48) | — | ~7 h 30 |
+
+- Único ajuste frente a la ficha: huevo de la isla 8 **36T** (ficha 28T). Con 28T la isla 9 llegaba a las 2 h 55 (fuera de 3–5 h).
+  Para adelantar la 1.ª piedra (pregunta al usuario): bajar `eggCost` de las islas 6–8 en `Config.Zones`.
+- La mochila (200 con mejoras) se llena de Míticas en la isla 9: el bot suelta las Míticas sin equipar más flojas (una
+  persona tendrá que soltarlas a mano → idea «Soltar repetidas»).
+
+**Histórico (sistema anterior, con Renacer y Dorada/Arcoíris; ya no aplica):**
+
 | Hito | Objetivo (jugador normal) | Medido con el bot (v0.3) | Estimado persona (×2) |
 |---|---|---|---|
 | 1.er huevo | < 60 s | 0:32 | ~1 min |
@@ -56,7 +87,8 @@ El bot sale distinto cada vez (las rarezas son al azar): por eso hay rangos. Se 
 - **Montón Dorado** (cada 3 min en la isla más alta de cada jugador; vida ×10, monedas ×33 de un montón de la isla, dura 60 s):
   mediana de 60 partidas del bot, sin → con: isla 2 3:55 → 4:00, isla 3 11:38 → 11:04 (−5 %), isla 4 30:09 → 27:53 (−7,5 %),
   1.er renacer 35:58 → 33:21 (−7 %). Supone que el bot rompe todos (cota alta).
-- **Gran momento** al abrir: Épica = momento mediano; Legendaria/Mítica = destello, su probabilidad real y aviso al servidor (máx. 1 cada 10 s por jugador).
+- **Gran momento** (actual): cría nueva en el Índice = momento mediano; Brillante o crear una Mítica = destello, título y aviso al
+  servidor (máx. 1 cada 10 s por jugador); la Brillante muestra su probabilidad real.
 - Por isla: vida de cristales ×7, monedas ×17,5, huevo ×8, poder de crías ×6, puerta ×45 (base 1.800).
   → con el mismo equipo, cada isla rinde **×2,5 monedas por segundo** (antes ×9/×7 = ×1,29: no se notaba). La puerta de
   cada isla lo dice: «💎 Cristales ×N monedas» (N = monedas por punto de vida frente a la isla 1: ×2,5, ×6,2, ×15…).

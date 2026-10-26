@@ -2,7 +2,8 @@
 	Mundo3D (cliente): todo lo 3D que ve el jugador y que NO decide nada.
 	- Dibuja las crías de TODOS los jugadores (atributo «Pets» del jugador) siguiéndolos o picando su
 	  montón (atributo «Target»). Son piezas locales ancladas y sin colisión: ligeras.
-	- Carteles traducidos sobre huevos y puertas; abre (localmente) las puertas de las islas ya pagadas.
+	- Carteles traducidos sobre huevos y puertas (precio; crías descubiertas o puntuación Brillante que pide la
+  puerta); abre (localmente) las puertas de las islas ya abiertas.
 	- Números «+🪙» flotando donde se rompe un montón. Estrella 🌟 que se ve de lejos sobre el Montón Dorado.
 	- Dice qué huevo / puerta tienes al lado (Mundo3D.near) para que el HUD muestre sus botones.
 ]]
@@ -23,7 +24,7 @@ local localFolder: Folder = nil :: any
 local eggs: { { part: BasePart, zone: number, title: TextLabel, price: TextLabel } } = {}
 local doors: { { part: BasePart, zone: number, gui: BillboardGui, title: TextLabel, price: TextLabel, crystals: TextLabel } } = {}
 
-type Rig = { attr: string, pets: { { body: BasePart, tier: number, pos: Vector3 } } }
+type Rig = { attr: string, pets: { { body: BasePart, pos: Vector3 } } }
 local rigs: { [Player]: Rig } = {}
 local pileById: { [number]: BasePart } = {}
 local clock = 0
@@ -52,7 +53,9 @@ local function textOn(gui: Instance, y: number, h: number, size: number, color: 
 	return t
 end
 
-local function makePet(kind: string, tier: number): BasePart
+-- Bola del color de la cría con su emoji (la ronda 2b pone los animales 3D). Tamaño por rareza; aura de luz
+-- desde Épica; las Brillantes, destellos y algo de brillo
+local function makePet(kind: string, shiny: boolean): BasePart
 	local def = Config.PetById[kind]
 	local rarity = Config.Rarities[def.rarity]
 	local s = 2.2 * rarity.size
@@ -65,8 +68,8 @@ local function makePet(kind: string, tier: number): BasePart
 	body.CanQuery = false
 	body.CanTouch = false
 	body.CastShadow = false
-	body.Material = if tier == 1 then Enum.Material.Foil else Enum.Material.SmoothPlastic
-	body.Color = if tier == 1 then def.color:Lerp(Config.Colors.gold, 0.6) else def.color
+	body.Material = if shiny then Enum.Material.Foil else Enum.Material.SmoothPlastic
+	body.Color = if shiny then def.color:Lerp(Color3.new(1, 1, 1), 0.25) else def.color
 	-- La cara es el emoji de la cría (se reconoce de lejos)
 	-- StudsOffset Z va hacia la cámara: la cara queda delante de la bola y no la tapa
 	local face = billboard(body, UDim2.fromScale(s * 1.3, s * 1.3), Vector3.new(0, 0, s * 0.6), 120)
@@ -76,12 +79,17 @@ local function makePet(kind: string, tier: number): BasePart
 	label.Text = def.emoji
 	label.TextScaled = true
 	label.Parent = face
-	if rarity.id == "legendary" or rarity.id == "mythic" or tier > 0 then
+	if rarity.aura or shiny then
 		local light = Instance.new("PointLight")
-		light.Color = if tier == 1 then Config.Colors.gold else rarity.color
+		light.Color = if shiny then Config.Colors.white else rarity.color
 		light.Range = 8
 		light.Brightness = 1.5
 		light.Parent = body
+	end
+	if shiny then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = Config.Colors.white
+		sparkles.Parent = body
 	end
 	body.Parent = localFolder
 	return body
@@ -94,9 +102,9 @@ local function rebuild(rig: Rig, attr: string, start: Vector3)
 	rig.pets = {}
 	rig.attr = attr
 	for entry in string.gmatch(attr, "[^,]+") do
-		local kind, tier = string.match(entry, "^(%w+):(%d)$")
+		local kind, shiny = string.match(entry, "^(%w+):(%d)$")
 		if kind and Config.PetById[kind] then
-			table.insert(rig.pets, { body = makePet(kind, tonumber(tier) or 0), tier = tonumber(tier) or 0, pos = start })
+			table.insert(rig.pets, { body = makePet(kind, shiny == "1"), pos = start })
 		end
 	end
 end
@@ -179,9 +187,6 @@ local function step(dt: number)
 				end
 				pet.pos = pet.pos:Lerp(goal, alpha)
 				pet.body.CFrame = CFrame.lookAt(pet.pos, Vector3.new(look.X, pet.pos.Y, look.Z))
-				if pet.tier == 2 then
-					pet.body.Color = Color3.fromHSV((clock * 0.3 + i * 0.1) % 1, 0.7, 1)
-				end
 			end
 		end
 	end
@@ -246,8 +251,8 @@ function Mundo3D.refresh(s: any)
 	local T = Kit.T
 	for _, e in eggs do
 		local z = Config.Zones[e.zone]
-		e.title.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id) })
-		e.price.Text = if e.zone <= s.zones then "🪙 " .. Kit.fmt(z.eggCost) else "🔒"
+		e.title.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id), rarity = T("egg_" .. Config.Rarities[z.eggRarity].id) })
+		e.price.Text = if e.zone <= s.zones then "🪙 " .. Kit.fmt(Config.eggCost(e.zone, s)) else "🔒"
 	end
 	for _, d in doors do
 		local open = s.zones >= d.zone
@@ -255,7 +260,13 @@ function Mundo3D.refresh(s: any)
 		d.part.Transparency = if open then 1 else 0.2
 		d.gui.Enabled = not open
 		d.title.Text = T("door_title", { zone = T("zone_" .. Config.Zones[d.zone].id) })
-		d.price.Text = if d.zone == s.zones + 1 then "🪙 " .. Kit.fmt(Config.Zones[d.zone].doorCost) else T("door_need")
+		-- Lo que pide: «📖 9/11» (crías descubiertas) o «✨ 143/200» (puntuación Brillante)
+		if d.zone == s.zones + 1 then
+			local _ok, kind, need, have = Config.zoneNeed(s, d.zone)
+			d.price.Text = (if kind == "shiny" then "✨ " else "📖 ") .. math.min(have, need) .. "/" .. need
+		else
+			d.price.Text = T("door_need")
+		end
 		-- Cuánto rinden sus cristales frente a la isla 1 (monedas por punto de vida: lo que de verdad se gana)
 		d.crystals.Text = T("door_crystals", { value = Kit.fmt(Config.zoneCrystalMult(d.zone)) })
 	end

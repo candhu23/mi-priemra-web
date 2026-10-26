@@ -1,7 +1,8 @@
 --[[
-	Config: TODOS los números del juego (islas, crías, huevos, fusión, renacer, álbum, misiones, tienda,
-	colores) y las fórmulas que usan servidor y cliente. Para equilibrar el juego se toca solo este archivo.
-	Ritmo medido con tools/harness/ritmo.luau (ver DISENO.md §5).
+	Config: TODOS los números del juego (rarezas, islas, crías, huevos, fusión, Brillantes, piedras, mejoras,
+	álbum, misiones, tienda, colores) y las fórmulas que usan servidor y cliente. Para equilibrar el juego se
+	toca solo este archivo. Ritmo medido con tools/harness/ritmo.luau (ver DISENO.md §5).
+	Ficha: propuestas/2026-10-26-rarezas-arbol.md (8 rarezas por fusión, 72 crías, Jardín de Mejoras).
 ]]
 
 local Config = {}
@@ -10,145 +11,180 @@ Config.VERSION = "0.3"
 Config.GROUP_ID = 0 -- grupo de Roblox para el +10 % (0 = desactivado)
 
 ---------------------------------------------------------------------
--- Rarezas (orden fijo). weight = probabilidad en % dentro de cada huevo
+-- Rarezas (orden fijo). Cada una tiene ×3 de poder que la anterior.
+-- fuseNeed = cuántas iguales hacen falta para subir a la siguiente (0 = no se fusiona)
+-- shinyPoints = lo que suma a la puntuación Brillante cada cría distinta de esa rareza en versión Brillante
 ---------------------------------------------------------------------
-export type Rarity = { id: string, weight: number, power: number, color: Color3, size: number }
+export type Rarity = {
+	id: string, power: number, fuseNeed: number, color: Color3, size: number, aura: boolean, shinyPoints: number,
+}
 Config.Rarities = {
-	{ id = "common", weight = 35, power = 1, color = Color3.fromRGB(148, 163, 184), size = 1 },
-	{ id = "common", weight = 25, power = 1.25, color = Color3.fromRGB(148, 163, 184), size = 1 },
-	{ id = "uncommon", weight = 20, power = 1.7, color = Color3.fromRGB(34, 197, 94), size = 1.1 },
-	{ id = "rare", weight = 12, power = 2.6, color = Color3.fromRGB(59, 130, 246), size = 1.2 },
-	{ id = "epic", weight = 6, power = 4.2, color = Color3.fromRGB(168, 85, 247), size = 1.35 },
-	{ id = "legendary", weight = 1.8, power = 8, color = Color3.fromRGB(250, 204, 21), size = 1.5 },
-	{ id = "mythic", weight = 0.2, power = 18, color = Color3.fromRGB(244, 63, 94), size = 1.7 },
+	{ id = "common", power = 1, fuseNeed = 5, color = Color3.fromRGB(148, 163, 184), size = 1, aura = false, shinyPoints = 1 },
+	{ id = "uncommon", power = 3, fuseNeed = 5, color = Color3.fromRGB(34, 197, 94), size = 1.1, aura = false, shinyPoints = 2 },
+	{ id = "rare", power = 9, fuseNeed = 5, color = Color3.fromRGB(59, 130, 246), size = 1.2, aura = false, shinyPoints = 4 },
+	{ id = "epic", power = 27, fuseNeed = 5, color = Color3.fromRGB(168, 85, 247), size = 1.35, aura = true, shinyPoints = 8 },
+	{ id = "legendary", power = 81, fuseNeed = 5, color = Color3.fromRGB(250, 204, 21), size = 1.5, aura = true, shinyPoints = 15 },
+	{ id = "prodigious", power = 243, fuseNeed = 3, color = Color3.fromRGB(236, 72, 153), size = 1.7, aura = true, shinyPoints = 25 },
+	{ id = "ascended", power = 729, fuseNeed = 3, color = Color3.fromRGB(34, 211, 238), size = 1.9, aura = true, shinyPoints = 40 },
+	{ id = "mythic", power = 2187, fuseNeed = 0, color = Color3.fromRGB(244, 63, 94), size = 2.2, aura = true, shinyPoints = 60 },
 } :: { Rarity }
--- Con suerte x2 (misiones), las 3 más raras pesan el doble
-Config.LUCK_MULT = 2
-Config.LUCK_FROM_INDEX = 5
+Config.MYTHIC = #Config.Rarities -- la que da una Piedra de Renacimiento al crearla
 
--- Gran momento al abrir un huevo (índices de Config.Rarities: 5 = Épica, 6 = Legendaria, 7 = Mítica)
-Config.HATCH_MEDIUM_FROM = 5 -- desde Épica: momento mediano (casi todos lo ven en ~3 min)
-Config.HATCH_BIG_FROM = 6 -- desde Legendaria: gran momento + aviso a todo el servidor
+-- Color del huevo de cada rareza (cáscara, manchas, cuántas manchas, luz). El huevo solo llega hasta Prodigioso
+Config.EggColors = {
+	{ shell = Color3.fromRGB(245, 245, 240), spots = Color3.fromRGB(200, 200, 195), spotCount = 5, glow = 0 },
+	{ shell = Color3.fromRGB(110, 220, 120), spots = Color3.fromRGB(40, 150, 70), spotCount = 6, glow = 0 },
+	{ shell = Color3.fromRGB(90, 160, 250), spots = Color3.fromRGB(30, 80, 200), spotCount = 7, glow = 0 },
+	{ shell = Color3.fromRGB(180, 110, 245), spots = Color3.fromRGB(110, 40, 180), spotCount = 8, glow = 6 },
+	{ shell = Color3.fromRGB(250, 205, 40), spots = Color3.fromRGB(255, 245, 190), spotCount = 9, glow = 10 },
+	{ shell = Color3.fromRGB(236, 72, 153), spots = Color3.fromRGB(255, 200, 235), spotCount = 10, glow = 12 },
+}
+
+-- Brillante: 1 % al abrir, ×2 de poder. Se multiplica por la isla (zona 9 ×2), la suerte de misiones y la mejora
+Config.SHINY_CHANCE = 0.01
+Config.SHINY_POWER = 2
+Config.LUCK_MULT = 2 -- «🍀 suerte x2» (completar las 3 misiones): duplica la probabilidad de Brillante
+
+-- Gran momento al abrir: 1 normal (repetida) · 2 mediano (cría nueva en el Índice) · 3 grande + aviso a todos
+-- (Brillante o crear una Mítica). Ver Config.hatchLevel
 Config.RARE_ANNOUNCE_COOLDOWN = 10 -- s entre avisos al servidor del mismo jugador (con x3 o Auto no hace spam)
 Config.HATCH_SHOW_TIME = { 2.4, 3.5, 5 } -- s que dura la ventana: normal, mediano, grande
 Config.HATCH_SHAKE_TIME = { 0.6, 0.9, 1.2 } -- s que tiembla el huevo antes de salir la cría
+Config.HATCH_COOLDOWN = 0.9 -- s entre aperturas (la mejora «Manos de Rocío» lo baja)
 
--- Fusión: 5 crías iguales → la siguiente versión. tier 0 normal, 1 Dorada, 2 Arcoíris
-Config.FUSE_COUNT = 5
-Config.TIER_MULT = { [0] = 1, [1] = 3, [2] = 9 } :: { [number]: number }
-Config.MAX_TIER = 2
+-- Fusión: fuseNeed crías de la misma isla, rareza y estado Brillante → la de la rareza siguiente de esa isla
+Config.FUSE_ALL_MAX = 500 -- tope de fusiones por pulsación de «Fusionar todo»
+Config.FUSE_NEEDS_ALTAR = true -- true = solo junto a un Altar de Fusión (pendiente de confirmar por el usuario)
+Config.FUSE_REACH = 20 -- studs al altar
 
 ---------------------------------------------------------------------
--- Islas: cada una con su huevo de 7 crías (una por rareza, en el orden de Config.Rarities)
+-- Islas: huevo de UNA rareza (eggRarity) con una o varias especies; por encima, una cría por rareza (familia).
+-- Puertas: needDiscovered = crías distintas en el Índice (de cualquier isla); la 9, needShiny = puntuación Brillante.
+-- eggCost (monedas) de las islas 6–8: lo que más cambia cuándo llega la 1.ª Piedra (ver DISENO.md §5)
 ---------------------------------------------------------------------
+export type PetDef = { id: string, rarity: number, emoji: string, model: string, color: Color3 }
 export type Zone = {
-	id: string, doorCost: number, pileHp: number, pileCoins: number, eggCost: number, petBase: number,
-	grass: Color3, dirt: Color3, pets: { { id: string, emoji: string, color: Color3 } },
-	crystalColors: { Color3 }, -- colores de los cristales de la isla (cada cristal elige uno: variedad)
+	id: string, eggRarity: number, eggCost: number, petBase: number, needDiscovered: number?, needShiny: number?,
+	shinyMult: number?, pileHp: number, pileCoins: number, crystalColors: { Color3 }, pets: { PetDef },
 }
 Config.Zones = ({
-	{ id = "meadow", grass = Color3.fromRGB(110, 205, 95), dirt = Color3.fromRGB(150, 105, 70), crystalColors = {
+	{ id = "meadow", eggRarity = 1, eggCost = 50, petBase = 3, crystalColors = {
 		Color3.fromRGB(120, 220, 255), Color3.fromRGB(140, 240, 120), Color3.fromRGB(255, 180, 110), Color3.fromRGB(255, 150, 200),
 	}, pets = {
-		{ id = "sprouty", emoji = "🌱", color = Color3.fromRGB(120, 210, 100) },
-		{ id = "bunbun", emoji = "🐰", color = Color3.fromRGB(240, 235, 225) },
-		{ id = "ladybop", emoji = "🐞", color = Color3.fromRGB(230, 60, 60) },
-		{ id = "mosshog", emoji = "🦔", color = Color3.fromRGB(120, 150, 80) },
-		{ id = "dewfrog", emoji = "🐸", color = Color3.fromRGB(80, 200, 140) },
-		{ id = "cloverfawn", emoji = "🦌", color = Color3.fromRGB(200, 150, 90) },
-		{ id = "dawngriffin", emoji = "🦅", color = Color3.fromRGB(255, 190, 110) },
+		{ id = "sproutchick", rarity = 1, emoji = "🐣", model = "Chick", color = Color3.fromRGB(255, 225, 90) },
+		{ id = "cloverchick", rarity = 2, emoji = "🐥", model = "Chick", color = Color3.fromRGB(170, 220, 90) },
+		{ id = "meadowsparrow", rarity = 3, emoji = "🐦", model = "Bird", color = Color3.fromRGB(190, 140, 90) },
+		{ id = "dewblackbird", rarity = 4, emoji = "🐦", model = "Bird", color = Color3.fromRGB(70, 90, 150) },
+		{ id = "sunhummer", rarity = 5, emoji = "🐦", model = "Bird", color = Color3.fromRGB(250, 190, 40) },
+		{ id = "bloomeagle", rarity = 6, emoji = "🦅", model = "Eagle", color = Color3.fromRGB(240, 140, 190) },
+		{ id = "dawneagle", rarity = 7, emoji = "🦅", model = "Eagle", color = Color3.fromRGB(255, 170, 110) },
+		{ id = "meadowskylord", rarity = 8, emoji = "🦅", model = "Eagle", color = Color3.fromRGB(120, 230, 140) },
 	} },
-	{ id = "mushroom", grass = Color3.fromRGB(70, 160, 90), dirt = Color3.fromRGB(110, 80, 60), crystalColors = {
+	{ id = "mushroom", eggRarity = 1, eggCost = 1_100, petBase = 35, needDiscovered = 3, crystalColors = {
 		Color3.fromRGB(190, 110, 255), Color3.fromRGB(255, 100, 200), Color3.fromRGB(100, 150, 255), Color3.fromRGB(90, 230, 200),
 	}, pets = {
-		{ id = "shroomlet", emoji = "🍄", color = Color3.fromRGB(220, 70, 70) },
-		{ id = "acornowl", emoji = "🦉", color = Color3.fromRGB(160, 110, 70) },
-		{ id = "mossfox", emoji = "🦊", color = Color3.fromRGB(230, 130, 60) },
-		{ id = "rootmole", emoji = "🐹", color = Color3.fromRGB(140, 100, 80) },
-		{ id = "sparksquirrel", emoji = "🐿️", color = Color3.fromRGB(200, 120, 60) },
-		{ id = "fireflywolf", emoji = "🐺", color = Color3.fromRGB(120, 130, 160) },
-		{ id = "forestspirit", emoji = "🧚", color = Color3.fromRGB(150, 255, 170) },
+		{ id = "mosskit", rarity = 1, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(200, 120, 60) },
+		{ id = "capfox", rarity = 2, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(220, 70, 70) },
+		{ id = "fernfox", rarity = 3, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(90, 170, 90) },
+		{ id = "fireflyfox", rarity = 4, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(230, 230, 110) },
+		{ id = "forestlynx", rarity = 5, emoji = "🐈", model = "Cat", color = Color3.fromRGB(190, 150, 90) },
+		{ id = "sporecat", rarity = 6, emoji = "🐈", model = "Cat", color = Color3.fromRGB(180, 110, 220) },
+		{ id = "shadewolf", rarity = 7, emoji = "🐺", model = "Wolf", color = Color3.fromRGB(90, 90, 130) },
+		{ id = "elderwolf", rarity = 8, emoji = "🐺", model = "Wolf", color = Color3.fromRGB(150, 255, 170) },
 	} },
-	{ id = "coral", grass = Color3.fromRGB(245, 220, 150), dirt = Color3.fromRGB(210, 170, 110), crystalColors = {
+	{ id = "coral", eggRarity = 2, eggCost = 300_000, petBase = 400, needDiscovered = 7, crystalColors = {
 		Color3.fromRGB(255, 120, 200), Color3.fromRGB(255, 140, 110), Color3.fromRGB(80, 230, 220), Color3.fromRGB(200, 160, 255),
 	}, pets = {
-		{ id = "crabby", emoji = "🦀", color = Color3.fromRGB(240, 90, 70) },
-		{ id = "bubbleseal", emoji = "🦭", color = Color3.fromRGB(170, 180, 200) },
-		{ id = "inkyocto", emoji = "🐙", color = Color3.fromRGB(200, 90, 200) },
-		{ id = "shellturtle", emoji = "🐢", color = Color3.fromRGB(90, 170, 90) },
-		{ id = "wavedolphin", emoji = "🐬", color = Color3.fromRGB(80, 160, 240) },
-		{ id = "pearlhorse", emoji = "🦄", color = Color3.fromRGB(250, 220, 240) },
-		{ id = "babykraken", emoji = "🦑", color = Color3.fromRGB(120, 60, 180) },
+		{ id = "coralclown", rarity = 2, emoji = "🐠", model = "Fish", color = Color3.fromRGB(250, 130, 50) },
+		{ id = "lagoontang", rarity = 2, emoji = "🐟", model = "Fish", color = Color3.fromRGB(60, 130, 240) },
+		{ id = "bubblepuffer", rarity = 3, emoji = "🐡", model = "Fish", color = Color3.fromRGB(240, 220, 120) },
+		{ id = "reefpiranha", rarity = 4, emoji = "🐟", model = "Piranha", color = Color3.fromRGB(230, 90, 90) },
+		{ id = "pearlpiranha", rarity = 5, emoji = "🐟", model = "Piranha", color = Color3.fromRGB(245, 235, 250) },
+		{ id = "foamcalf", rarity = 6, emoji = "🐳", model = "Whale", color = Color3.fromRGB(150, 210, 240) },
+		{ id = "tidewhale", rarity = 7, emoji = "🐋", model = "Whale", color = Color3.fromRGB(60, 120, 210) },
+		{ id = "coralleviathan", rarity = 8, emoji = "🐋", model = "Whale", color = Color3.fromRGB(255, 120, 200) },
 	} },
-	{ id = "dunes", grass = Color3.fromRGB(240, 200, 110), dirt = Color3.fromRGB(200, 150, 80), crystalColors = {
+	{ id = "dunes", eggRarity = 2, eggCost = 7_000_000, petBase = 4_500, needDiscovered = 11, crystalColors = {
 		Color3.fromRGB(255, 160, 60), Color3.fromRGB(240, 100, 60), Color3.fromRGB(60, 210, 200), Color3.fromRGB(255, 130, 170),
 	}, pets = {
-		{ id = "scarablet", emoji = "🐜", color = Color3.fromRGB(60, 140, 120) },
-		{ id = "sandfennec", emoji = "🦊", color = Color3.fromRGB(240, 200, 140) },
-		{ id = "datecamel", emoji = "🐫", color = Color3.fromRGB(200, 150, 90) },
-		{ id = "sunlizard", emoji = "🦎", color = Color3.fromRGB(250, 170, 50) },
-		{ id = "amberscorpion", emoji = "🦂", color = Color3.fromRGB(230, 140, 40) },
-		{ id = "minisphinx", emoji = "🐈", color = Color3.fromRGB(230, 190, 90) },
-		{ id = "miragebird", emoji = "🦚", color = Color3.fromRGB(80, 220, 220) },
+		{ id = "dunellama", rarity = 2, emoji = "🦙", model = "Llama", color = Color3.fromRGB(235, 200, 140) },
+		{ id = "oasisllama", rarity = 2, emoji = "🦙", model = "Llama", color = Color3.fromRGB(120, 200, 190) },
+		{ id = "caravanllama", rarity = 3, emoji = "🦙", model = "Llama", color = Color3.fromRGB(200, 110, 70) },
+		{ id = "sandstallion", rarity = 4, emoji = "🐎", model = "Horse", color = Color3.fromRGB(210, 170, 110) },
+		{ id = "sunstallion", rarity = 5, emoji = "🐎", model = "Horse", color = Color3.fromRGB(250, 180, 40) },
+		{ id = "miragezebra", rarity = 6, emoji = "🦓", model = "Zebra", color = Color3.fromRGB(120, 220, 230) },
+		{ id = "amberzebra", rarity = 7, emoji = "🦓", model = "Zebra", color = Color3.fromRGB(230, 140, 40) },
+		{ id = "pharaohzebra", rarity = 8, emoji = "🦓", model = "Zebra", color = Color3.fromRGB(250, 215, 90) },
 	} },
-	{ id = "volcano", grass = Color3.fromRGB(90, 80, 80), dirt = Color3.fromRGB(60, 50, 50), crystalColors = {
+	{ id = "volcano", eggRarity = 3, eggCost = 1.4e9, petBase = 50_000, needDiscovered = 16, crystalColors = {
 		Color3.fromRGB(255, 90, 60), Color3.fromRGB(255, 150, 40), Color3.fromRGB(240, 60, 140), Color3.fromRGB(180, 80, 255),
 	}, pets = {
-		{ id = "sparky", emoji = "🔥", color = Color3.fromRGB(255, 140, 40) },
-		{ id = "salamander", emoji = "🦎", color = Color3.fromRGB(230, 70, 40) },
-		{ id = "lavamole", emoji = "🐹", color = Color3.fromRGB(180, 60, 40) },
-		{ id = "ashbat", emoji = "🦇", color = Color3.fromRGB(90, 90, 100) },
-		{ id = "magmabull", emoji = "🐂", color = Color3.fromRGB(200, 50, 30) },
-		{ id = "emberdrake", emoji = "🐉", color = Color3.fromRGB(250, 100, 30) },
-		{ id = "volcanophoenix", emoji = "🦜", color = Color3.fromRGB(255, 180, 40) },
+		{ id = "emberpiglet", rarity = 3, emoji = "🐷", model = "Pig", color = Color3.fromRGB(250, 140, 60) },
+		{ id = "ashpiglet", rarity = 3, emoji = "🐷", model = "Pig", color = Color3.fromRGB(130, 130, 140) },
+		{ id = "lavapiglet", rarity = 3, emoji = "🐷", model = "Pig", color = Color3.fromRGB(220, 50, 40) },
+		{ id = "magmaboar", rarity = 4, emoji = "🐗", model = "Pig", color = Color3.fromRGB(150, 50, 30) },
+		{ id = "cinderbull", rarity = 5, emoji = "🐂", model = "Cow", color = Color3.fromRGB(70, 60, 60) },
+		{ id = "flarebull", rarity = 6, emoji = "🐂", model = "Cow", color = Color3.fromRGB(255, 110, 40) },
+		{ id = "obsidianbull", rarity = 7, emoji = "🐂", model = "Cow", color = Color3.fromRGB(60, 40, 90) },
+		{ id = "volcanotitan", rarity = 8, emoji = "🐂", model = "Cow", color = Color3.fromRGB(255, 70, 30) },
 	} },
-	{ id = "glacier", grass = Color3.fromRGB(230, 245, 255), dirt = Color3.fromRGB(150, 190, 220), crystalColors = {
+	{ id = "glacier", eggRarity = 4, eggCost = 5e10, petBase = 190_000, needDiscovered = 21, crystalColors = {
 		Color3.fromRGB(150, 230, 255), Color3.fromRGB(90, 150, 255), Color3.fromRGB(220, 245, 255), Color3.fromRGB(170, 140, 255),
 	}, pets = {
-		{ id = "pengy", emoji = "🐧", color = Color3.fromRGB(60, 70, 90) },
-		{ id = "arcticfox", emoji = "🦊", color = Color3.fromRGB(245, 250, 255) },
-		{ id = "frostwalrus", emoji = "🦭", color = Color3.fromRGB(170, 140, 120) },
-		{ id = "snowowl", emoji = "🦉", color = Color3.fromRGB(240, 240, 250) },
-		{ id = "icebear", emoji = "🐻", color = Color3.fromRGB(220, 235, 250) },
-		{ id = "crystalyeti", emoji = "❄️", color = Color3.fromRGB(150, 220, 255) },
-		{ id = "auroradragon", emoji = "🐲", color = Color3.fromRGB(120, 255, 200) },
+		{ id = "frostpug", rarity = 4, emoji = "🐶", model = "Pug", color = Color3.fromRGB(190, 220, 250) },
+		{ id = "snowpug", rarity = 4, emoji = "🐶", model = "Pug", color = Color3.fromRGB(245, 245, 250) },
+		{ id = "sledpup", rarity = 4, emoji = "🐕", model = "Dog", color = Color3.fromRGB(170, 120, 80) },
+		{ id = "icehound", rarity = 4, emoji = "🐕", model = "Dog", color = Color3.fromRGB(110, 170, 230) },
+		{ id = "glacierhusky", rarity = 5, emoji = "🐕", model = "Dog", color = Color3.fromRGB(200, 215, 235) },
+		{ id = "blizzardwolf", rarity = 6, emoji = "🐺", model = "Wolf", color = Color3.fromRGB(230, 240, 255) },
+		{ id = "crystalwolf", rarity = 7, emoji = "🐺", model = "Wolf", color = Color3.fromRGB(140, 220, 255) },
+		{ id = "polarwarden", rarity = 8, emoji = "🐺", model = "Wolf", color = Color3.fromRGB(120, 255, 220) },
 	} },
-	{ id = "clouds", grass = Color3.fromRGB(250, 250, 255), dirt = Color3.fromRGB(200, 210, 240), crystalColors = {
+	{ id = "clouds", eggRarity = 4, eggCost = 1.7e12, petBase = 2_100_000, needDiscovered = 27, crystalColors = {
 		Color3.fromRGB(255, 170, 230), Color3.fromRGB(200, 170, 255), Color3.fromRGB(150, 210, 255), Color3.fromRGB(160, 250, 210),
 	}, pets = {
-		{ id = "puffy", emoji = "☁️", color = Color3.fromRGB(250, 250, 255) },
-		{ id = "cloudlamb", emoji = "🐑", color = Color3.fromRGB(245, 240, 235) },
-		{ id = "kitebird", emoji = "🐦", color = Color3.fromRGB(120, 180, 255) },
-		{ id = "pegasling", emoji = "🐴", color = Color3.fromRGB(250, 230, 255) },
-		{ id = "skywhale", emoji = "🐋", color = Color3.fromRGB(110, 150, 230) },
-		{ id = "thundergriffin", emoji = "⚡", color = Color3.fromRGB(255, 230, 80) },
-		{ id = "rainbowqilin", emoji = "🌈", color = Color3.fromRGB(255, 150, 200) },
+		{ id = "cloudlamb", rarity = 4, emoji = "🐑", model = "Sheep", color = Color3.fromRGB(250, 250, 255) },
+		{ id = "mistlamb", rarity = 4, emoji = "🐑", model = "Sheep", color = Color3.fromRGB(200, 210, 230) },
+		{ id = "rainlamb", rarity = 4, emoji = "🐑", model = "Sheep", color = Color3.fromRGB(150, 190, 250) },
+		{ id = "sunsetlamb", rarity = 4, emoji = "🐑", model = "Sheep", color = Color3.fromRGB(255, 180, 200) },
+		{ id = "thunderram", rarity = 5, emoji = "🐏", model = "Sheep", color = Color3.fromRGB(255, 230, 90) },
+		{ id = "skypony", rarity = 6, emoji = "🐴", model = "Horse", color = Color3.fromRGB(180, 210, 255) },
+		{ id = "windpegasus", rarity = 7, emoji = "🐴", model = "Horse", color = Color3.fromRGB(230, 240, 255) },
+		{ id = "stormpegasus", rarity = 8, emoji = "🐴", model = "Horse", color = Color3.fromRGB(140, 120, 255) },
 	} },
-	{ id = "cosmos", grass = Color3.fromRGB(70, 60, 130), dirt = Color3.fromRGB(40, 35, 80), crystalColors = {
+	{ id = "cosmos", eggRarity = 5, eggCost = 3.6e13, petBase = 8_000_000, needDiscovered = 33, crystalColors = {
 		Color3.fromRGB(170, 120, 255), Color3.fromRGB(90, 240, 255), Color3.fromRGB(255, 90, 220), Color3.fromRGB(230, 230, 255),
 	}, pets = {
-		{ id = "starlet", emoji = "⭐", color = Color3.fromRGB(255, 230, 100) },
-		{ id = "mooncat", emoji = "🐱", color = Color3.fromRGB(200, 200, 230) },
-		{ id = "jellyalien", emoji = "👽", color = Color3.fromRGB(130, 255, 130) },
-		{ id = "robopup", emoji = "🤖", color = Color3.fromRGB(180, 190, 210) },
-		{ id = "nebulajelly", emoji = "💫", color = Color3.fromRGB(200, 120, 255) },
-		{ id = "cometdragon", emoji = "☄️", color = Color3.fromRGB(100, 200, 255) },
-		{ id = "galaxytitan", emoji = "🌌", color = Color3.fromRGB(120, 80, 220) },
+		{ id = "mooncat", rarity = 5, emoji = "🐱", model = "Cat", color = Color3.fromRGB(210, 210, 235) },
+		{ id = "starcat", rarity = 5, emoji = "🐱", model = "Cat", color = Color3.fromRGB(255, 230, 100) },
+		{ id = "cometcat", rarity = 5, emoji = "🐱", model = "Cat", color = Color3.fromRGB(100, 200, 255) },
+		{ id = "nebulacat", rarity = 5, emoji = "🐱", model = "Cat", color = Color3.fromRGB(200, 120, 255) },
+		{ id = "eclipsecat", rarity = 5, emoji = "🐱", model = "Cat", color = Color3.fromRGB(50, 40, 80) },
+		{ id = "stardustwhale", rarity = 6, emoji = "🐋", model = "Whale", color = Color3.fromRGB(170, 130, 255) },
+		{ id = "galaxywhale", rarity = 7, emoji = "🐋", model = "Whale", color = Color3.fromRGB(90, 60, 200) },
+		{ id = "cosmoswhale", rarity = 8, emoji = "🐋", model = "Whale", color = Color3.fromRGB(255, 90, 220) },
 	} },
-} :: any) :: { Zone } -- los números de cada isla se rellenan justo debajo
+	{ id = "aurora", eggRarity = 6, eggCost = 1e15, petBase = 90_000_000, needShiny = 200, shinyMult = 2, crystalColors = {
+		Color3.fromRGB(90, 240, 200), Color3.fromRGB(255, 120, 220), Color3.fromRGB(120, 170, 255), Color3.fromRGB(200, 140, 255),
+	}, pets = {
+		{ id = "greenaurorafox", rarity = 6, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(90, 240, 160) },
+		{ id = "pinkaurorafox", rarity = 6, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(255, 130, 200) },
+		{ id = "blueaurorafox", rarity = 6, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(90, 170, 255) },
+		{ id = "violetaurorafox", rarity = 6, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(170, 110, 255) },
+		{ id = "goldaurorafox", rarity = 6, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(255, 210, 80) },
+		{ id = "silveraurorafox", rarity = 6, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(220, 225, 240) },
+		{ id = "borealwolf", rarity = 7, emoji = "🐺", model = "Wolf", color = Color3.fromRGB(120, 255, 230) },
+		{ id = "celestialfox", rarity = 8, emoji = "🦊", model = "RedFox", color = Color3.fromRGB(255, 245, 255) },
+	} },
+} :: any) :: { Zone } -- la vida y las monedas de los cristales se rellenan justo debajo
 
--- Números de cada isla (k = isla - 1): crecen igual en todas.
--- Monedas ×17,5 y vida ×7 → cada isla rinde ×2,5 por segundo con el mismo equipo (antes ×1,29: no se notaba).
--- Puerta ×45 (antes ×23) para mantener el ritmo medido (DISENO.md §5)
-Config.ZONE_GROWTH = { pileHp = 7, pileCoins = 17.5, eggCost = 8, petBase = 6, doorCost = 45 }
-Config.ZONE_BASE = { pileHp = 12, pileCoins = 6, eggCost = 35, petBase = 3, doorCost = 1_800 }
+-- Cristales de cada isla (k = isla - 1): monedas ×17,5 y vida ×7 → cada isla rinde ×2,5 por segundo con el mismo equipo
+Config.ZONE_GROWTH = { pileHp = 7, pileCoins = 17.5 }
+Config.ZONE_BASE = { pileHp = 12, pileCoins = 6 }
 for i, z in Config.Zones do
 	local k = i - 1
 	z.pileHp = math.floor(Config.ZONE_BASE.pileHp * Config.ZONE_GROWTH.pileHp ^ k)
 	z.pileCoins = math.floor(Config.ZONE_BASE.pileCoins * Config.ZONE_GROWTH.pileCoins ^ k)
-	z.eggCost = math.floor(Config.ZONE_BASE.eggCost * Config.ZONE_GROWTH.eggCost ^ k)
-	z.petBase = Config.ZONE_BASE.petBase * Config.ZONE_GROWTH.petBase ^ k
-	z.doorCost = if i == 1 then 0 else math.floor(Config.ZONE_BASE.doorCost * Config.ZONE_GROWTH.doorCost ^ (k - 1))
 end
 
 -- Montones: tipos (solo cambia el aspecto y cuánto aguantan / dan). size = tamaño del cristal (×, el pequeño = 1)
@@ -176,34 +212,62 @@ Config.AUTO_REACH = 45 -- el modo automático busca montones a esta distancia
 Config.EGG_REACH = 18 -- hay que estar al lado del huevo para abrirlo
 Config.DOOR_REACH = 30
 
--- Ficha de cada cría (se rellena sola a partir de las islas)
-export type Pet = { id: string, emoji: string, color: Color3, zone: number, rarity: number, power: number }
+-- Ficha de cada cría (se rellena sola a partir de las islas). power = sin Brillante ni mejoras
+export type Pet = { id: string, emoji: string, color: Color3, model: string, zone: number, rarity: number, power: number }
 Config.Pets = {} :: { Pet }
 Config.PetById = {} :: { [string]: Pet }
 for zi, z in Config.Zones do
-	for ri, p in z.pets do
-		local pet: Pet = { id = p.id, emoji = p.emoji, color = p.color, zone = zi, rarity = ri, power = z.petBase * Config.Rarities[ri].power }
+	for _, p in z.pets do
+		local pet: Pet = {
+			id = p.id, emoji = p.emoji, color = p.color, model = p.model, zone = zi, rarity = p.rarity,
+			power = z.petBase * Config.Rarities[p.rarity].power,
+		}
 		table.insert(Config.Pets, pet)
 		Config.PetById[p.id] = pet
 	end
 end
-Config.STARTER_PET = "sprouty"
+Config.STARTER_PET = "sproutchick"
 
 ---------------------------------------------------------------------
--- Huecos, mochila, renacer, álbum
+-- Jardín de Mejoras: 12 pedestales que se compran UNA vez con Piedras de Renacimiento (1 por Mítica creada).
+-- effects: coins (+% monedas), walk (+velocidad al andar), slots (+huecos), egg (−% coste de huevo),
+-- bag (+mochila), power (+% poder), hatch (−s entre aperturas), shiny (+% probabilidad de Brillante).
+-- req = las que hay que tener antes. pos = sitio del pedestal en el Jardín (studs desde su centro; ronda 2b)
+---------------------------------------------------------------------
+export type Upgrade = { id: string, emoji: string, cost: number, req: { string }, effects: { [string]: number }, pos: Vector2 }
+Config.Upgrades = {
+	{ id = "goldenroot", emoji = "🌱", cost = 1, req = {}, effects = { coins = 0.25 }, pos = Vector2.new(60, 0) },
+	{ id = "swiftsprout", emoji = "👟", cost = 3, req = { "goldenroot" }, effects = { walk = 4 }, pos = Vector2.new(25, -45) },
+	{ id = "buddybranch1", emoji = "🐾", cost = 8, req = { "goldenroot" }, effects = { slots = 1 }, pos = Vector2.new(25, 0) },
+	{ id = "thriftynest", emoji = "🪺", cost = 5, req = { "goldenroot" }, effects = { egg = -0.2 }, pos = Vector2.new(25, 45) },
+	{ id = "leafpouch", emoji = "🍃", cost = 10, req = { "swiftsprout" }, effects = { bag = 50 }, pos = Vector2.new(-10, -70) },
+	{ id = "mightysap", emoji = "💪", cost = 20, req = { "buddybranch1" }, effects = { power = 0.25 }, pos = Vector2.new(-10, 0) },
+	{ id = "dewyhands", emoji = "💧", cost = 15, req = { "thriftynest" }, effects = { hatch = -0.2 }, pos = Vector2.new(-10, 70) },
+	{ id = "barkchest", emoji = "🎒", cost = 30, req = { "leafpouch" }, effects = { bag = 100 }, pos = Vector2.new(-45, -70) },
+	{ id = "buddybranch2", emoji = "🐾", cost = 40, req = { "mightysap" }, effects = { slots = 1 }, pos = Vector2.new(-45, -25) },
+	{ id = "goldenrain", emoji = "🌧️", cost = 50, req = { "mightysap", "thriftynest" }, effects = { coins = 0.5 }, pos = Vector2.new(-45, 25) },
+	{ id = "sparklebloom", emoji = "✨", cost = 25, req = { "dewyhands" }, effects = { shiny = 0.5 }, pos = Vector2.new(-45, 70) },
+	{ id = "gardencrown", emoji = "👑", cost = 100, req = { "buddybranch2", "goldenrain", "sparklebloom" }, effects = { slots = 1, power = 0.5 }, pos = Vector2.new(-80, 0) },
+} :: { Upgrade }
+Config.UpgradeById = {} :: { [string]: Upgrade }
+for _, u in Config.Upgrades do
+	Config.UpgradeById[u.id] = u
+end
+-- Hasta que existan los pedestales físicos (ronda 2b) se compran desde la ventana «🌳 Mejoras» en cualquier sitio.
+-- Con true, buyUpgrade pide estar a ≤ UPGRADE_REACH del pedestal (World.pedestals)
+Config.UPGRADE_NEEDS_PEDESTAL = false
+Config.UPGRADE_REACH = 14
+
+---------------------------------------------------------------------
+-- Huecos, mochila, andar, álbum
 ---------------------------------------------------------------------
 Config.SLOTS_BASE = 3
 Config.SLOTS_PASS = 3
-Config.SLOTS_REBIRTH = { 1, 3, 5 } -- +1 hueco al llegar a estos renacimientos
 Config.BACKPACK_BASE = 50
-Config.BACKPACK_PER_REBIRTH = 25
 Config.BACKPACK_PASS = 100
-Config.REBIRTH_BONUS = 0.5 -- monedas x(1 + 0,5 por renacimiento)
-Config.REBIRTH_MIN_ZONE = 4 -- 1.er renacer: isla 4; luego una isla más cada vez (máx. 8)
-Config.REBIRTH_COST_MULT = 2 -- además cuesta monedas: 2 × la puerta de esa isla × 4^renacimientos
-Config.REBIRTH_COST_GROWTH = 4
+Config.WALK_SPEED = 16 -- la de Roblox; «Brote Veloz» la sube
 
--- Álbum: % de entradas (cría × versión) descubiertas → bonus permanente de monedas al reclamar
+-- Álbum (Índice): % de crías distintas descubiertas → bonus permanente de monedas al reclamar
 Config.AlbumMilestones = {
 	{ pct = 10, bonus = 0.05 },
 	{ pct = 25, bonus = 0.10 },
@@ -222,18 +286,19 @@ Config.EFFICIENCY = 0.6 -- para premios en «minutos de monedas»: parte del tie
 Config.Daily = { { 5, 100 }, { 10, 250 }, { 15, 500 }, { 20, 1_000 }, { 30, 2_000 }, { 45, 4_000 }, { 60, 10_000 } }
 Config.TUTORIAL_REWARD = 100
 
--- Misiones diarias: una fácil, una media y una difícil. stat = contador de stats; reward = minutos
+-- Misiones diarias: una fácil, una media y una difícil. stat = contador de stats; reward = minutos.
+-- «fused» cuenta cada fusión («Fusionar todo» puede sumar muchas de golpe)
 Config.MissionPool = {
 	easy = { { stat = "piles", n = 40 }, { stat = "hatched", n = 5 } },
-	medium = { { stat = "piles", n = 200 }, { stat = "hatched", n = 25 }, { stat = "fused", n = 1 } },
-	hard = { { stat = "piles", n = 500 }, { stat = "hatched", n = 70 }, { stat = "fused", n = 4 } },
+	medium = { { stat = "piles", n = 200 }, { stat = "hatched", n = 25 }, { stat = "fused", n = 5 } },
+	hard = { { stat = "piles", n = 500 }, { stat = "hatched", n = 70 }, { stat = "fused", n = 25 } },
 }
 Config.MissionReward = { easy = { 5, 150 }, medium = { 15, 600 }, hard = { 30, 2_000 } }
-Config.MISSION_LUCK_MINUTES = 10 -- completar las 3 → suerte x2 durante 10 min
+Config.MISSION_LUCK_MINUTES = 10 -- completar las 3 → suerte x2 (Brillante) durante 10 min
 
 ---------------------------------------------------------------------
 -- Tienda (Robux). id = 0 → no se vende (sale «Próximamente»). price = precio recomendado
--- NO se venden huevos ni suerte: así no hay artículos aleatorios de pago.
+-- NO se venden huevos, suerte, piedras ni mejoras: así no hay artículos aleatorios de pago.
 ---------------------------------------------------------------------
 export type ShopItem = { key: string, id: number, emoji: string, price: number }
 Config.GamePasses = {
@@ -279,16 +344,30 @@ Config.Colors = {
 }
 
 ---------------------------------------------------------------------
--- Fórmulas (iguales en servidor y cliente)
+-- Fórmulas (iguales en servidor y cliente). data = partida (o el estado que recibe el cliente: lleva
+-- pets, equipped, upgrades, album, shinyIndex, albumClaimed, zones).
 -- bonuses = { x2, slots, hatch3, autoHatch, backpack: boolean, boost: boolean, luck: boolean,
 --             friends: number, premium: boolean }
 ---------------------------------------------------------------------
-function Config.petPower(kind: string, tier: number): number
+
+-- Suma de un efecto de las mejoras compradas (p. ej. "coins" → 0,75 si tiene Raíz Dorada y Lluvia de Oro)
+function Config.upgradeBonus(data: any, effect: string): number
+	local total = 0
+	local owned = data.upgrades or {}
+	for _, u in Config.Upgrades do
+		if owned[u.id] then
+			total += u.effects[effect] or 0
+		end
+	end
+	return total
+end
+
+function Config.petPower(kind: string, shiny: boolean?): number
 	local p = Config.PetById[kind]
 	if not p then
 		return 0
 	end
-	return p.power * (Config.TIER_MULT[tier] or 1)
+	return p.power * (if shiny then Config.SHINY_POWER else 1)
 end
 
 function Config.albumBonus(data: any): number
@@ -302,7 +381,7 @@ function Config.albumBonus(data: any): number
 end
 
 function Config.coinMult(data: any, bonuses: any): number
-	local m = 1 + Config.REBIRTH_BONUS * (data.rebirths or 0)
+	local m = 1 + Config.upgradeBonus(data, "coins")
 	m *= 1 + Config.albumBonus(data)
 	if bonuses.x2 then
 		m *= 2
@@ -318,34 +397,27 @@ function Config.coinMult(data: any, bonuses: any): number
 end
 
 function Config.slots(data: any, bonuses: any): number
-	local n = Config.SLOTS_BASE
-	for _, r in Config.SLOTS_REBIRTH do
-		if (data.rebirths or 0) >= r then
-			n += 1
-		end
-	end
-	if bonuses.slots then
-		n += Config.SLOTS_PASS
-	end
-	return n
+	return Config.SLOTS_BASE + Config.upgradeBonus(data, "slots") + (if bonuses.slots then Config.SLOTS_PASS else 0)
 end
 
 function Config.backpack(data: any, bonuses: any): number
-	return Config.BACKPACK_BASE + Config.BACKPACK_PER_REBIRTH * (data.rebirths or 0) + (if bonuses.backpack then Config.BACKPACK_PASS else 0)
+	return Config.BACKPACK_BASE + Config.upgradeBonus(data, "bag") + (if bonuses.backpack then Config.BACKPACK_PASS else 0)
 end
 
--- Isla que hay que tener abierta para el siguiente renacer
-function Config.rebirthZone(rebirths: number): number
-	return math.min(Config.REBIRTH_MIN_ZONE + rebirths, #Config.Zones)
+function Config.eggCost(zone: number, data: any): number
+	local z = Config.Zones[zone]
+	return math.floor(z.eggCost * (1 + Config.upgradeBonus(data, "egg")) + 0.5) -- redondeado (0,8 × 50 no debe dar 39)
 end
 
--- Monedas que cuesta el siguiente renacer
-function Config.rebirthCost(rebirths: number): number
-	local z = Config.Zones[Config.rebirthZone(rebirths)]
-	return math.floor(Config.REBIRTH_COST_MULT * z.doorCost * Config.REBIRTH_COST_GROWTH ^ rebirths)
+function Config.hatchCooldown(data: any): number
+	return math.max(0.3, Config.HATCH_COOLDOWN + Config.upgradeBonus(data, "hatch"))
 end
 
--- Suma de poder de las crías equipadas
+function Config.walkSpeed(data: any): number
+	return Config.WALK_SPEED + Config.upgradeBonus(data, "walk")
+end
+
+-- Suma de poder de las crías equipadas (con Brillante y mejoras de poder)
 function Config.teamPower(data: any): number
 	local byId = {}
 	for _, p in data.pets do
@@ -355,10 +427,10 @@ function Config.teamPower(data: any): number
 	for _, uid in data.equipped do
 		local p = byId[uid]
 		if p then
-			total += Config.petPower(p.kind, p.tier)
+			total += Config.petPower(p.kind, p.shiny)
 		end
 	end
-	return total
+	return total * (1 + Config.upgradeBonus(data, "power"))
 end
 
 -- Monedas por punto de vida de los montones de una isla
@@ -397,51 +469,126 @@ function Config.dailyReward(day: number, rate: number): number
 	return Config.minutesReward(d[1], d[2], rate)
 end
 
--- Probabilidades (en %) de cada cría de un huevo; con suerte las más raras pesan el doble
-function Config.eggOdds(zone: number, luck: boolean): { number }
-	local weights = {}
-	local total = 0
-	for i, r in Config.Rarities do
-		local w = r.weight
-		if luck and i >= Config.LUCK_FROM_INDEX then
-			w *= Config.LUCK_MULT
-		end
-		weights[i] = w
-		total += w
-	end
-	for i, w in weights do
-		weights[i] = w / total * 100
-	end
-	return weights
-end
-
--- Elige una cría del huevo de la isla. roll = número aleatorio en [0, 1)
-function Config.rollPet(zone: number, luck: boolean, roll: number): string
-	local odds = Config.eggOdds(zone, luck)
-	local acc = 0
-	local pets = Config.Zones[zone].pets
-	for i, pct in odds do
-		acc += pct / 100
-		if roll < acc then
-			return pets[i].id
+-- Especies que da el huevo de una isla (las de su rareza), en orden
+function Config.eggSpecies(zone: number): { Pet }
+	local z = Config.Zones[zone]
+	local list = {}
+	for _, p in Config.Pets do
+		if p.zone == zone and p.rarity == z.eggRarity then
+			table.insert(list, p)
 		end
 	end
-	return pets[#pets].id
+	return list
 end
 
--- Álbum: total de entradas y cuántas tiene el jugador
+-- Probabilidad (0–1) de que una apertura salga Brillante
+function Config.shinyChance(zone: number, data: any, bonuses: any): number
+	local z = Config.Zones[zone]
+	local luck = if bonuses and bonuses.luck then Config.LUCK_MULT else 1
+	return Config.SHINY_CHANCE * (z.shinyMult or 1) * luck * (1 + Config.upgradeBonus(data, "shiny"))
+end
+
+-- Probabilidades visibles del huevo (en %): cada especie y la de salir Brillante
+function Config.eggOdds(zone: number, data: any, bonuses: any): { species: { { kind: string, pct: number } }, shinyPct: number }
+	local species = {}
+	local list = Config.eggSpecies(zone)
+	for _, p in list do
+		table.insert(species, { kind = p.id, pct = 100 / #list })
+	end
+	return { species = species, shinyPct = Config.shinyChance(zone, data, bonuses) * 100 }
+end
+
+-- Elige una especie del huevo de la isla. roll = número aleatorio en [0, 1) (todas igual de probables)
+function Config.rollPet(zone: number, roll: number): string
+	local list = Config.eggSpecies(zone)
+	return list[math.clamp(math.floor(roll * #list) + 1, 1, #list)].id
+end
+
+-- ¿Sale Brillante? roll = número aleatorio en [0, 1)
+function Config.rollShiny(zone: number, data: any, bonuses: any, roll: number): boolean
+	return roll < Config.shinyChance(zone, data, bonuses)
+end
+
+-- La cría que sale al fusionar crías de esa isla y rareza (la única de la rareza siguiente), o nil
+function Config.fuseResult(zone: number, rarity: number): string?
+	if rarity >= Config.MYTHIC then
+		return nil
+	end
+	for _, p in Config.Pets do
+		if p.zone == zone and p.rarity == rarity + 1 then
+			return p.id
+		end
+	end
+	return nil
+end
+
+-- Nivel del momento al conseguir una cría: 3 = Brillante o Mítica, 2 = nueva en el Índice, 1 = repetida
+function Config.hatchLevel(h: any): number
+	if h.shiny or h.rarity == Config.MYTHIC then
+		return 3
+	elseif h.new then
+		return 2
+	end
+	return 1
+end
+
+-- Álbum (Índice): una entrada por cría (72). Las Brillantes se cuentan aparte (shinyIndex) para la puntuación
 function Config.albumTotal(): number
-	return #Config.Pets * (Config.MAX_TIER + 1)
-end
-function Config.albumKey(kind: string, tier: number): string
-	return kind .. ":" .. tier
+	return #Config.Pets
 end
 function Config.albumCount(data: any): number
 	local n = 0
-	for _ in data.album do
-		n += 1
+	for kind in data.album do
+		if Config.PetById[kind] then
+			n += 1
+		end
 	end
 	return n
+end
+
+-- Puntuación Brillante: suma de shinyPoints de cada cría DISTINTA que has tenido Brillante (no baja nunca)
+function Config.shinyScore(data: any): number
+	local n = 0
+	for kind in (data.shinyIndex or {}) do
+		local p = Config.PetById[kind]
+		if p then
+			n += Config.Rarities[p.rarity].shinyPoints
+		end
+	end
+	return n
+end
+
+-- Lo que pide la puerta de una isla: (cumple, "index"|"shiny", cuánto pide, cuánto tienes)
+function Config.zoneNeed(data: any, zone: number): (boolean, string, number, number)
+	local z = Config.Zones[zone]
+	if z.needShiny then
+		local have = Config.shinyScore(data)
+		return have >= z.needShiny, "shiny", z.needShiny, have
+	end
+	local need = z.needDiscovered or 0
+	local have = Config.albumCount(data)
+	return have >= need, "index", need, have
+end
+
+-- ¿Puede comprar esta mejora? (sí, clave del error si no, parámetros del error)
+function Config.canBuyUpgrade(data: any, id: string): (boolean, string?, { [string]: any }?)
+	local u = Config.UpgradeById[id]
+	if not u then
+		return false, nil, nil
+	end
+	local owned = data.upgrades or {}
+	if owned[id] then
+		return false, "n_upgrade_owned", nil
+	end
+	for _, r in u.req do
+		if not owned[r] then
+			return false, "n_need_upgrade", { upgrade = r }
+		end
+	end
+	if (data.stones or 0) < u.cost then
+		return false, "n_need_stones", { n = u.cost - (data.stones or 0) }
+	end
+	return true, nil, nil
 end
 
 return Config

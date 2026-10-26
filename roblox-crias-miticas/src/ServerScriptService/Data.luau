@@ -1,5 +1,6 @@
 --[[
 	Data: partida de cada jugador en DataStore.
+	DataStore MythicHatchlings_v2 (v1 tenía Dorada/Arcoíris y Renacer; el juego no estaba publicado: sin migración).
 	IMPORTANTE: en Studio sin publicar, GetDataStore da error → todo va en pcall y, si falla,
 	se juega sin guardar (canSave = false) en vez de romper el servidor.
 ]]
@@ -12,7 +13,7 @@ local Data = {}
 
 local store: DataStore? = nil
 pcall(function()
-	store = DataStoreService:GetDataStore("MythicHatchlings_v1")
+	store = DataStoreService:GetDataStore("MythicHatchlings_v2")
 end)
 
 function Data.newData(): any
@@ -20,21 +21,23 @@ function Data.newData(): any
 		coins = 0,
 		lifetimeCoins = 0,
 		zones = 1, -- islas abiertas (1 = solo la primera)
-		rebirths = 0,
-		pets = { { uid = 1, kind = Config.STARTER_PET, tier = 0 } }, -- { uid, kind, tier }
+		pets = { { uid = 1, kind = Config.STARTER_PET, shiny = false } }, -- { uid, kind, shiny }
 		equipped = { 1 }, -- uids de las crías equipadas
 		nextUid = 2,
-		album = { [Config.albumKey(Config.STARTER_PET, 0)] = true }, -- "cría:versión" = true
+		album = { [Config.STARTER_PET] = true }, -- cría descubierta = true (Índice)
+		shinyIndex = {}, -- cría que has tenido Brillante = true (puntuación Brillante; no baja nunca)
 		albumClaimed = {}, -- "índice del hito" = true
+		stones = 0, -- Piedras de Renacimiento (1 por Mítica creada)
+		upgrades = {}, -- id de mejora del Jardín = true
 		daily = { lastDay = 0, streak = 0 },
 		missions = { day = 0, list = {}, bonusGiven = false }, -- list = { { tier, stat, n, start, claimed } }
 		boosts = { coinsUntil = 0, luckUntil = 0 },
 		tutorialDone = false,
 		receipts = {}, -- purchaseId = hora (las últimas 50): compras idempotentes
-		stats = { piles = 0, hatched = 0, fused = 0, rebirths = 0 },
+		stats = { piles = 0, hatched = 0, fused = 0, mythics = 0, shinies = 0 },
 		settings = { lang = "", muted = false, auto = true },
 		lastOnline = 0,
-		version = 2,
+		version = 3,
 	}
 end
 

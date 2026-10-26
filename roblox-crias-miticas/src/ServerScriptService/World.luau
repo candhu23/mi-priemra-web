@@ -1,5 +1,5 @@
 --[[
-	World: el mapa (estilo «juego de mascotas»): UN terreno continuo dividido en 8 zonas cuadradas que se
+	World: el mapa (estilo «juego de mascotas»): UN terreno continuo dividido en 9 zonas cuadradas que se
 	encadenan en zigzag por una rejilla de 3×3. Cada zona tiene su suelo y su decoración low-poly, está rodeada
 	de acantilados de roca y se pasa a la siguiente por una PUERTA en la pared que las separa.
 	También fabrica los cristales (los «montones» que rompen las crías) con World.crystal.
@@ -19,7 +19,8 @@ World.CELL = 200 -- lado de cada zona (studs)
 World.TOP = 20 -- altura del suelo
 World.GATE = 28 -- ancho del hueco de cada puerta
 -- Casilla (columna, fila) de cada zona en la rejilla: un zigzag continuo
-World.GRID = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 2, 1 }, { 1, 1 }, { 0, 1 }, { 0, 2 }, { 1, 2 } }
+-- La 9 (Santuario Aurora) en (2,2): vecina de la 8 → la pared 8|9 sale con puerta; la 4|9, acantilado
+World.GRID = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 2, 1 }, { 1, 1 }, { 0, 1 }, { 0, 2 }, { 1, 2 }, { 2, 2 } }
 
 -- Aspecto de cada zona (mismo orden que Config.Zones)
 local THEMES = {
@@ -31,6 +32,7 @@ local THEMES = {
 	{ ground = Color3.fromRGB(235, 245, 255), mat = Enum.Material.Snow, rock = Color3.fromRGB(140, 160, 185), deco = "glacier" },
 	{ ground = Color3.fromRGB(250, 235, 250), mat = Enum.Material.SmoothPlastic, rock = Color3.fromRGB(200, 190, 230), deco = "clouds" },
 	{ ground = Color3.fromRGB(60, 50, 110), mat = Enum.Material.Slate, rock = Color3.fromRGB(40, 35, 75), deco = "cosmos" },
+	{ ground = Color3.fromRGB(40, 60, 80), mat = Enum.Material.Slate, rock = Color3.fromRGB(30, 40, 60), deco = "aurora" },
 }
 World.THEMES = THEMES
 
@@ -60,6 +62,7 @@ local ZONE_MATS: { { [string]: Color3 } } = {
 	{ leafsDark = Color3.fromRGB(70, 130, 110), stone = Color3.fromRGB(170, 200, 225), grass = Color3.fromRGB(240, 248, 255), leafsGreen = Color3.fromRGB(200, 230, 240) },
 	{ leafsGreen = Color3.fromRGB(255, 180, 220), grass = Color3.fromRGB(250, 220, 240), stone = Color3.fromRGB(230, 220, 245), colorRed = Color3.fromRGB(255, 150, 200) },
 	{ stone = Color3.fromRGB(90, 70, 150), dirt = Color3.fromRGB(70, 55, 120), grass = Color3.fromRGB(170, 120, 255), leafsGreen = Color3.fromRGB(150, 110, 240) },
+	{ stone = Color3.fromRGB(60, 90, 120), dirt = Color3.fromRGB(40, 60, 80), grass = Color3.fromRGB(90, 240, 200), leafsGreen = Color3.fromRGB(255, 130, 220), leafsDark = Color3.fromRGB(90, 200, 230) },
 }
 
 local function loadModels()
@@ -142,6 +145,11 @@ end
 
 export type ZoneInfo = { center: Vector3, egg: BasePart, door: BasePart?, spawn: CFrame, entry: Vector3?, exit: Vector3? }
 World.zones = {} :: { ZoneInfo }
+-- Altares de fusión: de momento solo el PUNTO (zona 1, junto a la aparición) para validar Config.FUSE_REACH.
+-- El altar de piedra visible y el del Jardín los pone la ronda 2b
+World.altars = {} :: { Vector3 }
+-- Pedestales del Jardín de Mejoras (id → posición). Vacío hasta la ronda 2b (Config.UPGRADE_NEEDS_PEDESTAL)
+World.pedestals = {} :: { [string]: Vector3 }
 
 ---------------------------------------------------------------------
 -- Piezas básicas
@@ -362,12 +370,14 @@ local DECO_MODELS: { [string]: { { any } } } = {
 	glacier = { { "Pino", 16, 26 }, { "PinoRedondo", 14, 22 }, { "ArbolCono", 12, 18 }, { "PiedraAlta", 6, 10 } },
 	clouds = { { "ArbolGordo", 10, 16 }, { "Arbusto", 3, 5 }, { "FlorRoja", 2, 3 }, { "FlorMorada", 2, 3 } },
 	cosmos = { { "PiedraAlta", 8, 16 }, { "PiedraAltaB", 8, 14 }, { "RocaAlta", 10, 18 } },
+	aurora = { { "Pino", 14, 22 }, { "ArbolCono", 12, 18 }, { "PiedraAlta", 8, 14 }, { "RocaAlta", 10, 16 } },
 }
 
 local function decorate(m: Instance, theme: string, pos: Vector3, rng: Random, big: boolean, rockColor: Color3, zone: number?)
 	local list = DECO_MODELS[theme]
 	-- Con modelos: casi todo es un modelo de verdad; algunas cosas especiales (lava, nubes, cristales) siguen con piezas
 	local special = (theme == "volcano" and rng:NextNumber() < 0.3) or (theme == "clouds" and rng:NextNumber() < 0.4) or (theme == "cosmos" and rng:NextNumber() < 0.35)
+		or (theme == "aurora" and rng:NextNumber() < 0.4)
 	if modelos and list and not special then
 		local pick = list[rng:NextInteger(1, #list)]
 		local placed = place(pick[1], m, pos, rng:NextNumber(pick[2], pick[3]), rng:NextNumber(0, 6.28), zone or 1, true)
@@ -390,6 +400,9 @@ local function decorate(m: Instance, theme: string, pos: Vector3, rng: Random, b
 		if r < 0.55 then pineTree(m, pos, rng, Color3.fromRGB(70, 130, 100), true) elseif r < 0.8 then iceSpike(m, pos, rng, Color3.fromRGB(170, 225, 255)) else rock(m, pos, rng, rockColor) end
 	elseif theme == "clouds" then
 		if r < 0.5 then cloud(m, pos, rng, false) elseif r < 0.75 then cloud(m, pos, rng, true) else iceSpike(m, pos, rng, Color3.fromRGB(255, 200, 240)) end
+	elseif theme == "aurora" then
+		-- Cristales de adorno turquesa/rosa (el aspecto bonito lo pule la ronda 2b)
+		if r < 0.5 then iceSpike(m, pos, rng, if rng:NextNumber() < 0.5 then Color3.fromRGB(90, 240, 200) else Color3.fromRGB(255, 120, 220), true) elseif r < 0.8 then pineTree(m, pos, rng, Color3.fromRGB(60, 150, 140), false) else rock(m, pos, rng, rockColor) end
 	else -- cosmos
 		if r < 0.45 then iceSpike(m, pos, rng, Color3.fromRGB(170, 120, 255), true) elseif r < 0.75 then rock(m, pos, rng, rockColor) else deco(ball(m, pos + Vector3.new(0, rng:NextNumber(20, 40), 0), rng:NextNumber(4, 10), Color3.fromRGB(120, 100, 200), Enum.Material.Slate)) end
 	end
@@ -512,7 +525,7 @@ function World.build(): Folder
 		deco(disc(m, eggBase + Vector3.new(0, 6.1, 0), 0.2, 12, Config.Colors.gold, Enum.Material.Neon)).Name = "Aro"
 		local egg = part(m, {
 			Name = "Huevo", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 9, 7), CFrame = CFrame.new(eggBase + Vector3.new(0, 10.5, 0)),
-			Color = zone.pets[1].color:Lerp(Color3.new(1, 1, 1), 0.55), Material = Enum.Material.SmoothPlastic,
+			Color = (Config.EggColors[zone.eggRarity] or Config.EggColors[1]).shell, Material = Enum.Material.SmoothPlastic, -- color de su rareza
 		})
 		egg:SetAttribute("Zone", i)
 		egg:AddTag("Egg")
@@ -589,6 +602,8 @@ function World.build(): Folder
 	spawn.Transparency = 0.5
 	spawn.Duration = 0
 	spawn.Parent = folder
+	-- Altar de fusión de la zona 1: ~16 studs de la aparición y lejos del huevo (también llega quien viaja a la isla 1)
+	World.altars = { World.zones[1].center + Vector3.new(-16, 0, 26) }
 
 	local piles = Instance.new("Folder")
 	piles.Name = "Montones"
@@ -609,6 +624,16 @@ function World.build(): Folder
 	cc.Contrast = 0.05
 	cc.Parent = Lighting
 	return folder
+end
+
+-- ¿Está esta posición junto a algún Altar de Fusión?
+function World.nearAltar(pos: Vector3): boolean
+	for _, a in World.altars do
+		if (Vector3.new(pos.X, a.Y, pos.Z) - a).Magnitude <= Config.FUSE_REACH then
+			return true
+		end
+	end
+	return false
 end
 
 -- Punto al azar para un cristal dentro de la zona (lejos de paredes, huevo y puertas)

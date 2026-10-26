@@ -27,7 +27,7 @@ function Kit.T(key: string, params: { [string]: any }?): string
 	return Lang.t(Kit.ctx.lang, key, params)
 end
 
-local SUFIJOS = { "", "K", "M", "B", "T", "Qa", "Qi" }
+local SUFIJOS = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp" } -- la zona 9 pasa de 1e18
 function Kit.fmtMoney(n: number): string
 	n = n or 0
 	if n < 10 and n ~= math.floor(n) then

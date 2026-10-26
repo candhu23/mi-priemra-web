@@ -21,8 +21,8 @@ roblox-crias-miticas/
 ├── src/ReplicatedStorage/Config.luau   # TODOS los números, tienda (id = 0 → no se vende), colores, fórmulas
 ├── src/ReplicatedStorage/Lang.luau     # Textos ES/EN. El servidor manda claves; el cliente traduce
 ├── src/ServerScriptService/Main.server.luau  # Remotes, sesiones, montones, acciones, compras, bucle 1 s, guardado
-├── src/ServerScriptService/Data.luau         # DataStore MythicHatchlings_v1 (todo en pcall; sin publicar → sin guardar)
-├── src/ServerScriptService/World.luau        # Mapa continuo: 8 zonas en zigzag (World.GRID 3×3, 200×200) con acantilados, puertas en las paredes,
+├── src/ServerScriptService/Data.luau         # DataStore MythicHatchlings_v2 (todo en pcall; sin publicar → sin guardar)
+├── src/ServerScriptService/World.luau        # Mapa continuo: 9 zonas (World.GRID 3×3 lleno, 200×200) con acantilados, puertas en las paredes,
 │                                             #   decoración por tema, huevo sobre pilar y World.crystal (aspecto de los cristales)
 ├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
@@ -37,15 +37,32 @@ roblox-crias-miticas/
   `(acción, a, b) → (ok, claveTexto?, params?)`), `State` (estado completo cada segundo y tras cada acción),
   `Notify` (`(tipo, claveTexto, params)`). Tipos especiales: `coins` (número flotante), `rare` (a todos con `FireAllClients`:
   `{uid,name,pet,rarity}`; el cliente lo ignora si `uid` es el suyo) y `gold` (toast dorado de 5 s).
-- Acciones: `target(pileId) setAuto(bool) hatch(isla, 1|3, auto) equip(uid) unequip(uid) equipBest fuse(cría, versión)
-  release(uid) unlockZone(isla) teleport(isla) rebirth claimDaily claimMission(i) claimAlbum(i) finishTutorial
-  setLang(""|"es"|"en") setMuted(bool)`. Límite 10/s; abrir huevo cada 0,9 s; huevo a ≤ 18 studs; montón a ≤ 70.
-- Datos: `coins lifetimeCoins zones rebirths pets[{uid,kind,tier}] equipped[uid] nextUid album{"cría:versión"}
-  albumClaimed{"i"} daily missions{day,list,bonusGiven} boosts{coinsUntil,luckUntil} tutorialDone receipts stats{piles,hatched,fused,rebirths}
-  settings{lang,muted,auto} lastOnline`. Añadir un campo a `Data.newData()` basta (reconcile **no** entra en listas).
-- `hatch` devuelve `{ hatched = { {kind, new, rarity, chance} } }`: la rareza y la probabilidad (`Config.eggOdds`, con suerte x2)
-  las pone el servidor; el cliente solo dibuja el momento (normal / Épica / Legendaria-Mítica, `Config.HATCH_*`). La más
-  rara del lote se anuncia al servidor si es ≥ `HATCH_BIG_FROM` (máx. 1 cada `RARE_ANNOUNCE_COOLDOWN` s; `Session.lastAnnounce`).
+- Acciones: `target(pileId) setAuto(bool) hatch(isla, 1|3, auto) equip(uid) unequip(uid) equipBest fuse(isla, rareza, brillante)
+  fuseAll release(uid) unlockZone(isla) teleport(isla) buyUpgrade(id) claimDaily claimMission(i) claimAlbum(i) finishTutorial
+  setLang(""|"es"|"en") setMuted(bool)`. Límite 10/s; abrir huevo cada `Config.hatchCooldown` (0,9 s; 0,7 con mejora);
+  huevo a ≤ 18 studs; montón a ≤ 70; fusionar a ≤ `FUSE_REACH` (20) de un altar si `FUSE_NEEDS_ALTAR` (`World.altars`:
+  de momento un punto junto a la aparición; el altar visible es de la ronda 2b). **Ya no existe `rebirth`.**
+- **Rarezas por fusión** (ficha `propuestas/2026-10-26-rarezas-arbol.md`): 8 rarezas (`Config.Rarities`, poder ×3, `fuseNeed`
+  5/5/5/5/5/3/3), 72 crías (`Config.Zones[i].pets` con `rarity`, `model`, `color`). Cada huevo da una rareza (`eggRarity`) y
+  1–6 especies al mismo %. `fuse`/`fuseAll`: misma isla + rareza + Brillante → la siguiente de esa isla (`Config.fuseResult`);
+  gasta primero las no equipadas y la especie con más copias; si gasta equipadas, `equipBest`. Crear una Mítica da
+  `stones += 1` en la misma fusión (+ aviso `n_stone` y `rare`/`n_mythic_made` a todos). `fuseAll` tope `FUSE_ALL_MAX`.
+- **Brillante**: `Config.shinyChance` (1 % × isla 9 ×2 × suerte ×2 × mejora ×1,5), ×2 de poder; `shinyIndex[kind]` y
+  `Config.shinyScore` (no baja). Puertas: `Config.zoneNeed` (`needDiscovered` o `needShiny` en la 9), sin monedas.
+- **Mejoras** (`Config.Upgrades`, 12, `effects`, `req`, `cost` en 🪨): `buyUpgrade` valida id, no comprada, requisitos y
+  piedras (`Config.canBuyUpgrade`); con `UPGRADE_NEEDS_PEDESTAL = true` (ronda 2b) también ≤ `UPGRADE_REACH` de `World.pedestals[id]`.
+  Efectos en fórmulas: `coinMult`, `teamPower`, `slots`, `backpack`, `eggCost`, `hatchCooldown`, `walkSpeed` (el servidor pone
+  `Humanoid.WalkSpeed` al entrar, al reaparecer y al comprar). Ventana temporal «🌳 Mejoras» en el menú (en el sitio de Renacer).
+- Datos (`MythicHatchlings_v2`, sin migración de v1): `coins lifetimeCoins zones pets[{uid,kind,shiny}] equipped[uid] nextUid
+  album{kind} shinyIndex{kind} albumClaimed{"i"} stones upgrades{id} daily missions{day,list,bonusGiven} boosts{coinsUntil,luckUntil}
+  tutorialDone receipts stats{piles,hatched,fused,mythics,shinies} settings{lang,muted,auto} lastOnline`. Añadir un campo a
+  `Data.newData()` basta (reconcile **no** entra en listas). leaderstats: `Coins` e `Index` (crías descubiertas).
+- Estado al cliente (además de lo de siempre): `stones upgrades shinyIndex shinyScore albumCount albumTotal
+  nextZone{zone,ok,kind,need,have} hatchCooldown walkSpeed nearAltar`.
+- `hatch` devuelve `{ hatched = { {kind, new, shiny, rarity, chance} } }` (`chance` = % de la especie o, si es Brillante, el % de
+  Brillante): lo decide el servidor (`Config.rollPet`, `Config.rollShiny`); el cliente solo dibuja el momento
+  (`Config.hatchLevel`: repetida / nueva en el Índice / Brillante o Mítica). Una Brillante se anuncia a todos (`n_shiny_hatch`,
+  máx. 1 cada `RARE_ANNOUNCE_COOLDOWN` s; `Session.lastAnnounce`).
 - **Modelos 3D**: `ReplicatedStorage.Modelos` (también vale ServerStorage; lo importa el usuario, `modelos/LEEME.md`) o `Config.MODELS_ASSET_ID` (InsertService).
   Cada modelo «Alias» tiene piezas «Alias__material»; `World.place` los escala, gira y pinta por material y zona (`MAT_COLORS`,
   `ZONE_MATS`). Sin modelos todo sale con piezas básicas. Pack (51): Kenney Nature Kit + 17 animales de
@@ -62,10 +79,9 @@ roblox-crias-miticas/
 - **Montón Dorado**: cada `GOLD_INTERVAL` s (`spawnGold` en el bucle) uno en la isla más alta abierta de cada jugador (sin
   repetir isla ni duplicar), atributo `Gold`, vida/monedas ×`GOLD_HP`/`GOLD_COINS`, no reaparece y caduca a los
   `GOLD_LIFETIME` s. Mismo reparto por daño. El cliente le pone la estrella `MarcaDorada` (Mundo3D).
-- Crías en 3D: el servidor pone en cada jugador los atributos `Pets` ("cría:versión,…") y `Target` (PileId); cada cliente
-  las dibuja (piezas locales, ancladas, sin colisión). Puertas: el cliente las abre localmente si ya pagó la isla; el
-  servidor no deja picar montones ni abrir huevos de islas no pagadas.
-- Versiones de cría: 0 normal, 1 Dorada (×3), 2 Arcoíris (×9). 5 iguales → la siguiente.
+- Crías en 3D: el servidor pone en cada jugador los atributos `Pets` ("cría:0|1,…", 1 = Brillante) y `Target` (PileId); cada cliente
+  las dibuja (piezas locales, ancladas, sin colisión). Puertas: el cliente las abre localmente si ya abrió la isla; el
+  servidor no deja picar montones ni abrir huevos de islas no abiertas.
 - Compras: `ProcessReceipt` idempotente (`receipts`) y solo confirma tras guardar.
 
 ## 4. Verificación (OBLIGATORIO antes de cada commit)
@@ -79,7 +95,7 @@ Trampas de Lune ya resueltas en `mock.luau`: `Position` de una pieza se lee/escr
 `GetChildren`/`GetDescendants` se envuelven; `MouseClick` es una señal. Lune no tiene `PivotTo`: el servidor mueve al
 jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox). `Clone()` en el mock quita el atributo `__hid` (si no, la copia se confundía con el original). **`CFrame.lookAt` de Lune sale girado al revés**:
 en el código del mundo se usa `facing()` con `CFrame.fromMatrix` (igual en Lune y en Roblox).
-En Lune `math` es de solo lectura: para forzar una rareza en `run_juego.luau` se envuelve `Config.rollPet` (tabla compartida;
+En Lune `math` es de solo lectura: para forzar una Brillante en `run_juego.luau` se envuelve `Config.rollShiny` (tabla compartida;
 las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTERVAL` dentro de la prueba. Leer una pieza
 **destruida** da error en Lune (en Roblox no): por eso el servidor quita el objetivo a todos al desaparecer un montón.
 
@@ -93,5 +109,8 @@ las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTE
 - [ ] Crías en 3D: el usuario las pondrá desde la Creator Store (elegido el 2026-10-26). Falta: carpeta de modelos y que
       Mundo3D los use en vez de bola + emoji.
 - [ ] Fase A pendiente (tras el mapa): HUD estilo Collect All Pets, Índice con tarjetas por rareza, imán de monedas.
-- [ ] Fase B: variantes Shiny/Metallic/Giant, insignias, estadísticas, árbol de mejoras con gemas, misiones encadenadas.
+- [ ] Ronda 2b: Jardín de Mejoras físico (12 pedestales, caminos, `UPGRADE_NEEDS_PEDESTAL = true`), Altar de Fusión visible
+      (zona 1 y Jardín) y su ProximityPrompt, zona 9 bonita, huevos 3D por rareza, animales Quaternius en `Mundo3D`.
+- [ ] Preguntas al usuario: ¿fusionar solo en el altar (hoy `FUSE_NEEDS_ALTAR = true`)? ¿1.ª piedra antes (bajar `eggCost` 6–8)?
+- [ ] Fase B: variantes Metallic/Giant, insignias, estadísticas, misiones encadenadas, «Soltar repetidas» (la mochila se llena de Míticas).
 - [ ] Ideas: intercambio entre jugadores (con cuidado con estafas), eventos con huevo especial, clasificación.

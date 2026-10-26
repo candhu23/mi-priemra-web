@@ -35,8 +35,8 @@ else
 fi
 "$BIN/lune" run "$ROOT/tools/harness/run_juego.luau" test.rbxl "$OUT/vista_movil" 844 390 > /dev/null 2>&1 || true
 
-echo "-- Ritmo de la economía (jugador bueno; compáralo con DISENO.md §5)"
-"$BIN/lune" run "$ROOT/tools/harness/ritmo.luau" "$SRC" 90 2> /dev/null | head -14 2> /dev/null || true
+echo "-- Ritmo de la economía (bot bueno, 3 partidas de 4 h; compáralo con DISENO.md §5. Medida completa: ritmo.luau src 300 10)"
+"$BIN/lune" run "$ROOT/tools/harness/ritmo.luau" "$SRC" 240 3 2> /dev/null | grep -v "árbol: " || true
 
 echo "== 5/6 Diseño: capturas y auditoría (PC y móvil; aproximado)"
 VER="$ROOT/../.claude/skills/disenar-interfaz/ver_interfaz.py"

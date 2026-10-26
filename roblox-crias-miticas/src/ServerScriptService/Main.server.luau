@@ -5,7 +5,7 @@
 	  State  (RemoteEvent): estado completo cada segundo y tras cada acción
 	  Notify (RemoteEvent): (tipo, claveTexto, params) — el cliente traduce con Lang
 	Mundo: World.luau. Montones (Workspace.Mundo.Montones): Parts con atributos PileId, Zone, Hp, MaxHp.
-	Crías visibles: cada jugador lleva los atributos «Pets» ("cría:versión,…") y «Target» (PileId); los
+	Crías visibles: cada jugador lleva los atributos «Pets» ("cría:0|1,…", 1 = Brillante) y «Target» (PileId); los
 	clientes las dibujan (no hay física de crías en el servidor).
 	Para añadir una acción: función en Actions + botón en el cliente + harness (run_juego.luau).
 ]]
@@ -299,27 +299,30 @@ local function unequip(data: any, uid: number)
 	end
 end
 
--- Atributos para que todos los clientes dibujen las crías de este jugador
+-- Atributos para que todos los clientes dibujen las crías de este jugador ("cría:0|1", 1 = Brillante)
 local function syncPets(player: Player, s: Session)
 	local parts = {}
 	for _, uid in s.data.equipped do
 		local p = petByUid(s.data, uid)
 		if p then
-			table.insert(parts, p.kind .. ":" .. p.tier)
+			table.insert(parts, p.kind .. ":" .. (if p.shiny then 1 else 0))
 		end
 	end
 	player:SetAttribute("Pets", table.concat(parts, ","))
 	player:SetAttribute("Target", s.target)
 end
 
-local function addPet(s: Session, kind: string, tier: number): (any, boolean)
+-- Añade una cría y la apunta en el Índice (y en el Índice Brillante). Devuelve (cría, nueva en el Índice)
+local function addPet(s: Session, kind: string, shiny: boolean): (any, boolean)
 	local d = s.data
-	local pet = { uid = d.nextUid, kind = kind, tier = tier }
+	local pet = { uid = d.nextUid, kind = kind, shiny = shiny }
 	d.nextUid += 1
 	table.insert(d.pets, pet)
-	local key = Config.albumKey(kind, tier)
-	local isNew = not d.album[key]
-	d.album[key] = true
+	local isNew = not d.album[kind]
+	d.album[kind] = true
+	if shiny then
+		d.shinyIndex[kind] = true
+	end
 	if #d.equipped < Config.slots(d, s.bonuses) then
 		table.insert(d.equipped, pet.uid)
 	end
@@ -327,16 +330,53 @@ local function addPet(s: Session, kind: string, tier: number): (any, boolean)
 	return pet, isNew
 end
 
+local function byPower(a: any, b: any): boolean
+	return Config.petPower(a.kind, a.shiny) > Config.petPower(b.kind, b.shiny)
+end
+
 local function equipBest(s: Session)
 	local d = s.data
 	local list = table.clone(d.pets)
-	table.sort(list, function(a, b)
-		return Config.petPower(a.kind, a.tier) > Config.petPower(b.kind, b.tier)
-	end)
+	table.sort(list, byPower)
 	d.equipped = {}
 	for i = 1, math.min(Config.slots(d, s.bonuses), #list) do
 		table.insert(d.equipped, list[i].uid)
 	end
+end
+
+-- Huecos nuevos (mejora o pase): se llenan con las mejores sin equipar, sin tocar lo que ya eligió el jugador
+local function fillSlots(s: Session)
+	local d = s.data
+	local free = {}
+	for _, p in d.pets do
+		if not table.find(d.equipped, p.uid) then
+			table.insert(free, p)
+		end
+	end
+	table.sort(free, byPower)
+	local i = 1
+	while #d.equipped < Config.slots(d, s.bonuses) and free[i] do
+		table.insert(d.equipped, free[i].uid)
+		i += 1
+	end
+end
+
+-- Velocidad al andar (mejora «Brote Veloz»): al entrar, al reaparecer y al comprarla
+local function applyWalk(player: Player, s: Session)
+	local character = player.Character
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = Config.walkSpeed(s.data)
+	end
+end
+
+-- ¿Está junto a un Altar de Fusión? (Config.FUSE_NEEDS_ALTAR = false → en cualquier sitio)
+local function atAltar(player: Player): boolean
+	if not Config.FUSE_NEEDS_ALTAR then
+		return true
+	end
+	local root = rootPart(player)
+	return root ~= nil and World.nearAltar(root.Position)
 end
 
 -- Misiones del día (una fácil, una media y una difícil), iguales todo el día para cada jugador
@@ -368,11 +408,16 @@ local function buildState(player: Player, s: Session): any
 		table.insert(missions, { tier = m.tier, stat = m.stat, n = m.n, progress = math.min(m.n, (d.stats[m.stat] or 0) - m.start), claimed = m.claimed })
 	end
 	local now = os.time()
+	-- Lo que pide la puerta siguiente (para el HUD, el menú Islas y el cartel)
+	local nextZone = nil
+	if d.zones < #Config.Zones then
+		local ok, kind, need, have = Config.zoneNeed(d, d.zones + 1)
+		nextZone = { zone = d.zones + 1, ok = ok, kind = kind, need = need, have = have }
+	end
 	return {
 		coins = d.coins,
 		lifetimeCoins = d.lifetimeCoins,
 		zones = d.zones,
-		rebirths = d.rebirths,
 		pets = d.pets,
 		equipped = d.equipped,
 		slots = Config.slots(d, s.bonuses),
@@ -381,10 +426,17 @@ local function buildState(player: Player, s: Session): any
 		coinMult = Config.coinMult(d, s.bonuses),
 		coinRate = rate(s),
 		album = d.album,
+		shinyIndex = d.shinyIndex,
 		albumClaimed = d.albumClaimed,
 		albumCount = Config.albumCount(d),
-		rebirthZone = Config.rebirthZone(d.rebirths),
-		rebirthCost = Config.rebirthCost(d.rebirths),
+		albumTotal = Config.albumTotal(),
+		shinyScore = Config.shinyScore(d),
+		stones = d.stones,
+		upgrades = d.upgrades,
+		nextZone = nextZone,
+		hatchCooldown = Config.hatchCooldown(d),
+		walkSpeed = Config.walkSpeed(d),
+		nearAltar = atAltar(player),
 		daily = { available = d.daily.lastDay < today(), streak = d.daily.streak },
 		missions = missions,
 		missionBonus = d.missions.bonusGiven,
@@ -423,11 +475,11 @@ local function isInt(v: any, lo: number, hi: number): boolean
 	return type(v) == "number" and v == math.floor(v) and v >= lo and v <= hi
 end
 
--- Aviso a todo el servidor si sale una Legendaria o Mítica (máx. uno cada RARE_ANNOUNCE_COOLDOWN s por jugador).
--- Va por claves: cada cliente traduce la cría y la rareza; quien la saca no lo ve (ya tiene su ventana)
-local function announceRare(player: Player, s: Session, kind: string)
+-- Aviso a todo el servidor si sale una Brillante o alguien crea una Mítica (máx. uno cada RARE_ANNOUNCE_COOLDOWN s
+-- por jugador). Va por claves: cada cliente traduce la cría y la rareza; quien la saca no lo ve (ya tiene su ventana)
+local function announceRare(player: Player, s: Session, textKey: string, kind: string)
 	local pet = Config.PetById[kind]
-	if not pet or pet.rarity < Config.HATCH_BIG_FROM then
+	if not pet then
 		return
 	end
 	local now = os.clock()
@@ -435,7 +487,7 @@ local function announceRare(player: Player, s: Session, kind: string)
 		return
 	end
 	s.lastAnnounce = now
-	notifyRemote:FireAllClients("rare", "n_rare_hatch", {
+	notifyRemote:FireAllClients("rare", textKey, {
 		uid = player.UserId, name = player.DisplayName, pet = kind, rarity = Config.Rarities[pet.rarity].id,
 	})
 end
@@ -480,7 +532,7 @@ function Actions.hatch(player: Player, s: Session, zone: any, count: any, auto: 
 		return false, "n_need_pass"
 	end
 	local now = os.clock()
-	if now - s.lastHatch < 0.9 then
+	if now - s.lastHatch < Config.hatchCooldown(d) then
 		return false
 	end
 	local root = rootPart(player)
@@ -491,28 +543,34 @@ function Actions.hatch(player: Player, s: Session, zone: any, count: any, auto: 
 	if #d.pets + count > Config.backpack(d, s.bonuses) then
 		return false, "n_backpack_full"
 	end
-	local cost = Config.Zones[zone].eggCost * count
+	local cost = Config.eggCost(zone, d) * count
 	if d.coins < cost then
 		return false, "n_no_money"
 	end
 	s.lastHatch = now
 	d.coins -= cost
 	local result = {}
-	-- La rareza y la probabilidad (con suerte x2 si la tiene) las decide el servidor: el cliente solo las dibuja
-	local odds = Config.eggOdds(zone, s.bonuses.luck)
-	local bestKind = ""
+	-- La especie y si sale Brillante (con suerte y mejoras) las decide el servidor: el cliente solo las dibuja
+	local odds = Config.eggOdds(zone, d, s.bonuses)
+	local shinyKind = ""
 	for _ = 1, count do
-		local kind = Config.rollPet(zone, s.bonuses.luck, rng:NextNumber())
-		local _pet, isNew = addPet(s, kind, 0)
-		local rarity = Config.PetById[kind].rarity
-		table.insert(result, { kind = kind, new = isNew, rarity = rarity, chance = odds[rarity] })
-		if bestKind == "" or rarity > Config.PetById[bestKind].rarity then
-			bestKind = kind
+		local kind = Config.rollPet(zone, rng:NextNumber())
+		local shiny = Config.rollShiny(zone, d, s.bonuses, rng:NextNumber())
+		local _pet, isNew = addPet(s, kind, shiny)
+		if shiny then
+			d.stats.shinies += 1
+			shinyKind = kind
 		end
+		table.insert(result, {
+			kind = kind, new = isNew, shiny = shiny, rarity = Config.PetById[kind].rarity,
+			chance = if shiny then odds.shinyPct else 100 / #odds.species,
+		})
 	end
 	d.stats.hatched += count
 	syncPets(player, s)
-	announceRare(player, s, bestKind) -- una sola vez por apertura: la más rara del lote
+	if shinyKind ~= "" then
+		announceRare(player, s, "n_shiny_hatch", shinyKind) -- una sola vez por apertura
+	end
 	return true, nil, { hatched = result }
 end
 
@@ -547,36 +605,138 @@ function Actions.equipBest(player: Player, s: Session)
 	return true
 end
 
--- Fusionar 5 crías iguales (misma cría y versión) → 1 de la versión siguiente
-function Actions.fuse(player: Player, s: Session, kind: any, tier: any)
+-- Una fusión de un grupo (isla, rareza, Brillante): gasta fuseNeed crías y crea la de la rareza siguiente de esa isla.
+-- Gasta primero las no equipadas y, entre ellas, la especie con más copias (te quedas con variedad).
+-- Devuelve nil si no hay bastantes; si crea una Mítica, da una Piedra de Renacimiento en la MISMA operación
+local function fuseGroup(s: Session, zone: number, rarity: number, shiny: boolean): any?
 	local d = s.data
-	if type(kind) ~= "string" or not Config.PetById[kind] or not isInt(tier, 0, Config.MAX_TIER - 1) then
+	local need = Config.Rarities[rarity].fuseNeed
+	local made = Config.fuseResult(zone, rarity)
+	if need <= 0 or not made then
+		return nil
+	end
+	local cand, copies = {}, {}
+	for _, p in d.pets do
+		local def = Config.PetById[p.kind]
+		if def and def.zone == zone and def.rarity == rarity and (p.shiny == true) == shiny then
+			table.insert(cand, p)
+			copies[p.kind] = (copies[p.kind] or 0) + 1
+		end
+	end
+	if #cand < need then
+		return nil
+	end
+	local isEq = {}
+	for _, uid in d.equipped do
+		isEq[uid] = true
+	end
+	table.sort(cand, function(a, b)
+		if (isEq[a.uid] == true) ~= (isEq[b.uid] == true) then
+			return not isEq[a.uid]
+		end
+		if copies[a.kind] ~= copies[b.kind] then
+			return copies[a.kind] > copies[b.kind]
+		end
+		return a.uid < b.uid
+	end)
+	local gone, usedEquipped = {}, false
+	for i = 1, need do
+		gone[cand[i].uid] = true
+		usedEquipped = usedEquipped or isEq[cand[i].uid] == true
+	end
+	local keep, keepEq = {}, {}
+	for _, p in d.pets do
+		if not gone[p.uid] then
+			table.insert(keep, p)
+		end
+	end
+	for _, uid in d.equipped do
+		if not gone[uid] then
+			table.insert(keepEq, uid)
+		end
+	end
+	d.pets, d.equipped = keep, keepEq
+	local _pet, isNew = addPet(s, made, shiny)
+	d.stats.fused += 1
+	local stone = rarity + 1 == Config.MYTHIC
+	if stone then
+		d.stones += 1
+		d.stats.mythics += 1
+	end
+	return { kind = made, shiny = shiny, new = isNew, rarity = rarity + 1, stone = stone, usedEquipped = usedEquipped }
+end
+
+-- Tras fusionar: si se gastó alguna equipada, se equipa lo mejor; aviso de piedra y al servidor si hubo Mítica
+local function afterFuse(player: Player, s: Session, usedEquipped: boolean, mythicKind: string?)
+	if usedEquipped then
+		equipBest(s)
+	end
+	syncPets(player, s)
+	if mythicKind then
+		notify(player, "success", "n_stone")
+		announceRare(player, s, "n_mythic_made", mythicKind)
+	end
+end
+
+-- Fusionar un grupo: zone = isla, rarity = rareza (1–7), shiny = si son Brillantes
+function Actions.fuse(player: Player, s: Session, zone: any, rarity: any, shiny: any)
+	if not isInt(zone, 1, #Config.Zones) or not isInt(rarity, 1, Config.MYTHIC - 1) or type(shiny) ~= "boolean" then
 		return false
 	end
-	-- Primero las no equipadas
-	local chosen = {}
-	for pass = 1, 2 do
+	if not atAltar(player) then
+		return false, "n_go_altar"
+	end
+	local r = fuseGroup(s, zone, rarity, shiny)
+	if not r then
+		return false, "n_fuse_need", { n = Config.Rarities[rarity].fuseNeed }
+	end
+	afterFuse(player, s, r.usedEquipped, if r.stone then r.kind else nil)
+	return true, "n_fused", { made = { { kind = r.kind, shiny = r.shiny, new = r.new, rarity = r.rarity } }, stones = if r.stone then 1 else 0 }
+end
+
+-- «Fusionar todo»: repite fusiones de abajo arriba (lo nuevo se puede volver a fusionar en la misma pulsación),
+-- en todas las islas, normales y Brillantes por separado. Máx. Config.FUSE_ALL_MAX por pulsación
+function Actions.fuseAll(player: Player, s: Session)
+	if not atAltar(player) then
+		return false, "n_go_altar"
+	end
+	local d = s.data
+	local before = Config.teamPower(d)
+	local count, stones, usedEquipped = 0, 0, false
+	local made, mythicKind = {}, nil
+	while count < Config.FUSE_ALL_MAX do
+		-- El grupo listo de rareza más baja
+		local groups, best = {}, nil
 		for _, p in d.pets do
-			if #chosen < Config.FUSE_COUNT and p.kind == kind and p.tier == tier then
-				local equipped = table.find(d.equipped, p.uid) ~= nil
-				if (pass == 1 and not equipped) or (pass == 2 and equipped) then
-					table.insert(chosen, p.uid)
+			local def = Config.PetById[p.kind]
+			if def and Config.Rarities[def.rarity].fuseNeed > 0 then
+				local key = def.zone .. ":" .. def.rarity .. ":" .. tostring(p.shiny == true)
+				groups[key] = (groups[key] or 0) + 1
+				if groups[key] == Config.Rarities[def.rarity].fuseNeed and (best == nil or def.rarity < best.rarity) then
+					best = { zone = def.zone, rarity = def.rarity, shiny = p.shiny == true }
 				end
 			end
 		end
+		local r = best and fuseGroup(s, best.zone, best.rarity, best.shiny)
+		if not r then
+			break
+		end
+		count += 1
+		usedEquipped = usedEquipped or r.usedEquipped
+		if r.stone then
+			stones += 1
+			mythicKind = r.kind
+		end
+		-- Para el resumen: solo las nuevas en el Índice, las Míticas y las Brillantes (máx. 6)
+		if (r.new or r.stone or r.shiny) and #made < 6 then
+			table.insert(made, { kind = r.kind, shiny = r.shiny, new = r.new, rarity = r.rarity })
+		end
 	end
-	if #chosen < Config.FUSE_COUNT then
-		return false, "n_fuse_need"
+	if count == 0 then
+		return false, "n_fuse_none"
 	end
-	for _, uid in chosen do
-		local _p, i = petByUid(d, uid)
-		table.remove(d.pets, i)
-		unequip(d, uid)
-	end
-	local _pet, isNew = addPet(s, kind, tier + 1)
-	d.stats.fused += 1
-	syncPets(player, s)
-	return true, "n_fused", { kind = kind, tier = tier + 1, new = isNew }
+	afterFuse(player, s, usedEquipped, mythicKind)
+	return true, if count == 1 then "n_fused" else "n_fuse_all", { count = count, stones = stones, made = made, before = before, after = Config.teamPower(d) }
 end
 
 -- Soltar una cría (para hacer sitio en la mochila). Nunca la última.
@@ -599,16 +759,16 @@ function Actions.release(player: Player, s: Session, uid: any)
 	return true
 end
 
+-- Abrir la isla siguiente: no cuesta monedas; pide crías descubiertas (zonas 2–8) o puntuación Brillante (zona 9)
 function Actions.unlockZone(_player: Player, s: Session, zone: any)
 	local d = s.data
 	if not isInt(zone, 2, #Config.Zones) or zone ~= d.zones + 1 then
 		return false
 	end
-	local cost = Config.Zones[zone].doorCost
-	if d.coins < cost then
-		return false, "n_no_money"
+	local ok, kind, need, have = Config.zoneNeed(d, zone)
+	if not ok then
+		return false, if kind == "shiny" then "n_need_shiny" else "n_need_index", { n = need, have = have }
 	end
-	d.coins -= cost
 	d.zones = zone
 	s.dirty = true
 	return true, "n_zone_open", { zone = zone }
@@ -627,31 +787,30 @@ function Actions.teleport(player: Player, s: Session, zone: any)
 	return true
 end
 
-function Actions.rebirth(player: Player, s: Session)
+-- Comprar una mejora del Jardín con piedras (una vez cada una, con sus requisitos)
+function Actions.buyUpgrade(player: Player, s: Session, id: any)
 	local d = s.data
-	if d.zones < Config.rebirthZone(d.rebirths) then
-		return false, "n_rebirth_need"
+	if type(id) ~= "string" or not Config.UpgradeById[id] then
+		return false
 	end
-	local cost = Config.rebirthCost(d.rebirths)
-	if d.coins < cost then
-		return false, "n_no_money"
+	local ok, textKey, params = Config.canBuyUpgrade(d, id)
+	if not ok then
+		return false, textKey, params
 	end
-	d.coins = 0
-	d.zones = 1
-	d.rebirths += 1
-	d.stats.rebirths += 1
-	s.target = 0
+	if Config.UPGRADE_NEEDS_PEDESTAL then
+		local root = rootPart(player)
+		local pos = World.pedestals[id]
+		if not (root and pos and (root.Position - pos).Magnitude <= Config.UPGRADE_REACH) then
+			return false, "n_go_pedestal"
+		end
+	end
+	d.stones -= Config.UpgradeById[id].cost
+	d.upgrades[id] = true
 	s.dirty = true
-	local root = rootPart(player)
-	if root then
-		root.CFrame = World.zones[1].spawn
-	end
-	local stats = player:FindFirstChild("leaderstats")
-	local value = stats and stats:FindFirstChild("Rebirths")
-	if value and value:IsA("IntValue") then
-		value.Value = d.rebirths
-	end
-	return true, "n_rebirth", { n = d.rebirths }
+	fillSlots(s)
+	applyWalk(player, s)
+	syncPets(player, s)
+	return true, "n_upgrade", { upgrade = id }
 end
 
 function Actions.claimDaily(_player: Player, s: Session)
@@ -832,12 +991,19 @@ local function onPlayerAdded(player: Player)
 	coins.Name = "Coins"
 	coins.Value = math.floor(data.coins)
 	coins.Parent = stats
-	local rebirths = Instance.new("IntValue")
-	rebirths.Name = "Rebirths"
-	rebirths.Value = data.rebirths
-	rebirths.Parent = stats
+	local index = Instance.new("IntValue")
+	index.Name = "Index"
+	index.Value = Config.albumCount(data)
+	index.Parent = stats
 	stats.Parent = player
 	syncPets(player, s)
+	applyWalk(player, s)
+	player.CharacterAdded:Connect(function(character: Model)
+		local hum = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
+		if hum and hum:IsA("Humanoid") and sessions[player] == s then
+			hum.WalkSpeed = Config.walkSpeed(s.data)
+		end
+	end)
 
 	-- Ganancias mientras no estaba
 	if data.lastOnline > 0 then
@@ -895,6 +1061,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Playe
 		if p.id ~= 0 and p.id == passId then
 			(s.bonuses :: any)[p.key] = true
 			notify(player, "success", "n_purchase")
+			fillSlots(s)
 			syncPets(player, s)
 			sendState(player)
 		end
@@ -1017,6 +1184,10 @@ while true do
 		local coins = stats and stats:FindFirstChild("Coins")
 		if coins and coins:IsA("NumberValue") then
 			coins.Value = math.floor(d.coins)
+		end
+		local index = stats and stats:FindFirstChild("Index")
+		if index and index:IsA("IntValue") then
+			index.Value = Config.albumCount(d)
 		end
 		sendState(player)
 	end
