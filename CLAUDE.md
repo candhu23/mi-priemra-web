@@ -11,8 +11,10 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
 |---|---|---|---|
 | **Web Empire Tycoon** (3D, publicado) | `roblox-imperio-web/` | `claude/roblox-game-h5olkl` | Este archivo, §1–§13 |
 | **AeroCarga España** (2D, sin publicar) | `roblox-carga-aerea/` | `claude/zealous-dirac-ejfljx` | **`roblox-carga-aerea/CLAUDE.md`** + §2 y §11 de este archivo |
+| **Crías Míticas** (3D, coleccionar mascotas, sin publicar) | `roblox-crias-miticas/` | `claude/confident-johnson-v5zy5f` | **`roblox-crias-miticas/CLAUDE.md`** + §2 y §11 de este archivo |
 
-- Si el usuario habla de aviones, carga aérea, España, mapa o «el juego nuevo» → es **AeroCarga España**.
+- Si el usuario habla de aviones, carga aérea, España, mapa → es **AeroCarga España**.
+- Si habla de mascotas, crías, huevos o «el juego tipo Collect All Pets» → es **Crías Míticas**.
 - Si la carpeta del juego no existe en tu rama (p. ej. empezaste en `main`), cámbiate a su rama:
   `git fetch origin <rama> && git checkout <rama>`. Trabaja y sube siempre en la rama de ese juego
   (salvo que el sistema te asigne otra rama; entonces usa esa y díselo al usuario).

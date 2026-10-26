@@ -4,7 +4,9 @@
 
 1. Descarga el lugar: `https://github.com/candhu23/mi-priemra-web/raw/claude/confident-johnson-v5zy5f/roblox-crias-miticas/MythicHatchlings.rbxl`
 2. Ábrelo con doble clic (se abre Roblox Studio).
-3. Pulsa **Play** (▶ arriba). Toca el botón verde para ganar dinero y compra negocios a la derecha.
+3. Pulsa **Play** (▶ arriba). Tus crías te siguen y rompen solas los montones de monedas cercanos (botón
+   «🎯 Auto»), o toca un montón para mandarlas. Camina hasta el huevo grande (aro dorado) y pulsa «Abrir».
+   En «🐾 Crías» equipas las mejores y fusionas 5 iguales. Los puentes tienen una puerta: ahí abres la isla siguiente.
 4. Sin publicar, el juego avisa de que **no guarda**: es normal.
 
 ## Publicarlo por primera vez

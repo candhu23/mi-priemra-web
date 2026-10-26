@@ -5,7 +5,8 @@ Juego creado con la plantilla `.claude/skills/nuevo-juego`. Lee también el `CLA
 
 ## 1. Estado
 
-- **Versión: 0.1** (`Config.VERSION`; súbela en cada versión). **No publicado.**
+- **Versión: 0.3** (`Config.VERSION`; súbela en cada versión). **No publicado.** Juego tipo «coleccionar mascotas»
+  (idea de *Collect All Pets*, con nombres, arte y textos originales).
 - Nombre en inglés: *Mythic Hatchlings*. Rama de trabajo: `claude/confident-johnson-v5zy5f`.
 - Descarga del lugar: `https://github.com/candhu23/mi-priemra-web/raw/claude/confident-johnson-v5zy5f/roblox-crias-miticas/MythicHatchlings.rbxl`
 - Diseño del juego (qué es, bucle, economía, tienda): **`DISENO.md`** (rellénalo con la skill `disenar-juego`).
@@ -19,11 +20,13 @@ roblox-crias-miticas/
 ├── DISENO.md                   # Documento de diseño
 ├── src/ReplicatedStorage/Config.luau   # TODOS los números, tienda (id = 0 → no se vende), colores, fórmulas
 ├── src/ReplicatedStorage/Lang.luau     # Textos ES/EN. El servidor manda claves; el cliente traduce
-├── src/ServerScriptService/Main.server.luau  # Remotes, sesiones, acciones, compras, bucle 1 s, guardado
+├── src/ServerScriptService/Main.server.luau  # Remotes, sesiones, montones, acciones, compras, bucle 1 s, guardado
 ├── src/ServerScriptService/Data.luau         # DataStore MythicHatchlings_v1 (todo en pcall; sin publicar → sin guardar)
-├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz
+├── src/ServerScriptService/World.luau        # 8 islas flotantes en fila (X), puentes con puerta, huevos, decoración
+├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
-└── tools/  setup.sh · check.sh · harness/ (mock.luau, run_juego.luau, volcado.luau, check_lang.py)
+├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías de todos los jugadores, carteles de huevos/puertas, «+🪙» flotante
+└── tools/  setup.sh · check.sh · harness/ (mock, run_juego, ritmo, vista_mundo, volcado, check_lang.py)
 ```
 
 ## 3. Arquitectura
@@ -31,19 +34,36 @@ roblox-crias-miticas/
 - **El servidor manda.** Remotes en `ReplicatedStorage.MythicHatchlingsRemotes`: `Action` (RemoteFunction,
   `(acción, a, b) → (ok, claveTexto?, params?)`), `State` (estado completo cada segundo y tras cada acción),
   `Notify` (`(tipo, claveTexto, params)`).
-- Acciones: `click buy(id) upgradeClick claimDaily setLang(""|"es"|"en") setMuted(bool)`. Límite 10/s (clic 15/s).
-- Datos: `money lifetimeEarned generators{} clickLevel daily{lastDay,streak} receipts{} stats settings lastOnline`.
-  Añadir un campo a `Data.newData()` basta: las partidas viejas lo reciben solas.
+- Acciones: `target(pileId) setAuto(bool) hatch(isla, 1|3, auto) equip(uid) unequip(uid) equipBest fuse(cría, versión)
+  release(uid) unlockZone(isla) teleport(isla) rebirth claimDaily claimMission(i) claimAlbum(i) finishTutorial
+  setLang(""|"es"|"en") setMuted(bool)`. Límite 10/s; abrir huevo cada 0,9 s; huevo a ≤ 18 studs; montón a ≤ 70.
+- Datos: `coins lifetimeCoins zones rebirths pets[{uid,kind,tier}] equipped[uid] nextUid album{"cría:versión"}
+  albumClaimed{"i"} daily missions{day,list,bonusGiven} boosts{coinsUntil,luckUntil} tutorialDone receipts stats{piles,hatched,fused,rebirths}
+  settings{lang,muted,auto} lastOnline`. Añadir un campo a `Data.newData()` basta (reconcile **no** entra en listas).
+- Montones (`Workspace.Mundo.Montones`): los crea el servidor (14 por isla, reaparecen a los 6 s). Se eligen tocándolos
+  (ClickDetector) o en modo Auto (el más cercano a ≤ 45). Cada segundo restan el poder del equipo; al romperse las monedas
+  se reparten según el daño de cada jugador.
+- Crías en 3D: el servidor pone en cada jugador los atributos `Pets` ("cría:versión,…") y `Target` (PileId); cada cliente
+  las dibuja (piezas locales, ancladas, sin colisión). Puertas: el cliente las abre localmente si ya pagó la isla; el
+  servidor no deja picar montones ni abrir huevos de islas no pagadas.
+- Versiones de cría: 0 normal, 1 Dorada (×3), 2 Arcoíris (×9). 5 iguales → la siguiente.
 - Compras: `ProcessReceipt` idempotente (`receipts`) y solo confirma tras guardar.
 
 ## 4. Verificación (OBLIGATORIO antes de cada commit)
 
 `roblox-crias-miticas/tools/check.sh` → compila, analiza tipos (0 avisos), textos ES/EN, juego completo con bot
 (guardar/cargar, sin DataStore, inglés), capturas + auditoría de diseño (PC y móvil) y construye `MythicHatchlings.rbxl`.
-**Si añades una acción, añádela a `run_juego.luau`.**
+**Si añades una acción, añádela a `run_juego.luau`.** Ver el mundo 3D: `lune run tools/harness/vista_mundo.luau
+tools/out/test.rbxl tools/out/mundo.rbxlx` + `vista3d.py` (skill `roblox-3d-vista`).
+
+Trampas de Lune ya resueltas en `mock.luau`: `Position` de una pieza se lee/escribe vía `CFrame`; las listas que devuelven
+`GetChildren`/`GetDescendants` se envuelven; `MouseClick` es una señal. Lune no tiene `PivotTo`: el servidor mueve al
+jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox).
 
 ## 5. Pendiente
 
-- [ ] Rellenar `DISENO.md` y cambiar el tema (negocios, textos, colores) con la skill `disenar-juego`.
+- [ ] Que el usuario lo pruebe en Studio (Play) y mande capturas: crías siguiendo, montones, huevo, puertas.
 - [ ] Primera publicación en Studio (Publish to Roblox As… → experiencia NUEVA) y poner IDs en `juegos.json`.
-- [ ] Crear pases/productos (`roblox-nube`) e iconos (`arte-roblox`).
+- [ ] Crear pases/productos (`roblox-nube`) e iconos (`arte-roblox`). Pases: x2, slots, hatch3, autoHatch, backpack.
+- [ ] Arte: crías como mallas low-poly (`roblox-3d-mallas`) en vez de bola + emoji; islas más vistosas.
+- [ ] Ideas: intercambio entre jugadores (con cuidado con estafas), eventos con huevo especial, clasificación.

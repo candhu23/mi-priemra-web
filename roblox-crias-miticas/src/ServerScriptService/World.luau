@@ -82,8 +82,10 @@ function World.build(): Folder
 		disc(isle, eggPos + Vector3.new(0, 1, 0), 2, 16, Config.Colors.panelDark, Enum.Material.Marble)
 		local egg = part(isle, {
 			Name = "Huevo", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 9, 7), CFrame = CFrame.new(eggPos + Vector3.new(0, 6.5, 0)),
-			Color = zone.pets[1].color, Material = Enum.Material.SmoothPlastic,
+			Color = zone.pets[1].color:Lerp(Color3.new(1, 1, 1), 0.55), Material = Enum.Material.SmoothPlastic,
 		})
+		-- Aro brillante para encontrar el huevo de lejos
+		disc(isle, eggPos + Vector3.new(0, 2.1, 0), 0.2, 18, Config.Colors.gold, Enum.Material.Neon).Name = "Aro"
 		egg:SetAttribute("Zone", i)
 		egg:AddTag("Egg")
 
@@ -92,7 +94,7 @@ function World.build(): Folder
 			local a = n / 9 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
 			local d = rng:NextNumber(World.RADIUS - 10, World.RADIUS - 4)
 			local pos = center + Vector3.new(math.cos(a) * d, 0, math.sin(a) * d)
-			if math.abs(math.sin(a)) > 0.25 then -- no tapar los puentes (eje X)
+			if math.abs(math.sin(a)) > 0.25 and (pos - eggPos).Magnitude > 22 then -- no tapar puentes ni huevo
 				if n % 3 == 0 then
 					rock(isle, pos, rng)
 				else

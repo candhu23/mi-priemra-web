@@ -122,7 +122,7 @@ do
 		Parent = root, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 10), Size = UDim2.fromOffset(300, 70),
 		BackgroundColor3 = C.panel, BorderSizePixel = 0,
 	}, { Kit.corner(18), Kit.stroke(C.panelDark, 3) })
-	hudCoins = Kit.title(hud, "🪙 0", 34, C.goldDark, {
+	hudCoins = Kit.title(hud, "🪙 0", 34, C.orangeDark, {
 		Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 38), TextXAlignment = Enum.TextXAlignment.Center,
 	})
 	Kit.fit(hudCoins, 34)
@@ -153,10 +153,10 @@ end
 local dots: { [string]: Frame } = {}
 do
 	local dock = create("Frame", {
-		Parent = root, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 20), Size = UDim2.fromOffset(160, 300),
+		Parent = root, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 24), Size = UDim2.fromOffset(180, 350),
 		BackgroundTransparency = 1,
 	}, {
-		create("UIGridLayout", { CellSize = UDim2.fromOffset(76, 68), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }),
+		create("UIGridLayout", { CellSize = UDim2.fromOffset(86, 80), CellPadding = UDim2.fromOffset(8, 6), SortOrder = Enum.SortOrder.LayoutOrder }),
 	})
 	local items = {
 		{ "pets", "🐾", "orange" }, { "album", "📖", "blue" }, { "missions", "🎯", "green" }, { "daily", "🎁", "gold" },
@@ -165,17 +165,17 @@ do
 	for i, it in items do
 		local id = it[1]
 		local holder = create("Frame", { Parent = dock, BackgroundTransparency = 1, LayoutOrder = i })
-		local b = Kit.button(holder, it[2], it[3], UDim2.new(1, 0, 1, -18), function()
+		local b = Kit.button(holder, it[2], it[3], UDim2.new(1, 0, 1, -20), function()
 			openWindow(id)
 		end)
 		b.Name = "Menu_" .. id
 		Kit.fit(b, 30)
-		local label = Kit.title(holder, "", 15, C.white, {
-			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0), Size = UDim2.new(1, 8, 0, 18),
+		local label = Kit.title(holder, "", 17, C.white, {
+			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 2), Size = UDim2.new(1, 8, 0, 20),
 			TextXAlignment = Enum.TextXAlignment.Center,
 		})
 		Kit.textStroke(2).Parent = label
-		Kit.fit(label, 15)
+		Kit.fit(label, 17)
 		label.Name = "Etiqueta_" .. id
 		dots[id] = create("Frame", {
 			Parent = holder, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(18, 18),
@@ -213,6 +213,7 @@ local eggPanel: Frame
 local doorPanel: Frame
 local updateContext: () -> ()
 local autoHatchOn = false
+local hatching = false -- la animación de apertura tapa el panel del huevo
 do
 	eggPanel = create("Frame", {
 		Parent = root, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.fromOffset(480, 206),
@@ -232,9 +233,9 @@ do
 			stroke.Thickness = 3
 		end
 		local emoji = Kit.label(card, "", 30, nil, nil, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 38), TextXAlignment = Enum.TextXAlignment.Center })
-		local pct = Kit.title(card, "", 15, C.ink, { Position = UDim2.fromOffset(0, 44), Size = UDim2.new(1, 0, 0, 20), TextXAlignment = Enum.TextXAlignment.Center })
-		Kit.fit(pct, 15)
-		local seen = Kit.label(card, "", 14, C.greenDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Center })
+		local pct = Kit.title(card, "", 17, C.ink, { Position = UDim2.fromOffset(0, 44), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center })
+		Kit.fit(pct, 17)
+		local seen = Kit.label(card, "", 16, C.greenDark, Kit.FONT_BOLD, { Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Center })
 		oddsCards[i] = { emoji = emoji, pct = pct, seen = seen }
 	end
 	local buttons = create("Frame", {
@@ -295,8 +296,8 @@ do
 		end
 		local egg = Mundo3D.near.egg
 		local door = Mundo3D.near.door
-		eggPanel.Visible = egg > 0
-		doorPanel.Visible = door > 0 and egg == 0
+		eggPanel.Visible = egg > 0 and not hatching
+		doorPanel.Visible = door > 0 and egg == 0 and not hatching
 		if egg > 0 then
 			local z = Config.Zones[egg]
 			eggTitle.Text = "🥚 " .. T("egg_title", { zone = T("zone_" .. z.id) }) .. (if s.luckLeft > 0 then "  🍀x2" else "")
@@ -359,9 +360,12 @@ do
 	})
 	Kit.textStroke(2).Parent = hint
 	local token = 0
-	overlay.Activated:Connect(function()
+	local function hide()
 		overlay.Visible = false
-	end)
+		hatching = false
+		updateContext()
+	end
+	overlay.Activated:Connect(hide)
 
 	function showHatch(list: { any })
 		token += 1
@@ -373,6 +377,8 @@ do
 		end
 		hint.Text = T("tap_continue")
 		overlay.Visible = true
+		hatching = true
+		updateContext()
 		local cards = {}
 		for i, h in list do
 			local card = Kit.card(row, { Size = UDim2.fromOffset(200, 250), LayoutOrder = i, ZIndex = 32 })
@@ -399,13 +405,15 @@ do
 					Position = UDim2.fromOffset(0, 140), Size = UDim2.new(1, 0, 0, 28), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
 				})
 				Kit.fit(name, 22)
-				Kit.title(c.card, T("rar_" .. rarity.id), 20, rarity.color, {
-					Position = UDim2.fromOffset(0, 172), Size = UDim2.new(1, 0, 0, 24), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
+				local pill = Kit.title(c.card, T("rar_" .. rarity.id), 20, C.ink, {
+					AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 174), Size = UDim2.fromOffset(150, 30),
+					TextXAlignment = Enum.TextXAlignment.Center, BackgroundColor3 = rarity.color, BackgroundTransparency = 0, ZIndex = 33,
 				})
+				Kit.corner(10).Parent = pill
 				if c.h.new then
 					local tag = Kit.title(c.card, T("new"), 20, C.white, {
 						AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(110, 30),
-						TextXAlignment = Enum.TextXAlignment.Center, BackgroundColor3 = C.red, BackgroundTransparency = 0, ZIndex = 34,
+						TextXAlignment = Enum.TextXAlignment.Center, BackgroundColor3 = C.redDark, BackgroundTransparency = 0, ZIndex = 34,
 					})
 					Kit.corner(10).Parent = tag
 				end
@@ -413,7 +421,7 @@ do
 		end)
 		task.delay(2.4, function()
 			if my == token then
-				overlay.Visible = false
+				hide()
 			end
 		end)
 	end
@@ -559,7 +567,7 @@ do
 				Position = UDim2.fromOffset(80, 8), Size = UDim2.new(1, -90, 0, 28), ZIndex = 13,
 			})
 			Kit.fit(name, 22)
-			local sub = Kit.label(card, T("rar_" .. rarity.id) .. " · ⚔️ " .. T("power", { value = Kit.fmt(Config.petPower(sel.kind, sel.tier)) }) .. " · " .. T("pet_have", { n = counts[sel.kind .. ":" .. sel.tier] or 0 }), 16, rarity.color, Kit.FONT_BOLD, {
+			local sub = Kit.label(card, "● " .. T("rar_" .. rarity.id) .. " · ⚔️ " .. T("power", { value = Kit.fmt(Config.petPower(sel.kind, sel.tier)) }) .. " · " .. T("pet_have", { n = counts[sel.kind .. ":" .. sel.tier] or 0 }), 16, C.ink, Kit.FONT_BOLD, {
 				Position = UDim2.fromOffset(80, 38), Size = UDim2.new(1, -90, 0, 22), ZIndex = 13,
 			})
 			Kit.fit(sub, 16)
@@ -647,10 +655,10 @@ do
 		for i, m in Config.AlbumMilestones do
 			local claimed = s.albumClaimed[tostring(i)] == true
 			local holder = create("Frame", { Parent = g, BackgroundTransparency = 1, LayoutOrder = i, ZIndex = 13 })
-			local t = Kit.title(holder, m.pct .. " % → +" .. math.floor(m.bonus * 100) .. " %", 15, C.ink, {
+			local t = Kit.title(holder, m.pct .. " % → +" .. math.floor(m.bonus * 100) .. " %", 17, C.ink, {
 				Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 13,
 			})
-			Kit.fit(t, 15)
+			Kit.fit(t, 17)
 			local b = Kit.button(holder, if claimed then T("claimed") else T("claim"), "green", UDim2.new(1, 0, 0, 60), function()
 				send("claimAlbum", i)
 			end, { Position = UDim2.fromOffset(0, 26), ZIndex = 13 })
@@ -833,7 +841,7 @@ do
 			closeWindow()
 		end, { LayoutOrder = 3, ZIndex = 13 })
 		b3.ZIndex = 14
-		line("v" .. s.version, 14, C.muted, 9)
+		line("v" .. s.version, 16, C.muted, 9)
 	end
 end
 
@@ -904,7 +912,7 @@ do
 			step = 4
 		end
 		tutorial.step = step
-		banner.Visible = step > 0 and step <= 5 and not shade.Visible
+		banner.Visible = step > 0 and step <= 5 and not shade.Visible and not hatching
 		if banner.Visible then
 			text.Text = T("tut_" .. step)
 			Kit.setButton(nextButton, if step == 5 then T("tut_done") elseif step <= 3 then T("tut_skip") else T("tut_next"), true)

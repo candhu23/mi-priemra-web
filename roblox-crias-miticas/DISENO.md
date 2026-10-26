@@ -1,6 +1,7 @@
 # Diseño de «Crías Míticas» (Mythic Hatchlings)
 
-> Documento vivo. Estado: **BORRADOR, pendiente de aprobación del usuario**. No se programa hasta que lo apruebe.
+> Documento vivo. Estado: **APROBADO** (el usuario eligió «todo de golpe» = fases 1 y 2, y NO vender huevos ni suerte).
+> Programado en la v0.3. Los números reales están en `src/ReplicatedStorage/Config.luau`.
 > Inspiración: la *idea* de «Collect All Pets» (coleccionar mascotas que recogen por ti). Nombres, arte,
 > textos y sonidos **originales**: no se copia nada del juego original.
 
@@ -42,16 +43,18 @@ Cada cría tiene **Poder** (daño por segundo a los montones). Montones con más
 Tutorial de 5 pasos, se puede saltar, premio al final.
 
 ## 5. Economía (objetivos de ritmo; se MEDIRÁN con el bot, no a ojo)
-| Hito | Objetivo (jugador normal) |
-|---|---|
-| 1.er huevo | < 60 s |
-| 1.ª Dorada | ~ 10 min |
-| Isla 2 | ~ 8 min |
-| Isla 3 | ~ 25 min |
-| Isla 4 / 1.er renacer | ~ 60–90 min |
-| Isla 8 | varios días (con renacimientos) |
-| Álbum 100 % | semanas |
-- Precios de huevo e isla crecen ~×6–8 por isla; vida/monedas de montones ×5–6 por isla.
+| Hito | Objetivo (jugador normal) | Medido con el bot (v0.3) | Estimado persona (×2) |
+|---|---|---|---|
+| 1.er huevo | < 60 s | 0:32 | ~1 min |
+| 1.ª Dorada | ~ 10 min | 1:10–2:00 | ~3–4 min |
+| Isla 2 | ~ 8 min | 3:00–4:40 | ~6–9 min |
+| Isla 3 | ~ 25 min | 9–13 min | ~20–26 min |
+| Isla 4 / 1.er renacer | ~ 60–90 min | 27–37 / 31–41 min | ~60–80 min |
+| Isla 8 | varios días (con renacimientos) | > 7 h | días |
+| Álbum 100 % | semanas | 40 % a los 90 min | semanas (Arcoíris de Míticas) |
+El bot sale distinto cada vez (las rarezas son al azar): por eso hay rangos. Se mide con `tools/harness/ritmo.luau`.
+- Por isla: vida de montones ×7, monedas ×9, huevo ×8, poder de crías ×6, puerta ×23 (base 1.800).
+- Renacer: isla 4 (+1 por renacer, máx. 8) **y** monedas = 2 × puerta de esa isla × 4^renacimientos (si no, se renacía en cadena).
 - Premios (diaria, misiones, productos) en «minutos de monedas» con un mínimo fijo (escalan solos).
 
 ## 6. Tienda (Robux) — todo con `id = 0` hasta que se cree en Roblox
