@@ -183,6 +183,67 @@ assert(named(gui, "Tutorial").Visible, "el tutorial no sale al empezar")
 assert(#mundo:FindFirstChild("Montones"):GetChildren() == Config.PILES_PER_ZONE * #Config.Zones, "faltan montones")
 dump(W, gui, "00_inicio")
 
+-- Cristales distintos por isla: colores de su paleta (varios en la misma isla) y tamaño según el tipo
+local function nearPalette(c: any, palette: { any }): boolean
+	for _, q in palette do
+		-- el color es uno de la paleta aclarado hacia blanco como mucho un 15 %
+		local okC = true
+		for _, ch in { "R", "G", "B" } do
+			local d = c[ch] - q[ch]
+			if d < -0.01 or d > 0.15 * (1 - q[ch]) + 0.01 then
+				okC = false
+			end
+		end
+		if okC then
+			return true
+		end
+	end
+	return false
+end
+local zonesWithVariety = 0
+for zi = 1, #Config.Zones do
+	local colors, sizes = {}, { coins = {}, chest = {}, crystal = {} }
+	for _, p in mundo:FindFirstChild("Montones"):GetChildren() do
+		if p:GetAttribute("Zone") == zi and p:GetAttribute("Gold") ~= true then
+			assert(nearPalette(p.Color, Config.Zones[zi].crystalColors), "un cristal de la isla " .. zi .. " no es de su paleta")
+			colors[string.format("%.2f,%.2f,%.2f", p.Color.R, p.Color.G, p.Color.B)] = true
+			table.insert(sizes[p:GetAttribute("Kind")], p.Size.Y)
+		end
+	end
+	local nColors = 0
+	for _ in colors do
+		nColors += 1
+	end
+	assert(nColors >= 3, "en la isla " .. zi .. " casi todos los cristales son del mismo color")
+	local function avg(t: { number }): number?
+		if #t == 0 then
+			return nil
+		end
+		local sum = 0
+		for _, v in t do
+			sum += v
+		end
+		return sum / #t
+	end
+	local a1, a2, a3 = avg(sizes.coins), avg(sizes.chest), avg(sizes.crystal)
+	assert(not (a1 and a2) or a1 < a2, "en la isla " .. zi .. " el cristal mediano no es mayor que el pequeño")
+	assert(not (a2 and a3) or a2 < a3, "en la isla " .. zi .. " el cristal grande no es mayor que el mediano")
+	if a1 and a2 and a3 then
+		zonesWithVariety += 1
+	end
+end
+assert(zonesWithVariety >= 2, "no hay 2 islas con los 3 tamaños de cristal")
+-- Cada isla rinde claramente más por segundo (monedas por punto de vida ×2–3 frente a la anterior)
+for zi = 2, #Config.Zones do
+	local r = Config.coinsPerHp(zi) / Config.coinsPerHp(zi - 1)
+	assert(r >= 2 and r <= 3, string.format("la isla %d rinde ×%.2f por segundo frente a la anterior (debe ser ×2–3)", zi, r))
+end
+-- Cartel de la puerta: «Cristales ×N monedas» (traducido)
+local Lang0 = W.require(W.wrap(W.game:GetService("ReplicatedStorage"):FindFirstChild("Lang")))
+local cartel = string.gsub(Lang0.es.door_crystals, "{value}", "2.5")
+assert(hasText(mundo, cartel), "la puerta de la isla 2 no dice cuánto rinden sus cristales (" .. cartel .. ")")
+print(string.format("  cristales: colores de su paleta y 3 tamaños (%d islas con los 3), isla 2 rinde ×%.1f/s, cartel: OK", zonesWithVariety, Config.zoneCrystalMult(2)))
+
 -- Tocar un montón (ClickDetector) y dejar que las crías trabajen solas (Auto)
 local pile = nil
 for _, p in mundo:FindFirstChild("Montones"):GetChildren() do
@@ -197,8 +258,36 @@ assert(W.realOf[W.player]:GetAttribute("Target") == pile:GetAttribute("PileId"),
 local ok = W.callbacks.Action(W.player, "target", pile:GetAttribute("PileId"))
 assert(ok, "la acción target falla")
 assert(not W.callbacks.Action(W.player, "target", 99999), "target acepta un montón que no existe")
+local firedCoins = #W.fired
 for _ = 1, 60 do
 	frame(W)
+end
+-- Cada «+🪙» dice cuánto vale frente al premio típico de la isla (para dibujarlo más grande)
+local avisos = noticesTo(W, W.player, firedCoins, "coins", "n_coins")
+assert(#avisos > 0, "romper cristales no avisa de las monedas")
+for _, n in avisos do
+	assert(type(n.rel) == "number" and n.rel > 0, "el aviso de monedas no trae «rel»")
+end
+-- El cliente lo dibuja más grande cuanto más vale
+do
+	local notifyR = W.game:GetService("ReplicatedStorage"):FindFirstChild("MythicHatchlingsRemotes"):FindFirstChild("Notify")
+	local locales = W.game:GetService("Workspace"):FindFirstChild("CriasLocales")
+	W.signalFor(W.idOf(notifyR), "OnClientEvent"):Fire("coins", "n_coins", { value = 5, rel = 0.4, x = 1001, y = 0, z = 0 })
+	W.signalFor(W.idOf(notifyR), "OnClientEvent"):Fire("coins", "n_coins", { value = 500, rel = 15, x = 2002, y = 0, z = 0 })
+	local small, big = nil, nil
+	for _, a0 in locales:GetChildren() do
+		local bb = a0:FindFirstChildOfClass("BillboardGui")
+		if bb and a0:IsA("BasePart") then
+			local x = math.floor(a0.CFrame.Position.X + 0.5)
+			if x == 1001 then
+				small = bb.Size.Y.Offset
+			elseif x == 2002 then
+				big = bb.Size.Y.Offset
+			end
+		end
+	end
+	assert(small and big and big > small * 1.5, string.format("el «+🪙» de un premio grande no sale más grande (%s / %s)", tostring(small), tostring(big)))
+	print(string.format("  «+🪙» flotante: %d avisos con rel; tamaño %d → %d px según lo que vale: OK", #avisos, small, big))
 end
 s = lastState(W)
 assert(s.coins > 0, "las crías no dan monedas")
@@ -714,7 +803,7 @@ do
 	for _, alias in aliases do
 		local mm = R.Instance.new("Model")
 		mm.Name = alias
-		for i, mat in { "stone", "leafsGreen" } do
+		for i, mat in (if string.sub(alias, 1, 7) == "Cristal" then { "crystal", "crystal" } else { "stone", "leafsGreen" }) do
 			local p = R.Instance.new("Part")
 			p.Name = alias .. "__" .. mat
 			p.Size = R.Vector3.new(2, 1 + i, 2)
@@ -733,6 +822,28 @@ do
 		assert(p:FindFirstChildOfClass("ClickDetector"), "el cristal con modelo no se puede tocar")
 		assert(type(p:GetAttribute("Radius")) == "number", "el cristal no dice a qué distancia lo rodean las crías")
 	end
+	-- Con modelos también: color de la paleta de su isla y el grande más alto que el pequeño
+	local col5, hi5 = {}, { coins = 0, crystal = 0 }
+	local lo5 = { coins = math.huge, crystal = math.huge }
+	for _, p in piles5 do
+		local zi = p:GetAttribute("Zone")
+		local kind = p:GetAttribute("Kind")
+		local cp = p:FindFirstChildOfClass("Model"):FindFirstChildWhichIsA("BasePart", true)
+		if zi == 2 and p:GetAttribute("Gold") ~= true then
+			assert(cp and nearPalette(cp.Color, Config.Zones[2].crystalColors), "con modelos, un cristal de la isla 2 no es de su paleta")
+			col5[string.format("%.2f,%.2f,%.2f", cp.Color.R, cp.Color.G, cp.Color.B)] = true
+		end
+		if kind == "coins" or kind == "crystal" then
+			hi5[kind] = math.max(hi5[kind], p.Size.Y)
+			lo5[kind] = math.min(lo5[kind], p.Size.Y)
+		end
+	end
+	local n5 = 0
+	for _ in col5 do
+		n5 += 1
+	end
+	assert(n5 >= 3, "con modelos, los cristales de la isla 2 son casi todos del mismo color")
+	assert(lo5.crystal > hi5.coins, "con modelos, el cristal grande no es más alto que el pequeño")
 	local placed = 0
 	for _, d in mundo5:FindFirstChild("Isla1"):GetChildren() do
 		if d:IsA("Model") and table.find(aliases, d.Name) then

@@ -51,7 +51,10 @@ roblox-crias-miticas/
   `ZONE_MATS`). Sin modelos todo sale con piezas básicas. El bot prueba los dos casos (modelos falsos en ServerStorage).
 - Montones = **cristales** (el usuario probó rocas y prefirió cristales, 2026-10-26). `Workspace.Mundo.Montones`, aspecto en
   `World.crystal`: con modelos, racimos «Cristal1/Cristal2/CristalGrande» (generados en `construir_pack.py`) dentro de una caja
-  invisible; sin modelos, cristales de piezas con punta y sin base. Atributo `Radius` para las crías: los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
+  invisible; sin modelos, cristales de piezas con punta y sin base. Color: uno de `Config.Zones[i].crystalColors` (paleta de la
+  isla); tamaño: `Config.PileKinds[k].size` ± `PILE_SIZE_JITTER` (dorado: `GOLD_SIZE`). El aviso `coins` lleva `rel` (premio frente
+  a `Config.pileTypicalCoins(isla)`) y el «+🪙» crece con él (`Config.FLOAT_TEXT`); la puerta dice «Cristales ×N» (`Config.zoneCrystalMult`).
+  Atributo `Radius` para las crías: los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
   (ClickDetector) o en modo Auto (el más cercano a ≤ 45). Cada segundo restan el poder del equipo; al romperse las monedas
   se reparten según el daño de cada jugador. Al desaparecer un montón se quita el objetivo a todos los que lo picaban.
 - **Montón Dorado**: cada `GOLD_INTERVAL` s (`spawnGold` en el bucle) uno en la isla más alta abierta de cada jugador (sin

@@ -57,7 +57,25 @@ El bot sale distinto cada vez (las rarezas son al azar): por eso hay rangos. Se 
   mediana de 60 partidas del bot, sin → con: isla 2 3:55 → 4:00, isla 3 11:38 → 11:04 (−5 %), isla 4 30:09 → 27:53 (−7,5 %),
   1.er renacer 35:58 → 33:21 (−7 %). Supone que el bot rompe todos (cota alta).
 - **Gran momento** al abrir: Épica = momento mediano; Legendaria/Mítica = destello, su probabilidad real y aviso al servidor (máx. 1 cada 10 s por jugador).
-- Por isla: vida de montones ×7, monedas ×9, huevo ×8, poder de crías ×6, puerta ×23 (base 1.800).
+- Por isla: vida de cristales ×7, monedas ×17,5, huevo ×8, poder de crías ×6, puerta ×45 (base 1.800).
+  → con el mismo equipo, cada isla rinde **×2,5 monedas por segundo** (antes ×9/×7 = ×1,29: no se notaba). La puerta de
+  cada isla lo dice: «💎 Cristales ×N monedas» (N = monedas por punto de vida frente a la isla 1: ×2,5, ×6,2, ×15…).
+- **Cristales distintos por isla** (2026-10-26): cada isla tiene su paleta (`Config.Zones[i].crystalColors`, 4 colores) y cada
+  tipo su tamaño (`Config.PileKinds[k].size`: pequeño 1 / mediano 1,3 / grande 1,65, ±12 %). El «+🪙» sale más grande cuanto
+  más vale frente al premio típico de la isla (`Config.FLOAT_TEXT`).
+- Ritmo antes → después de ese cambio (mediana del bot, 24 partidas antes / 30 después, `ritmo.luau`; entre paréntesis mín–máx).
+  La puerta pasó de ×23 a ×45 para que el ritmo de las primeras islas no cambie (se probó ×23: isla 4 en 12 min; ×40: 24 min; ×50: 33 min):
+
+| Hito | Antes (monedas ×9, puerta ×23) | Después (monedas ×17,5, puerta ×45) |
+|---|---|---|
+| Isla 2 | 3:56 (3:00–4:59) | 3:33 (2:02–5:14) |
+| Isla 3 | 10:48 (6:31–12:56) | 10:28 (7:18–14:12) |
+| Isla 4 | 27:08 (15:41–34:19) | 26:48 (18:27–32:55) |
+| 1.er renacer | 32:44 (21:28–41:57) | 28:36 (19:39–35:20) |
+| Isla 5 (tras renacer) | 51:38 | 49:32 |
+| Isla 7 (1 partida de 7 h) | 6:22 h | 5:32 h |
+  Ojo: los huevos siguen ×8 por isla y el dinero ahora sube ×15 por isla con las crías nuevas → en islas altas los huevos
+  salen relativamente más baratos (por eso el final va algo más rápido). Si se nota, subir `ZONE_GROWTH.eggCost`.
 - Renacer: isla 4 (+1 por renacer, máx. 8) **y** monedas = 2 × puerta de esa isla × 4^renacimientos (si no, se renacía en cadena).
 - Premios (diaria, misiones, productos) en «minutos de monedas» con un mínimo fijo (escalan solos).
 

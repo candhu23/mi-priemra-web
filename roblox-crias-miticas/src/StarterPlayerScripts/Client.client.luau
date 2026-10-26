@@ -1188,7 +1188,7 @@ end)
 
 notifyRemote.OnClientEvent:Connect(function(kind: string, textKey: string, params: any)
 	if kind == "coins" and params then
-		Mundo3D.floatText(Vector3.new(params.x or 0, params.y or 0, params.z or 0), "+" .. coins(params.value or 0))
+		Mundo3D.floatText(Vector3.new(params.x or 0, params.y or 0, params.z or 0), "+" .. coins(params.value or 0), nil, tonumber(params.rel))
 		return
 	end
 	if kind == "rare" then

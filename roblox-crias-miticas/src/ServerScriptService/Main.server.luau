@@ -210,10 +210,12 @@ local function breakPile(pile: Pile)
 	for player, dmg in pile.hits do
 		local s = sessions[player]
 		if s and total > 0 then
-			local reward = pile.coins * (dmg / total) * Config.coinMult(s.data, s.bonuses)
+			local share = pile.coins * (dmg / total)
+			local reward = share * Config.coinMult(s.data, s.bonuses)
 			earn(s, reward)
 			s.data.stats.piles += 1
-			notify(player, "coins", "n_coins", { value = reward, x = pos.X, y = pos.Y, z = pos.Z })
+			-- rel: lo que vale frente al premio típico de la isla (el cliente hace el «+🪙» más grande)
+			notify(player, "coins", "n_coins", { value = reward, rel = share / Config.pileTypicalCoins(pile.zone), x = pos.X, y = pos.Y, z = pos.Z })
 		end
 	end
 	clearTarget(pile.id)

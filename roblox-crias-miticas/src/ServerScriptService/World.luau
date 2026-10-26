@@ -23,14 +23,14 @@ World.GRID = { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 2, 1 }, { 1, 1 }, { 0, 1 }, { 0, 
 
 -- Aspecto de cada zona (mismo orden que Config.Zones)
 local THEMES = {
-	{ ground = Color3.fromRGB(110, 200, 90), mat = Enum.Material.Grass, rock = Color3.fromRGB(90, 95, 105), crystal = Color3.fromRGB(120, 220, 255), deco = "meadow" },
-	{ ground = Color3.fromRGB(95, 150, 110), mat = Enum.Material.Grass, rock = Color3.fromRGB(80, 70, 100), crystal = Color3.fromRGB(190, 110, 255), deco = "mushroom" },
-	{ ground = Color3.fromRGB(240, 220, 160), mat = Enum.Material.Sand, rock = Color3.fromRGB(170, 150, 120), crystal = Color3.fromRGB(255, 120, 200), deco = "beach" },
-	{ ground = Color3.fromRGB(235, 190, 110), mat = Enum.Material.Sand, rock = Color3.fromRGB(190, 120, 70), crystal = Color3.fromRGB(255, 220, 80), deco = "desert" },
-	{ ground = Color3.fromRGB(80, 70, 70), mat = Enum.Material.Basalt, rock = Color3.fromRGB(55, 45, 45), crystal = Color3.fromRGB(255, 90, 60), deco = "volcano" },
-	{ ground = Color3.fromRGB(235, 245, 255), mat = Enum.Material.Snow, rock = Color3.fromRGB(140, 160, 185), crystal = Color3.fromRGB(150, 230, 255), deco = "glacier" },
-	{ ground = Color3.fromRGB(250, 235, 250), mat = Enum.Material.SmoothPlastic, rock = Color3.fromRGB(200, 190, 230), crystal = Color3.fromRGB(255, 170, 230), deco = "clouds" },
-	{ ground = Color3.fromRGB(60, 50, 110), mat = Enum.Material.Slate, rock = Color3.fromRGB(40, 35, 75), crystal = Color3.fromRGB(170, 120, 255), deco = "cosmos" },
+	{ ground = Color3.fromRGB(110, 200, 90), mat = Enum.Material.Grass, rock = Color3.fromRGB(90, 95, 105), deco = "meadow" },
+	{ ground = Color3.fromRGB(95, 150, 110), mat = Enum.Material.Grass, rock = Color3.fromRGB(80, 70, 100), deco = "mushroom" },
+	{ ground = Color3.fromRGB(240, 220, 160), mat = Enum.Material.Sand, rock = Color3.fromRGB(170, 150, 120), deco = "beach" },
+	{ ground = Color3.fromRGB(235, 190, 110), mat = Enum.Material.Sand, rock = Color3.fromRGB(190, 120, 70), deco = "desert" },
+	{ ground = Color3.fromRGB(80, 70, 70), mat = Enum.Material.Basalt, rock = Color3.fromRGB(55, 45, 45), deco = "volcano" },
+	{ ground = Color3.fromRGB(235, 245, 255), mat = Enum.Material.Snow, rock = Color3.fromRGB(140, 160, 185), deco = "glacier" },
+	{ ground = Color3.fromRGB(250, 235, 250), mat = Enum.Material.SmoothPlastic, rock = Color3.fromRGB(200, 190, 230), deco = "clouds" },
+	{ ground = Color3.fromRGB(60, 50, 110), mat = Enum.Material.Slate, rock = Color3.fromRGB(40, 35, 75), deco = "cosmos" },
 }
 World.THEMES = THEMES
 
@@ -651,16 +651,26 @@ end
 -- ClickDetector y los atributos (el racimo va dentro); sin modelos, un racimo de piezas con punta y sin base.
 -- kind: "coins" | "chest" | "crystal" | "gold". Atributo Radius: a qué distancia lo rodean las crías.
 function World.crystal(kind: string, zone: number, pos: Vector3, rng: Random): Part
-	local theme = THEMES[zone] or THEMES[1]
 	local yaw = rng:NextNumber(0, 6.28)
+	-- Color: uno de la paleta de la isla (Config.Zones[i].crystalColors), con un toque al azar hacia blanco
+	local palette = (Config.Zones[zone] or Config.Zones[1]).crystalColors
 	local color = if kind == "gold" then Config.Colors.gold
-		elseif kind == "crystal" then Color3.fromRGB(255, 70, 90)
-		elseif kind == "chest" then Color3.fromRGB(110, 230, 120)
-		else theme.crystal
+		else palette[rng:NextInteger(1, #palette)]:Lerp(Color3.new(1, 1, 1), rng:NextNumber(0, 0.15))
+	-- Tamaño: el del tipo (Config.PileKinds[k].size) ± un poco al azar; el dorado aparte
+	local size = Config.GOLD_SIZE
+	if kind ~= "gold" then
+		size = 1
+		for _, k in Config.PileKinds do
+			if k.id == kind then
+				size = k.size
+			end
+		end
+		size *= 1 + rng:NextNumber(-Config.PILE_SIZE_JITTER, Config.PILE_SIZE_JITTER)
+	end
 	local material = if kind == "gold" then Enum.Material.Neon else Enum.Material.Glass
 	if modelos then
 		local alias = if kind == "coins" then ({ "Cristal1", "Cristal2" })[rng:NextInteger(1, 2)] elseif kind == "chest" then "Cristal2" else "CristalGrande"
-		local height = if kind == "gold" then 11 elseif kind == "crystal" then 9 elseif kind == "chest" then 7.5 else 6
+		local height = if kind == "gold" then 11 else 6 * size -- el pequeño mide 6 studs; el dorado, como antes
 		local hit = Instance.new("Part")
 		hit.Name = "Monton"
 		hit.Anchored = true
@@ -684,7 +694,7 @@ function World.crystal(kind: string, zone: number, pos: Vector3, rng: Random): P
 		hit:Destroy()
 	end
 	-- Sin modelos: cristal central con punta + 2–3 pequeños inclinados hacia fuera
-	local scale = if kind == "gold" then 1.7 elseif kind == "crystal" then 1.4 elseif kind == "chest" then 1.15 else 1
+	local scale = size
 	local base = CFrame.new(pos) * CFrame.Angles(0, yaw, 0)
 	local main = crystalPiece(Instance.new("Folder"), base * CFrame.Angles(rng:NextNumber(-0.08, 0.08), 0, rng:NextNumber(-0.08, 0.08)), 1.8 * scale, 4.2 * scale, color, material)
 	main.Name = "Monton"

@@ -44,9 +44,12 @@ Config.MAX_TIER = 2
 export type Zone = {
 	id: string, doorCost: number, pileHp: number, pileCoins: number, eggCost: number, petBase: number,
 	grass: Color3, dirt: Color3, pets: { { id: string, emoji: string, color: Color3 } },
+	crystalColors: { Color3 }, -- colores de los cristales de la isla (cada cristal elige uno: variedad)
 }
 Config.Zones = ({
-	{ id = "meadow", grass = Color3.fromRGB(110, 205, 95), dirt = Color3.fromRGB(150, 105, 70), pets = {
+	{ id = "meadow", grass = Color3.fromRGB(110, 205, 95), dirt = Color3.fromRGB(150, 105, 70), crystalColors = {
+		Color3.fromRGB(120, 220, 255), Color3.fromRGB(140, 240, 120), Color3.fromRGB(255, 180, 110), Color3.fromRGB(255, 150, 200),
+	}, pets = {
 		{ id = "sprouty", emoji = "🌱", color = Color3.fromRGB(120, 210, 100) },
 		{ id = "bunbun", emoji = "🐰", color = Color3.fromRGB(240, 235, 225) },
 		{ id = "ladybop", emoji = "🐞", color = Color3.fromRGB(230, 60, 60) },
@@ -55,7 +58,9 @@ Config.Zones = ({
 		{ id = "cloverfawn", emoji = "🦌", color = Color3.fromRGB(200, 150, 90) },
 		{ id = "dawngriffin", emoji = "🦅", color = Color3.fromRGB(255, 190, 110) },
 	} },
-	{ id = "mushroom", grass = Color3.fromRGB(70, 160, 90), dirt = Color3.fromRGB(110, 80, 60), pets = {
+	{ id = "mushroom", grass = Color3.fromRGB(70, 160, 90), dirt = Color3.fromRGB(110, 80, 60), crystalColors = {
+		Color3.fromRGB(190, 110, 255), Color3.fromRGB(255, 100, 200), Color3.fromRGB(100, 150, 255), Color3.fromRGB(90, 230, 200),
+	}, pets = {
 		{ id = "shroomlet", emoji = "🍄", color = Color3.fromRGB(220, 70, 70) },
 		{ id = "acornowl", emoji = "🦉", color = Color3.fromRGB(160, 110, 70) },
 		{ id = "mossfox", emoji = "🦊", color = Color3.fromRGB(230, 130, 60) },
@@ -64,7 +69,9 @@ Config.Zones = ({
 		{ id = "fireflywolf", emoji = "🐺", color = Color3.fromRGB(120, 130, 160) },
 		{ id = "forestspirit", emoji = "🧚", color = Color3.fromRGB(150, 255, 170) },
 	} },
-	{ id = "coral", grass = Color3.fromRGB(245, 220, 150), dirt = Color3.fromRGB(210, 170, 110), pets = {
+	{ id = "coral", grass = Color3.fromRGB(245, 220, 150), dirt = Color3.fromRGB(210, 170, 110), crystalColors = {
+		Color3.fromRGB(255, 120, 200), Color3.fromRGB(255, 140, 110), Color3.fromRGB(80, 230, 220), Color3.fromRGB(200, 160, 255),
+	}, pets = {
 		{ id = "crabby", emoji = "🦀", color = Color3.fromRGB(240, 90, 70) },
 		{ id = "bubbleseal", emoji = "🦭", color = Color3.fromRGB(170, 180, 200) },
 		{ id = "inkyocto", emoji = "🐙", color = Color3.fromRGB(200, 90, 200) },
@@ -73,7 +80,9 @@ Config.Zones = ({
 		{ id = "pearlhorse", emoji = "🦄", color = Color3.fromRGB(250, 220, 240) },
 		{ id = "babykraken", emoji = "🦑", color = Color3.fromRGB(120, 60, 180) },
 	} },
-	{ id = "dunes", grass = Color3.fromRGB(240, 200, 110), dirt = Color3.fromRGB(200, 150, 80), pets = {
+	{ id = "dunes", grass = Color3.fromRGB(240, 200, 110), dirt = Color3.fromRGB(200, 150, 80), crystalColors = {
+		Color3.fromRGB(255, 160, 60), Color3.fromRGB(240, 100, 60), Color3.fromRGB(60, 210, 200), Color3.fromRGB(255, 130, 170),
+	}, pets = {
 		{ id = "scarablet", emoji = "🐜", color = Color3.fromRGB(60, 140, 120) },
 		{ id = "sandfennec", emoji = "🦊", color = Color3.fromRGB(240, 200, 140) },
 		{ id = "datecamel", emoji = "🐫", color = Color3.fromRGB(200, 150, 90) },
@@ -82,7 +91,9 @@ Config.Zones = ({
 		{ id = "minisphinx", emoji = "🐈", color = Color3.fromRGB(230, 190, 90) },
 		{ id = "miragebird", emoji = "🦚", color = Color3.fromRGB(80, 220, 220) },
 	} },
-	{ id = "volcano", grass = Color3.fromRGB(90, 80, 80), dirt = Color3.fromRGB(60, 50, 50), pets = {
+	{ id = "volcano", grass = Color3.fromRGB(90, 80, 80), dirt = Color3.fromRGB(60, 50, 50), crystalColors = {
+		Color3.fromRGB(255, 90, 60), Color3.fromRGB(255, 150, 40), Color3.fromRGB(240, 60, 140), Color3.fromRGB(180, 80, 255),
+	}, pets = {
 		{ id = "sparky", emoji = "🔥", color = Color3.fromRGB(255, 140, 40) },
 		{ id = "salamander", emoji = "🦎", color = Color3.fromRGB(230, 70, 40) },
 		{ id = "lavamole", emoji = "🐹", color = Color3.fromRGB(180, 60, 40) },
@@ -91,7 +102,9 @@ Config.Zones = ({
 		{ id = "emberdrake", emoji = "🐉", color = Color3.fromRGB(250, 100, 30) },
 		{ id = "volcanophoenix", emoji = "🦜", color = Color3.fromRGB(255, 180, 40) },
 	} },
-	{ id = "glacier", grass = Color3.fromRGB(230, 245, 255), dirt = Color3.fromRGB(150, 190, 220), pets = {
+	{ id = "glacier", grass = Color3.fromRGB(230, 245, 255), dirt = Color3.fromRGB(150, 190, 220), crystalColors = {
+		Color3.fromRGB(150, 230, 255), Color3.fromRGB(90, 150, 255), Color3.fromRGB(220, 245, 255), Color3.fromRGB(170, 140, 255),
+	}, pets = {
 		{ id = "pengy", emoji = "🐧", color = Color3.fromRGB(60, 70, 90) },
 		{ id = "arcticfox", emoji = "🦊", color = Color3.fromRGB(245, 250, 255) },
 		{ id = "frostwalrus", emoji = "🦭", color = Color3.fromRGB(170, 140, 120) },
@@ -100,7 +113,9 @@ Config.Zones = ({
 		{ id = "crystalyeti", emoji = "❄️", color = Color3.fromRGB(150, 220, 255) },
 		{ id = "auroradragon", emoji = "🐲", color = Color3.fromRGB(120, 255, 200) },
 	} },
-	{ id = "clouds", grass = Color3.fromRGB(250, 250, 255), dirt = Color3.fromRGB(200, 210, 240), pets = {
+	{ id = "clouds", grass = Color3.fromRGB(250, 250, 255), dirt = Color3.fromRGB(200, 210, 240), crystalColors = {
+		Color3.fromRGB(255, 170, 230), Color3.fromRGB(200, 170, 255), Color3.fromRGB(150, 210, 255), Color3.fromRGB(160, 250, 210),
+	}, pets = {
 		{ id = "puffy", emoji = "☁️", color = Color3.fromRGB(250, 250, 255) },
 		{ id = "cloudlamb", emoji = "🐑", color = Color3.fromRGB(245, 240, 235) },
 		{ id = "kitebird", emoji = "🐦", color = Color3.fromRGB(120, 180, 255) },
@@ -109,7 +124,9 @@ Config.Zones = ({
 		{ id = "thundergriffin", emoji = "⚡", color = Color3.fromRGB(255, 230, 80) },
 		{ id = "rainbowqilin", emoji = "🌈", color = Color3.fromRGB(255, 150, 200) },
 	} },
-	{ id = "cosmos", grass = Color3.fromRGB(70, 60, 130), dirt = Color3.fromRGB(40, 35, 80), pets = {
+	{ id = "cosmos", grass = Color3.fromRGB(70, 60, 130), dirt = Color3.fromRGB(40, 35, 80), crystalColors = {
+		Color3.fromRGB(170, 120, 255), Color3.fromRGB(90, 240, 255), Color3.fromRGB(255, 90, 220), Color3.fromRGB(230, 230, 255),
+	}, pets = {
 		{ id = "starlet", emoji = "⭐", color = Color3.fromRGB(255, 230, 100) },
 		{ id = "mooncat", emoji = "🐱", color = Color3.fromRGB(200, 200, 230) },
 		{ id = "jellyalien", emoji = "👽", color = Color3.fromRGB(130, 255, 130) },
@@ -120,8 +137,10 @@ Config.Zones = ({
 	} },
 } :: any) :: { Zone } -- los números de cada isla se rellenan justo debajo
 
--- Números de cada isla (k = isla - 1): crecen igual en todas
-Config.ZONE_GROWTH = { pileHp = 7, pileCoins = 9, eggCost = 8, petBase = 6, doorCost = 23 }
+-- Números de cada isla (k = isla - 1): crecen igual en todas.
+-- Monedas ×17,5 y vida ×7 → cada isla rinde ×2,5 por segundo con el mismo equipo (antes ×1,29: no se notaba).
+-- Puerta ×45 (antes ×23) para mantener el ritmo medido (DISENO.md §5)
+Config.ZONE_GROWTH = { pileHp = 7, pileCoins = 17.5, eggCost = 8, petBase = 6, doorCost = 45 }
 Config.ZONE_BASE = { pileHp = 12, pileCoins = 6, eggCost = 35, petBase = 3, doorCost = 1_800 }
 for i, z in Config.Zones do
 	local k = i - 1
@@ -132,12 +151,16 @@ for i, z in Config.Zones do
 	z.doorCost = if i == 1 then 0 else math.floor(Config.ZONE_BASE.doorCost * Config.ZONE_GROWTH.doorCost ^ (k - 1))
 end
 
--- Montones: tipos (solo cambia el aspecto y cuánto aguantan / dan)
+-- Montones: tipos (solo cambia el aspecto y cuánto aguantan / dan). size = tamaño del cristal (×, el pequeño = 1)
 Config.PileKinds = {
-	{ id = "coins", hp = 1, coins = 1, weight = 70 },
-	{ id = "chest", hp = 3, coins = 3.3, weight = 22 },
-	{ id = "crystal", hp = 8, coins = 9, weight = 8 },
+	{ id = "coins", hp = 1, coins = 1, weight = 70, size = 1 }, -- pequeño
+	{ id = "chest", hp = 3, coins = 3.3, weight = 22, size = 1.3 }, -- mediano
+	{ id = "crystal", hp = 8, coins = 9, weight = 8, size = 1.65 }, -- grande
 }
+Config.PILE_SIZE_JITTER = 0.12 -- ±12 % de tamaño al azar en cada cristal (que no sean todos iguales)
+Config.GOLD_SIZE = 1.7 -- el Montón Dorado, algo mayor que el grande
+-- «+🪙» flotante: tamaño de letra según lo que vale frente al premio típico de la isla (rel = 1 → base)
+Config.FLOAT_TEXT = { base = 30, min = 22, max = 72, exp = 0.35 }
 -- Montón Dorado: cada GOLD_INTERVAL s, uno en la isla más alta abierta de cada jugador (sin repetir isla)
 Config.GOLD_INTERVAL = 180 -- s. «Algo nuevo» cada 3 min sin agobiar
 Config.GOLD_LIFETIME = 60 -- s. Si no se rompe, desaparece
@@ -342,6 +365,22 @@ end
 function Config.coinsPerHp(zone: number): number
 	local z = Config.Zones[math.clamp(zone, 1, #Config.Zones)]
 	return z.pileCoins / z.pileHp
+end
+
+-- Lo que da de media un montón normal de la isla (según el peso de cada tipo), sin multiplicadores
+function Config.pileTypicalCoins(zone: number): number
+	local z = Config.Zones[math.clamp(zone, 1, #Config.Zones)]
+	local total, sum = 0, 0
+	for _, k in Config.PileKinds do
+		total += k.weight
+		sum += k.weight * k.coins
+	end
+	return z.pileCoins * sum / total
+end
+
+-- Cuántas veces más monedas por punto de vida dan los cristales de una isla que los de la isla 1 (cartel de la puerta)
+function Config.zoneCrystalMult(zone: number): number
+	return Config.coinsPerHp(zone) / Config.coinsPerHp(1)
 end
 
 -- Monedas por segundo «típicas» (para premios en minutos y ganancias sin conexión)

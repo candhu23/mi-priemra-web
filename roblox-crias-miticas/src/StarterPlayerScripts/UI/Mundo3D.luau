@@ -21,7 +21,7 @@ local world: Instance = nil :: any
 local pileFolder: Instance = nil :: any
 local localFolder: Folder = nil :: any
 local eggs: { { part: BasePart, zone: number, title: TextLabel, price: TextLabel } } = {}
-local doors: { { part: BasePart, zone: number, gui: BillboardGui, title: TextLabel, price: TextLabel } } = {}
+local doors: { { part: BasePart, zone: number, gui: BillboardGui, title: TextLabel, price: TextLabel, crystals: TextLabel } } = {}
 
 type Rig = { attr: string, pets: { { body: BasePart, tier: number, pos: Vector3 } } }
 local rigs: { [Player]: Rig } = {}
@@ -216,8 +216,12 @@ local function step(dt: number)
 	end
 end
 
--- Texto flotante en el mundo (p. ej. «+🪙 25» al romper un montón)
-function Mundo3D.floatText(pos: Vector3, text: string, color: Color3?)
+-- Texto flotante en el mundo (p. ej. «+🪙 25» al romper un montón). rel = lo que vale frente al premio típico
+-- de la isla (1 = normal): cuanto más vale, más grande sale (Config.FLOAT_TEXT)
+function Mundo3D.floatText(pos: Vector3, text: string, color: Color3?, rel: number?)
+	local f = Config.FLOAT_TEXT
+	local size = math.clamp(f.base * math.max(rel or 1, 0.01) ^ f.exp, f.min, f.max)
+	local k = size / f.base
 	local anchor = Instance.new("Part")
 	anchor.Anchored = true
 	anchor.CanCollide = false
@@ -226,9 +230,9 @@ function Mundo3D.floatText(pos: Vector3, text: string, color: Color3?)
 	anchor.Size = Vector3.new(1, 1, 1)
 	anchor.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
 	anchor.Parent = localFolder
-	local gui = billboard(anchor, UDim2.fromOffset(160, 44), Vector3.new(0, 0, 0), 150)
+	local gui = billboard(anchor, UDim2.fromOffset(math.floor(160 * k), math.floor(44 * k)), Vector3.new(0, 0, 0), 150)
 	gui.AlwaysOnTop = true
-	local t = textOn(gui, 0, 1, 30, color or Config.Colors.gold)
+	local t = textOn(gui, 0, 1, math.floor(size), color or Config.Colors.gold)
 	t.Text = text
 	Kit.tween(gui, 0.9, { StudsOffset = Vector3.new(0, 5, 0) })
 	Kit.tween(t, 0.9, { TextTransparency = 1 })
@@ -252,6 +256,8 @@ function Mundo3D.refresh(s: any)
 		d.gui.Enabled = not open
 		d.title.Text = T("door_title", { zone = T("zone_" .. Config.Zones[d.zone].id) })
 		d.price.Text = if d.zone == s.zones + 1 then "🪙 " .. Kit.fmt(Config.Zones[d.zone].doorCost) else T("door_need")
+		-- Cuánto rinden sus cristales frente a la isla 1 (monedas por punto de vida: lo que de verdad se gana)
+		d.crystals.Text = T("door_crystals", { value = Kit.fmt(Config.zoneCrystalMult(d.zone)) })
 	end
 end
 
@@ -308,8 +314,11 @@ function Mundo3D.start(kit: any)
 				local gui = billboard(d, UDim2.fromOffset(240, 80), Vector3.new(0, 8, 0), 140)
 				table.insert(eggs, { part = d, zone = zone, title = textOn(gui, 0, 0.5, 26, Config.Colors.white), price = textOn(gui, 0.5, 0.5, 26, Config.Colors.gold) })
 			elseif d.Name == "Puerta" then
-				local gui = billboard(d, UDim2.fromOffset(260, 80), Vector3.new(0, 4, 0), 160)
-				table.insert(doors, { part = d, zone = zone, gui = gui, title = textOn(gui, 0, 0.5, 26, Config.Colors.white), price = textOn(gui, 0.5, 0.5, 24, Config.Colors.gold) })
+				local gui = billboard(d, UDim2.fromOffset(260, 112), Vector3.new(0, 5, 0), 160)
+				table.insert(doors, {
+					part = d, zone = zone, gui = gui, title = textOn(gui, 0, 0.36, 26, Config.Colors.white),
+					price = textOn(gui, 0.36, 0.34, 24, Config.Colors.gold), crystals = textOn(gui, 0.7, 0.3, 20, Config.Colors.sky),
+				})
 			end
 			if Kit.ctx.state then
 				Mundo3D.refresh(Kit.ctx.state)
