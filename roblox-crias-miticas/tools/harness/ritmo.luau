@@ -1,7 +1,7 @@
 --[[
 	Ritmo de la economía: un bot «bueno» rompe montones en la mejor isla abierta, abre huevos,
 	fusiona, equipa lo mejor, abre islas y renace. Imprime cuándo llega a cada hito (compáralo con
-	DISENO.md §5). Un jugador real va ~2 veces más lento (anda, mira menús…).
+	DISENO.md §5). Un jugador real va ~2 veces más lento (anda, mira menús…). Incluye el Montón Dorado.
 	Uso: lune run ritmo.luau <src> [minutos]
 ]]
 local roblox = require("@lune/roblox")
@@ -86,6 +86,12 @@ end
 local stats = { fused = 0, hatched = 0 }
 for t = 1, MINUTOS * 60 do
 	data.coins += Config.teamPower(data) * Config.coinsPerHp(data.zones) * Config.coinMult(data, bonuses) * EFICIENCIA
+	-- Montón Dorado: cada GOLD_INTERVAL s el bot lo rompe en su isla más alta. Se suma de golpe lo que da DE MÁS
+	-- frente a picar montones normales esos puntos de vida (supone que los rompe todos: cota alta)
+	if t % Config.GOLD_INTERVAL == 0 then
+		local z = Config.Zones[data.zones]
+		data.coins += (Config.GOLD_COINS * z.pileCoins - Config.GOLD_HP * z.pileHp * Config.coinsPerHp(data.zones)) * Config.coinMult(data, bonuses)
+	end
 	-- Renacer
 	if data.zones >= Config.rebirthZone(data.rebirths) and data.coins >= Config.rebirthCost(data.rebirths) then
 		data.rebirths += 1

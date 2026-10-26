@@ -160,9 +160,18 @@ local STYLES = {
 	purple = { C.purple, C.purpleDark },
 }
 local clickSound: Sound? = nil
+local rareSound: Sound? = nil
 
 function Kit.setupSounds(parent: Instance)
 	clickSound = create("Sound", { Parent = parent, SoundId = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.3, PlaybackSpeed = 1.5 })
+	-- Cría Legendaria/Mítica: el mismo sonido (seguro que existe en Roblox), más grave y más fuerte
+	rareSound = create("Sound", { Parent = parent, SoundId = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.6, PlaybackSpeed = 0.8 })
+end
+
+function Kit.playRare()
+	if rareSound and not Kit.ctx.muted then
+		rareSound:Play()
+	end
 end
 
 function Kit.button(parent: Instance?, text: string, style: string, size: UDim2, onClick: () -> (), props: { [string]: any }?): TextButton

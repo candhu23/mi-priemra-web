@@ -26,6 +26,13 @@ Config.Rarities = {
 Config.LUCK_MULT = 2
 Config.LUCK_FROM_INDEX = 5
 
+-- Gran momento al abrir un huevo (índices de Config.Rarities: 5 = Épica, 6 = Legendaria, 7 = Mítica)
+Config.HATCH_MEDIUM_FROM = 5 -- desde Épica: momento mediano (casi todos lo ven en ~3 min)
+Config.HATCH_BIG_FROM = 6 -- desde Legendaria: gran momento + aviso a todo el servidor
+Config.RARE_ANNOUNCE_COOLDOWN = 10 -- s entre avisos al servidor del mismo jugador (con x3 o Auto no hace spam)
+Config.HATCH_SHOW_TIME = { 2.4, 3.5, 5 } -- s que dura la ventana: normal, mediano, grande
+Config.HATCH_SHAKE_TIME = { 0.6, 0.9, 1.2 } -- s que tiembla el huevo antes de salir la cría
+
 -- Fusión: 5 crías iguales → la siguiente versión. tier 0 normal, 1 Dorada, 2 Arcoíris
 Config.FUSE_COUNT = 5
 Config.TIER_MULT = { [0] = 1, [1] = 3, [2] = 9 } :: { [number]: number }
@@ -131,6 +138,11 @@ Config.PileKinds = {
 	{ id = "chest", hp = 3, coins = 3.3, weight = 22 },
 	{ id = "crystal", hp = 8, coins = 9, weight = 8 },
 }
+-- Montón Dorado: cada GOLD_INTERVAL s, uno en la isla más alta abierta de cada jugador (sin repetir isla)
+Config.GOLD_INTERVAL = 180 -- s. «Algo nuevo» cada 3 min sin agobiar
+Config.GOLD_LIFETIME = 60 -- s. Si no se rompe, desaparece
+Config.GOLD_HP = 10 -- × pileHp de la isla (un cristal es ×8): aguanta lo bastante para llegar y verlo
+Config.GOLD_COINS = 33 -- × pileCoins de la isla = ×10 lo que da un Cofre (3,3) → rinde ×3,3 por punto de vida
 Config.PILES_PER_ZONE = 14
 Config.PILE_RESPAWN = 6 -- segundos
 Config.REACH = 70 -- distancia máxima (studs) del jugador al montón para que sus crías piquen

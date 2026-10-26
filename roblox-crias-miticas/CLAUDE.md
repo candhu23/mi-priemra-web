@@ -33,16 +33,23 @@ roblox-crias-miticas/
 
 - **El servidor manda.** Remotes en `ReplicatedStorage.MythicHatchlingsRemotes`: `Action` (RemoteFunction,
   `(acción, a, b) → (ok, claveTexto?, params?)`), `State` (estado completo cada segundo y tras cada acción),
-  `Notify` (`(tipo, claveTexto, params)`).
+  `Notify` (`(tipo, claveTexto, params)`). Tipos especiales: `coins` (número flotante), `rare` (a todos con `FireAllClients`:
+  `{uid,name,pet,rarity}`; el cliente lo ignora si `uid` es el suyo) y `gold` (toast dorado de 5 s).
 - Acciones: `target(pileId) setAuto(bool) hatch(isla, 1|3, auto) equip(uid) unequip(uid) equipBest fuse(cría, versión)
   release(uid) unlockZone(isla) teleport(isla) rebirth claimDaily claimMission(i) claimAlbum(i) finishTutorial
   setLang(""|"es"|"en") setMuted(bool)`. Límite 10/s; abrir huevo cada 0,9 s; huevo a ≤ 18 studs; montón a ≤ 70.
 - Datos: `coins lifetimeCoins zones rebirths pets[{uid,kind,tier}] equipped[uid] nextUid album{"cría:versión"}
   albumClaimed{"i"} daily missions{day,list,bonusGiven} boosts{coinsUntil,luckUntil} tutorialDone receipts stats{piles,hatched,fused,rebirths}
   settings{lang,muted,auto} lastOnline`. Añadir un campo a `Data.newData()` basta (reconcile **no** entra en listas).
+- `hatch` devuelve `{ hatched = { {kind, new, rarity, chance} } }`: la rareza y la probabilidad (`Config.eggOdds`, con suerte x2)
+  las pone el servidor; el cliente solo dibuja el momento (normal / Épica / Legendaria-Mítica, `Config.HATCH_*`). La más
+  rara del lote se anuncia al servidor si es ≥ `HATCH_BIG_FROM` (máx. 1 cada `RARE_ANNOUNCE_COOLDOWN` s; `Session.lastAnnounce`).
 - Montones (`Workspace.Mundo.Montones`): los crea el servidor (14 por isla, reaparecen a los 6 s). Se eligen tocándolos
   (ClickDetector) o en modo Auto (el más cercano a ≤ 45). Cada segundo restan el poder del equipo; al romperse las monedas
-  se reparten según el daño de cada jugador.
+  se reparten según el daño de cada jugador. Al desaparecer un montón se quita el objetivo a todos los que lo picaban.
+- **Montón Dorado**: cada `GOLD_INTERVAL` s (`spawnGold` en el bucle) uno en la isla más alta abierta de cada jugador (sin
+  repetir isla ni duplicar), atributo `Gold`, vida/monedas ×`GOLD_HP`/`GOLD_COINS`, no reaparece y caduca a los
+  `GOLD_LIFETIME` s. Mismo reparto por daño. El cliente le pone la estrella `MarcaDorada` (Mundo3D).
 - Crías en 3D: el servidor pone en cada jugador los atributos `Pets` ("cría:versión,…") y `Target` (PileId); cada cliente
   las dibuja (piezas locales, ancladas, sin colisión). Puertas: el cliente las abre localmente si ya pagó la isla; el
   servidor no deja picar montones ni abrir huevos de islas no pagadas.
@@ -60,6 +67,9 @@ Trampas de Lune ya resueltas en `mock.luau`: `Position` de una pieza se lee/escr
 `GetChildren`/`GetDescendants` se envuelven; `MouseClick` es una señal. Lune no tiene `PivotTo`: el servidor mueve al
 jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox). **`CFrame.lookAt` de Lune sale girado al revés**:
 en el código del mundo se usa `facing()` con `CFrame.fromMatrix` (igual en Lune y en Roblox).
+En Lune `math` es de solo lectura: para forzar una rareza en `run_juego.luau` se envuelve `Config.rollPet` (tabla compartida;
+las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTERVAL` dentro de la prueba. Leer una pieza
+**destruida** da error en Lune (en Roblox no): por eso el servidor quita el objetivo a todos al desaparecer un montón.
 
 ## 5. Pendiente
 

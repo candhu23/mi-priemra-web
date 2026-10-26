@@ -54,6 +54,7 @@ type Session = {
 	lastHatch: number,
 	target: number, -- PileId (0 = ninguno)
 	dirty: boolean,
+	lastAnnounce: number, -- os.clock() del último aviso de cría rara al servidor (solo en memoria)
 }
 local sessions: { [Player]: Session } = {}
 
@@ -96,7 +97,10 @@ end
 ---------------------------------------------------------------------
 -- Montones (compartidos: las monedas se reparten según el daño de cada uno)
 ---------------------------------------------------------------------
-type Pile = { id: number, part: BasePart, zone: number, hp: number, maxHp: number, coins: number, hits: { [Player]: number }, bar: Frame }
+type Pile = {
+	id: number, part: BasePart, zone: number, hp: number, maxHp: number, coins: number, hits: { [Player]: number }, bar: Frame,
+	gold: boolean?, -- Montón Dorado: no reaparece y caduca a los GOLD_LIFETIME s
+}
 local piles: { [number]: Pile } = {}
 local nextPileId = 1
 
@@ -104,7 +108,10 @@ local PILE_LOOK = {
 	coins = { size = Vector3.new(5, 2.5, 5), shape = Enum.PartType.Cylinder, color = Config.Colors.gold, material = Enum.Material.Foil },
 	chest = { size = Vector3.new(5, 4, 4), shape = Enum.PartType.Block, color = Color3.fromRGB(160, 100, 50), material = Enum.Material.WoodPlanks },
 	crystal = { size = Vector3.new(3.5, 7, 3.5), shape = Enum.PartType.Block, color = Config.Colors.purple, material = Enum.Material.Glass },
+	gold = { size = Vector3.new(8, 5, 8), shape = Enum.PartType.Block, color = Config.Colors.gold, material = Enum.Material.Neon },
 }
+-- Mismas fórmulas que Config.PileKinds (maxHp = pileHp × hp, monedas = pileCoins × coins)
+local GOLD_KIND = { id = "gold", hp = Config.GOLD_HP, coins = Config.GOLD_COINS }
 
 local function pickKind(): any
 	local total = 0
@@ -121,8 +128,18 @@ local function pickKind(): any
 	return Config.PileKinds[1]
 end
 
-local function spawnPile(zone: number)
-	local kind = pickKind()
+-- Un montón desaparece: las crías de TODOS los que lo picaban dejan de ir a él (no solo las de quien lo rompe)
+local function clearTarget(pileId: number)
+	for player, s in sessions do
+		if s.target == pileId then
+			s.target = 0
+			player:SetAttribute("Target", 0)
+		end
+	end
+end
+
+local function spawnPile(zone: number, gold: boolean?)
+	local kind = if gold then GOLD_KIND else pickKind()
 	local look = PILE_LOOK[kind.id]
 	local z = Config.Zones[zone]
 	local pos = World.pilePosition(zone, rng)
@@ -171,6 +188,18 @@ local function spawnPile(zone: number)
 	p.Parent = pileFolder
 	local pile: Pile = { id = id, part = p, zone = zone, hp = maxHp, maxHp = maxHp, coins = z.pileCoins * kind.coins, hits = {}, bar = bar }
 	piles[id] = pile
+	if gold then
+		pile.gold = true
+		p:SetAttribute("Gold", true)
+		-- Si nadie lo rompe a tiempo, desaparece (sin premio)
+		task.delay(Config.GOLD_LIFETIME, function()
+			if piles[id] == pile then
+				piles[id] = nil
+				clearTarget(id)
+				p:Destroy()
+			end
+		end)
+	end
 	click.MouseClick:Connect(function(player: Player)
 		local s = sessions[player]
 		if s and zone <= s.data.zones then
@@ -202,8 +231,32 @@ local function breakPile(pile: Pile)
 			notify(player, "coins", "n_coins", { value = reward, x = pos.X, y = pos.Y, z = pos.Z })
 		end
 	end
+	clearTarget(pile.id)
 	pile.part:Destroy()
-	task.delay(Config.PILE_RESPAWN, spawnPile, pile.zone)
+	if not pile.gold then -- el dorado no reaparece: sale otro con el temporizador
+		task.delay(Config.PILE_RESPAWN, spawnPile, pile.zone)
+	end
+end
+
+-- Montón Dorado: uno en la isla más alta abierta de cada jugador (sin repetir isla ni duplicar si sigue vivo).
+-- Esa isla la tiene pagada, así que siempre puede llegar. Se avisa a todos (quien no la tiene, sabe que existe)
+local function spawnGold()
+	local zones: { [number]: boolean } = {}
+	for _, s in sessions do
+		zones[s.data.zones] = true
+	end
+	for zone in zones do
+		local alive = false
+		for _, pile in piles do
+			alive = alive or (pile.gold == true and pile.zone == zone)
+		end
+		if not alive then
+			spawnPile(zone, true)
+			for player, s in sessions do
+				notify(player, "gold", if s.data.zones >= zone then "n_gold_pile" else "n_gold_pile_locked", { zone = zone, secs = Config.GOLD_LIFETIME })
+			end
+		end
+	end
 end
 
 local function pileInReach(s: Session, root: BasePart?, pile: Pile?, reach: number): boolean
@@ -366,6 +419,23 @@ local function isInt(v: any, lo: number, hi: number): boolean
 	return type(v) == "number" and v == math.floor(v) and v >= lo and v <= hi
 end
 
+-- Aviso a todo el servidor si sale una Legendaria o Mítica (máx. uno cada RARE_ANNOUNCE_COOLDOWN s por jugador).
+-- Va por claves: cada cliente traduce la cría y la rareza; quien la saca no lo ve (ya tiene su ventana)
+local function announceRare(player: Player, s: Session, kind: string)
+	local pet = Config.PetById[kind]
+	if not pet or pet.rarity < Config.HATCH_BIG_FROM then
+		return
+	end
+	local now = os.clock()
+	if now - s.lastAnnounce < Config.RARE_ANNOUNCE_COOLDOWN then
+		return
+	end
+	s.lastAnnounce = now
+	notifyRemote:FireAllClients("rare", "n_rare_hatch", {
+		uid = player.UserId, name = player.DisplayName, pet = kind, rarity = Config.Rarities[pet.rarity].id,
+	})
+end
+
 ---------------------------------------------------------------------
 -- Acciones (valida SIEMPRE los argumentos: vienen del cliente)
 ---------------------------------------------------------------------
@@ -424,13 +494,21 @@ function Actions.hatch(player: Player, s: Session, zone: any, count: any, auto: 
 	s.lastHatch = now
 	d.coins -= cost
 	local result = {}
+	-- La rareza y la probabilidad (con suerte x2 si la tiene) las decide el servidor: el cliente solo las dibuja
+	local odds = Config.eggOdds(zone, s.bonuses.luck)
+	local bestKind = ""
 	for _ = 1, count do
 		local kind = Config.rollPet(zone, s.bonuses.luck, rng:NextNumber())
 		local _pet, isNew = addPet(s, kind, 0)
-		table.insert(result, { kind = kind, new = isNew })
+		local rarity = Config.PetById[kind].rarity
+		table.insert(result, { kind = kind, new = isNew, rarity = rarity, chance = odds[rarity] })
+		if bestKind == "" or rarity > Config.PetById[bestKind].rarity then
+			bestKind = kind
+		end
 	end
 	d.stats.hatched += count
 	syncPets(player, s)
+	announceRare(player, s, bestKind) -- una sola vez por apertura: la más rara del lote
 	return true, nil, { hatched = result }
 end
 
@@ -727,7 +805,10 @@ local function onPlayerAdded(player: Player)
 	if not player.Parent then -- se fue mientras se comprobaban los pases
 		return
 	end
-	local s: Session = { data = data, canSave = canSave, bonuses = bonuses, actionTimes = {}, lastHatch = 0, target = 0, dirty = false }
+	local s: Session = {
+		data = data, canSave = canSave, bonuses = bonuses, actionTimes = {}, lastHatch = 0, target = 0, dirty = false,
+		lastAnnounce = -math.huge,
+	}
 	sessions[player] = s
 	-- Seguridad: los equipados tienen que existir y caber
 	local valid = {}
@@ -878,9 +959,15 @@ end
 -- Bucle principal (1 s): las crías pican el montón, avisos de tiempo, guardado
 ---------------------------------------------------------------------
 local saveTimer = 0
+local goldTimer = 0
 while true do
 	task.wait(1)
 	saveTimer += 1
+	goldTimer += 1
+	if goldTimer >= Config.GOLD_INTERVAL then
+		goldTimer = 0
+		spawnGold()
+	end
 	local now = os.time()
 	for player, s in sessions do
 		local d = s.data

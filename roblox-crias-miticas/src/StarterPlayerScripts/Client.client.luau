@@ -37,12 +37,12 @@ Mundo3D.start(Kit)
 ---------------------------------------------------------------------
 -- Variables compartidas entre bloques (se asignan dentro de cada bloque)
 ---------------------------------------------------------------------
-local showToast: (text: string, kind: string?) -> ()
+local showToast: (text: string, kind: string?, color: Color3?, seconds: number?) -> ()
 local toastHolder: Frame -- los avisos (bajan cuando se ve el tutorial)
 local refreshAll: () -> ()
 local openWindow: (id: string) -> ()
 local closeWindow: () -> ()
-local showHatch: (list: { any }) -> ()
+local showHatch: (list: { any }, auto: boolean?) -> ()
 local tutorialFlags = { equippedBest = false }
 local tutorial = { step = 0, started = false }
 
@@ -62,6 +62,23 @@ local function coins(n: number): string
 	return "🪙 " .. Kit.fmt(n)
 end
 
+-- Probabilidad en % como texto: con 1 decimal si < 10 (1,8 y no «2»: nunca redondear hacia arriba a la vista)
+local function pctText(pct: number): string
+	local text = if pct < 10 then string.format("%.1f", pct) else string.format("%.0f", pct)
+	text = string.gsub(text, "%.0$", "") -- «6» y no «6,0»
+	return if ctx.lang == "es" then (string.gsub(text, "%.", ",")) else text
+end
+
+-- Color de una rareza por su id ("mythic"…), para el aviso al servidor
+local function rarityColor(id: string): Color3
+	for _, r in Config.Rarities do
+		if r.id == id then
+			return r.color
+		end
+	end
+	return C.blue
+end
+
 -- Traduce los parámetros que manda el servidor (números → texto bonito)
 local function niceParams(params: any): { [string]: any }
 	local p = table.clone(params or {})
@@ -70,6 +87,12 @@ local function niceParams(params: any): { [string]: any }
 	end
 	if type(p.zone) == "number" and Config.Zones[p.zone] then
 		p.zone = T("zone_" .. Config.Zones[p.zone].id)
+	end
+	if type(p.pet) == "string" and Config.PetById[p.pet] then
+		p.pet = petName(p.pet)
+	end
+	if type(p.rarity) == "string" then
+		p.rarity = T("rar_" .. p.rarity)
 	end
 	return p
 end
@@ -308,7 +331,7 @@ do
 			for i, card in oddsCards do
 				local pet = z.pets[i]
 				card.emoji.Text = pet.emoji
-				card.pct.Text = (if odds[i] < 1 then string.format("%.1f", odds[i]) else string.format("%.0f", odds[i])) .. " %"
+				card.pct.Text = pctText(odds[i]) .. " %"
 				card.seen.Text = if s.album[Config.albumKey(pet.id, 0)] then "✓" else "?"
 			end
 			-- Los botones de pase solo salen si el pase existe (si no, eran dos botones grises «Próximamente»)
@@ -343,7 +366,7 @@ do
 			if autoHatchOn and s and s.bonuses.autoHatch and Mundo3D.near.egg > 0 then
 				send("hatch", Mundo3D.near.egg, if s.bonuses.hatch3 then 3 else 1, true, function(ok, params)
 					if ok and params and params.hatched then
-						showHatch(params.hatched)
+						showHatch(params.hatched, true)
 					end
 				end)
 			end
@@ -360,24 +383,64 @@ do
 		AutoButtonColor = false, Visible = false, ZIndex = 30,
 	})
 	overlay.Name = "Apertura"
+	-- Destello del color de la rareza (Legendaria/Mítica): debajo de las tarjetas y sin texto; el toque llega al overlay
+	local flash = create("Frame", {
+		Parent = overlay, Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.white, BackgroundTransparency = 1, BorderSizePixel = 0,
+		Active = false, Visible = false, ZIndex = 31,
+	})
+	flash.Name = "Destello"
 	local row = create("Frame", {
-		Parent = overlay, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.48), Size = UDim2.fromOffset(660, 260),
-		BackgroundTransparency = 1, ZIndex = 31,
+		Parent = overlay, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 20), Size = UDim2.fromOffset(660, 260),
+		BackgroundTransparency = 1, ZIndex = 32,
 	}, { Kit.list(true, 20, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
+	-- Título del momento raro («¡ÉPICA!», «¡¡MÍTICA!!») encima de las tarjetas; entra creciendo
+	local rareTitle = Kit.title(overlay, "", 56, C.white, {
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.5, -122), Size = UDim2.fromOffset(600, 56),
+		TextXAlignment = Enum.TextXAlignment.Center, Visible = false, ZIndex = 33,
+	})
+	rareTitle.Name = "MomentoRaro"
+	Kit.fit(rareTitle, 56)
+	Kit.textStroke(3).Parent = rareTitle
+	local titleScale = create("UIScale", { Parent = rareTitle })
 	local hint = Kit.title(overlay, "", 20, C.white, {
 		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -30), Size = UDim2.fromOffset(400, 26),
-		TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 31,
+		TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
 	})
 	Kit.textStroke(2).Parent = hint
 	local token = 0
+	-- Con título (Épica o más) el panel de monedas de arriba se esconde mientras dura (en el móvil no cabe todo)
+	local function showHud(on: boolean)
+		local hud = hudCoins.Parent
+		if hud and hud:IsA("GuiObject") then
+			hud.Visible = on
+		end
+		hudChips.Visible = on
+	end
 	local function hide()
 		overlay.Visible = false
 		hatching = false
+		showHud(true)
 		updateContext()
 	end
 	overlay.Activated:Connect(hide)
 
-	function showHatch(list: { any })
+	-- 12 chispas que salen del centro y se desvanecen (pocas: el móvil va justo)
+	local function sparks(color: Color3)
+		for i = 1, 12 do
+			local a = i / 12 * math.pi * 2
+			local spark = Kit.label(overlay, if i % 2 == 0 then "✨" else "⭐", 28, color, nil, {
+				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 20), Size = UDim2.fromOffset(40, 40),
+				TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 34,
+			})
+			Kit.tween(spark, 0.8, { Position = UDim2.new(0.5, math.cos(a) * 260, 0.5, 20 + math.sin(a) * 150), TextTransparency = 1 })
+			task.delay(0.8, function()
+				spark:Destroy()
+			end)
+		end
+	end
+
+	-- auto = abierto por Auto-abrir: aunque sea Legendaria, la ventana dura como la mediana (no tapa el juego)
+	function showHatch(list: { any }, auto: boolean?)
 		token += 1
 		local my = token
 		for _, c in row:GetChildren() do
@@ -385,8 +448,22 @@ do
 				c:Destroy()
 			end
 		end
+		-- Nivel del momento según la cría más rara del lote (la rareza la decide el servidor)
+		local best, bestChance, bestIndex = 0, 0, 1
+		for i, h in list do
+			local r = h.rarity or Config.PetById[h.kind].rarity
+			if r > best then
+				best, bestChance, bestIndex = r, h.chance or 0, i
+			end
+		end
+		local level = if best >= Config.HATCH_BIG_FROM then 3 elseif best >= Config.HATCH_MEDIUM_FROM then 2 else 1
+		local bestRarity = Config.Rarities[math.max(1, best)]
 		hint.Text = T("tap_continue")
+		rareTitle.Visible = false
+		flash.Visible = false
+		overlay.BackgroundTransparency = if level == 3 then 0.25 else 0.4
 		overlay.Visible = true
+		showHud(level < 2)
 		hatching = true
 		updateContext()
 		local cards = {}
@@ -398,7 +475,18 @@ do
 			cards[i] = { card = card, big = big, h = h }
 			Kit.tween(big, 0.15, { Rotation = 12 })
 		end
-		task.delay(0.6, function()
+		-- Tiembla más rato cuanto más rara (izquierda / derecha cada 0,15 s)
+		local shake = Config.HATCH_SHAKE_TIME[level]
+		for k = 1, math.floor(shake / 0.15) - 1 do
+			task.delay(k * 0.15, function()
+				if my == token then
+					for _, c in cards do
+						Kit.tween(c.big, 0.15, { Rotation = if k % 2 == 0 then 12 else -12 })
+					end
+				end
+			end)
+		end
+		task.delay(shake, function()
 			if my ~= token then
 				return
 			end
@@ -409,7 +497,15 @@ do
 				local stroke = c.card:FindFirstChildOfClass("UIStroke")
 				if stroke then
 					stroke.Color = rarity.color
-					stroke.Thickness = 5
+					stroke.Thickness = if (c.h.rarity or 0) >= Config.HATCH_MEDIUM_FROM then 8 else 5
+				end
+				-- Bote de la tarjeta (1 → 1,15 → 1) en las raras. La tarjeta es un Frame: su único UIScale
+				if (c.h.rarity or 0) >= Config.HATCH_MEDIUM_FROM then
+					local bounce = create("UIScale", { Parent = c.card })
+					Kit.tween(bounce, 0.15, { Scale = 1.15 }, Enum.EasingStyle.Back)
+					task.delay(0.15, function()
+						Kit.tween(bounce, 0.2, { Scale = 1 })
+					end)
 				end
 				local name = Kit.title(c.card, petName(c.h.kind), 22, C.ink, {
 					Position = UDim2.fromOffset(0, 140), Size = UDim2.new(1, 0, 0, 28), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
@@ -428,8 +524,30 @@ do
 					Kit.corner(10).Parent = tag
 				end
 			end
+			if level >= 2 then
+				rareTitle.Text = if level == 2 then T("rare_mid") elseif bestRarity.id == "mythic" then T("rare_big_mythic") else T("rare_big_legendary")
+				rareTitle.TextColor3 = bestRarity.color
+				rareTitle.Visible = true
+				titleScale.Scale = 0.4
+				Kit.tween(titleScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+			end
+			if level == 3 then
+				-- Probabilidad real de la más rara (la manda el servidor: la misma que el panel del huevo), en su tarjeta
+				local odds = Kit.title(cards[bestIndex].card, T("rare_odds", { pct = pctText(bestChance) }), 18, C.ink, {
+					Position = UDim2.fromOffset(6, 212), Size = UDim2.new(1, -12, 0, 26), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 33,
+				})
+				odds.Name = "ProbabilidadRara"
+				Kit.fit(odds, 18)
+				flash.BackgroundColor3 = bestRarity.color
+				flash.BackgroundTransparency = 0.7
+				flash.Visible = true
+				Kit.tween(flash, 0.5, { BackgroundTransparency = 1 })
+				sparks(bestRarity.color)
+				Kit.playRare()
+			end
 		end)
-		task.delay(2.4, function()
+		local showLevel = if auto and level == 3 then 2 else level
+		task.delay(Config.HATCH_SHOW_TIME[showLevel], function()
 			if my == token then
 				hide()
 			end
@@ -896,13 +1014,20 @@ do
 		BackgroundTransparency = 1, ZIndex = 40,
 	}, { Kit.list(false, 6, Enum.HorizontalAlignment.Center) })
 	toastHolder = toasts
-	function showToast(text: string, kind: string?)
-		local color = if kind == "error" then C.red elseif kind == "success" then C.green else C.blue
+	-- color y seconds opcionales (aviso de cría rara: color de la rareza). «gold» y «rare» duran más y son más altos
+	function showToast(text: string, kind: string?, color: Color3?, seconds: number?)
+		local special = kind == "gold" or kind == "rare"
+		local back = color or (if kind == "error" then C.red elseif kind == "success" then C.green elseif kind == "gold" then C.gold else C.blue)
+		-- Fondo claro (dorado, amarillo) → texto oscuro sin borde; fondo oscuro → texto blanco con borde
+		local light = back.R * 0.3 + back.G * 0.59 + back.B * 0.11 > 0.6
 		local t = create("TextLabel", {
-			Parent = toasts, BackgroundColor3 = color, Size = UDim2.fromOffset(420, 44), Text = text, TextColor3 = C.white,
-			FontFace = Kit.FONT_TITLE, TextSize = 18, TextWrapped = true, ZIndex = 41,
-		}, { Kit.corner(12), Kit.padding(10, 10, 4, 4), Kit.textStroke(1.5) })
-		task.delay(3, function()
+			Parent = toasts, BackgroundColor3 = back, Size = UDim2.fromOffset(420, if special then 52 else 44), Text = text,
+			TextColor3 = if light then C.ink else C.white, FontFace = Kit.FONT_TITLE, TextSize = 18, TextWrapped = true, ZIndex = 41,
+		}, { Kit.corner(12), Kit.padding(10, 10, 4, 4) })
+		if not light then
+			Kit.textStroke(1.5).Parent = t
+		end
+		task.delay(seconds or (if special then 5 else 3), function()
 			t:Destroy()
 		end)
 	end
@@ -1053,6 +1178,14 @@ end)
 notifyRemote.OnClientEvent:Connect(function(kind: string, textKey: string, params: any)
 	if kind == "coins" and params then
 		Mundo3D.floatText(Vector3.new(params.x or 0, params.y or 0, params.z or 0), "+" .. coins(params.value or 0))
+		return
+	end
+	if kind == "rare" then
+		-- Quien la saca ya tiene su gran momento: el aviso es para los demás
+		if not params or params.uid == player.UserId then
+			return
+		end
+		showToast(T(textKey, niceParams(params)), "rare", rarityColor(tostring(params.rarity)), 5)
 		return
 	end
 	showToast(T(textKey, niceParams(params)), kind)

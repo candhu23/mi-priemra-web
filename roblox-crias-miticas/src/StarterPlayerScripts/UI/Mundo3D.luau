@@ -3,7 +3,7 @@
 	- Dibuja las crías de TODOS los jugadores (atributo «Pets» del jugador) siguiéndolos o picando su
 	  montón (atributo «Target»). Son piezas locales ancladas y sin colisión: ligeras.
 	- Carteles traducidos sobre huevos y puertas; abre (localmente) las puertas de las islas ya pagadas.
-	- Números «+🪙» flotando donde se rompe un montón.
+	- Números «+🪙» flotando donde se rompe un montón. Estrella 🌟 que se ve de lejos sobre el Montón Dorado.
 	- Dice qué huevo / puerta tienes al lado (Mundo3D.near) para que el HUD muestre sus botones.
 ]]
 
@@ -31,6 +31,7 @@ local pileScan = 0
 local guideGui: BillboardGui? = nil -- flecha del tutorial sobre el huevo o la puerta
 local guideKey = ""
 local guideBase = 0
+local goldMarks: { BillboardGui } = {} -- estrellas sobre los Montones Dorados (se van con el montón)
 
 local function billboard(parent: Instance, size: UDim2, offset: Vector3, maxDistance: number): BillboardGui
 	local gui = Instance.new("BillboardGui")
@@ -119,7 +120,25 @@ local function step(dt: number)
 			local id = p:GetAttribute("PileId")
 			if type(id) == "number" and p:IsA("BasePart") then
 				pileById[id] = p
+				-- Montón Dorado: estrella enorme que se ve a través de todo (local, solo se crea una vez)
+				if p:GetAttribute("Gold") == true and not p:FindFirstChild("MarcaDorada") then
+					local mark = billboard(p, UDim2.fromOffset(120, 120), Vector3.new(0, 7, 0), 400)
+					mark.Name = "MarcaDorada"
+					mark.AlwaysOnTop = true
+					local star = textOn(mark, 0, 1, 90, Config.Colors.gold)
+					star.Text = "🌟"
+					table.insert(goldMarks, mark)
+				end
 			end
+		end
+	end
+	-- La estrella sube y baja (las de montones ya rotos se quitan de la lista)
+	for i = #goldMarks, 1, -1 do
+		local mark = goldMarks[i]
+		if mark.Parent then
+			mark.StudsOffset = Vector3.new(0, 7 + math.sin(clock * 3) * 0.6, 0)
+		else
+			table.remove(goldMarks, i)
 		end
 	end
 	local alpha = math.min(1, dt * 7)

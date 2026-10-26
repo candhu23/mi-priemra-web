@@ -53,6 +53,10 @@ Tutorial de 5 pasos, se puede saltar, premio al final.
 | Isla 8 | varios días (con renacimientos) | > 7 h | días |
 | Álbum 100 % | semanas | 40 % a los 90 min | semanas (Arcoíris de Míticas) |
 El bot sale distinto cada vez (las rarezas son al azar): por eso hay rangos. Se mide con `tools/harness/ritmo.luau`.
+- **Montón Dorado** (cada 3 min en la isla más alta de cada jugador; vida ×10, monedas ×33 de un montón de la isla, dura 60 s):
+  mediana de 60 partidas del bot, sin → con: isla 2 3:55 → 4:00, isla 3 11:38 → 11:04 (−5 %), isla 4 30:09 → 27:53 (−7,5 %),
+  1.er renacer 35:58 → 33:21 (−7 %). Supone que el bot rompe todos (cota alta).
+- **Gran momento** al abrir: Épica = momento mediano; Legendaria/Mítica = destello, su probabilidad real y aviso al servidor (máx. 1 cada 10 s por jugador).
 - Por isla: vida de montones ×7, monedas ×9, huevo ×8, poder de crías ×6, puerta ×23 (base 1.800).
 - Renacer: isla 4 (+1 por renacer, máx. 8) **y** monedas = 2 × puerta de esa isla × 4^renacimientos (si no, se renacía en cadena).
 - Premios (diaria, misiones, productos) en «minutos de monedas» con un mínimo fijo (escalan solos).
