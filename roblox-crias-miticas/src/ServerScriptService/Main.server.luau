@@ -504,6 +504,9 @@ function Actions.release(player: Player, s: Session, uid: any)
 	if not p or #d.pets <= 1 then
 		return false
 	end
+	if table.find(d.equipped, uid) then
+		return false, "n_release_equipped"
+	end
 	table.remove(d.pets, i)
 	unequip(d, uid)
 	if #d.equipped == 0 then
@@ -721,6 +724,9 @@ local function onPlayerAdded(player: Player)
 	for _, p in Config.GamePasses do
 		(bonuses :: any)[p.key] = ownsPass(player, p.key)
 	end
+	if not player.Parent then -- se fue mientras se comprobaban los pases
+		return
+	end
 	local s: Session = { data = data, canSave = canSave, bonuses = bonuses, actionTimes = {}, lastHatch = 0, target = 0, dirty = false }
 	sessions[player] = s
 	-- Seguridad: los equipados tienen que existir y caber
@@ -777,8 +783,18 @@ Players.PlayerRemoving:Connect(function(player)
 	task.spawn(updateFriends)
 end)
 game:BindToClose(function()
+	local pending = 0
 	for player in sessions do
-		save(player)
+		pending += 1
+		task.spawn(function()
+			save(player)
+			pending -= 1
+		end)
+	end
+	local waited = 0
+	while pending > 0 and waited < 25 do
+		task.wait(0.5)
+		waited += 0.5
 	end
 end)
 
@@ -819,13 +835,19 @@ MarketplaceService.ProcessReceipt = function(info: any)
 	if not item then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
-	-- Guardar cómo estaba por si no se puede guardar (entonces se deshace)
-	local coinsBefore, lifetimeBefore, boostBefore = s.data.coins, s.data.lifetimeCoins, s.data.boosts.coinsUntil
+	-- Sin guardado (la carga falló) no se confirma: Roblox lo reintenta cuando vuelva a entrar
+	if not s.canSave then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	-- Lo que se da, para poder deshacerlo RESTANDO si no se guarda (mientras tanto el juego sigue)
+	local granted, boostAdded = 0, 0
 	local minutes = Config.CashMinutes[item.key]
 	if minutes then
-		earn(s, Config.minutesReward(minutes, Config.CASH_MIN, rate(s)))
+		granted = Config.minutesReward(minutes, Config.CASH_MIN, rate(s))
+		earn(s, granted)
 	elseif item.key == "boost" then
-		s.data.boosts.coinsUntil = math.max(os.time(), s.data.boosts.coinsUntil) + Config.BOOST_MINUTES * 60
+		boostAdded = Config.BOOST_MINUTES * 60
+		s.data.boosts.coinsUntil = math.max(os.time(), s.data.boosts.coinsUntil) + boostAdded
 	end
 	s.data.receipts[id] = os.time()
 	-- Solo las últimas 50
@@ -840,9 +862,11 @@ MarketplaceService.ProcessReceipt = function(info: any)
 		s.data.receipts[list[i][1]] = nil
 	end
 	-- Confirmar SOLO si se ha guardado (si no, se deshace y Roblox lo reintenta más tarde)
-	if s.canSave and not Data.save(player.UserId, s.data) then
+	if not Data.save(player.UserId, s.data) then
 		s.data.receipts[id] = nil
-		s.data.coins, s.data.lifetimeCoins, s.data.boosts.coinsUntil = coinsBefore, lifetimeBefore, boostBefore
+		s.data.coins -= granted
+		s.data.lifetimeCoins -= granted
+		s.data.boosts.coinsUntil -= boostAdded
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	notify(player, "success", "n_purchase")

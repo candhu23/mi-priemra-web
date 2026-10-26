@@ -64,7 +64,8 @@ local function makePet(kind: string, tier: number): BasePart
 	body.Material = if tier == 1 then Enum.Material.Foil else Enum.Material.SmoothPlastic
 	body.Color = if tier == 1 then def.color:Lerp(Config.Colors.gold, 0.6) else def.color
 	-- La cara es el emoji de la cría (se reconoce de lejos)
-	local face = billboard(body, UDim2.fromScale(s * 1.3, s * 1.3), Vector3.new(0, 0, 0), 120)
+	-- StudsOffset Z va hacia la cámara: la cara queda delante de la bola y no la tapa
+	local face = billboard(body, UDim2.fromScale(s * 1.3, s * 1.3), Vector3.new(0, 0, s * 0.6), 120)
 	local label = Instance.new("TextLabel")
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)

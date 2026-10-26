@@ -259,17 +259,22 @@ pressNamed(W, gui, "EquiparMejores")
 s = lastState(W)
 assert(#s.equipped == math.min(s.slots, #s.pets), "Equipar mejores no llena los huecos")
 local before = #s.pets
-for _, d in gui:GetDescendants() do
-	if d:IsA("TextButton") and d.Text == "" and d.Parent and d.Parent:FindFirstChildOfClass("UIStroke") then
-		press(W, d)
-		break
-	end
-end
+local loose = s.equipped[#s.equipped]
+W.callbacks.Action(W.player, "unequip", loose)
 frame(W)
+pressNamed(W, gui, "Cria_" .. loose)
+pressNamed(W, gui, "Soltar")
+assert(#lastState(W).pets == before, "Soltar debe pedir confirmación")
 pressNamed(W, gui, "Soltar")
 assert(#lastState(W).pets == before - 1, "Soltar no quita la cría")
 assert(not W.callbacks.Action(W.player, "fuse", "bunbun", 0), "se puede fusionar sin 5 iguales")
 assert(not W.callbacks.Action(W.player, "equip", 99999), "equipar una cría que no existe")
+W.callbacks.Action(W.player, "equipBest")
+local eqUid = lastState(W).equipped[1]
+assert(not W.callbacks.Action(W.player, "release", eqUid), "se puede soltar una cría equipada")
+assert(W.callbacks.Action(W.player, "unequip", eqUid), "quitar una cría no funciona")
+assert(not table.find(lastState(W).equipped, eqUid), "la cría sigue equipada")
+assert(W.callbacks.Action(W.player, "equip", eqUid), "volver a equipar no funciona")
 pressNamed(W, gui, "Cerrar")
 print("  fusionar, equipar mejores y soltar: OK")
 
@@ -354,6 +359,34 @@ assert(lastState(W).tutorialDone, "saltar el tutorial no lo da por hecho")
 W.callbacks.Action(W.player, "setAuto", false)
 assert(lastState(W).settings.auto == false, "setAuto no funciona")
 print("  álbum, misiones, diario, tienda, ajustes, tutorial: OK")
+
+-- Compras simuladas: entrega, no repite y deshace si no se puede guardar
+local product = Config.Products[1]
+product.id = 1234
+local PS = W.roblox.Enum.ProductPurchaseDecision
+local c0 = lastState(W).coins
+local r1 = W.MarketplaceService.ProcessReceipt({ PlayerId = 42, PurchaseId = "compra1", ProductId = 1234 })
+assert(r1 == PS.PurchaseGranted, "la compra no se confirma")
+local c1 = lastState(W).coins
+assert(c1 > c0, "la compra no da monedas")
+assert(W.MarketplaceService.ProcessReceipt({ PlayerId = 42, PurchaseId = "compra1", ProductId = 1234 }) == PS.PurchaseGranted, "repetir la compra falla")
+assert(lastState(W).coins == c1, "una compra repetida se entrega dos veces")
+W.datastoreFails = true
+local r2 = nil
+W.task.spawn(function() -- el guardado reintenta con esperas: va en su propia tarea
+	r2 = W.MarketplaceService.ProcessReceipt({ PlayerId = 42, PurchaseId = "compra2", ProductId = 1234 })
+end)
+for _ = 1, 8 do
+	if r2 == nil then
+		W.tick(1)
+	end
+end
+W.datastoreFails = false
+assert(r2 == PS.NotProcessedYet, "sin guardar no se debe confirmar la compra")
+frame(W)
+assert(math.abs(lastState(W).coins - c1) < c1 * 0.01 + 1e6, "no se deshizo la compra sin guardar")
+product.id = 0
+print("  compras (entregar, no repetir, deshacer): OK")
 
 -- Pulsar TODOS los botones dos veces (nada debe romper)
 local pulsados = 0

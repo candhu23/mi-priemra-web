@@ -586,13 +586,28 @@ do
 			b2.ZIndex = 15
 			b2.Name = "Fusionar"
 			Kit.setButton(b2, nil, canFuse)
-			local b3 = Kit.button(actions, T("release"), "red", UDim2.fromOffset(150, 56), function()
+			-- Soltar pide un segundo toque (no se puede deshacer)
+			local armed = false
+			local b3: TextButton
+			b3 = Kit.button(actions, T("release"), "red", UDim2.fromOffset(150, 56), function()
+				if not armed then
+					armed = true
+					b3.Text = T("release_sure")
+					task.delay(3, function()
+						if armed and b3.Parent then
+							armed = false
+							b3.Text = T("release")
+						end
+					end)
+					return
+				end
+				armed = false
 				send("release", sel.uid)
 				selected = 0
 			end, { ZIndex = 14, LayoutOrder = 3 })
 			b3.ZIndex = 15
 			b3.Name = "Soltar"
-			Kit.setButton(b3, nil, #s.pets > 1)
+			Kit.setButton(b3, nil, #s.pets > 1 and not eq)
 		else
 			line(T("pick_pet"), 16, C.muted, 2)
 		end
@@ -625,6 +640,7 @@ do
 			local tag = (if p.tier == 1 then "⭐" elseif p.tier == 2 then "🌈" else "") .. (if isEquipped[p.uid] then "✅" else "")
 			Kit.label(card, tag, 18, nil, nil, { Position = UDim2.fromOffset(0, 84), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 14 })
 			local hit = create("TextButton", { Parent = card, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "", ZIndex = 15 })
+			hit.Name = "Cria_" .. p.uid
 			hit.Activated:Connect(function()
 				selected = p.uid
 				openWindow("pets")
