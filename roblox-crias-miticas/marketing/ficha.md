@@ -83,12 +83,9 @@ Los huevos se compran con monedas del juego y muestran sus probabilidades. Piedr
   **No los crees**: con monedas compradas se podrían pagar huevos (aleatorios) con Robux y la respuesta del cuestionario
   dejaría de ser «No». Si algún día se crean, hay que cambiar esta ficha y el cuestionario.
 
-### ⚠️ Miniaturas: la 2 está desfasada
-- `docs/arte/miniatura_2.png` dice **«56 PETS · 8 ISLANDS · Fuse 5 → Golden → Rainbow»**: ya no es verdad. **No la subas.**
-- `docs/arte/miniatura_1.png` («Hatch eggs · Pets farm coins for you») sigue siendo correcta.
-- Propuesta para rehacer la 2 (lo hace quien pueda tocar `docs/arte/encargo.json`, con la skill `arte-roblox`):
-  título `72 PETS\n9 ISLANDS`, subtítulo `Fuse 5 → … → MYTHIC 🌀`, emoji `🪨` o `🌳`.
-  Mejor aún: una **captura real** del Jardín de Mejoras con los caminos de neón encendidos (ver `plan.md`, semana 0).
+### Miniaturas
+- `docs/arte/miniatura_1.png` y `docs/arte/miniatura_2.png` («72 PETS · 9 ISLANDS · Fuse 5 alike → rank up to MYTHIC») están al día (v0.4).
+- Mejor aún, más adelante: una **captura real** del Jardín de Mejoras con los caminos de neón encendidos (ver `plan.md`, semana 0).
 
 ## Palabras clave (para vídeos, grupo y Discord; Roblox no tiene campo de etiquetas libre)
 
