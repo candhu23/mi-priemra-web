@@ -1,81 +1,97 @@
-# Ficha del juego — Mythic Hatchlings (Crías Míticas) · v0.3
+# Ficha del juego — Mythic Hatchlings (Crías Míticas) · v0.4
 
 > Para pegar en Creator Hub → la experiencia → **Configure** (inglés = idioma principal) y en
-> **Localization → Game Information → Spanish** (versión en español). Todo lo que dice existe en la v0.3.
+> **Localization → Game Information → Spanish** (versión en español). Todo lo que dice existe en la v0.4
+> (números sacados de `src/ReplicatedStorage/Config.luau` y `Lang.luau`, 2026-10-26).
+> Ya **no** existen (no los menciones nunca): Renacer/Rebirth como reinicio, crías Doradas/Arcoíris, puertas que cuestan monedas.
 
 ## Título
 
 | | Texto | Por qué |
 |---|---|---|
-| **EN (principal)** | `Mythic Hatchlings: Hatch & Collect Pets` | Nombre propio + lo que haces. «Hatch» y «Pets» son lo que la gente busca en Roblox. 39 caracteres (límite 50). |
-| **ES** | `Crías Míticas: Abre Huevos y Colecciona` | Mismo esquema en español. |
+| **EN (principal)** | `Mythic Hatchlings: Hatch & Fuse Pets` | Nombre propio + las 2 acciones del juego. «Hatch» y «Pets» son lo que la gente busca; «Fuse» dice qué lo hace distinto. 36 caracteres (límite 50). |
+| **ES** | `Crías Míticas: Abre Huevos y Fusiona` | Mismo esquema en español. 36 caracteres. |
 
-Sin emojis en el título: Roblox ha ido limitando símbolos en los títulos y no hacen falta (≈ no lo he comprobado hoy).
-Nunca: «Simulator» con nombre de otro juego, «Free», «UPDATE» falso ni «x1000».
+Sin emojis en el título (≈ Roblox limita símbolos en títulos; no lo he comprobado hoy). Nunca: «Free», «UPDATE» falso, «x1000» ni el nombre de otro juego.
 
 ## Descripción EN (≤ 1.000 caracteres)
 
 ```
-Hatch magical eggs and collect 56 mythic pets that follow you and break coin piles for you! 🐣
-Unlock 8 floating islands, fuse pets into Golden and Rainbow versions, and complete the Pet Index.
+Hatch eggs and collect 72 pets that follow you and break crystals for coins! 🐣
+Fuse 5 alike to rank them up all the way to Mythic, earn Rebirth Stones and grow your Upgrade Garden.
 
-🥚 8 islands, 8 eggs, 56 pets (Common → Mythic) – odds shown on every egg
-✨ Fuse 5 of the same pet → Golden (x3 power) → Rainbow (x9)
-📖 Pet Index: collect them all for permanent coin bonuses
-🔁 Rebirth for a permanent coin multiplier (you keep your pets!)
-🎯 3 daily missions + 7-day daily reward streak
+🥚 9 islands, 72 pets, 8 rarities: Common → Uncommon → Rare → Epic → Legendary → Prodigious → Ascended → Mythic
+🌀 Fusion Altar: 5 alike from one island → the next rarity (3 from Prodigious)
+🪨 Every Mythic you create = 1 Rebirth Stone
+🌳 Upgrade Garden: 12 upgrades on glowing pedestals (more coins, more pets equipped, faster hatching…)
+📖 Discover pets in the Index to open new islands
+✨ 1% Shiny pets (x2 power). Reach 200 Shiny score to open island 9: Aurora Sanctuary
+🌟 A Golden Pile appears every 3 minutes
+🎯 3 daily missions + 7-day reward streak
 👥 +10% coins for each friend in your server (up to 4)
 🌍 English & Español
 
-Eggs are bought with in-game coins. Every egg shows its odds.
-
-v0.3: islands 4–8 (Golden Dunes, Ember Volcano, Crystal Glacier, Cloud Sea, Cosmos), Rebirth, daily missions and offline coins.
+Eggs are bought with in-game coins and show their odds. Stones and upgrades are earned only by playing.
 ```
 
 ## Descripción ES
 
 ```
-¡Abre huevos mágicos y colecciona 56 crías míticas que te siguen y rompen montones de monedas por ti! 🐣
-Abre 8 islas flotantes, fusiona tus crías en versión Dorada y Arcoíris y completa el Álbum Mítico.
+¡Abre huevos y colecciona 72 crías que te siguen y rompen cristales para darte monedas! 🐣
+Fusiona 5 iguales para subirlas de rareza hasta Mítica, gana Piedras de Renacimiento y haz crecer tu Jardín de Mejoras.
 
-🥚 8 islas, 8 huevos, 56 crías (Común → Mítica): probabilidades a la vista en cada huevo
-✨ Junta 5 iguales → Dorada (poder x3) → Arcoíris (x9)
-📖 Álbum Mítico: colecciónalas todas y gana bonus de monedas para siempre
-🔁 Renace para multiplicar tus monedas para siempre (¡conservas tus crías!)
-🎯 3 misiones diarias + racha de recompensa diaria de 7 días
+🥚 9 islas, 72 crías y 8 rarezas: Común → Poco común → Rara → Épica → Legendaria → Prodigiosa → Ascendida → Mítica
+🌀 Altar de Fusión: 5 iguales de una isla → la rareza siguiente (3 desde Prodigiosa)
+🪨 Cada Mítica que creas = 1 Piedra de Renacimiento
+🌳 Jardín de Mejoras: 12 mejoras en pedestales (más monedas, más crías equipadas, abrir más rápido…)
+📖 Descubre crías en el Álbum para abrir islas nuevas
+✨ Brillantes al 1 % (poder x2). Con 200 de puntuación Brillante se abre la isla 9: Santuario Aurora
+🌟 Cada 3 minutos aparece un Montón Dorado
+🎯 3 misiones diarias + racha diaria de 7 días
 👥 +10 % de monedas por cada amigo en tu servidor (máx. 4)
 🌍 English y Español
 
-Los huevos se compran con monedas del juego. Cada huevo muestra sus probabilidades.
-
-v0.3: islas 4–8 (Dunas Doradas, Volcán Brasa, Glaciar Cristal, Mar de Nubes, Cosmos), Renacer, misiones diarias y monedas sin conexión.
+Los huevos se compran con monedas del juego y muestran sus probabilidades. Piedras y mejoras solo se ganan jugando.
 ```
 
+(Las notas de la versión van aparte: `notas-v0.4.md`. Si quieres, pégalas debajo de la descripción.)
+
 ### Por qué estas frases
-- **Línea 1** = qué haces + la gracia (las crías trabajan por ti). Es lo único que mucha gente lee en el móvil.
-- **Línea 2** = la meta larga (islas, fusión, álbum) → motivo para volver.
-- Lista corta con números reales (56 / 8 / x3 / x9 / +10 %) sacados de `Config.luau`, no inventados.
-- «Odds shown» genera confianza en padres y jugadores. NO decir «never with Robux»: si se crean los packs de monedas
-  (cash_s/cash_l), los huevos se podrían pagar indirectamente con Robux. En ese momento revisar la norma de artículos
-  aleatorios de pago (cuestionario y PolicyService) antes de publicar.
-- No se mencionan pases ni precios: la ficha vende el juego, la tienda va dentro.
-- No se nombra ningún otro juego.
+- **Línea 1** = qué haces + la gracia (las crías trabajan por ti). En el móvil es casi lo único que se lee.
+- **Línea 2** = la meta larga en orden real: fusión → Mítica → piedras → Jardín. Es lo que hace volver.
+- La cadena de 8 rarezas escrita entera: enseña que hay mucho camino sin prometer tiempos.
+- «Los huevos… muestran sus probabilidades» y «piedras y mejoras solo se ganan jugando» dan confianza a padres y jugadores
+  y son verdad (la tienda solo tiene pases; ver abajo).
+- **No** digo cuánto se tarda en la 1.ª Mítica: según el bot ≈ 2 h, una persona ≈ 4 h (DISENO.md §5). Prometer «rápido» sería engañoso.
+- No nombra ningún otro juego ni menciona pases o precios: la ficha vende el juego.
 
 ## Ajustes recomendados (Creator Hub)
 
 | Ajuste | Valor |
 |---|---|
-| Género | **Simulation** (Roblox lo usa para «pet / collecting») |
-| Subgénero (si lo pide) | Incremental / Collecting |
-| Dispositivos | Todos (PC, móvil, tableta, consola). La interfaz está probada en PC y móvil con capturas, no en consola |
-| Max Players | **8** (las islas son compartidas; ≈ el valor que ya esté en el lugar manda) |
-| Cuestionario de contenido | Todo «No». Artículos aleatorios de pago: **No** (los huevos solo se compran con monedas) |
+| Género | **Simulation** (≈ es donde Roblox pone los juegos de mascotas/coleccionar) |
+| Dispositivos | Todos. Interfaz probada con capturas en PC y móvil; consola **sin probar** |
+| Max Players | **8** (islas compartidas; manda el valor que ya tenga el lugar) |
+| Cuestionario de contenido | Todo «No». Artículos aleatorios de pago: **No**, siempre que solo se creen los **5 pases** |
 | Idioma principal | English; añadir traducción Spanish en Localization |
-| Icono | `docs/arte/icono_juego.png` |
-| Miniaturas | 1.ª `docs/arte/miniatura_1.png`, 2.ª `docs/arte/miniatura_2.png` (cambiar por capturas reales de Studio cuando las haya, ver plan.md) |
+| Icono | `docs/arte/icono_juego.png` (sigue valiendo: huevo + «HATCH!») |
+| Miniaturas | Ver aviso ⚠️ abajo |
 
-## Palabras clave (para tus vídeos, grupo y Discord; Roblox no tiene campo de etiquetas libre)
+### ⚠️ Monetización: solo pases
+- Pases (`Config.GamePasses`): Monedas x2, +3 huecos, Abrir x3, Auto-abrir, Mochila +100. Ninguno da huevos, suerte, piedras ni mejoras.
+- En `Config.Products` siguen los packs de monedas y el boost (`cash_s`, `cash_l`, `boost`, con `id = 0` = no se venden).
+  **No los crees**: con monedas compradas se podrían pagar huevos (aleatorios) con Robux y la respuesta del cuestionario
+  dejaría de ser «No». Si algún día se crean, hay que cambiar esta ficha y el cuestionario.
 
-EN: `pet simulator game`, `hatch eggs`, `collect pets`, `mythic pets`, `rainbow pets`, `floating islands`, `roblox pets`, `idle`
-ES: `abrir huevos`, `coleccionar mascotas`, `mascotas míticas`, `juego de mascotas roblox`, `islas flotantes`
-Hashtags vídeos: `#roblox #robloxpets #hatching #mythichatchlings #robloxgame` (ES: `#robloxespañol`)
+### ⚠️ Miniaturas: la 2 está desfasada
+- `docs/arte/miniatura_2.png` dice **«56 PETS · 8 ISLANDS · Fuse 5 → Golden → Rainbow»**: ya no es verdad. **No la subas.**
+- `docs/arte/miniatura_1.png` («Hatch eggs · Pets farm coins for you») sigue siendo correcta.
+- Propuesta para rehacer la 2 (lo hace quien pueda tocar `docs/arte/encargo.json`, con la skill `arte-roblox`):
+  título `72 PETS\n9 ISLANDS`, subtítulo `Fuse 5 → … → MYTHIC 🌀`, emoji `🪨` o `🌳`.
+  Mejor aún: una **captura real** del Jardín de Mejoras con los caminos de neón encendidos (ver `plan.md`, semana 0).
+
+## Palabras clave (para vídeos, grupo y Discord; Roblox no tiene campo de etiquetas libre)
+
+EN: `pet game`, `hatch eggs`, `fuse pets`, `collect pets`, `mythic pets`, `shiny pets`, `upgrade tree`, `roblox pets`
+ES: `abrir huevos`, `fusionar mascotas`, `coleccionar mascotas`, `mascotas míticas`, `mascotas brillantes`, `juego de mascotas roblox`
+Hashtags: `#roblox #robloxpets #hatching #mythichatchlings #robloxgame` (ES: `#robloxespañol`)

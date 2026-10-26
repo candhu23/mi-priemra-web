@@ -1,64 +1,68 @@
-# Plan de lanzamiento gratis — Mythic Hatchlings (3 semanas)
+# Plan de lanzamiento gratis — Mythic Hatchlings v0.4 (3 semanas)
 
 **Meta final:** 250 jugadores activos **16+ con edad verificada** para que Roblox quite la limitación 16+
-(CLAUDE.md raíz §11; la regla exacta y cómo cuenta «activo» la decide Roblox: ≈, no la he podido medir).
+(CLAUDE.md raíz §11; cómo cuenta «activo» lo decide Roblox: ≈, no lo he podido medir).
 **Coste:** 0 Robux. La opción de pago (50.000 Robux reembolsables) no es realista ahora (tienes ~7).
 
-> ⚠️ Lo más importante: mientras dure la limitación, **solo pueden entrar personas de 16+ con la edad verificada**.
-> Tus amigos de clase de menos de 16 no cuentan (ni pueden entrar). Busca: hermanos mayores, primos, amigos 16+,
-> comunidades de Roblox de adultos/adolescentes mayores. Esto hace que 250 sea **difícil**: puede tardar más de 3 semanas.
+> ⚠️ Mientras dure la limitación, **solo entran personas de 16+ con la edad verificada**. Amigos de menos de 16 no
+> cuentan (ni pueden entrar). Busca hermanos mayores, primos, amigos 16+. Por eso 250 es **difícil**: puede tardar más de 3 semanas.
+
+**Qué vendemos (v0.4):** abres huevos → tus crías rompen cristales → fusionas 5 iguales en el Altar → subes de rareza
+hasta **Mítica** → cada Mítica da 1 **Piedra de Renacimiento** → la gastas en el **Jardín de Mejoras** (12 pedestales con
+caminos de neón). Islas que se abren con el **Álbum**, **Brillantes** al 1 % e isla 9 Aurora con 200 de puntuación Brillante.
+**Ya no existen** Renacer como reinicio, Doradas ni Arcoíris: no los menciones en ningún sitio.
 
 ## Semana 0 — Antes de publicar (1–2 días)
-- [ ] Probar en Studio (Play) y hacer **3–4 capturas reales**: crías siguiéndote, apertura de huevo, una Dorada, una isla
-      avanzada. Sirven para miniaturas mejores y para los vídeos. (Pásaselas a Claude para rehacer `miniatura_1`.)
-- [ ] Publicar (Studio → File → Publish to Roblox As… → nueva experiencia), activar API Services, pegar la ficha
-      (`ficha.md`), subir icono y miniaturas (`docs/arte/`).
-- [ ] Crear los 5 pases y 3 productos con los iconos de `docs/arte/` (o dejarlos para la semana 2: el juego funciona sin ellos).
-- [ ] **Grupo de Roblox** (gratis): «Mythic Hatchlings Fans». Creator Hub → Groups → Create (crear grupo cuesta
-      **100 Robux** ≈; si no llega, salta este punto y usa solo Discord). Si se crea, la experiencia puede ir en el grupo
-      más adelante; **ahora mismo no la muevas** (dueño = tu cuenta, más simple).
-- **Meta medible:** juego publicado con icono, 2 miniaturas aprobadas por moderación y la ficha ES/EN.
+- [ ] Probar en Studio (Play, con el pack de modelos importado, `modelos/LEEME.md`) y hacer **4 capturas reales**:
+      crías-animales siguiéndote entre cristales · el Altar con «¡NUEVA CRÍA!» tras fusionar · el **Jardín de Mejoras**
+      desde arriba con los caminos de neón · un huevo abriéndose con el % visible. Pásaselas a Claude para rehacer la miniatura 2.
+- [ ] **No subas `docs/arte/miniatura_2.png`**: dice «Golden/Rainbow» y «56 pets», ya no es verdad (ver `ficha.md`).
+      Sube el icono y la miniatura 1; la 2 cuando esté rehecha.
+- [ ] Publicar (Studio → File → Publish to Roblox As… → experiencia NUEVA), activar API Services, pegar la ficha
+      (`ficha.md`) y las notas (`notas-v0.4.md`).
+- [ ] Pases: solo los 5 (x2, +3 huecos, Abrir x3, Auto-abrir, Mochila). **No crear** packs de monedas ni boost
+      (con ellos los huevos se pagarían indirectamente con Robux). Se pueden dejar para la semana 2: el juego funciona sin ellos.
+- [ ] Grupo de Roblox: crear uno cuesta ≈ 100 Robux → **sáltalo** por ahora; usa Discord.
+- **Meta medible:** juego publicado con icono, 1 miniatura aprobada por moderación y la ficha ES/EN.
 
 ## Semana 1 — Amigos y primera comunidad (meta: 20–30 jugadores 16+ distintos)
-- Día 1: mensaje a 10–15 personas 16+ que conozcas, con el enlace del juego. Texto:
-  - ES: «He hecho mi primer juego de Roblox: abres huevos y tus crías rompen monedas por ti. ¿Lo pruebas 10 minutos y me dices qué mejorarías? [enlace]»
-  - EN: «I made my first Roblox game: hatch eggs and your pets break coin piles for you. Can you try it for 10 min and tell me what to improve? [link]»
+- Día 1: mensaje a 10–15 personas 16+ que conozcas, con el enlace:
+  - ES: «He hecho mi primer juego de Roblox: abres huevos, tus crías rompen cristales y fusionas 5 iguales para subirlas hasta Mítica. ¿Lo pruebas 15 minutos y me dices qué mejorarías? [enlace]»
+  - EN: «I made my first Roblox game: hatch eggs, your pets break crystals, and you fuse 5 alike to rank them up to Mythic. Can you try it for 15 min and tell me what to improve? [link]»
 - **Discord** (gratis, 13+): servidor «Mythic Hatchlings» con 5 canales:
-  `#📢novedades-updates` · `#💬general` · `#🐣mis-crías-my-pets` (capturas de raras) · `#🐛fallos-bugs` · `#💡ideas`.
-  Normas fijas: nada de datos personales, nada de intercambiar cuentas ni Robux, ser amable. Activa el filtro
-  automático de contenido (AutoMod) y verificación de nivel «Medio».
-- Vídeos 1 y 2 (`videos.md`), en ES y EN.
-- **Mirar:** visitas totales, «Unique players», duración media de sesión.
+  `#📢novedades-updates` · `#💬general` · `#🐣mis-crías-my-pets` (capturas de Míticas y Brillantes) · `#🐛fallos-bugs` · `#💡ideas`.
+  Normas fijas: nada de datos personales, nada de intercambiar cuentas ni Robux, ser amable. Activa AutoMod y
+  verificación de nivel «Medio».
+- Vídeos 1 y 5 de `videos.md` (se graban en los primeros minutos de juego), en ES y EN.
+- **Mirar:** visitas, jugadores únicos, duración media de sesión.
 
 ## Semana 2 — Vídeos y evento de lanzamiento (meta: 80–120 acumulados)
-- 3–4 vídeos más (vídeo 3 + variaciones). Responder a todos los comentarios.
-- **Evento de lanzamiento** (sábado o domingo, 1 hora, p. ej. 18:00 hora de España = 12:00 en Nueva York EST): tú juegas
-  en directo dentro del juego con quien venga. Anúncialo 3 días antes en Discord, grupo y vídeos.
-  Lo que es verdad y puedes decir: «Play with friends: +10% coins for each friend in the server» y «Who gets the first
-  Mythic?». **No prometas premios en Robux** ni sorteos (no tienes Robux y los sorteos tienen reglas legales).
-  Premio posible gratis: mención en Discord + rol «🐣 Fundador/Founder».
-- Pedir valoración: «Si te ha gustado, dale 👍 en la página del juego» (es legítimo pedirlo; no lo pongas como requisito de nada).
-- **Mirar:** retención D1 (≥ 15 % sería bueno para empezar ≈), duración de sesión (≥ 8 min ≈), nº de 👍.
+- Vídeos 3 y 4 (+ el 2 si ya creaste una Mítica de verdad). Responder a todos los comentarios.
+- **Evento de lanzamiento** (sábado o domingo, 1 hora, p. ej. 18:00 hora de España = 12:00 en Nueva York): juegas con quien
+  venga. Anúncialo 3 días antes en Discord y en los vídeos. Lo que es verdad y puedes decir:
+  «+10 % coins for each friend in your server» y «Who fuses the most today?» / «¿Quién fusiona más hoy?».
+  Como cada 3 min sale un **Montón Dorado**, en 1 hora hay ≈ 20: «¡Rompamos los Montones Dorados juntos!» es verdad.
+  **No prometas premios en Robux ni sorteos.** Premio gratis: mención en Discord + rol «🐣 Fundador/Founder».
+- Pedir valoración: «Si te ha gustado, dale 👍 en la página del juego» (legítimo; nunca como requisito de nada).
+- **Mirar:** retención D1 (≥ 15 % ≈ buen inicio), duración de sesión (≥ 10 min ≈), nº de 👍.
 
-## Semana 3 — Arreglar lo que diga la gente y versión 0.4 (meta: 150–250)
-- Leer `#fallos-bugs` y `#ideas` → pasar a Claude los 3 problemas más repetidos.
-- Sacar la v0.4 (arte 3D de las crías) con **miniatura nueva** y notas de versión: las actualizaciones visibles atraen
-  de vuelta a quien ya jugó.
-- 2.º evento (mismo formato) y otro vídeo «nueva actualización» (solo si de verdad hay algo nuevo).
-- Si no se llega a 250: es normal; seguir el mismo ritmo semanal (2–3 vídeos + 1 evento). No compres anuncios aún.
+## Semana 3 — Arreglar lo que diga la gente (meta: 150–250)
+- Leer `#fallos-bugs` y `#ideas` → pasar a Claude los 3 problemas más repetidos (p. ej. «no encuentro el Altar»,
+  «la mochila se llena», «tardo mucho en la 1.ª Mítica»).
+- Si sale una versión con algo nuevo de verdad: miniatura nueva + notas + vídeo «actualización».
+- 2.º evento con el mismo formato.
+- Si no se llega a 250: es normal; seguir 2–3 vídeos + 1 evento por semana. No compres anuncios aún.
 
 ## Qué medir en el Creator Hub (tras publicar)
 Creator Hub → Creations → Mythic Hatchlings → **Analytics**:
 
-| Métrica | Dónde | Qué indica | Señal buena (≈ orientativa) |
+| Métrica | Qué indica | Señal buena (≈ orientativa) | Si va mal |
 |---|---|---|---|
-| Visitas y jugadores únicos | Overview / Acquisition | si llega gente | crecer cada semana |
-| **Retención D1 y D7** | Retention | si vuelven | D1 ≥ 15 %, D7 ≥ 4 % al principio |
-| **Duración media de sesión** | Engagement | si engancha | ≥ 8–10 min |
-| Conversión de la ficha (impresiones → jugadas) | Acquisition / Discovery | si el icono y la miniatura atraen | si es baja, cambiar icono/miniatura 1 |
-| Abandono en los primeros 5 min | Engagement / Funnel (si existe) | si el inicio aburre | — |
-| 👍 / 👎 | página del juego | opinión | ≥ 80 % 👍 |
-| Compras y conversión de pago | Monetization | solo informativo; no es la meta ahora | — |
-| Edad de jugadores (si aparece) | Audience | cuántos 16+ hay | — |
+| Visitas y jugadores únicos | si llega gente | crecer cada semana | más vídeos / cambiar miniatura |
+| Conversión de la ficha (impresiones → jugadas) | si icono y miniatura atraen | — | probar otra miniatura (captura real del Jardín) |
+| **Duración media de sesión** | si engancha | ≥ 10 min | el inicio (1.ª fusión ~3 min) no se entiende → Vega/Nico |
+| **Retención D1 / D7** | si vuelven | D1 ≥ 15 %, D7 ≥ 4 % | la meta larga (Mítica → piedras) no se ve → Nico |
+| 👍 / 👎 | opinión | ≥ 80 % 👍 | leer comentarios y Discord |
+| Edad de jugadores (si aparece) | cuántos 16+ | — | buscar comunidades 16+ |
 
-Mándale los números a Claude (captura de la pantalla de Analytics) y te digo qué cambiar.
+Mándale a Claude una captura de Analytics y te digo qué cambiar.

@@ -22,8 +22,8 @@
     { "tipo": "miniatura", "archivo": "miniatura_1.png", "titulo": "MYTHIC\\nHATCHLINGS",
       "subtitulo": "Hatch eggs · Pets farm coins for you", "emoji": "🥚", "imagen": "fondo_isla1.png",
       "fondo": ["#4c1d95", "#f0abfc"] },
-    { "tipo": "miniatura", "archivo": "miniatura_2.png", "titulo": "56 PETS\\n8 ISLANDS",
-      "subtitulo": "Fuse 5 → Golden ✨ → Rainbow 🌈", "emoji": "🦄",
+    { "tipo": "miniatura", "archivo": "miniatura_2.png", "titulo": "72 PETS\\n9 ISLANDS",
+      "subtitulo": "Fuse 5 alike → rank up to MYTHIC", "emoji": "🦄",
       "fondo": ["#0c4a6e", "#67e8f9"], "borde": "#082f49" }
   ]
 }
