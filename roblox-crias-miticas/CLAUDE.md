@@ -49,8 +49,9 @@ roblox-crias-miticas/
 - **Modelos 3D**: `ServerStorage.Modelos` (lo importa el usuario, `modelos/LEEME.md`) o `Config.MODELS_ASSET_ID` (InsertService).
   Cada modelo «Alias» tiene piezas «Alias__material»; `World.place` los escala, gira y pinta por material y zona (`MAT_COLORS`,
   `ZONE_MATS`). Sin modelos todo sale con piezas básicas. El bot prueba los dos casos (modelos falsos en ServerStorage).
-- Montones = **rocas** (`Workspace.Mundo.Montones`, aspecto en `World.crystal`; con modelos: caja invisible con el modelo dentro
-  y atributo `Radius` para las crías): los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
+- Montones = **cristales** (el usuario probó rocas y prefirió cristales, 2026-10-26). `Workspace.Mundo.Montones`, aspecto en
+  `World.crystal`: con modelos, racimos «Cristal1/Cristal2/CristalGrande» (generados en `construir_pack.py`) dentro de una caja
+  invisible; sin modelos, cristales de piezas con punta y sin base. Atributo `Radius` para las crías: los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
   (ClickDetector) o en modo Auto (el más cercano a ≤ 45). Cada segundo restan el poder del equipo; al romperse las monedas
   se reparten según el daño de cada jugador. Al desaparecer un montón se quita el objetivo a todos los que lo picaban.
 - **Montón Dorado**: cada `GOLD_INTERVAL` s (`spawnGold` en el bucle) uno en la isla más alta abierta de cada jugador (sin

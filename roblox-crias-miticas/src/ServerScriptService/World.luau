@@ -628,37 +628,46 @@ function World.pilePosition(zone: number, rng: Random): Vector3
 	return info.center + Vector3.new(rng:NextNumber(-20, 20), 0, rng:NextNumber(-20, 20))
 end
 
--- Roca (lo que rompen las crías; antes eran cristales). Devuelve la pieza principal: con modelos 3D es una caja
--- INVISIBLE que lleva el ClickDetector y los atributos (el modelo va dentro); sin modelos, una roca de piezas.
--- kind: "coins" | "chest" | "crystal" | "gold". Atributo Radius: a qué distancia la rodean las crías.
+-- Cristal de una pieza con punta (cuerpo + dos cuñas espalda con espalda) — se usa sin modelos 3D
+local function crystalPiece(parent: Instance, cf: CFrame, w: number, h: number, color: Color3, material: Enum.Material): Part
+	local body = part(parent, { Name = "Cuerpo", Size = Vector3.new(w, h, w), CFrame = cf * CFrame.new(0, h / 2, 0), Color = color, Material = material })
+	local tipH = w * 0.9
+	for _, side in { -1, 1 } do
+		local wdg = Instance.new("WedgePart")
+		wdg.Name = "Punta"
+		wdg.Anchored = true
+		wdg.Size = Vector3.new(w, tipH, w / 2)
+		-- La cuña sube hacia +Z local: dos espalda con espalda forman un tejadillo en punta
+		wdg.CFrame = cf * CFrame.new(0, h + tipH / 2, side * w / 4) * CFrame.Angles(0, if side == 1 then math.pi else 0, 0)
+		wdg.Color = color:Lerp(Color3.new(1, 1, 1), 0.2)
+		wdg.Material = material
+		wdg.Parent = parent
+		deco(wdg)
+	end
+	return body
+end
+
+-- Cristal (lo que rompen las crías). Devuelve la pieza principal: con modelos 3D es una caja INVISIBLE que lleva el
+-- ClickDetector y los atributos (el racimo va dentro); sin modelos, un racimo de piezas con punta y sin base.
+-- kind: "coins" | "chest" | "crystal" | "gold". Atributo Radius: a qué distancia lo rodean las crías.
 function World.crystal(kind: string, zone: number, pos: Vector3, rng: Random): Part
 	local theme = THEMES[zone] or THEMES[1]
 	local yaw = rng:NextNumber(0, 6.28)
+	local color = if kind == "gold" then Config.Colors.gold
+		elseif kind == "crystal" then Color3.fromRGB(255, 70, 90)
+		elseif kind == "chest" then Color3.fromRGB(110, 230, 120)
+		else theme.crystal
+	local material = if kind == "gold" then Enum.Material.Neon else Enum.Material.Glass
 	if modelos then
-		local alias, size, byHeight = "PiedraA", 7, false
-		local colors: { [string]: Color3 }? = nil
-		local material: Enum.Material? = nil
-		if kind == "coins" then
-			alias = ({ "PiedraA", "PiedraB", "PiedraC" })[rng:NextInteger(1, 3)]
-		elseif kind == "chest" then
-			alias, size = "RocaMusgo", 9
-		elseif kind == "crystal" then
-			-- Roca con gema: del color de la zona, brillante
-			alias, size, byHeight = "PiedraAlta", 9, true
-			colors = { stone = theme.crystal, _defaultMat = theme.crystal }
-			material = Enum.Material.Glass
-		else -- gold
-			alias, size, byHeight = "PiedraAltaB", 11, true
-			colors = { stone = Config.Colors.gold, _defaultMat = Config.Colors.gold }
-			material = Enum.Material.Foil
-		end
+		local alias = if kind == "coins" then ({ "Cristal1", "Cristal2" })[rng:NextInteger(1, 2)] elseif kind == "chest" then "Cristal2" else "CristalGrande"
+		local height = if kind == "gold" then 11 elseif kind == "crystal" then 9 elseif kind == "chest" then 7.5 else 6
 		local hit = Instance.new("Part")
 		hit.Name = "Monton"
 		hit.Anchored = true
 		hit.CanCollide = false
 		hit.CastShadow = false
 		hit.Transparency = 1
-		local model, ext = place(alias, hit, pos, size, yaw, zone, byHeight, colors, material)
+		local model, ext = place(alias, hit, pos, height, yaw, zone, true, { crystal = color }, material)
 		if model then
 			for _, d in model:GetDescendants() do
 				if d:IsA("BasePart") then
@@ -674,33 +683,31 @@ function World.crystal(kind: string, zone: number, pos: Vector3, rng: Random): P
 		end
 		hit:Destroy()
 	end
-	-- Sin modelos: roca low-poly de bloques girados (sin losa debajo)
-	local color = if kind == "gold" then Config.Colors.gold
-		elseif kind == "crystal" then theme.crystal
-		elseif kind == "chest" then theme.rock:Lerp(Color3.fromRGB(110, 200, 90), 0.35)
-		else theme.rock:Lerp(Color3.new(1, 1, 1), 0.25)
-	local scale = if kind == "gold" then 1.7 elseif kind == "crystal" then 1.4 elseif kind == "chest" then 1.2 else 1
-	local material = if kind == "gold" then Enum.Material.Foil elseif kind == "crystal" then Enum.Material.Glass else Enum.Material.Slate
-	local h = 3.5 * scale
-	local main = Instance.new("Part")
+	-- Sin modelos: cristal central con punta + 2–3 pequeños inclinados hacia fuera
+	local scale = if kind == "gold" then 1.7 elseif kind == "crystal" then 1.4 elseif kind == "chest" then 1.15 else 1
+	local base = CFrame.new(pos) * CFrame.Angles(0, yaw, 0)
+	local main = crystalPiece(Instance.new("Folder"), base * CFrame.Angles(rng:NextNumber(-0.08, 0.08), 0, rng:NextNumber(-0.08, 0.08)), 1.8 * scale, 4.2 * scale, color, material)
 	main.Name = "Monton"
-	main.Anchored = true
 	main.CanCollide = false
 	main.CastShadow = false
-	main.Size = Vector3.new(4.5 * scale, h, 4 * scale)
-	main.CFrame = CFrame.new(pos + Vector3.new(0, h / 2, 0)) * CFrame.Angles(rng:NextNumber(-0.15, 0.15), yaw, rng:NextNumber(-0.15, 0.15))
-	main.Color = color
-	main.Material = material
-	for k = 1, 3 do
-		local a = k / 3 * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
-		local s2 = scale * rng:NextNumber(2, 3)
-		deco(part(main, {
-			Name = "Trozo", Size = Vector3.new(s2 * 1.2, s2 * 0.8, s2),
-			CFrame = CFrame.new(pos + Vector3.new(math.cos(a), 0, math.sin(a)) * 2.2 * scale + Vector3.new(0, s2 * 0.3, 0)) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 6.28), rng:NextNumber(-0.4, 0.4)),
-			Color = color:Lerp(Color3.new(0, 0, 0), 0.12), Material = material,
-		}))
+	-- las puntas del central (creadas en la carpeta temporal) pasan dentro de la pieza principal
+	local tmp = main.Parent
+	main.Parent = nil
+	if tmp then
+		for _, c in tmp:GetChildren() do
+			c.Parent = main
+		end
+		tmp:Destroy()
 	end
-	main:SetAttribute("Radius", 5 * scale)
+	local n = if kind == "coins" then 2 else 3
+	for k = 1, n do
+		local a = k / n * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
+		local off = Vector3.new(math.cos(a), 0, math.sin(a)) * 1.3 * scale
+		local tilt = CFrame.new(pos + off) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, -0.5)
+		local body = crystalPiece(main, tilt, 1.1 * scale, rng:NextNumber(1.8, 2.8) * scale, color:Lerp(Color3.new(1, 1, 1), 0.1), material)
+		deco(body)
+	end
+	main:SetAttribute("Radius", 4.5 * scale)
 	return main
 end
 

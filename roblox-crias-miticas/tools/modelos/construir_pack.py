@@ -24,8 +24,10 @@ CACHE = os.path.join(RAIZ, "tools", "out", "kenney_nature")
 URL = "https://kenney.nl/media/pages/assets/nature-kit/37ac38a37b-1677698939/kenney_nature-kit.zip"
 ESCALA = 10  # Kenney mide en metros pequeños: ×10 para que en Studio no salgan diminutos (el juego reescala igual)
 
-# alias en el juego → archivo de Kenney
+# alias en el juego → archivo de Kenney (o generado aquí: los cristales)
 MODELOS = {
+    # Cristales que rompen las crías (generados: prismas hexagonales con punta, en racimo)
+    "Cristal1": ("gen", 3, 11), "Cristal2": ("gen", 5, 22), "CristalGrande": ("gen", 7, 33),
     # Rocas que rompen las crías (sustituyen a los cristales)
     "PiedraA": "stone_largeA", "PiedraB": "stone_largeC", "PiedraC": "stone_largeE",
     "PiedraAlta": "stone_tallA", "PiedraAltaB": "stone_tallB", "RocaMusgo": "rock_largeB",
@@ -48,8 +50,34 @@ COLORES = {
     "leafsGreen": (110, 195, 70), "leafsDark": (60, 145, 75), "grass": (115, 205, 80), "dirt": (150, 105, 70),
     "woodBark": (135, 88, 55), "woodBarkDark": (100, 66, 45), "woodInner": (225, 195, 145), "stone": (150, 155, 165),
     "_defaultMat": (240, 235, 225), "colorRed": (225, 60, 60), "colorTan": (235, 170, 100), "colorYellow": (250, 205, 60),
-    "colorPurple": (150, 100, 220),
+    "colorPurple": (150, 100, 220), "crystal": (120, 220, 255),
 }
+
+
+def cristal(n: int, semilla: int):
+    """Racimo de n cristales: prisma de 6 caras + punta, el central más alto, los demás inclinados hacia fuera."""
+    rng = np.random.default_rng(semilla)
+    mallas = []
+    for k in range(n):
+        h = rng.uniform(2.0, 2.4) if k == 0 else rng.uniform(1.2, 1.9)
+        r = 0.45 if k == 0 else rng.uniform(0.28, 0.38)
+        cuerpo = trimesh.creation.cylinder(radius=r, height=h, sections=6)
+        punta = trimesh.creation.cone(radius=r, height=r * 1.8, sections=6)
+        punta.apply_translation([0, 0, h / 2])
+        c = trimesh.util.concatenate([cuerpo, punta])
+        c.apply_translation([0, 0, h / 2])  # base en z = 0
+        c.apply_transform(trimesh.transformations.rotation_matrix(math.radians(-90), [1, 0, 0]))  # z → y (de pie)
+        c.apply_transform(trimesh.transformations.rotation_matrix(rng.uniform(0, math.pi), [0, 1, 0]))
+        if k > 0:
+            ang = k / (n - 1) * 2 * math.pi + rng.uniform(-0.3, 0.3)
+            eje = [math.cos(ang + math.pi / 2), 0, math.sin(ang + math.pi / 2)]
+            c.apply_transform(trimesh.transformations.rotation_matrix(math.radians(rng.uniform(28, 42)), eje))
+            d = rng.uniform(0.6, 0.85)
+            c.apply_translation([math.cos(ang) * d, -0.05, math.sin(ang) * d])
+        mallas.append(c)
+    m = trimesh.util.concatenate(mallas)
+    m.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(name="crystal", baseColorFactor=[120, 220, 255, 255]))
+    return [("crystal", m)]
 
 
 def descargar() -> str:
@@ -102,7 +130,7 @@ def main():
     fichas = []
     x = 0.0
     for alias, archivo in MODELOS.items():
-        partes = piezas(os.path.join(carpeta, archivo + ".glb"))
+        partes = cristal(archivo[1], archivo[2]) if isinstance(archivo, tuple) else piezas(os.path.join(carpeta, archivo + ".glb"))
         todas = trimesh.util.concatenate([m for _, m in partes])
         mn, mx = todas.bounds
         centro = np.array([(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2])  # base en el suelo, centrado

@@ -1,6 +1,6 @@
-# Modelos 3D de Crías Míticas (rocas, árboles, setas, palmeras, cactus, flores…)
+# Modelos 3D de Crías Míticas (cristales, árboles, setas, palmeras, cactus, flores…)
 
-Son 30 modelos del **Kenney Nature Kit** (licencia CC0: gratis, también para uso comercial, sin pedir permiso),
+Son 30 modelos del **Kenney Nature Kit** más 3 racimos de cristales hechos para el juego. Los de Kenney tienen licencia CC0 (gratis, también para uso comercial, sin pedir permiso). Todos están
 recoloreados para el juego. El juego los pinta según la zona. Si no están, usa piezas básicas.
 
 ## Importarlos (una sola vez, ~3 minutos)
@@ -12,7 +12,7 @@ recoloreados para el juego. El juego los pinta según la zona. Si no están, usa
 4. En la ventana de importación deja todo como está y pulsa **Importar**. Se suben los modelos a tu cuenta (gratis).
 5. En el **Explorador** aparece `CriasMiticas_Modelos` dentro de **Workspace**. Arrástralo dentro de **ServerStorage**
    y cámbiale el nombre (clic y **F2**) a **`Modelos`** (exactamente así).
-6. Pulsa **Probar ▶**: deberías ver rocas y árboles de verdad. Mándale a Claude una captura.
+6. Pulsa **Probar ▶**: deberías ver cristales y árboles de verdad. Mándale a Claude una captura.
 
 ## Para que no se pierdan con cada versión nueva
 

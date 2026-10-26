@@ -708,7 +708,7 @@ do
 	local R = W5.roblox
 	local folder = R.Instance.new("Model")
 	folder.Name = "Modelos"
-	local aliases = { "PiedraA", "PiedraB", "PiedraC", "PiedraAlta", "PiedraAltaB", "RocaMusgo", "Roble", "Arbol", "ArbolDetallado", "ArbolGordo",
+	local aliases = { "Cristal1", "Cristal2", "CristalGrande", "PiedraA", "PiedraB", "PiedraC", "PiedraAlta", "PiedraAltaB", "RocaMusgo", "Roble", "Arbol", "ArbolDetallado", "ArbolGordo",
 		"ArbolCono", "Pino", "PinoRedondo", "Palmera", "PalmeraCurva", "SetaRoja", "SetaAlta", "SetaTan", "CactusAlto", "CactusBajo",
 		"Arbusto", "Arbusto2", "Hierba", "FlorRoja", "FlorAmarilla", "FlorMorada", "Tronco", "Tocon", "RocaDeco", "RocaAlta" }
 	for _, alias in aliases do
@@ -727,11 +727,11 @@ do
 	W5.runScript(W5.game:GetService("ServerScriptService"):FindFirstChild("Main"))
 	local mundo5 = W5.game:GetService("Workspace"):FindFirstChild("Mundo")
 	local piles5 = mundo5:FindFirstChild("Montones"):GetChildren()
-	assert(#piles5 == Config.PILES_PER_ZONE * #Config.Zones, "con modelos faltan rocas")
+	assert(#piles5 == Config.PILES_PER_ZONE * #Config.Zones, "con modelos faltan cristales")
 	for _, p in piles5 do
-		assert(p.Transparency == 1 and p:FindFirstChildOfClass("Model"), "la roca con modelo debe ser una caja invisible con el modelo dentro")
-		assert(p:FindFirstChildOfClass("ClickDetector"), "la roca con modelo no se puede tocar")
-		assert(type(p:GetAttribute("Radius")) == "number", "la roca no dice a qué distancia la rodean las crías")
+		assert(p.Transparency == 1 and p:FindFirstChildOfClass("Model"), "el cristal con modelo debe ser una caja invisible con el modelo dentro")
+		assert(p:FindFirstChildOfClass("ClickDetector"), "el cristal con modelo no se puede tocar")
+		assert(type(p:GetAttribute("Radius")) == "number", "el cristal no dice a qué distancia lo rodean las crías")
 	end
 	local placed = 0
 	for _, d in mundo5:FindFirstChild("Isla1"):GetChildren() do
@@ -754,9 +754,9 @@ do
 	for _ = 1, 60 do
 		frame(W5)
 	end
-	assert(lastState(W5).coins > 0, "con modelos las crías no rompen rocas")
+	assert(lastState(W5).coins > 0, "con modelos las crías no rompen cristales")
 	assert(real5:FindFirstChild("PlayerGui"):FindFirstChild("MythicHatchlingsUI"), "con modelos no se crea la interfaz")
-	print(string.format("  rocas con modelo (%d), decoración (%d en la pradera), monedas en 60 s: %d: OK", #piles5, placed, math.floor(lastState(W5).coins)))
+	print(string.format("  cristales con modelo (%d), decoración (%d en la pradera), monedas en 60 s: %d: OK", #piles5, placed, math.floor(lastState(W5).coins)))
 	local _ = hrp5
 end
 
