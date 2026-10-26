@@ -166,7 +166,8 @@ local function step(dt: number)
 					-- Picando: en círculo alrededor del montón, dando saltitos
 					local a = i / n * math.pi * 2 + clock * 0.8
 					local hop = math.abs(math.sin(clock * 9 + i)) * 1.6
-					goal = target.Position + Vector3.new(math.cos(a) * 4.5, 1.5 + hop, math.sin(a) * 4.5)
+					local rad = (target:GetAttribute("Radius") :: number?) or 4.5 -- las rocas grandes se rodean más lejos
+					goal = target.Position + Vector3.new(math.cos(a) * rad, 1.5 + hop, math.sin(a) * rad)
 					look = target.Position
 				else
 					-- Siguiendo: en filas de 3 detrás del jugador, flotando

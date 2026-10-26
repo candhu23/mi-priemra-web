@@ -27,6 +27,7 @@ roblox-crias-miticas/
 ├── src/StarterPlayerScripts/Client.client.luau  # Toda la interfaz (bloques do…end por pantalla)
 ├── src/StarterPlayerScripts/UI/Kit.luau      # Piezas de UI con estilo (botón grueso, tarjetas, escala 960×540)
 ├── src/StarterPlayerScripts/UI/Mundo3D.luau  # Crías de todos los jugadores, carteles de huevos/puertas, «+🪙» flotante
+├── modelos/                    # CriasMiticas_Modelos.glb (Kenney Nature Kit, CC0) + LEEME.md (importarlo en Studio) + vista
 └── tools/  setup.sh · check.sh · harness/ (mock, run_juego, ritmo, vista_mundo, volcado, check_lang.py)
 ```
 
@@ -45,7 +46,11 @@ roblox-crias-miticas/
 - `hatch` devuelve `{ hatched = { {kind, new, rarity, chance} } }`: la rareza y la probabilidad (`Config.eggOdds`, con suerte x2)
   las pone el servidor; el cliente solo dibuja el momento (normal / Épica / Legendaria-Mítica, `Config.HATCH_*`). La más
   rara del lote se anuncia al servidor si es ≥ `HATCH_BIG_FROM` (máx. 1 cada `RARE_ANNOUNCE_COOLDOWN` s; `Session.lastAnnounce`).
-- Montones = **cristales** (`Workspace.Mundo.Montones`, aspecto en `World.crystal`): los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
+- **Modelos 3D**: `ServerStorage.Modelos` (lo importa el usuario, `modelos/LEEME.md`) o `Config.MODELS_ASSET_ID` (InsertService).
+  Cada modelo «Alias» tiene piezas «Alias__material»; `World.place` los escala, gira y pinta por material y zona (`MAT_COLORS`,
+  `ZONE_MATS`). Sin modelos todo sale con piezas básicas. El bot prueba los dos casos (modelos falsos en ServerStorage).
+- Montones = **rocas** (`Workspace.Mundo.Montones`, aspecto en `World.crystal`; con modelos: caja invisible con el modelo dentro
+  y atributo `Radius` para las crías): los crea el servidor (32 por zona, reaparecen a los 6 s). Se eligen tocándolos
   (ClickDetector) o en modo Auto (el más cercano a ≤ 45). Cada segundo restan el poder del equipo; al romperse las monedas
   se reparten según el daño de cada jugador. Al desaparecer un montón se quita el objetivo a todos los que lo picaban.
 - **Montón Dorado**: cada `GOLD_INTERVAL` s (`spawnGold` en el bucle) uno en la isla más alta abierta de cada jugador (sin
@@ -66,7 +71,7 @@ tools/out/test.rbxl tools/out/mundo.rbxlx` + `vista3d.py` (skill `roblox-3d-vist
 
 Trampas de Lune ya resueltas en `mock.luau`: `Position` de una pieza se lee/escribe vía `CFrame`; las listas que devuelven
 `GetChildren`/`GetDescendants` se envuelven; `MouseClick` es una señal. Lune no tiene `PivotTo`: el servidor mueve al
-jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox). **`CFrame.lookAt` de Lune sale girado al revés**:
+jugador con `HumanoidRootPart.CFrame` (igual de válido en Roblox). `Clone()` en el mock quita el atributo `__hid` (si no, la copia se confundía con el original). **`CFrame.lookAt` de Lune sale girado al revés**:
 en el código del mundo se usa `facing()` con `CFrame.fromMatrix` (igual en Lune y en Roblox).
 En Lune `math` es de solo lectura: para forzar una rareza en `run_juego.luau` se envuelve `Config.rollPet` (tabla compartida;
 las probabilidades no cambian) y para no esperar 3 min se baja `Config.GOLD_INTERVAL` dentro de la prueba. Leer una pieza

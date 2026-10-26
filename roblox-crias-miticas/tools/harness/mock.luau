@@ -164,6 +164,16 @@ function M.new(placePath: string, opts: { [string]: any }?)
 				local results = serialize(table.pack(cb(W.player, table.unpack(args, 1, args.n))))
 				return table.unpack(results, 1, results.n)
 			end
+		elseif key == "Clone" then
+			-- La copia hereda el atributo __hid del original: se le quita para que sea otra instancia en el mock
+			return function()
+				local c = inst:Clone()
+				c:SetAttribute("__hid", nil)
+				for _, d in c:GetDescendants() do
+					d:SetAttribute("__hid", nil)
+				end
+				return wrap(c)
+			end
 		elseif key == "WaitForChild" then
 			return function(_, name)
 				local child = inst:FindFirstChild(name)

@@ -146,6 +146,8 @@ Config.GOLD_HP = 10 -- × pileHp de la isla (un cristal es ×8): aguanta lo bast
 Config.GOLD_COINS = 33 -- × pileCoins de la isla = ×10 lo que da un Cofre (3,3) → rinde ×3,3 por punto de vida
 Config.PILES_PER_ZONE = 32 -- zonas de 200×200: misma densidad que antes (y se ven muchos cristales)
 Config.PILE_RESPAWN = 6 -- segundos
+-- Modelos 3D (Kenney, CC0) publicados por el usuario como Model en Roblox: su ID aquí (0 = usar ServerStorage.Modelos o piezas)
+Config.MODELS_ASSET_ID = 0
 Config.REACH = 70 -- distancia máxima (studs) del jugador al montón para que sus crías piquen
 Config.AUTO_REACH = 45 -- el modo automático busca montones a esta distancia
 Config.EGG_REACH = 18 -- hay que estar al lado del huevo para abrirlo

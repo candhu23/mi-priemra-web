@@ -701,4 +701,63 @@ Config2.GOLD_INTERVAL = 1e9
 assert(hasText(gui4, "Golden Pile on Sprout Meadow! Break it within 60 s"), "el aviso del Montón Dorado no sale en inglés")
 print("  juega sin guardar y en inglés: OK")
 
+---------------------------------------------------------------------
+print("-- Con modelos 3D en ServerStorage.Modelos (falsos: piezas con los mismos nombres) --")
+do
+	local W5 = M.new(PLACE, { width = WIDTH, height = HEIGHT, locale = "es-es" })
+	local R = W5.roblox
+	local folder = R.Instance.new("Model")
+	folder.Name = "Modelos"
+	local aliases = { "PiedraA", "PiedraB", "PiedraC", "PiedraAlta", "PiedraAltaB", "RocaMusgo", "Roble", "Arbol", "ArbolDetallado", "ArbolGordo",
+		"ArbolCono", "Pino", "PinoRedondo", "Palmera", "PalmeraCurva", "SetaRoja", "SetaAlta", "SetaTan", "CactusAlto", "CactusBajo",
+		"Arbusto", "Arbusto2", "Hierba", "FlorRoja", "FlorAmarilla", "FlorMorada", "Tronco", "Tocon", "RocaDeco", "RocaAlta" }
+	for _, alias in aliases do
+		local mm = R.Instance.new("Model")
+		mm.Name = alias
+		for i, mat in { "stone", "leafsGreen" } do
+			local p = R.Instance.new("Part")
+			p.Name = alias .. "__" .. mat
+			p.Size = R.Vector3.new(2, 1 + i, 2)
+			p.CFrame = R.CFrame.new(100 + i, (1 + i) / 2, 50)
+			p.Parent = mm
+		end
+		mm.Parent = folder
+	end
+	folder.Parent = W5.game:GetService("ServerStorage")
+	W5.runScript(W5.game:GetService("ServerScriptService"):FindFirstChild("Main"))
+	local mundo5 = W5.game:GetService("Workspace"):FindFirstChild("Mundo")
+	local piles5 = mundo5:FindFirstChild("Montones"):GetChildren()
+	assert(#piles5 == Config.PILES_PER_ZONE * #Config.Zones, "con modelos faltan rocas")
+	for _, p in piles5 do
+		assert(p.Transparency == 1 and p:FindFirstChildOfClass("Model"), "la roca con modelo debe ser una caja invisible con el modelo dentro")
+		assert(p:FindFirstChildOfClass("ClickDetector"), "la roca con modelo no se puede tocar")
+		assert(type(p:GetAttribute("Radius")) == "number", "la roca no dice a qué distancia la rodean las crías")
+	end
+	local placed = 0
+	for _, d in mundo5:FindFirstChild("Isla1"):GetChildren() do
+		if d:IsA("Model") and table.find(aliases, d.Name) then
+			placed += 1
+		end
+	end
+	assert(placed >= 10, "con modelos casi no se coloca decoración (" .. placed .. ")")
+	-- Escala y color: un árbol mide lo que se pidió y está pintado por material
+	local tree = nil
+	for _, d in mundo5:FindFirstChild("Isla1"):GetChildren() do
+		if d:IsA("Model") and (d.Name == "Roble" or d.Name == "Arbol") then
+			tree = d
+		end
+	end
+	assert(tree, "no hay árboles con modelo en la pradera")
+	local leaf = tree:FindFirstChild(tree.Name .. "__leafsGreen")
+	assert(leaf and leaf.Size.Y > 5, "el árbol no se ha escalado")
+	local _p5, real5, hrp5 = join(W5, SPS, 99)
+	for _ = 1, 60 do
+		frame(W5)
+	end
+	assert(lastState(W5).coins > 0, "con modelos las crías no rompen rocas")
+	assert(real5:FindFirstChild("PlayerGui"):FindFirstChild("MythicHatchlingsUI"), "con modelos no se crea la interfaz")
+	print(string.format("  rocas con modelo (%d), decoración (%d en la pradera), monedas en 60 s: %d: OK", #piles5, placed, math.floor(lastState(W5).coins)))
+	local _ = hrp5
+end
+
 print("JUEGO OK")

@@ -34,6 +34,110 @@ local THEMES = {
 }
 World.THEMES = THEMES
 
+---------------------------------------------------------------------
+-- Modelos 3D de verdad (Kenney Nature Kit, CC0). Los importa el usuario UNA vez en Studio (modelos/LEEME.md) y quedan
+-- en ServerStorage.Modelos, o se cargan con Config.MODELS_ASSET_ID (InsertService). Cada modelo «Alias» tiene piezas
+-- «Alias__material»: aquí se pintan según el material y la zona. Si no hay modelos, se usan piezas básicas.
+---------------------------------------------------------------------
+local ServerStorage = game:GetService("ServerStorage")
+local modelos: Instance? = nil
+
+local MAT_COLORS: { [string]: Color3 } = {
+	leafsGreen = Color3.fromRGB(110, 195, 70), leafsDark = Color3.fromRGB(60, 145, 75), grass = Color3.fromRGB(115, 205, 80),
+	dirt = Color3.fromRGB(150, 105, 70), woodBark = Color3.fromRGB(135, 88, 55), woodBarkDark = Color3.fromRGB(100, 66, 45),
+	woodInner = Color3.fromRGB(225, 195, 145), stone = Color3.fromRGB(150, 155, 165), _defaultMat = Color3.fromRGB(240, 235, 225),
+	colorRed = Color3.fromRGB(225, 60, 60), colorTan = Color3.fromRGB(235, 170, 100), colorYellow = Color3.fromRGB(250, 205, 60),
+	colorPurple = Color3.fromRGB(150, 100, 220),
+}
+-- Cambios de color por zona (mismo orden que Config.Zones)
+local ZONE_MATS: { { [string]: Color3 } } = {
+	{},
+	{ colorRed = Color3.fromRGB(185, 100, 235), colorTan = Color3.fromRGB(110, 140, 240), leafsGreen = Color3.fromRGB(90, 170, 110), grass = Color3.fromRGB(100, 170, 110), stone = Color3.fromRGB(130, 120, 160) },
+	{ stone = Color3.fromRGB(215, 190, 150), dirt = Color3.fromRGB(200, 160, 110), leafsGreen = Color3.fromRGB(100, 200, 80) },
+	{ stone = Color3.fromRGB(220, 140, 80), dirt = Color3.fromRGB(200, 120, 70), grass = Color3.fromRGB(170, 190, 80), leafsGreen = Color3.fromRGB(90, 170, 80) },
+	{ stone = Color3.fromRGB(80, 65, 65), dirt = Color3.fromRGB(90, 60, 55), grass = Color3.fromRGB(255, 110, 40), woodBark = Color3.fromRGB(60, 45, 40) },
+	{ leafsDark = Color3.fromRGB(70, 130, 110), stone = Color3.fromRGB(170, 200, 225), grass = Color3.fromRGB(240, 248, 255), leafsGreen = Color3.fromRGB(200, 230, 240) },
+	{ leafsGreen = Color3.fromRGB(255, 180, 220), grass = Color3.fromRGB(250, 220, 240), stone = Color3.fromRGB(230, 220, 245), colorRed = Color3.fromRGB(255, 150, 200) },
+	{ stone = Color3.fromRGB(90, 70, 150), dirt = Color3.fromRGB(70, 55, 120), grass = Color3.fromRGB(170, 120, 255), leafsGreen = Color3.fromRGB(150, 110, 240) },
+}
+
+local function loadModels()
+	modelos = ServerStorage:FindFirstChild("Modelos")
+	if not modelos and Config.MODELS_ASSET_ID ~= 0 then
+		local ok, asset = pcall(function()
+			return game:GetService("InsertService"):LoadAsset(Config.MODELS_ASSET_ID)
+		end)
+		if ok and asset then
+			asset.Name = "Modelos"
+			asset.Parent = ServerStorage
+			modelos = asset
+		else
+			warn("No se pudieron cargar los modelos 3D (" .. tostring(asset) .. "): se usan piezas básicas")
+		end
+	end
+end
+
+function World.hasModels(): boolean
+	return modelos ~= nil
+end
+
+-- Coloca una copia del modelo «alias» con la base en «base», girada «yaw» y escalada para que su lado más largo
+-- (o su altura, si byHeight) mida «size». Devuelve el modelo y su tamaño final, o nil si no existe.
+local function place(alias: string, parent: Instance, base: Vector3, size: number, yaw: number, zone: number, byHeight: boolean, colors: { [string]: Color3 }?, material: Enum.Material?): (Model?, Vector3)
+	local tpl = modelos and modelos:FindFirstChild(alias, true)
+	if not tpl then
+		return nil, Vector3.zero
+	end
+	local m = tpl:Clone()
+	local parts: { BasePart } = {}
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+		end
+	end
+	if #parts == 0 then
+		m:Destroy()
+		return nil, Vector3.zero
+	end
+	local mn = Vector3.new(math.huge, math.huge, math.huge)
+	local mx = -mn
+	for _, p in parts do
+		local h = p.Size / 2
+		mn = mn:Min(p.Position - h)
+		mx = mx:Max(p.Position + h)
+	end
+	local ext = mx - mn
+	local s = if byHeight then size / math.max(ext.Y, 0.01) else size / math.max(ext.X, ext.Z, 0.01)
+	local origin = Vector3.new((mn.X + mx.X) / 2, mn.Y, (mn.Z + mx.Z) / 2)
+	local rot = CFrame.Angles(0, yaw, 0)
+	local zoneMats = ZONE_MATS[zone] or {}
+	for _, p in parts do
+		local rel = (p.Position - origin) * s
+		local r = p.CFrame - p.Position
+		p.Size = p.Size * s
+		p.CFrame = CFrame.new(base + (rot * rel)) * rot * r
+		p.Anchored = true
+		local key = string.match(p.Name, "__(.+)$") or ""
+		local c = (colors and colors[key]) or zoneMats[key] or MAT_COLORS[key]
+		if c then
+			p.Color = c
+			for _, child in p:GetChildren() do
+				if child:IsA("SurfaceAppearance") then
+					child:Destroy()
+				end
+			end
+			pcall(function()
+				(p :: any).TextureID = ""
+			end)
+		end
+		if material then
+			p.Material = material
+		end
+	end
+	m.Parent = parent
+	return m :: Model, ext * s
+end
+
 export type ZoneInfo = { center: Vector3, egg: BasePart, door: BasePart?, spawn: CFrame, entry: Vector3?, exit: Vector3? }
 World.zones = {} :: { ZoneInfo }
 
@@ -246,7 +350,29 @@ local function path(m: Instance, a: Vector3, b: Vector3, rng: Random, color: Col
 end
 
 -- Decoración según el tema, en el punto dado. big = cosas grandes (borde de la zona)
-local function decorate(m: Instance, theme: string, pos: Vector3, rng: Random, big: boolean, rockColor: Color3)
+-- Qué modelos de Kenney van en cada tema: { alias, tamaño mín., tamaño máx. } (tamaño = altura)
+local DECO_MODELS: { [string]: { { any } } } = {
+	meadow = { { "Roble", 14, 20 }, { "Arbol", 16, 22 }, { "ArbolDetallado", 14, 20 }, { "ArbolGordo", 12, 16 }, { "Arbusto", 3, 5 }, { "FlorRoja", 2, 3 }, { "FlorAmarilla", 2, 3 }, { "RocaDeco", 3, 5 }, { "Tronco", 3, 4 }, { "Tocon", 2, 3 }, { "Hierba", 2, 3 } },
+	mushroom = { { "SetaRoja", 10, 18 }, { "SetaAlta", 12, 24 }, { "SetaTan", 10, 20 }, { "SetaAlta", 8, 14 }, { "Arbusto", 3, 5 }, { "FlorMorada", 2, 3 }, { "RocaDeco", 3, 5 } },
+	beach = { { "Palmera", 16, 24 }, { "PalmeraCurva", 16, 22 }, { "Palmera", 14, 20 }, { "RocaDeco", 3, 6 }, { "Arbusto2", 3, 4 }, { "Hierba", 2, 3 } },
+	desert = { { "CactusAlto", 8, 14 }, { "CactusBajo", 6, 9 }, { "RocaAlta", 10, 18 }, { "RocaDeco", 4, 7 }, { "PiedraC", 3, 5 } },
+	volcano = { { "RocaAlta", 10, 20 }, { "PiedraAlta", 8, 14 }, { "PiedraB", 3, 5 }, { "Tocon", 2, 3 } },
+	glacier = { { "Pino", 16, 26 }, { "PinoRedondo", 14, 22 }, { "ArbolCono", 12, 18 }, { "PiedraAlta", 6, 10 } },
+	clouds = { { "ArbolGordo", 10, 16 }, { "Arbusto", 3, 5 }, { "FlorRoja", 2, 3 }, { "FlorMorada", 2, 3 } },
+	cosmos = { { "PiedraAlta", 8, 16 }, { "PiedraAltaB", 8, 14 }, { "RocaAlta", 10, 18 } },
+}
+
+local function decorate(m: Instance, theme: string, pos: Vector3, rng: Random, big: boolean, rockColor: Color3, zone: number?)
+	local list = DECO_MODELS[theme]
+	-- Con modelos: casi todo es un modelo de verdad; algunas cosas especiales (lava, nubes, cristales) siguen con piezas
+	local special = (theme == "volcano" and rng:NextNumber() < 0.3) or (theme == "clouds" and rng:NextNumber() < 0.4) or (theme == "cosmos" and rng:NextNumber() < 0.35)
+	if modelos and list and not special then
+		local pick = list[rng:NextInteger(1, #list)]
+		local placed = place(pick[1], m, pos, rng:NextNumber(pick[2], pick[3]), rng:NextNumber(0, 6.28), zone or 1, true)
+		if placed then
+			return
+		end
+	end
 	local r = rng:NextNumber()
 	if theme == "meadow" then
 		if r < 0.5 then roundTree(m, pos, rng) elseif r < 0.7 then rock(m, pos, rng, rockColor) elseif r < 0.85 then log(m, pos, rng) else flowers(m, pos, rng) end
@@ -314,6 +440,7 @@ local function zoneAt(col: number, row: number): number
 end
 
 function World.build(): Folder
+	loadModels()
 	local folder = Instance.new("Folder")
 	folder.Name = "Mundo"
 	local rng = Random.new(7)
@@ -416,14 +543,14 @@ function World.build(): Folder
 				elseif s == 3 then center + Vector3.new(t, 0, half - inset)
 				else center + Vector3.new(t, 0, -half + inset)
 			if freeSpot(p) then
-				decorate(m, theme.deco, p, rng, true, theme.rock)
+				decorate(m, theme.deco, p, rng, true, theme.rock, i)
 			end
 		end
 		for _ = 1, 18 do
 			local p = center + Vector3.new(rng:NextNumber(-half + 40, half - 40), 0, rng:NextNumber(-half + 40, half - 40))
 			if freeSpot(p) and (p - center).Magnitude > 20 then
 				if rng:NextNumber() < 0.45 then
-					decorate(m, theme.deco, p, rng, false, theme.rock)
+					decorate(m, theme.deco, p, rng, false, theme.rock, i)
 				elseif theme.deco == "meadow" or theme.deco == "mushroom" then
 					flowers(m, p, rng)
 				else
@@ -501,46 +628,79 @@ function World.pilePosition(zone: number, rng: Random): Vector3
 	return info.center + Vector3.new(rng:NextNumber(-20, 20), 0, rng:NextNumber(-20, 20))
 end
 
--- Cristal (lo que rompen las crías): devuelve la pieza principal (con los cristales pequeños y la losa dentro).
--- kind: "coins" | "chest" | "crystal" | "gold". La pieza principal lleva el ClickDetector y los atributos.
+-- Roca (lo que rompen las crías; antes eran cristales). Devuelve la pieza principal: con modelos 3D es una caja
+-- INVISIBLE que lleva el ClickDetector y los atributos (el modelo va dentro); sin modelos, una roca de piezas.
+-- kind: "coins" | "chest" | "crystal" | "gold". Atributo Radius: a qué distancia la rodean las crías.
 function World.crystal(kind: string, zone: number, pos: Vector3, rng: Random): Part
 	local theme = THEMES[zone] or THEMES[1]
+	local yaw = rng:NextNumber(0, 6.28)
+	if modelos then
+		local alias, size, byHeight = "PiedraA", 7, false
+		local colors: { [string]: Color3 }? = nil
+		local material: Enum.Material? = nil
+		if kind == "coins" then
+			alias = ({ "PiedraA", "PiedraB", "PiedraC" })[rng:NextInteger(1, 3)]
+		elseif kind == "chest" then
+			alias, size = "RocaMusgo", 9
+		elseif kind == "crystal" then
+			-- Roca con gema: del color de la zona, brillante
+			alias, size, byHeight = "PiedraAlta", 9, true
+			colors = { stone = theme.crystal, _defaultMat = theme.crystal }
+			material = Enum.Material.Glass
+		else -- gold
+			alias, size, byHeight = "PiedraAltaB", 11, true
+			colors = { stone = Config.Colors.gold, _defaultMat = Config.Colors.gold }
+			material = Enum.Material.Foil
+		end
+		local hit = Instance.new("Part")
+		hit.Name = "Monton"
+		hit.Anchored = true
+		hit.CanCollide = false
+		hit.CastShadow = false
+		hit.Transparency = 1
+		local model, ext = place(alias, hit, pos, size, yaw, zone, byHeight, colors, material)
+		if model then
+			for _, d in model:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanQuery = false -- el toque lo recibe la caja invisible
+					d.CanCollide = false
+					d.CanTouch = false
+				end
+			end
+			hit.Size = Vector3.new(math.max(ext.X, 3), math.max(ext.Y, 3), math.max(ext.Z, 3))
+			hit.CFrame = CFrame.new(pos + Vector3.new(0, hit.Size.Y / 2, 0))
+			hit:SetAttribute("Radius", math.max(ext.X, ext.Z) / 2 + 2)
+			return hit
+		end
+		hit:Destroy()
+	end
+	-- Sin modelos: roca low-poly de bloques girados (sin losa debajo)
 	local color = if kind == "gold" then Config.Colors.gold
-		elseif kind == "crystal" then Color3.fromRGB(255, 70, 90)
-		elseif kind == "chest" then Color3.fromRGB(110, 230, 120)
-		else theme.crystal
-	local scale = if kind == "gold" then 1.7 elseif kind == "crystal" then 1.4 elseif kind == "chest" then 1.15 else 1
-	local material = if kind == "gold" then Enum.Material.Neon else Enum.Material.Glass
-	local h = 5 * scale
+		elseif kind == "crystal" then theme.crystal
+		elseif kind == "chest" then theme.rock:Lerp(Color3.fromRGB(110, 200, 90), 0.35)
+		else theme.rock:Lerp(Color3.new(1, 1, 1), 0.25)
+	local scale = if kind == "gold" then 1.7 elseif kind == "crystal" then 1.4 elseif kind == "chest" then 1.2 else 1
+	local material = if kind == "gold" then Enum.Material.Foil elseif kind == "crystal" then Enum.Material.Glass else Enum.Material.Slate
+	local h = 3.5 * scale
 	local main = Instance.new("Part")
 	main.Name = "Monton"
 	main.Anchored = true
 	main.CanCollide = false
 	main.CastShadow = false
-	main.Size = Vector3.new(2 * scale, h, 2 * scale)
-	main.CFrame = CFrame.new(pos + Vector3.new(0, h / 2, 0)) * CFrame.Angles(rng:NextNumber(-0.12, 0.12), rng:NextNumber(0, 6.28), rng:NextNumber(-0.12, 0.12))
+	main.Size = Vector3.new(4.5 * scale, h, 4 * scale)
+	main.CFrame = CFrame.new(pos + Vector3.new(0, h / 2, 0)) * CFrame.Angles(rng:NextNumber(-0.15, 0.15), yaw, rng:NextNumber(-0.15, 0.15))
 	main.Color = color
 	main.Material = material
-	main.Transparency = 0
-	-- Cristales pequeños inclinados hacia fuera
-	local n = if kind == "coins" then 3 else 4
-	for k = 1, n do
-		local a = k / n * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
-		local sh = h * rng:NextNumber(0.45, 0.75)
-		local off = Vector3.new(math.cos(a), 0, math.sin(a)) * 1.4 * scale
-		local c = deco(part(main, {
-			Name = "Punta", Size = Vector3.new(1.3 * scale, sh, 1.3 * scale),
-			CFrame = CFrame.new(pos + off + Vector3.new(0, sh * 0.42, 0)) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, -0.45),
-			Color = color:Lerp(Color3.new(1, 1, 1), 0.15), Material = material,
+	for k = 1, 3 do
+		local a = k / 3 * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
+		local s2 = scale * rng:NextNumber(2, 3)
+		deco(part(main, {
+			Name = "Trozo", Size = Vector3.new(s2 * 1.2, s2 * 0.8, s2),
+			CFrame = CFrame.new(pos + Vector3.new(math.cos(a), 0, math.sin(a)) * 2.2 * scale + Vector3.new(0, s2 * 0.3, 0)) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 6.28), rng:NextNumber(-0.4, 0.4)),
+			Color = color:Lerp(Color3.new(0, 0, 0), 0.12), Material = material,
 		}))
-		c.Transparency = 0
 	end
-	-- Losa hexagonal (aprox.) debajo
-	deco(part(main, {
-		Name = "Losa", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 7 * scale, 7 * scale),
-		CFrame = CFrame.new(pos + Vector3.new(0, 0.16, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = Color3.fromRGB(175, 185, 205), Material = Enum.Material.Slate,
-	}))
+	main:SetAttribute("Radius", 5 * scale)
 	return main
 end
 
