@@ -1,0 +1,29 @@
+{
+  "estilo": { "texto": "#facc15", "borde": "#2e1065", "letra": "Fredoka One" },
+  "piezas": [
+    { "tipo": "pase", "archivo": "pase_x2.png", "emoji": "💰", "titulo": "x2", "subtitulo": "COINS",
+      "fondo": ["#14532d", "#4ade80"], "borde": "#052e16", "flechas": true },
+    { "tipo": "pase", "archivo": "pase_slots.png", "emoji": "🐾", "titulo": "+3", "subtitulo": "PETS",
+      "fondo": ["#3b0764", "#c084fc"], "borde": "#2e1065" },
+    { "tipo": "pase", "archivo": "pase_hatch3.png", "emoji": "🥚", "titulo": "x3", "subtitulo": "HATCH",
+      "fondo": ["#7c2d12", "#fb923c"], "borde": "#431407" },
+    { "tipo": "pase", "archivo": "pase_autohatch.png", "emoji": "🤖", "titulo": "AUTO", "subtitulo": "HATCH",
+      "fondo": ["#0c4a6e", "#38bdf8"], "borde": "#082f49" },
+    { "tipo": "pase", "archivo": "pase_backpack.png", "emoji": "🎒", "titulo": "+100", "subtitulo": "SPACE",
+      "fondo": ["#713f12", "#facc15"], "texto": "#ffffff", "borde": "#422006" },
+    { "tipo": "producto", "archivo": "prod_cash_s.png", "emoji": "💵", "titulo": "SACK", "subtitulo": "COINS",
+      "fondo": ["#166534", "#86efac"], "borde": "#052e16" },
+    { "tipo": "producto", "archivo": "prod_cash_l.png", "emoji": "🪙", "titulo": "CHEST", "subtitulo": "COINS",
+      "fondo": ["#1e3a8a", "#60a5fa"], "borde": "#172554" },
+    { "tipo": "producto", "archivo": "prod_boost.png", "emoji": "⚡", "titulo": "x2", "subtitulo": "30 MIN",
+      "fondo": ["#9f1239", "#fb7185"], "borde": "#4c0519" },
+    { "tipo": "icono", "archivo": "icono_juego.png", "emoji": "🐣", "titulo": "HATCH!",
+      "fondo": ["#4c1d95", "#f0abfc"], "borde": "#2e1065" },
+    { "tipo": "miniatura", "archivo": "miniatura_1.png", "titulo": "MYTHIC\\nHATCHLINGS",
+      "subtitulo": "Hatch eggs · Pets farm coins for you", "emoji": "🥚", "imagen": "fondo_isla1.png",
+      "fondo": ["#4c1d95", "#f0abfc"] },
+    { "tipo": "miniatura", "archivo": "miniatura_2.png", "titulo": "56 PETS\\n8 ISLANDS",
+      "subtitulo": "Fuse 5 → Golden ✨ → Rainbow 🌈", "emoji": "🦄",
+      "fondo": ["#0c4a6e", "#67e8f9"], "borde": "#082f49" }
+  ]
+}
