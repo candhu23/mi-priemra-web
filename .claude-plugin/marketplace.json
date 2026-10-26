@@ -3,8 +3,14 @@
   "owner": {
     "name": "Candu231"
   },
-  "description": "10 plugins para juegos de Roblox en español: 5 de interfaz (estilo, componentes, pantallas, móvil, animaciones) y 5 de 3D (construir, mallas, terreno, ambiente, vista).",
+  "description": "11 plugins para juegos de Roblox en español: el equipo de 5 agentes (equipo-roblox), 5 de interfaz (estilo, componentes, pantallas, móvil, animaciones) y 5 de 3D (construir, mallas, terreno, ambiente, vista).",
   "plugins": [
+    {
+      "name": "equipo-roblox",
+      "source": "./plugins/equipo-roblox",
+      "description": "Equipo de 5 agentes (jefe, diseño, programación, interfaz y pruebas, lanzamiento) + /equipo, nuevo-juego, disenar-juego, disenar-interfaz y arte-roblox",
+      "category": "equipo"
+    },
     {
       "name": "roblox-3d-ambiente",
       "source": "./plugins/roblox-3d-ambiente",

@@ -21,7 +21,8 @@ El repo tiene **dos juegos de Roblox** independientes (y `index.html`, una web p
 - **Herramientas de Claude para los juegos** (`.claude/`, ver §15): `/publicar`, `roblox-nube`,
   `disenar-interfaz`, `arte-roblox`, `nuevo-juego`, `disenar-juego`, el guardián, el agente `revisor-juego`
   y el **equipo** (`/equipo`: Álex jefe, Nico ideas, Leo código, Vega interfaz y pruebas, Iris jugadores).
-- **10 plugins de interfaz y 3D** (`plugins/`, ver §17): `roblox-ui-*` y `roblox-3d-*`, también instalables en otros proyectos.
+- **10 plugins de interfaz y 3D** (`plugins/`, ver §17): `roblox-ui-*` y `roblox-3d-*`, también instalables en otros proyectos,
+  y el plugin **`equipo-roblox`** (el equipo de 5 agentes para cualquier proyecto).
 
 ---
 
@@ -311,6 +312,7 @@ Todo su contexto (estado, arquitectura, datos, economía, tienda, verificación,
 | `agents/programador-luau.md` (🛠️ Leo) | Programa la ficha de punta a punta, reproduce los fallos antes de arreglarlos, revisa su diff, hasta `TODO CORRECTO ✅`. Sin commit/push |
 | `agents/interfaz-probador.md` (🎮 Vega) | Juega como 3 jugadores (10 años móvil, 15 años PC, inglés) con las capturas, audita y arregla solo lo visual del cliente |
 | `agents/crecimiento-lanzamiento.md` (📣 Iris) | Conseguir jugadores gratis y sin engaños: ficha ES/EN, arte (`arte-roblox`), notas de versión, guiones de vídeos, plan de Discord/grupo, analíticas. Escribe en `<juego>/marketing/`; no publica |
+| `plugins/equipo-roblox/` (plugin del marketplace `candu-roblox`) | **El equipo como plugin** para tenerlo en cualquier proyecto: `plugins/zips-para-claude-ai/equipo-roblox.zip` se sube en claude.ai → Personalizar → **Plugins** (no en Skills: lleva agentes). Se **genera** desde `.claude/` con `python3 -I plugins/construir_equipo_roblox.py` (re-ejecútalo tras cambiar un agente o skill del equipo) |
 
 - Todo lo que cambia algo en Roblox exige `--confirmo` **y** el «sí» explícito del usuario antes.
 - Sin `ROBLOX_API_KEY` (variable del entorno, nunca en el chat) se publica como en §10. Cómo crearla:

@@ -1,4 +1,21 @@
-# 10 plugins de Claude para juegos de Roblox (interfaz y 3D)
+# Plugins de Claude para juegos de Roblox
+
+## ⭐ `equipo-roblox`: tu equipo de 5 agentes (en cualquier proyecto)
+
+Álex (jefe), Nico (diseño), Leo (programación), Vega (interfaz y pruebas) e Iris (jugadores y lanzamiento), más el
+revisor, `/equipo-roblox:equipo` y las skills `nuevo-juego`, `disenar-juego`, `disenar-interfaz` y `arte-roblox`.
+Detalles: `equipo-roblox/README.md`.
+
+- **Instalar en claude.ai** (todas las sesiones, también en la nube): descarga `zips-para-claude-ai/equipo-roblox.zip`
+  → claude.ai → **Personalizar → Plugins → Añadir → Subir plugin**. Ojo: este va en **Plugins**, no en Skills,
+  porque lleva agentes (los otros 10 zips son skills sueltas).
+- **En tu PC**: `claude plugin install equipo-roblox@candu-roblox` (tras añadir el marketplace, ver B).
+- **Mantenimiento**: la fuente es `.claude/agents` y `.claude/skills` del repo; tras cambiarlos,
+  `python3 -I plugins/construir_equipo_roblox.py` (regenera `equipo-roblox/` y su zip) y vuelve a subir el zip.
+
+---
+
+## 10 plugins de interfaz y 3D
 
 Todos en español, pensados para que Claude haga interfaces bonitas que funcionen en móvil y cosas 3D con buen aspecto,
 y para que pueda **verlas sin abrir Studio** (capturas PNG).
